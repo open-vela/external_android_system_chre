@@ -17,7 +17,6 @@
 #ifndef CHRE_UTIL_FIXED_SIZE_VECTOR_H_
 #define CHRE_UTIL_FIXED_SIZE_VECTOR_H_
 
-#include <cstddef>
 #include <type_traits>
 
 #include "chre/util/non_copyable.h"

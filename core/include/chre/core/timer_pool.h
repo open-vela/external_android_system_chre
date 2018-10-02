@@ -19,7 +19,6 @@
 
 #include "chre_api/chre/re.h"
 
-#include "chre/core/nanoapp.h"
 #include "chre/platform/system_timer.h"
 #include "chre/util/non_copyable.h"
 #include "chre/util/priority_queue.h"

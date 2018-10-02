@@ -37,30 +37,32 @@ Nanoapp *EventLoopManager::validateChreApiCall(const char *functionName) {
 UniquePtr<char> EventLoopManager::debugDump() {
   constexpr size_t kDebugStringSize = 4096;
   char *debugStr = static_cast<char *>(memoryAlloc(kDebugStringSize));
-  if (debugStr == nullptr) {
-    LOG_OOM();
-  } else {
+  if (debugStr != nullptr) {
     size_t debugStrPos = 0;
-    mMemoryManager.logStateToBuffer(debugStr, &debugStrPos, kDebugStringSize);
-    mEventLoop.logStateToBuffer(debugStr, &debugStrPos, kDebugStringSize);
-    mSensorRequestManager.logStateToBuffer(debugStr, &debugStrPos,
-                                           kDebugStringSize);
-#ifdef CHRE_GNSS_SUPPORT_ENABLED
-    mGnssManager.logStateToBuffer(debugStr, &debugStrPos, kDebugStringSize);
-#endif  // CHRE_GNSS_SUPPORT_ENABLED
-#ifdef CHRE_WIFI_SUPPORT_ENABLED
-    mWifiRequestManager.logStateToBuffer(debugStr, &debugStrPos,
-                                         kDebugStringSize);
-#endif  // CHRE_WIFI_SUPPORT_ENABLED
-#ifdef CHRE_WWAN_SUPPORT_ENABLED
-    mWwanRequestManager.logStateToBuffer(debugStr, &debugStrPos,
-                                         kDebugStringSize);
-#endif  // CHRE_WWAN_SUPPORT_ENABLED
+    if (!mMemoryManager.logStateToBuffer(debugStr, &debugStrPos,
+                                         kDebugStringSize)) {
+      LOG_OOM();
+    } else if (!mEventLoop.logStateToBuffer(debugStr, &debugStrPos,
+                                            kDebugStringSize)) {
+      LOG_OOM();
+    } else if (!mSensorRequestManager.logStateToBuffer(debugStr, &debugStrPos,
+                                                       kDebugStringSize)) {
+      LOG_OOM();
+    } else if (!mGnssManager.logStateToBuffer(debugStr, &debugStrPos,
+                                              kDebugStringSize)) {
+      LOG_OOM();
+    } else if (!mWifiRequestManager.logStateToBuffer(debugStr, &debugStrPos,
+                                                     kDebugStringSize)) {
+      LOG_OOM();
+    } else if (!mWwanRequestManager.logStateToBuffer(debugStr, &debugStrPos,
+                                                     kDebugStringSize)) {
+      LOG_OOM();
 #ifdef CHRE_AUDIO_SUPPORT_ENABLED
-    mAudioRequestManager.logStateToBuffer(debugStr, &debugStrPos,
-                                          kDebugStringSize);
+    } else if (!mAudioRequestManager.logStateToBuffer(debugStr, &debugStrPos,
+                                                      kDebugStringSize)) {
+      LOG_OOM();
 #endif  // CHRE_AUDIO_SUPPORT_ENABLED
-
+    }
     LOGD("Debug dump used %zu bytes of log buffer", debugStrPos);
   }
 
@@ -83,17 +85,9 @@ uint32_t EventLoopManager::getNextInstanceId() {
 }
 
 void EventLoopManager::lateInit() {
-#ifdef CHRE_GNSS_SUPPORT_ENABLED
   mGnssManager.init();
-#endif  // CHRE_GNSS_SUPPORT_ENABLED
-
-#ifdef CHRE_WIFI_SUPPORT_ENABLED
   mWifiRequestManager.init();
-#endif  // CHRE_WIFI_SUPPORT_ENABLED
-
-#ifdef CHRE_WWAN_SUPPORT_ENABLED
   mWwanRequestManager.init();
-#endif  // CHRE_WWAN_SUPPORT_ENABLED
 
 #ifdef CHRE_AUDIO_SUPPORT_ENABLED
   mAudioRequestManager.init();

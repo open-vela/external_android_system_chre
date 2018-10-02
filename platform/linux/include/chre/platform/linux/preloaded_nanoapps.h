@@ -14,10 +14,21 @@
  * limitations under the License.
  */
 
-#include "chre/platform/shared/platform_pal.h"
+#ifndef CHRE_PLATFORM_LINUX_PRELOADED_NANOAPPS_H_
+#define CHRE_PLATFORM_LINUX_PRELOADED_NANOAPPS_H_
+
+#include <stdint.h>
+
+#include "chre/core/event_loop.h"
 
 namespace chre {
 
-void PlatformPal::prePalApiCall() {}
+/**
+ * Loads nanoapps that are standalone .so file (i.e. not static nanoapps), but
+ * are pre-loaded in the system image.
+ */
+void loadPreloadedNanoapps();
 
 }  // namespace chre
+
+#endif  // CHRE_PLATFORM_LINUX_PRELOADED_NANOAPPS_H_

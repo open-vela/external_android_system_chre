@@ -133,8 +133,7 @@ bool SensorRequestManager::setSensorRequest(Nanoapp *nanoapp,
 
   size_t requestIndex;
   uint16_t eventType = getSampleEventTypeForSensorType(sensorType);
-  bool nanoappHasRequest = (requests.find(nanoapp->getInstanceId(),
-                                          &requestIndex) != nullptr);
+  bool nanoappHasRequest = (requests.find(nanoapp, &requestIndex) != nullptr);
 
   bool success;
   bool requestChanged;
@@ -236,11 +235,8 @@ bool SensorRequestManager::removeAllRequests(SensorType sensorType) {
     uint16_t eventType = getSampleEventTypeForSensorType(sensorType);
 
     for (const SensorRequest& request : requests.multiplexer.getRequests()) {
-      Nanoapp *nanoapp = EventLoopManagerSingleton::get()->getEventLoop()
-          .findNanoappByInstanceId(request.getInstanceId());
-      if (nanoapp != nullptr) {
-        nanoapp->unregisterForBroadcastEvent(eventType);
-      }
+      Nanoapp *nanoapp = request.getNanoapp();
+      nanoapp->unregisterForBroadcastEvent(eventType);
     }
 
     success = requests.removeAll();
@@ -293,34 +289,38 @@ const DynamicVector<SensorRequest>& SensorRequestManager::getRequests(
   return mSensorRequests[sensorIndex].multiplexer.getRequests();
 }
 
-void SensorRequestManager::logStateToBuffer(char *buffer, size_t *bufferPos,
+bool SensorRequestManager::logStateToBuffer(char *buffer, size_t *bufferPos,
                                             size_t bufferSize) const {
-  debugDumpPrint(buffer, bufferPos, bufferSize, "\nSensors:\n");
+  bool success = debugDumpPrint(buffer, bufferPos, bufferSize, "\nSensors:\n");
   for (uint8_t i = 0; i < static_cast<uint8_t>(SensorType::SENSOR_TYPE_COUNT);
        i++) {
     SensorType sensor = static_cast<SensorType>(i);
     if (sensor != SensorType::Unknown) {
       for (const auto& request : getRequests(sensor)) {
-        debugDumpPrint(buffer, bufferPos, bufferSize, " %s: mode=%d"
-                       " interval(ns)=%" PRIu64 " latency(ns)=%"
-                       PRIu64 " nanoappId=%" PRIu32 "\n",
-                       getSensorTypeName(sensor), request.getMode(),
-                       request.getInterval().toRawNanoseconds(),
-                       request.getLatency().toRawNanoseconds(),
-                       request.getInstanceId());
+        uint32_t instanceId = (request.getNanoapp() != nullptr) ?
+            request.getNanoapp()->getInstanceId() : kInvalidInstanceId;
+        success &= debugDumpPrint(buffer, bufferPos, bufferSize, " %s: mode=%d"
+                                  " interval(ns)=%" PRIu64 " latency(ns)=%"
+                                  PRIu64 " nanoappId=%" PRIu32 "\n",
+                                  getSensorTypeName(sensor), request.getMode(),
+                                  request.getInterval().toRawNanoseconds(),
+                                  request.getLatency().toRawNanoseconds(),
+                                  instanceId);
       }
     }
   }
+
+  return success;
 }
 
 const SensorRequest *SensorRequestManager::SensorRequests::find(
-    uint32_t instanceId, size_t *index) const {
+    const Nanoapp *nanoapp, size_t *index) const {
   CHRE_ASSERT(index);
 
   const auto& requests = multiplexer.getRequests();
   for (size_t i = 0; i < requests.size(); i++) {
     const SensorRequest& sensorRequest = requests[i];
-    if (sensorRequest.getInstanceId() == instanceId) {
+    if (sensorRequest.getNanoapp() == nanoapp) {
       *index = i;
       return &sensorRequest;
     }

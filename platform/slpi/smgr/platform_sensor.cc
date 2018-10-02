@@ -837,7 +837,10 @@ void updateSamplingStatus(Sensor *sensor, const SensorRequest& request) {
       auto& requests = EventLoopManagerSingleton::get()->
           getSensorRequestManager().getRequests(sensor->getSensorType());
       for (const auto& req : requests) {
-        postSamplingStatusEvent(req.getInstanceId(), sensorHandle, status);
+        if (req.getNanoapp() != nullptr) {
+          postSamplingStatusEvent(req.getNanoapp()->getInstanceId(),
+                                  sensorHandle, status);
+        }
       }
     }
   }
