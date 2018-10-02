@@ -152,7 +152,6 @@ class EventLoopManager : public NonCopyable {
     return mEventLoop;
   }
 
-#ifdef CHRE_GNSS_SUPPORT_ENABLED
   /**
    * @return A reference to the GNSS request manager. This allows interacting
    *         with the platform GNSS subsystem and manages requests from various
@@ -161,7 +160,6 @@ class EventLoopManager : public NonCopyable {
   GnssManager& getGnssManager() {
     return mGnssManager;
   }
-#endif  // CHRE_GNSS_SUPPORT_ENABLED
 
   /**
    * @return A reference to the host communications manager that enables
@@ -180,7 +178,6 @@ class EventLoopManager : public NonCopyable {
     return mSensorRequestManager;
   }
 
-#ifdef CHRE_WIFI_SUPPORT_ENABLED
   /**
    * @return Returns a reference to the wifi request manager. This allows
    *         interacting with the platform wifi subsystem and manages the
@@ -189,9 +186,7 @@ class EventLoopManager : public NonCopyable {
   WifiRequestManager& getWifiRequestManager() {
     return mWifiRequestManager;
   }
-#endif  // CHRE_WIFI_SUPPORT_ENABLED
 
-#ifdef CHRE_WWAN_SUPPORT_ENABLED
   /**
    * @return A reference to the WWAN request manager. This allows interacting
    *         with the platform WWAN subsystem and manages requests from various
@@ -200,7 +195,6 @@ class EventLoopManager : public NonCopyable {
   WwanRequestManager& getWwanRequestManager() {
     return mWwanRequestManager;
   }
-#endif  // CHRE_WWAN_SUPPORT_ENABLED
 
   /**
    * @return A reference to the memory manager. This allows central control of
@@ -230,11 +224,9 @@ class EventLoopManager : public NonCopyable {
   //! The event loop managed by this event loop manager.
   EventLoop mEventLoop;
 
-#ifdef CHRE_GNSS_SUPPORT_ENABLED
   //! The GnssManager that handles requests for all nanoapps. This manages the
   //! state of the GNSS subsystem that the runtime subscribes to.
   GnssManager mGnssManager;
-#endif  // CHRE_GNSS_SUPPORT_ENABLED
 
   //! Handles communications with the host processor.
   HostCommsManager mHostCommsManager;
@@ -243,17 +235,13 @@ class EventLoopManager : public NonCopyable {
   //! manages the state of all sensors that runtime subscribes to.
   SensorRequestManager mSensorRequestManager;
 
-#ifdef CHRE_WIFI_SUPPORT_ENABLED
   //! The WifiRequestManager that handles requests for nanoapps. This manages
   //! the state of the wifi subsystem that the runtime subscribes to.
   WifiRequestManager mWifiRequestManager;
-#endif  // CHRE_WIFI_SUPPORT_ENABLED
 
-#ifdef CHRE_WWAN_SUPPORT_ENABLED
   //! The WwanRequestManager that handles requests for nanoapps. This manages
   //! the state of the WWAN subsystem that the runtime subscribes to.
   WwanRequestManager mWwanRequestManager;
-#endif  // CHRE_WWAN_SUPPORT_ENABLED
 
   //! The MemoryManager that handles malloc/free call from nanoapps and also
   //! controls upper limits on the heap allocation amount.

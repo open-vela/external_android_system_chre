@@ -309,17 +309,19 @@ bool EventLoop::currentNanoappIsStopping() const {
   return (mCurrentApp == mStoppingNanoapp || !mRunning);
 }
 
-void EventLoop::logStateToBuffer(char *buffer, size_t *bufferPos,
+bool EventLoop::logStateToBuffer(char *buffer, size_t *bufferPos,
                                  size_t bufferSize) const {
-  debugDumpPrint(buffer, bufferPos, bufferSize, "\nNanoapps:\n");
+  bool success = debugDumpPrint(buffer, bufferPos, bufferSize, "\nNanoapps:\n");
   for (const UniquePtr<Nanoapp>& app : mNanoapps) {
-    app->logStateToBuffer(buffer, bufferPos, bufferSize);
+    success &= app->logStateToBuffer(buffer, bufferPos, bufferSize);
   }
 
-  debugDumpPrint(buffer, bufferPos, bufferSize, "\nEvent Loop:\n");
-  debugDumpPrint(buffer, bufferPos, bufferSize,
-                 "  Max event pool usage: %zu/%zu\n",
-                 mMaxEventPoolUsage, kMaxEventCount);
+  success &= debugDumpPrint(buffer, bufferPos, bufferSize,
+                            "\nEvent Loop:\n");
+  success &= debugDumpPrint(buffer, bufferPos, bufferSize,
+                            "  Max event pool usage: %zu/%zu\n",
+                            mMaxEventPoolUsage, kMaxEventCount);
+  return success;
 }
 
 bool EventLoop::allocateAndPostEvent(uint16_t eventType, void *eventData,
@@ -444,17 +446,16 @@ void EventLoop::notifyAppStatusChange(uint16_t eventType,
 void EventLoop::unloadNanoappAtIndex(size_t index) {
   const UniquePtr<Nanoapp>& nanoapp = mNanoapps[index];
 
-  // Lock here to prevent the nanoapp instance from being accessed between the
-  // time it is ended and fully erased
-  LockGuard<Mutex> lock(mNanoappsLock);
-
   // Let the app know it's going away
   mCurrentApp = nanoapp.get();
   nanoapp->end();
   mCurrentApp = nullptr;
 
   // Destroy the Nanoapp instance
-  mNanoapps.erase(index);
+  {
+    LockGuard<Mutex> lock(mNanoappsLock);
+    mNanoapps.erase(index);
+  }
 }
 
 }  // namespace chre
