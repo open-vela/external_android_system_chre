@@ -17,7 +17,6 @@
 #include "chre/platform/shared/nanoapp_support_lib_dso.h"
 
 #include <chre.h>
-#include <dlfcn.h>
 
 #include "chre/util/macros.h"
 
@@ -36,22 +35,23 @@ constexpr int kIsTcmNanoapp = 0;
 #endif  // CHRE_SLPI_UIMG_ENABLED
 
 DLL_EXPORT extern "C" const struct chreNslNanoappInfo _chreNslDsoNanoappInfo = {
-  .magic = CHRE_NSL_NANOAPP_INFO_MAGIC,
-  .structMinorVersion = CHRE_NSL_NANOAPP_INFO_STRUCT_MINOR_VERSION,
-  .targetApiVersion = CHRE_API_VERSION,
+  /* magic */ CHRE_NSL_NANOAPP_INFO_MAGIC,
+  /* structMinorVersion */ CHRE_NSL_NANOAPP_INFO_STRUCT_MINOR_VERSION,
+  /* isSystemNanoapp */ NANOAPP_IS_SYSTEM_NANOAPP,
+  /* isTcmNanoapp */ kIsTcmNanoapp,
+  /* reservedFlags */ 0,
+  /* reserved */ 0,
+  /* targetApiVersion */ CHRE_API_VERSION,
 
-  // These values are supplied by the build environment
-  .vendor = NANOAPP_VENDOR_STRING,
-  .name = NANOAPP_NAME_STRING,
-  .isSystemNanoapp = NANOAPP_IS_SYSTEM_NANOAPP,
-  .isTcmNanoapp = kIsTcmNanoapp,
-  .appId = NANOAPP_ID,
-  .appVersion = NANOAPP_VERSION,
-
-  .entryPoints = {
-    .start = nanoappStart,
-    .handleEvent = nanoappHandleEvent,
-    .end = nanoappEnd,
+  // These values are supplied by the build environment.
+  /* vendor */ NANOAPP_VENDOR_STRING,
+  /* name */ NANOAPP_NAME_STRING,
+  /* appId */ NANOAPP_ID,
+  /* appVersion */ NANOAPP_VERSION,
+  /* entryPoints */ {
+    /* start */ nanoappStart,
+    /* handleEvent */ nanoappHandleEvent,
+    /* end */ nanoappEnd,
   },
 };
 
@@ -66,6 +66,8 @@ DLL_EXPORT extern "C" const struct chreNslNanoappInfo _chreNslDsoNanoappInfo = {
 // implementations.
 
 #ifndef CHRE_NANOAPP_DISABLE_BACKCOMPAT
+
+#include <dlfcn.h>
 
 /**
  * Lazily calls dlsym to find the function pointer for a given function
