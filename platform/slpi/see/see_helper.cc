@@ -817,6 +817,23 @@ void populateEventSample(SeeInfoArg *info, const float *val) {
         timestampDelta = &event->readings[index].timestampDelta;
         break;
       }
+
+      case SensorSampleType::Vendor4: {
+        auto *event = reinterpret_cast<chrexSensorVendor4Data *>(
+            data->event.get());
+        memcpy(event->readings[index].values, val,
+               sizeof(event->readings[index].values));
+        timestampDelta = &event->readings[index].timestampDelta;
+        break;
+      }
+
+      case SensorSampleType::Vendor5: {
+        auto *event = reinterpret_cast<chrexSensorVendor5Data *>(
+            data->event.get());
+        event->readings[index].value = *val;
+        timestampDelta = &event->readings[index].timestampDelta;
+        break;
+      }
 #endif  // CHREX_SENSOR_SUPPORT
 
       default:
@@ -1279,6 +1296,14 @@ void *allocateEvent(SensorType sensorType, size_t numSamples) {
     case SensorSampleType::Vendor3:
       sampleSize = sizeof(chrexSensorVendor3SampleData);
       break;
+
+    case SensorSampleType::Vendor4:
+      sampleSize = sizeof(chrexSensorVendor4SampleData);
+      break;
+
+    case SensorSampleType::Vendor5:
+      sampleSize = sizeof(chrexSensorVendor5SampleData);
+      break;
 #endif  // CHREX_SENSOR_SUPPORT
 
     default:
@@ -1505,9 +1530,9 @@ bool SeeHelper::findSuidSync(const char *dataType,
         mHaveTimedOutOnSuidLookup = true;
       }
       if (trialCount > 1) {
-        LOGD("Waited %" PRIu32 " ms for %s (found: %d)",
+        LOGD("Waited %" PRIu32 " ms for %s (found %zu, required %" PRIu8 ")",
              static_cast<uint32_t>(trialCount * retryDelay.getMilliseconds()),
-             dataType, success);
+             dataType, suids->size(), minNumSuids);
       }
     }
   }
