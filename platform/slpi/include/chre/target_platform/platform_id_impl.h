@@ -14,20 +14,19 @@
  * limitations under the License.
  */
 
-#include "chre_api/chre/version.h"
+#ifndef CHRE_PLATFORM_SLPI_PLATFORM_ID_IMPL_H_
+#define CHRE_PLATFORM_SLPI_PLATFORM_ID_IMPL_H_
 
 #include "chre/platform/platform_id.h"
-#include "chre/util/macros.h"
 
-DLL_EXPORT uint32_t chreGetApiVersion(void) {
-  return CHRE_API_VERSION;
-}
+namespace chre {
 
-DLL_EXPORT uint32_t chreGetVersion(void) {
-  return chreGetApiVersion() | chre::kPatchVersion;
-}
+//! The vendor ID of the Google-provided SLPI platform.
+constexpr uint64_t kVendorId = kVendorIdGoogle;
 
-DLL_EXPORT uint64_t chreGetPlatformId(void) {
-  return chre::createPlatformIdFromVendorPlatform(chre::kVendorId,
-                                                  chre::kPlatformId);
-}
+//! The platform ID of the Google-provided SLPI platform.
+constexpr uint32_t kPlatformId = kGoogleSlpiPlatformId;
+
+}  // namespace chre
+
+#endif  // CHRE_PLATFORM_SLPI_PLATFORM_ID_IMPL_H_
