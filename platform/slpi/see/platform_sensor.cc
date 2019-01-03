@@ -37,6 +37,10 @@
 #include "chre/extensions/platform/slpi/see/vendor_data_types.h"
 #endif  // CHREX_SENSOR_SUPPORT
 
+#ifdef CHRE_VARIANT_SUPPLIES_SEE_SENSORS_LIST
+#include "see_sensors.h"
+#endif  // CHRE_VARIANT_SUPPLIES_SEE_SENSORS_LIST
+
 #ifndef CHRE_SEE_NUM_TEMP_SENSORS
 // There are usually more than one 'sensor_temperature' sensors in SEE.
 // Define this in the variant-specific makefile to avoid missing sensors in
@@ -76,6 +80,8 @@ struct SuidAttr {
   SeeAttributes attr;
 };
 
+#ifndef CHRE_VARIANT_SUPPLIES_SEE_SENSORS_LIST
+
 //! The list of SEE platform sensor data types that CHRE intends to support.
 //! The standardized strings are defined in sns_xxx.proto.
 const char *kSeeDataTypes[] = {
@@ -88,6 +94,8 @@ const char *kSeeDataTypes[] = {
   "motion_detect",
   "stationary_detect",
 };
+
+#endif  // CHRE_VARIANT_SUPPLIES_SEE_SENSORS_LIST
 
 /**
  * Obtains the sensor type given the specified data type and whether the sensor
@@ -201,10 +209,7 @@ void updateSamplingStatus(
           EventLoopManagerSingleton::get()->getSensorRequestManager()
           .getRequests(update.sensorType);
       for (const auto& req : requests) {
-        if (req.getNanoapp() != nullptr) {
-          postSamplingStatusEvent(req.getNanoapp()->getInstanceId(),
-                                  sensorHandle, newStatus);
-        }
+        postSamplingStatusEvent(req.getInstanceId(), sensorHandle, newStatus);
       }
     }
   }
@@ -429,7 +434,11 @@ void findAndAddSensorsForType(
   DynamicVector<SuidAttr> primarySensors;
   if (!getSuidAndAttrs(seeHelper, dataType, &primarySensors,
                        1 /* minNumSuids */)) {
+#ifdef CHRE_LOG_ONLY_NO_SENSOR
+    LOGE("Failed to get primary sensor UID and attributes");
+#else
     FATAL_ERROR("Failed to get primary sensor UID and attributes");
+#endif
   }
 
   for (const auto& primarySensor : primarySensors) {
@@ -535,7 +544,11 @@ bool PlatformSensor::getSensors(DynamicVector<Sensor> *sensors) {
   DynamicVector<SuidAttr> tempSensors;
   if (!getSuidAndAttrs(seeHelper, "sensor_temperature", &tempSensors,
                        CHRE_SEE_NUM_TEMP_SENSORS)) {
-      FATAL_ERROR("Failed to get temperature sensor UID and attributes");
+#ifdef CHRE_LOG_ONLY_NO_SENSOR
+     LOGE("Failed to get temperature sensor UID and attributes");
+#else
+     FATAL_ERROR("Failed to get temperature sensor UID and attributes");
+#endif
   }
 
 #ifndef CHREX_SENSOR_SUPPORT
