@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 The Android Open Source Project
+ * Copyright (C) 2016 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,10 +14,19 @@
  * limitations under the License.
  */
 
-#include "chre/platform/shared/platform_pal.h"
+#ifndef CHRE_PLATFORM_LINUX_PLATFORM_ID_IMPL_H_
+#define CHRE_PLATFORM_LINUX_PLATFORM_ID_IMPL_H_
+
+#include "chre/platform/platform_id.h"
 
 namespace chre {
 
-void PlatformPal::prePalApiCall() {}
+//! The vendor ID of the Google-provided SLPI platform.
+constexpr uint64_t kVendorId = kVendorIdGoogle;
+
+//! The platform ID of the Google-provided SLPI platform.
+constexpr uint32_t kPlatformId = kGoogleLinuxPlatformId;
 
 }  // namespace chre
+
+#endif  // CHRE_PLATFORM_LINUX_PLATFORM_ID_IMPL_H_

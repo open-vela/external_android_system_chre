@@ -20,8 +20,7 @@ SHARED_LIB_FILES = abort.cc \
   dumb_allocator.cc \
   nano_endian.cc \
   nano_string.cc \
-  send_message.cc \
-  test_success_marker.cc
+  send_message.cc
 
 COMMON_SRCS += \
   $(addprefix $(NANOAPP_SRC_PATH)/$(NANOAPP_DIR_NAME)/, $(NANOAPP_SRC_FILES)) \
