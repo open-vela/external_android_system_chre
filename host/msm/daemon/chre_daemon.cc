@@ -16,18 +16,17 @@
 
 /**
  * @file
- * The daemon that hosts CHRE on a hexagon DSP via FastRPC. This is typically
- * the SLPI but could be the ADSP or another DSP that supports FastRPC.
+ * The daemon that hosts CHRE on the SLPI via FastRPC.
  *
  * Several threads are required for this functionality:
  *   - Main thread: blocked waiting on SIGINT/SIGTERM, and requests graceful
  *     shutdown of CHRE when caught
- *   - Monitor thread: persistently blocked in a FastRPC call to the DSP that
- *     only returns when CHRE exits or the DSP crashes
+ *   - Monitor thread: persistently blocked in a FastRPC call to the SLPI that
+ *     only returns when CHRE exits or the SLPI crashes
  *     - TODO: see whether we can merge this with the RX thread
- *   - Reverse monitor thread: after initializing the DSP-side monitor for this
+ *   - Reverse monitor thread: after initializing the SLPI-side monitor for this
  *     process, blocks on a condition variable. If this thread exits, CHRE on
- *     the DSP side will be notified and shut down (this is only possible if
+ *     the SLPI side will be notified and shut down (this is only possible if
  *     this thread is not blocked in a FastRPC call).
  *     - TODO: confirm this and see whether we can merge this responsibility
  *       into the TX thread
@@ -54,23 +53,13 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <fstream>
-#include <string>
-
 #include "chre/platform/slpi/fastrpc.h"
 #include "chre_host/log.h"
 #include "chre_host/host_protocol_host.h"
 #include "chre_host/socket_server.h"
 #include "generated/chre_slpi.h"
 
-#include <json/json.h>
 #include <utils/SystemClock.h>
-
-#ifdef ADSPRPC
-#include "remote.h"
-
-#define ITRANSPORT_PREFIX "'\":;./\\"
-#endif  // ADSPRPC
 
 //! The format string to use for logs from the CHRE implementation.
 #define HUB_LOG_FORMAT_STR "Hub (t=%.6f): %s"
@@ -86,7 +75,6 @@ using android::hardware::soundtrigger::V2_0::SoundModelType;
 #endif  // CHRE_DAEMON_LPMA_ENABLED
 
 using android::chre::HostProtocolHost;
-using android::chre::FragmentedLoadTransaction;
 using android::elapsedRealtimeNano;
 
 // Aliased for consistency with the way these symbols are referenced in
@@ -129,24 +117,6 @@ struct LpmaEnableThreadData {
 
 static LpmaEnableThreadData lpmaEnableThread;
 #endif  // CHRE_DAEMON_LPMA_ENABLED
-
-//! The host ID to use when preloading nanoapps. This is used before the server
-//! is started and is sufficiently high enough so as to not collide with any
-//! clients after the server starts.
-static const uint16_t kHostClientIdDaemon = UINT16_MAX;
-
-//! The mutex used to guard state between the nanoapp messaging thread
-//! and loading preloaded nanoapps.
-static pthread_mutex_t gPreloadedNanoappsMutex;
-
-//! The condition variable used to wait for a nanoapp to finish loading.
-static pthread_cond_t gPreloadedNanoappsCond;
-
-//! Set to true when a preloaded nanoapp is pending load.
-static bool gPreloadedNanoappPending;
-
-//! Set to the expected transaction ID for loading a nanoapp.
-static uint32_t gPreloadedNanoappPendingTransactionId;
 
 //! Set to true when we request a graceful shutdown of CHRE
 static volatile bool chre_shutdown_requested = false;
@@ -542,269 +512,6 @@ static bool initLpmaEnableThread(LpmaEnableThreadData *data) {
 #endif  // CHRE_DAEMON_LPMA_ENABLED
 
 /**
- * Sends a message to CHRE.
- *
- * @param clientId The client ID that this message originates from.
- * @param data The data to pass down.
- * @param length The size of the data to send.
- * @return true if successful, false otherwise.
- */
-static bool sendMessageToChre(uint16_t clientId, void *data, size_t length) {
-  constexpr size_t kMaxPayloadSize = 1024 * 1024;  // 1 MiB
-
-  // This limitation is due to FastRPC, but there's no case where we should come
-  // close to this limit...
-  static_assert(kMaxPayloadSize <= INT32_MAX,
-                "DSP uses 32-bit signed integers to represent message size");
-
-  bool success = false;
-  if (length > kMaxPayloadSize) {
-    LOGE("Message too large (got %zu, max %zu bytes)", length, kMaxPayloadSize);
-  } else if (!HostProtocolHost::mutateHostClientId(data, length, clientId)) {
-    LOGE("Couldn't set host client ID in message container!");
-  } else {
-    LOGV("Delivering message from host (size %zu)", length);
-    log_buffer(static_cast<const uint8_t *>(data), length);
-    int ret = chre_slpi_deliver_message_from_host(
-        static_cast<const unsigned char *>(data), static_cast<int>(length));
-    if (ret != 0) {
-      LOGE("Failed to deliver message from host to CHRE: %d", ret);
-    } else {
-      success = true;
-    }
-  }
-
-  return success;
-}
-
-/**
- * Loads a nanoapp using fragments.
- *
- * @param appId The ID of the nanoapp to load.
- * @param appVersion The version of the nanoapp to load.
- * @param appTargetApiVersion The version of the CHRE API that the app targets.
- * @param appBinary The application binary code.
- * @param appSize The size of the appBinary.
- * @param transactionId The transaction ID to use when loading.
- * @return true if successful, false otherwise.
- */
-static bool sendFragmentedNanoappLoad(
-    uint64_t appId, uint32_t appVersion, uint32_t appTargetApiVersion,
-    const uint8_t *appBinary, size_t appSize, uint32_t transactionId) {
-  std::vector<uint8_t> binary(appSize);
-  std::copy(appBinary, appBinary + appSize, binary.begin());
-
-  FragmentedLoadTransaction transaction(transactionId, appId, appVersion,
-                                        appTargetApiVersion, binary);
-
-  bool success = true;
-  while (success && !transaction.isComplete()) {
-    // Pad the builder to avoid allocation churn.
-    const auto& fragment = transaction.getNextRequest();
-    flatbuffers::FlatBufferBuilder builder(fragment.binary.size() + 128);
-    HostProtocolHost::encodeFragmentedLoadNanoappRequest(builder, fragment);
-
-    pthread_mutex_lock(&gPreloadedNanoappsMutex);
-
-    gPreloadedNanoappPendingTransactionId = transactionId;
-    gPreloadedNanoappPending = sendMessageToChre(
-        kHostClientIdDaemon, builder.GetBufferPointer(), builder.GetSize());
-    if (!gPreloadedNanoappPending) {
-      LOGE("Failed to send nanoapp fragment");
-      success = false;
-    } else {
-      struct timespec timeout;
-      int ret = clock_gettime(CLOCK_REALTIME, &timeout);
-
-      // 60s timeout for fragments. Set high for busy first bootups where the
-      // PALs can block CHRE initialization while other subsystems come up.
-      timeout.tv_sec += 60;
-      if (ret != 0) {
-        LOG_ERROR("Nanoapp fragment get time failed", ret);
-        success = false;
-      } else {
-        while (gPreloadedNanoappPending && ret == 0) {
-          ret = pthread_cond_timedwait(&gPreloadedNanoappsCond,
-                                       &gPreloadedNanoappsMutex, &timeout);
-        }
-
-        if (ret != 0) {
-          LOG_ERROR("Nanoapp fragment load wait failed", ret);
-          success = false;
-        }
-      }
-    }
-
-    pthread_mutex_unlock(&gPreloadedNanoappsMutex);
-  }
-
-  return success;
-}
-
-/**
- * Sends a preloaded nanoapp to CHRE.
- *
- * @param header The nanoapp header binary blob.
- * @param nanoapp The nanoapp binary blob.
- * @param transactionId The transaction ID to use when loading the app.
- * @return true if succssful, false otherwise.
- */
-static bool loadNanoapp(const std::vector<uint8_t>& header,
-                        const std::vector<uint8_t>& nanoapp,
-                        uint32_t transactionId) {
-  // This struct comes from build/build_template.mk and must not be modified.
-  // Refer to that file for more details.
-  struct NanoAppBinaryHeader {
-    uint32_t headerVersion;
-    uint32_t magic;
-    uint64_t appId;
-    uint32_t appVersion;
-    uint32_t flags;
-    uint64_t hwHubType;
-    uint8_t targetChreApiMajorVersion;
-    uint8_t targetChreApiMinorVersion;
-    uint8_t reserved[6];
-  } __attribute__((packed));
-
-  bool success = false;
-  if (header.size() != sizeof(NanoAppBinaryHeader)) {
-    LOGE("Header size mismatch");
-  } else {
-    // The header blob contains the struct above.
-    const auto *appHeader = reinterpret_cast<
-        const NanoAppBinaryHeader *>(header.data());
-
-    // Build the target API version from major and minor.
-    uint32_t targetApiVersion = (appHeader->targetChreApiMajorVersion << 24)
-        | (appHeader->targetChreApiMinorVersion << 16);
-
-    success = sendFragmentedNanoappLoad(appHeader->appId, appHeader->appVersion,
-                                        targetApiVersion, nanoapp.data(),
-                                        nanoapp.size(), transactionId);
-  }
-
-  return success;
-}
-
-/**
- * Loads the supplied file into the provided buffer.
- *
- * @param filename The name of the file to load.
- * @param buffer The buffer to load into.
- * @return true if successful, false otherwise.
- */
-static bool loadPreloadedNanoappFile(const char *filename,
-                                     std::vector<uint8_t> *buffer) {
-  bool success = false;
-  std::ifstream file(filename, std::ios::binary | std::ios::ate);
-  if (!file) {
-    LOGE("Couldn't open file '%s': %d (%s)", filename, errno, strerror(errno));
-  } else {
-    ssize_t size = file.tellg();
-    file.seekg(0, std::ios::beg);
-
-    buffer->resize(size);
-    if (!file.read(reinterpret_cast<char *>(buffer->data()), size)) {
-      LOGE("Couldn't read from file '%s': %d (%s)",
-           filename, errno, strerror(errno));
-    } else {
-      success = true;
-    }
-  }
-
-  return success;
-}
-
-/**
- * Loads a preloaded nanoapp given a filename to load from.
- *
- * @param name The filepath to load the nanoapp from.
- * @param transactionId The transaction ID to use when loading the app.
- */
-static void loadPreloadedNanoapp(const char *name, uint32_t transactionId) {
-  std::vector<uint8_t> headerBuffer;
-  std::vector<uint8_t> nanoappBuffer;
-
-  std::string headerFilename = std::string(name) + ".napp_header";
-  std::string nanoappFilename = std::string(name) + ".so";
-
-  if (loadPreloadedNanoappFile(headerFilename.c_str(), &headerBuffer)
-      && loadPreloadedNanoappFile(nanoappFilename.c_str(), &nanoappBuffer)
-      && !loadNanoapp(headerBuffer, nanoappBuffer, transactionId)) {
-    LOGE("Failed to load nanoapp: '%s'", name);
-  }
-}
-
-/**
- * Attempts to load all preloaded nanoapps from a config file. The config file
- * is expected to be valid JSON with the following structure:
- *
- * { "nanoapps": [
- *     "/path/to/nanoapp_1",
- *     "/path/to/nanoapp_2"
- * ]}
- *
- * The napp_header and so files will both be loaded. All errors are logged.
- */
-static void loadPreloadedNanoapps() {
-  int ret;
-  if ((ret = pthread_mutex_init(&gPreloadedNanoappsMutex, NULL)) != 0) {
-    LOG_ERROR("Failed to initialize preloaded nanoapps mutex", ret);
-  } else if ((ret = pthread_cond_init(&gPreloadedNanoappsCond, NULL)) != 0) {
-    LOG_ERROR("Failed to initialize preloaded nanoapps condition variable",
-              ret);
-  } else {
-    constexpr char kPreloadedNanoappsConfigPath[] =
-        "/vendor/etc/chre/preloaded_nanoapps.json";
-    std::ifstream configFileStream(kPreloadedNanoappsConfigPath);
-
-    Json::Reader reader;
-    Json::Value config;
-    if (!configFileStream) {
-      LOGE("Failed to open config file '%s': %d (%s)",
-           kPreloadedNanoappsConfigPath, errno, strerror(errno));
-    } else if (!reader.parse(configFileStream, config)) {
-      LOGE("Failed to parse nanoapp config file");
-    } else if (!config.isMember("nanoapps")) {
-      LOGE("Malformed preloaded nanoapps config");
-    } else {
-      for (Json::ArrayIndex i = 0; i < config["nanoapps"].size(); i++) {
-        const Json::Value& nanoapp = config["nanoapps"][i];
-        loadPreloadedNanoapp(nanoapp.asCString(), static_cast<uint32_t>(i));
-      }
-    }
-  }
-}
-
-/**
- * Handles a message that is directed towards the daemon.
- *
- * @param message The message sent to the daemon.
- */
-static void handleDaemonMessage(const uint8_t *message) {
-  std::unique_ptr<fbs::MessageContainerT> container =
-      fbs::UnPackMessageContainer(message);
-  if (container->message.type
-          != fbs::ChreMessage::LoadNanoappResponse) {
-    LOGE("Invalid message from CHRE directed to daemon");
-  } else {
-    const auto *response = container->message.AsLoadNanoappResponse();
-    pthread_mutex_lock(&gPreloadedNanoappsMutex);
-    if (!gPreloadedNanoappPending) {
-      LOGE("Received nanoapp load response with no pending load");
-    } else if (gPreloadedNanoappPendingTransactionId
-                   != response->transaction_id) {
-      LOGE("Received nanoapp load response with invalid transaction id");
-    } else {
-      gPreloadedNanoappPending = false;
-    }
-
-    pthread_mutex_unlock(&gPreloadedNanoappsMutex);
-    pthread_cond_signal(&gPreloadedNanoappsCond);
-  }
-}
-
-/**
  * Entry point for the thread that receives messages sent by CHRE.
  *
  * @return always returns NULL
@@ -846,8 +553,6 @@ static void *chre_message_to_host_thread(void *arg) {
       } else if (messageType == fbs::ChreMessage::LowPowerMicAccessRelease) {
         setLpmaState(false);
 #endif  // CHRE_DAEMON_LPMA_ENABLED
-      } else if (hostClientId == kHostClientIdDaemon) {
-        handleDaemonMessage(messageBuffer);
       } else if (hostClientId == chre::kHostClientIdUnspecified) {
         server->sendToAllClients(messageBuffer,
                                  static_cast<size_t>(messageLen));
@@ -871,7 +576,7 @@ static void *chre_message_to_host_thread(void *arg) {
 
 /**
  * Entry point for the thread that blocks in a FastRPC call to monitor for
- * abnormal exit of CHRE or reboot of the DSP.
+ * abnormal exit of CHRE or reboot of the SLPI.
  *
  * @return always returns NULL
  */
@@ -890,7 +595,7 @@ static void *chre_monitor_thread(void *arg) {
 /**
  * Entry point for the "reverse" monitor thread, which invokes a FastRPC method
  * to register a thread destructor, and blocks waiting on a condition variable.
- * This allows for the code running in the DSP to detect abnormal shutdown of
+ * This allows for the code running in the SLPI to detect abnormal shutdown of
  * the host-side binary and perform graceful cleanup.
  *
  * @return always returns NULL
@@ -901,7 +606,7 @@ static void *chre_reverse_monitor_thread(void *arg) {
 
   int ret = chre_slpi_initialize_reverse_monitor();
   if (ret != CHRE_FASTRPC_SUCCESS) {
-    LOGE("Failed to initialize reverse monitor: %d", ret);
+    LOGE("Failed to initialize reverse monitor on SLPI: %d", ret);
   } else {
     // Block here on the condition variable until the main thread notifies
     // us to exit
@@ -958,7 +663,27 @@ static bool start_thread(pthread_t *thread_handle,
 namespace {
 
 void onMessageReceivedFromClient(uint16_t clientId, void *data, size_t length) {
-  sendMessageToChre(clientId, data, length);
+  constexpr size_t kMaxPayloadSize = 1024 * 1024;  // 1 MiB
+
+  // This limitation is due to FastRPC, but there's no case where we should come
+  // close to this limit...
+  static_assert(kMaxPayloadSize <= INT32_MAX,
+                "SLPI uses 32-bit signed integers to represent message size");
+
+  if (length > kMaxPayloadSize) {
+    LOGE("Message too large to pass to SLPI (got %zu, max %zu bytes)", length,
+         kMaxPayloadSize);
+  } else if (!HostProtocolHost::mutateHostClientId(data, length, clientId)) {
+    LOGE("Couldn't set host client ID in message container!");
+  } else {
+    LOGV("Delivering message from host (size %zu)", length);
+    log_buffer(static_cast<const uint8_t *>(data), length);
+    int ret = chre_slpi_deliver_message_from_host(
+        static_cast<const unsigned char *>(data), static_cast<int>(length));
+    if (ret != 0) {
+      LOGE("Failed to deliver message from host to CHRE: %d", ret);
+    }
+  }
 }
 
 }  // anonymous namespace
@@ -970,17 +695,6 @@ int main() {
 
   struct reverse_monitor_thread_data reverse_monitor;
   ::android::chre::SocketServer server;
-
-#ifdef ADSPRPC
-  remote_handle remote_handle_fd = 0xFFFFFFFF;
-  LOGD("Attaching to ADSP sensors PD");
-  if (remote_handle_open(ITRANSPORT_PREFIX "createstaticpd:sensorspd",
-                         &remote_handle_fd)) {
-    LOGE("Failed to open remote handle for sensorspd");
-  } else {
-    LOGV("Successfully opened remote handle for sensorspd");
-  }
-#endif  // ADSPRPC
 
 #ifdef CHRE_DAEMON_LPMA_ENABLED
   initWakeLockFds();
@@ -996,7 +710,7 @@ int main() {
     // Send time offset message before nanoapps start
     sendTimeSyncMessage();
     if ((ret = chre_slpi_start_thread()) != CHRE_FASTRPC_SUCCESS) {
-      LOGE("Failed to start CHRE: %d", ret);
+      LOGE("Failed to start CHRE on SLPI: %d", ret);
     } else {
       if (!start_thread(&monitor_thread, chre_monitor_thread, NULL)) {
         LOGE("Couldn't start monitor thread");
@@ -1004,9 +718,7 @@ int main() {
                                &server)) {
         LOGE("Couldn't start CHRE->Host message thread");
       } else {
-        LOGI("CHRE started");
-        loadPreloadedNanoapps();
-
+        LOGI("CHRE on SLPI started");
         // TODO: take 2nd argument as command-line parameter
         server.run("chre", true, onMessageReceivedFromClient);
       }
@@ -1014,7 +726,7 @@ int main() {
       chre_shutdown_requested = true;
       ret = chre_slpi_stop_thread();
       if (ret != CHRE_FASTRPC_SUCCESS) {
-        LOGE("Failed to stop CHRE: %d", ret);
+        LOGE("Failed to stop CHRE on SLPI: %d", ret);
       } else {
         // TODO: don't call pthread_join if the thread failed to start
         LOGV("Joining monitor thread");
