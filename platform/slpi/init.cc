@@ -35,7 +35,6 @@ extern "C" {
 #include "chre/platform/memory.h"
 #include "chre/platform/mutex.h"
 #include "chre/platform/slpi/fastrpc.h"
-#include "chre/platform/slpi/preloaded_nanoapps.h"
 #include "chre/platform/slpi/uimg_util.h"
 #include "chre/util/lock_guard.h"
 
@@ -118,7 +117,6 @@ void onDebugDumpRequested(void * /*cookie*/, uint32_t handle) {
 void chreThreadEntry(void * /*data*/) {
   EventLoopManagerSingleton::get()->lateInit();
   chre::loadStaticNanoapps();
-  chre::loadPreloadedNanoapps();
   ashRegisterDebugDumpCallback("CHRE", onDebugDumpRequested, nullptr);
   EventLoopManagerSingleton::get()->getEventLoop().run();
 
@@ -127,13 +125,20 @@ void chreThreadEntry(void * /*data*/) {
 #ifdef CHRE_SLPI_SEE
   chre::IslandVoteClientSingleton::deinit();
 #endif
+  // Perform this as late as possible - if we are shutting down because we
+  // detected exit of the host process, FastRPC will unload us once all our
+  // FastRPC calls have returned. Doing this late helps ensure that the call
+  // to chre_slpi_get_message_to_host() stays open until we're done with
+  // cleanup.
+  chre::HostLinkBase::shutdown();
   gThreadRunning = false;
-  LOGD("CHRE thread exiting");
 }
 
 void onHostProcessTerminated(void * /*data*/) {
   LOGW("Host process died, exiting CHRE (running %d)", gThreadRunning);
-  chre_slpi_stop_thread();
+  if (gThreadRunning) {
+    EventLoopManagerSingleton::get()->getEventLoop().stop();
+  }
 }
 
 }  // anonymous namespace
@@ -252,13 +257,6 @@ extern "C" int chre_slpi_stop_thread(void) {
                   true /* non_deferrable */);
     }
     gThreadHandle = 0;
-
-    // Perform this as late as possible - if we are shutting down because we
-    // detected exit of the host process, FastRPC will unload us once all our
-    // FastRPC calls have returned. Doing this late helps ensure that the call
-    // to chre_slpi_get_message_to_host() stays open until we're done with
-    // cleanup.
-    chre::HostLinkBase::shutdown();
   }
 
   return CHRE_FASTRPC_SUCCESS;
