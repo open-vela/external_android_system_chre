@@ -756,7 +756,7 @@ void HostMessageHandlers::handleUnloadNanoappRequest(
        " system %d", transactionId, appId, allowSystemNanoappUnload);
   auto *cbData = memoryAlloc<UnloadNanoappCallbackData>();
   if (cbData == nullptr) {
-    LOG_OOM();
+    LOGE("Couldn't allocate unload nanoapp callback data");
   } else {
     cbData->appId = appId;
     cbData->transactionId = transactionId;
@@ -780,7 +780,7 @@ void HostMessageHandlers::handleTimeSyncMessage(int64_t offset) {
 void HostMessageHandlers::handleDebugDumpRequest(uint16_t hostClientId) {
   auto *cbData = memoryAlloc<DebugDumpCallbackData>();
   if (cbData == nullptr) {
-    LOG_OOM();
+    LOGE("Couldn't allocate debug dump callback data");
   } else {
     cbData->hostClientId = hostClientId;
     cbData->dataCount = 0;
