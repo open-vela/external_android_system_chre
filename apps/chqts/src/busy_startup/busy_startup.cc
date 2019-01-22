@@ -48,13 +48,10 @@
 
 #include <shared/send_message.h>
 #include <shared/time_util.h>
-#include <shared/test_success_marker.h>
 
 using nanoapp_testing::MessageType;
-using nanoapp_testing::TestSuccessMarker;
 using nanoapp_testing::sendMessageToHost;
 using nanoapp_testing::sendFatalFailureToHost;
-using nanoapp_testing::sendFatalFailureToHostUint8;
 using nanoapp_testing::sendSuccessToHost;
 
 static bool gInMethod = false;
@@ -62,21 +59,30 @@ static uint32_t gInstanceId;
 static uint32_t gTimerId;
 static uint32_t gSensorHandle;
 
-/**
- * Busy startup stages and total number of stages.
- */
-enum BusyStartupStage {
-  BUSY_STARTUP_STAGE_SELF_EVENT = 0,
-  BUSY_STARTUP_STAGE_TIMER,
-  BUSY_STARTUP_STAGE_SENSOR,
-  BUSY_STARTUP_STAGE_COUNT,
-};
+constexpr size_t kSelfEventStage = 0;
+constexpr size_t kTimerStage = 1;
+constexpr size_t kSensorStage = 2;
+constexpr size_t kStageCount = 3;
 
-//! TestSuccessMarker object to mark success of a stage.
-TestSuccessMarker gTestSuccessMarker =
-    TestSuccessMarker(BUSY_STARTUP_STAGE_COUNT);
+constexpr uint32_t kAllFinished = (1 << kStageCount) - 1;
+static uint32_t gFinishedBitmask = 0;
 
 constexpr uint16_t kEventType = CHRE_EVENT_FIRST_USER_VALUE;
+
+static void markSuccess(uint32_t stage) {
+  uint32_t finishedBit = (1 << stage);
+  if ((kAllFinished & finishedBit) == 0) {
+    sendFatalFailureToHost("markSuccess bad stage", &stage);
+  }
+
+  if ((gFinishedBitmask & finishedBit) == 0) {
+    chreLog(CHRE_LOG_DEBUG, "Stage %" PRIu32 " succeeded", stage);
+    gFinishedBitmask |= finishedBit;
+    if (gFinishedBitmask == kAllFinished) {
+      sendSuccessToHost();
+    }
+  }
+}
 
 static void checkSelfEvent(uint16_t eventType, const uint32_t *eventData) {
   if (eventType != kEventType) {
@@ -89,7 +95,7 @@ static void checkSelfEvent(uint16_t eventType, const uint32_t *eventData) {
   if (*eventData != gInstanceId) {
     sendFatalFailureToHost("Event from self, bad data:", eventData);
   }
-  gTestSuccessMarker.markStageAndSuccessOnFinish(BUSY_STARTUP_STAGE_SELF_EVENT);
+  markSuccess(kSelfEventStage);
 }
 
 static void checkTimerEvent(const uint32_t *eventData) {
@@ -99,7 +105,7 @@ static void checkTimerEvent(const uint32_t *eventData) {
   if (*eventData != gInstanceId) {
     sendFatalFailureToHost("TimerEvent, bad data:", eventData);
   }
-  gTestSuccessMarker.markStageAndSuccessOnFinish(BUSY_STARTUP_STAGE_TIMER);
+  markSuccess(kTimerStage);
 }
 
 static void checkSensorEvent(const void *eventData) {
@@ -115,20 +121,10 @@ static void checkSensorEvent(const void *eventData) {
   if (header->readingCount == 0) {
     sendFatalFailureToHost("sensorEvent has readingCount of 0");
   }
-  if (header->reserved != 0) {
-    sendFatalFailureToHost("sensorEvent has non-zero reserved field");
+  if ((header->reserved[0] != 0) || (header->reserved[1] != 0)) {
+    sendFatalFailureToHost("sensorEvent has non-zero reserved bytes");
   }
-
-  if (chreGetApiVersion() < CHRE_API_VERSION_1_3) {
-    if (header->accuracy != 0) {
-      sendFatalFailureToHost("sensorEvent has non-zero reserved field");
-    }
-  } else if (header->accuracy > CHRE_SENSOR_ACCURACY_HIGH) {
-    sendFatalFailureToHostUint8("Sensor accuracy is not within valid range: ",
-                                header->accuracy);
-  }
-
-  gTestSuccessMarker.markStageAndSuccessOnFinish(BUSY_STARTUP_STAGE_SENSOR);
+  markSuccess(kSensorStage);
 }
 
 extern "C" void nanoappHandleEvent(uint32_t senderInstanceId,

@@ -88,7 +88,7 @@ class GnssSession {
    *
    * @see GnssManager::logStateToBuffer
    */
-  void logStateToBuffer(char *buffer, size_t *bufferPos, size_t bufferSize)
+  bool logStateToBuffer(char *buffer, size_t *bufferPos, size_t bufferSize)
       const;
 
  private:
@@ -205,6 +205,19 @@ class GnssSession {
    * @return true if the session is currently enabled.
    */
   bool isEnabled() const;
+
+  /**
+   * Determines if the session is already in the requested state.
+   *
+   * @param requestedState The target state of the session.
+   * @param minInterval The reporting interval if requestedState is true.
+   * @param nanoappHasRequest true if the requesting nanoapp already has an
+   *        outstanding request.
+   *
+   * @return true if the session is already in the requested state.
+   */
+  bool isInRequestedState(bool requestedState, Milliseconds minInterval,
+                          bool nanoappHasRequest) const;
 
   /**
    * Determines if a change to the session state is required given a set of
@@ -333,7 +346,7 @@ class GnssManager : public NonCopyable {
    *
    * @return true if entire log printed, false if overflow or error.
    */
-  void logStateToBuffer(char *buffer, size_t *bufferPos,
+  bool logStateToBuffer(char *buffer, size_t *bufferPos,
                         size_t bufferSize) const;
 
  private:

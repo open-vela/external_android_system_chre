@@ -609,6 +609,7 @@ bool HostLink::sendMessage(const MessageToHost *message) {
 }
 
 bool HostLinkBase::flushOutboundQueue() {
+  // This function is used in preFatalError() so it must never call FATAL_ERROR
   int waitCount = 5;
 
   FARF(MEDIUM, "Draining message queue");
@@ -682,13 +683,13 @@ void HostMessageHandlers::handleNanoappMessage(
 
 void HostMessageHandlers::handleHubInfoRequest(uint16_t hostClientId) {
   // We generate the response in the context of chre_slpi_get_message_to_host
-  LOGD("Hub info request from client ID %" PRIu16, hostClientId);
+  LOGD("Got hub info request from client ID %" PRIu16, hostClientId);
   enqueueMessage(PendingMessage(
       PendingMessageType::HubInfoResponse, hostClientId));
 }
 
 void HostMessageHandlers::handleNanoappListRequest(uint16_t hostClientId) {
-  LOGD("Nanoapp list request from client ID %" PRIu16, hostClientId);
+  LOGD("Got nanoapp list request from client ID %" PRIu16, hostClientId);
   HostClientIdCallbackData cbData = {};
   cbData.hostClientId = hostClientId;
   EventLoopManagerSingleton::get()->deferCallback(
@@ -702,14 +703,14 @@ void HostMessageHandlers::handleLoadNanoappRequest(
     size_t bufferLen, uint32_t fragmentId, size_t appBinaryLen) {
   static NanoappLoadManager sLoadManager;
 
+  LOGD("Got load nanoapp request (client %" PRIu16 " txnId %" PRIu32
+       " fragment %" PRIu32 ") for appId 0x%016" PRIx64 " version 0x%"
+       PRIx32 " target API version 0x%08" PRIx32 " size %zu",
+       hostClientId, transactionId, fragmentId, appId, appVersion,
+       targetApiVersion, bufferLen);
+
   bool success = true;
   if (fragmentId == 0 || fragmentId == 1) { // first fragment
-    size_t totalAppBinaryLen = (fragmentId == 0) ? bufferLen : appBinaryLen;
-    LOGD("Load nanoapp request for app ID 0x%016" PRIx64 " ver 0x%" PRIx32
-         " target API 0x%08" PRIx32 " size %zu (txnId %" PRIu32 " client %" PRIu16
-         ")", appId, appVersion, targetApiVersion, totalAppBinaryLen,
-         transactionId, hostClientId);
-
     if (sLoadManager.hasPendingLoadTransaction()) {
       FragmentedLoadInfo info = sLoadManager.getTransactionInfo();
       sendFragmentResponse(
@@ -718,6 +719,7 @@ void HostMessageHandlers::handleLoadNanoappRequest(
       sLoadManager.markFailure();
     }
 
+    size_t totalAppBinaryLen = (fragmentId == 0) ? bufferLen : appBinaryLen;
     success = sLoadManager.prepareForLoad(
         hostClientId, transactionId, appId, appVersion, totalAppBinaryLen);
   }
@@ -751,11 +753,11 @@ void HostMessageHandlers::handleLoadNanoappRequest(
 void HostMessageHandlers::handleUnloadNanoappRequest(
     uint16_t hostClientId, uint32_t transactionId, uint64_t appId,
     bool allowSystemNanoappUnload) {
-  LOGD("Unload nanoapp request (txnID %" PRIu32 ") for appId 0x%016" PRIx64
+  LOGD("Got unload nanoapp request (txnID %" PRIu32 ") for appId 0x%016" PRIx64
        " system %d", transactionId, appId, allowSystemNanoappUnload);
   auto *cbData = memoryAlloc<UnloadNanoappCallbackData>();
   if (cbData == nullptr) {
-    LOG_OOM();
+    LOGE("Couldn't allocate unload nanoapp callback data");
   } else {
     cbData->appId = appId;
     cbData->transactionId = transactionId;
@@ -779,7 +781,7 @@ void HostMessageHandlers::handleTimeSyncMessage(int64_t offset) {
 void HostMessageHandlers::handleDebugDumpRequest(uint16_t hostClientId) {
   auto *cbData = memoryAlloc<DebugDumpCallbackData>();
   if (cbData == nullptr) {
-    LOG_OOM();
+    LOGE("Couldn't allocate debug dump callback data");
   } else {
     cbData->hostClientId = hostClientId;
     cbData->dataCount = 0;

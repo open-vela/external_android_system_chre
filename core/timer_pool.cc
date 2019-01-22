@@ -19,7 +19,6 @@
 #include "chre/core/timer_pool.h"
 #include "chre/platform/fatal_error.h"
 #include "chre/platform/system_time.h"
-#include "chre/util/lock_guard.h"
 
 namespace chre {
 
@@ -29,71 +28,59 @@ TimerPool::TimerPool() {
   }
 }
 
-TimerHandle TimerPool::setSystemTimer(
-    Nanoseconds duration, SystemCallbackFunction *callback,
-    SystemCallbackType callbackType, const void *cookie) {
-  TimerHandle timerHandle = setTimer(
-      kSystemInstanceId, duration, callback,
-      static_cast<uint16_t>(callbackType), cookie, true /* isOneShot */);
-
-  if (timerHandle == CHRE_TIMER_INVALID) {
-    FATAL_ERROR("Failed to set system timer");
-  }
-
-  return timerHandle;
-}
-
-TimerHandle TimerPool::setTimer(
-    uint32_t instanceId, Nanoseconds duration,
-    SystemCallbackFunction *callback, uint16_t eventType,
+TimerHandle TimerPool::setTimer(const Nanoapp *nanoapp, Nanoseconds duration,
     const void *cookie, bool isOneShot) {
-  LockGuard<Mutex> lock(mMutex);
+  CHRE_ASSERT(nanoapp);
 
   TimerRequest timerRequest;
-  timerRequest.instanceId = instanceId;
-  timerRequest.timerHandle = generateTimerHandleLocked();
+  timerRequest.nanoappInstanceId = nanoapp->getInstanceId();
+  timerRequest.timerHandle = generateTimerHandle();
   timerRequest.expirationTime = SystemTime::getMonotonicTime() + duration;
   timerRequest.duration = duration;
   timerRequest.isOneShot = isOneShot;
-  timerRequest.callback = callback;
-  timerRequest.eventType = eventType;
   timerRequest.cookie = cookie;
 
   bool newTimerExpiresEarliest =
       (!mTimerRequests.empty() && mTimerRequests.top() > timerRequest);
-  bool success = insertTimerRequestLocked(timerRequest);
+  bool success = insertTimerRequest(timerRequest);
 
   if (success) {
     if (newTimerExpiresEarliest) {
+      if (mSystemTimer.isActive()) {
+        mSystemTimer.cancel();
+      }
+
       mSystemTimer.set(handleSystemTimerCallback, this, duration);
     } else if (mTimerRequests.size() == 1) {
       // If this timer request was the first, schedule it.
-      handleExpiredTimersAndScheduleNextLocked();
+      handleExpiredTimersAndScheduleNext();
     }
   }
 
   return success ? timerRequest.timerHandle : CHRE_TIMER_INVALID;
 }
 
-bool TimerPool::cancelTimer(
-    uint32_t instanceId, TimerHandle timerHandle) {
-  LockGuard<Mutex> lock(mMutex);
+bool TimerPool::cancelTimer(const Nanoapp *nanoapp, TimerHandle timerHandle) {
+  CHRE_ASSERT(nanoapp);
+
   size_t index;
   bool success = false;
-  TimerRequest *timerRequest = getTimerRequestByTimerHandleLocked(timerHandle,
+  TimerRequest *timerRequest = getTimerRequestByTimerHandle(timerHandle,
       &index);
 
   if (timerRequest == nullptr) {
     LOGW("Failed to cancel timer ID %" PRIu32 ": not found", timerHandle);
-  } else if (timerRequest->instanceId != instanceId) {
+  } else if (timerRequest->nanoappInstanceId != nanoapp->getInstanceId()) {
     LOGW("Failed to cancel timer ID %" PRIu32 ": permission denied",
          timerHandle);
   } else {
-    removeTimerRequestLocked(index);
-
+    mTimerRequests.remove(index);
     if (index == 0) {
-      mSystemTimer.cancel();
-      handleExpiredTimersAndScheduleNextLocked();
+      if (mSystemTimer.isActive()) {
+        mSystemTimer.cancel();
+      }
+
+      handleExpiredTimersAndScheduleNext();
     }
 
     success = true;
@@ -102,7 +89,7 @@ bool TimerPool::cancelTimer(
   return success;
 }
 
-TimerPool::TimerRequest *TimerPool::getTimerRequestByTimerHandleLocked(
+TimerPool::TimerRequest *TimerPool::getTimerRequestByTimerHandle(
     TimerHandle timerHandle, size_t *index) {
   for (size_t i = 0; i < mTimerRequests.size(); i++) {
     if (mTimerRequests[i].timerHandle == timerHandle) {
@@ -120,17 +107,17 @@ bool TimerPool::TimerRequest::operator>(const TimerRequest& request) const {
   return (expirationTime > request.expirationTime);
 }
 
-TimerHandle TimerPool::generateTimerHandleLocked() {
+TimerHandle TimerPool::generateTimerHandle() {
   TimerHandle timerHandle;
   if (mGenerateTimerHandleMustCheckUniqueness) {
-    timerHandle = generateUniqueTimerHandleLocked();
+    timerHandle = generateUniqueTimerHandle();
   } else {
     timerHandle = mLastTimerHandle + 1;
     if (timerHandle == CHRE_TIMER_INVALID) {
       // TODO: Consider that uniqueness checking can be reset when the number of
       // timer requests reaches zero.
       mGenerateTimerHandleMustCheckUniqueness = true;
-      timerHandle = generateUniqueTimerHandleLocked();
+      timerHandle = generateUniqueTimerHandle();
     }
   }
 
@@ -138,13 +125,12 @@ TimerHandle TimerPool::generateTimerHandleLocked() {
   return timerHandle;
 }
 
-TimerHandle TimerPool::generateUniqueTimerHandleLocked() {
+TimerHandle TimerPool::generateUniqueTimerHandle() {
   TimerHandle timerHandle = mLastTimerHandle;
   while (1) {
     timerHandle++;
     if (timerHandle != CHRE_TIMER_INVALID) {
-      TimerRequest *timerRequest =
-          getTimerRequestByTimerHandleLocked(timerHandle);
+      TimerRequest *timerRequest = getTimerRequestByTimerHandle(timerHandle);
       if (timerRequest == nullptr) {
         return timerHandle;
       }
@@ -152,71 +138,18 @@ TimerHandle TimerPool::generateUniqueTimerHandleLocked() {
   }
 }
 
-bool TimerPool::isNewTimerAllowedLocked(bool isNanoappTimer) const {
-  static_assert(kMaxNanoappTimers <= kMaxTimerRequests,
-                "Max number of nanoapp timers is too big");
-  static_assert(kNumReservedNanoappTimers <= kMaxTimerRequests,
-                "Number of reserved nanoapp timers is too big");
-
-  bool allowed;
-  if (isNanoappTimer) {
-    allowed = (mNumNanoappTimers < kMaxNanoappTimers);
-  } else { // System timer
-    // We must not allow more system timers than the required amount of reserved
-    // timers for nanoapps.
-    constexpr size_t kMaxSystemTimers =
-        kMaxTimerRequests - kNumReservedNanoappTimers;
-    size_t numSystemTimers = mTimerRequests.size() - mNumNanoappTimers;
-    allowed = (numSystemTimers < kMaxSystemTimers);
-  }
-
-  return allowed;
-}
-
-bool TimerPool::insertTimerRequestLocked(const TimerRequest& timerRequest) {
-  bool isNanoappTimer = (timerRequest.instanceId != kSystemInstanceId);
-  bool success = isNewTimerAllowedLocked(isNanoappTimer) &&
+bool TimerPool::insertTimerRequest(const TimerRequest& timerRequest) {
+  // If the timer request was not inserted, simply append it to the list.
+  bool success = (mTimerRequests.size() < kMaxTimerRequests) &&
       mTimerRequests.push(timerRequest);
-
   if (!success) {
-    LOG_OOM();
-  } else if (isNanoappTimer) {
-    mNumNanoappTimers++;
+    LOGE("Failed to insert a timer request: out of memory");
   }
 
   return success;
 }
 
-void TimerPool::popTimerRequestLocked() {
-  CHRE_ASSERT(!mTimerRequests.empty());
-  if (!mTimerRequests.empty()) {
-    bool isNanoappTimer =
-        (mTimerRequests.top().instanceId != kSystemInstanceId);
-    mTimerRequests.pop();
-    if (isNanoappTimer) {
-      mNumNanoappTimers--;
-    }
-  }
-}
-
-void TimerPool::removeTimerRequestLocked(size_t index) {
-  CHRE_ASSERT(index < mTimerRequests.size());
-  if (index < mTimerRequests.size()) {
-    bool isNanoappTimer =
-        (mTimerRequests[index].instanceId != kSystemInstanceId);
-    mTimerRequests.remove(index);
-    if (isNanoappTimer) {
-      mNumNanoappTimers--;
-    }
-  }
-}
-
 bool TimerPool::handleExpiredTimersAndScheduleNext() {
-  LockGuard<Mutex> lock(mMutex);
-  return handleExpiredTimersAndScheduleNextLocked();
-}
-
-bool TimerPool::handleExpiredTimersAndScheduleNextLocked() {
   bool success = false;
   while (!mTimerRequests.empty()) {
     Nanoseconds currentTime = SystemTime::getMonotonicTime();
@@ -224,10 +157,8 @@ bool TimerPool::handleExpiredTimersAndScheduleNextLocked() {
     if (currentTime >= currentTimerRequest.expirationTime) {
       // Post an event for an expired timer.
       success = EventLoopManagerSingleton::get()->getEventLoop().postEvent(
-          currentTimerRequest.eventType,
-          const_cast<void *>(currentTimerRequest.cookie),
-          currentTimerRequest.callback, kSystemInstanceId,
-          currentTimerRequest.instanceId);
+          CHRE_EVENT_TIMER, const_cast<void *>(currentTimerRequest.cookie),
+          nullptr, kSystemInstanceId, currentTimerRequest.nanoappInstanceId);
 
       // Reschedule the timer if needed, and release the current request.
       if (!currentTimerRequest.isOneShot) {
@@ -237,10 +168,10 @@ bool TimerPool::handleExpiredTimersAndScheduleNextLocked() {
         TimerRequest cyclicTimerRequest = currentTimerRequest;
         cyclicTimerRequest.expirationTime = currentTime
             + currentTimerRequest.duration;
-        popTimerRequestLocked();
-        CHRE_ASSERT(insertTimerRequestLocked(cyclicTimerRequest));
+        mTimerRequests.pop();
+        CHRE_ASSERT(insertTimerRequest(cyclicTimerRequest));
       } else {
-        popTimerRequestLocked();
+        mTimerRequests.pop();
       }
     } else {
       Nanoseconds duration = currentTimerRequest.expirationTime - currentTime;

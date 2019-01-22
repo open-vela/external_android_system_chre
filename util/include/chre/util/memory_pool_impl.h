@@ -19,7 +19,6 @@
 
 #include "chre/util/memory_pool.h"
 
-#include <cinttypes>
 #include <utility>
 
 namespace chre {
