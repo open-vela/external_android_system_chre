@@ -55,6 +55,7 @@ cc_test {
         "libutils",
     ],
     static_libs: ["chre_client"],
+    tags: ["optional"],
     gtest: false,
 }
 
@@ -86,6 +87,7 @@ cc_library_shared {
         "host/hal_generic/generic_context_hub.cc",
     ],
     cflags: ["-Wall", "-Werror"],
+    cpp_std: "c++17",
     shared_libs: [
         "libcutils",
         "liblog",
@@ -95,6 +97,7 @@ cc_library_shared {
         "android.hardware.contexthub@1.0",
     ],
     static_libs: ["chre_client"],
+    tags: ["optional"],
 }
 
 cc_library_headers {
