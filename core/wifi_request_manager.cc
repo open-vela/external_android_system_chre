@@ -257,32 +257,35 @@ void WifiRequestManager::handleScanEvent(chreWifiScanEvent *event) {
       SystemCallbackType::WifiHandleScanEvent, event, callback);
 }
 
-void WifiRequestManager::logStateToBuffer(char *buffer, size_t *bufferPos,
+bool WifiRequestManager::logStateToBuffer(char *buffer, size_t *bufferPos,
                                           size_t bufferSize) const {
-  debugDumpPrint(buffer, bufferPos, bufferSize,
-                 "\nWifi: scan monitor %s\n",
-                 scanMonitorIsEnabled() ? "enabled" : "disabled");
-  debugDumpPrint(buffer, bufferPos, bufferSize,
-                 " Wifi scan monitor enabled nanoapps:\n");
+  bool success = debugDumpPrint(buffer, bufferPos, bufferSize, "\nWifi: "
+                                "scan monitor %s\n", scanMonitorIsEnabled() ?
+                                "enabled" : "disabled");
+
+  success &= debugDumpPrint(buffer, bufferPos, bufferSize,
+                            " Wifi scan monitor enabled nanoapps:\n");
   for (const auto& instanceId : mScanMonitorNanoapps) {
-    debugDumpPrint(buffer, bufferPos, bufferSize,
-                   "  nanoappId=%" PRIu32 "\n", instanceId);
+    success &= debugDumpPrint(buffer, bufferPos, bufferSize,
+                              "  nanoappId=%" PRIu32 "\n", instanceId);
   }
 
   if (mScanRequestingNanoappInstanceId.has_value()) {
-    debugDumpPrint(buffer, bufferPos, bufferSize,
-                   " Wifi request pending nanoappId=%" PRIu32 "\n",
-                   mScanRequestingNanoappInstanceId.value());
+    success &= debugDumpPrint(buffer, bufferPos, bufferSize,
+                              " Wifi request pending nanoappId=%" PRIu32 "\n",
+                              mScanRequestingNanoappInstanceId.value());
   }
 
-  debugDumpPrint(buffer, bufferPos, bufferSize,
-                 " Wifi transition queue:\n");
+  success &= debugDumpPrint(buffer, bufferPos, bufferSize,
+                            " Wifi transition queue:\n");
   for (const auto& transition : mPendingScanMonitorRequests) {
-    debugDumpPrint(buffer, bufferPos, bufferSize,
-                   "  enable=%s nanoappId=%" PRIu32 "\n",
-                   transition.enable ? "true" : "false",
-                   transition.nanoappInstanceId);
+    success &= debugDumpPrint(buffer, bufferPos, bufferSize,
+                              "  enable=%s nanoappId=%" PRIu32 "\n",
+                              transition.enable ? "true" : "false",
+                              transition.nanoappInstanceId);
   }
+
+  return success;
 }
 
 bool WifiRequestManager::scanMonitorIsEnabled() const {

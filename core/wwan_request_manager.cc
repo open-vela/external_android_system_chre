@@ -74,14 +74,15 @@ void WwanRequestManager::handleCellInfoResultSync(
   }
 }
 
-void WwanRequestManager::logStateToBuffer(char *buffer, size_t *bufferPos,
+bool WwanRequestManager::logStateToBuffer(char *buffer, size_t *bufferPos,
                                           size_t bufferSize) const {
-  debugDumpPrint(buffer, bufferPos, bufferSize, "\nWWAN:\n");
+  bool success = debugDumpPrint(buffer, bufferPos, bufferSize, "\nWWAN:\n");
   if (mCellInfoRequestingNanoappInstanceId.has_value()) {
-    debugDumpPrint(buffer, bufferPos, bufferSize,
-                   " WWAN request pending nanoappId=%" PRIu32 "\n",
-                   mCellInfoRequestingNanoappInstanceId.value());
+    success &= debugDumpPrint(buffer, bufferPos, bufferSize,
+                              " WWAN request pending nanoappId=%" PRIu32 "\n",
+                              mCellInfoRequestingNanoappInstanceId.value());
   }
+  return success;
 }
 
 void WwanRequestManager::handleFreeCellInfoResult(
