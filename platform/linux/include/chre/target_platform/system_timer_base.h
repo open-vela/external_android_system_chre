@@ -17,7 +17,6 @@
 #ifndef CHRE_PLATFORM_LINUX_SYSTEM_TIMER_BASE_H_
 #define CHRE_PLATFORM_LINUX_SYSTEM_TIMER_BASE_H_
 
-#include <cinttypes>
 #include <signal.h>
 #include <time.h>
 

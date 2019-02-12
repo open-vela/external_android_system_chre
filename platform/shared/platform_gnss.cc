@@ -24,14 +24,6 @@
 
 namespace chre {
 
-const chrePalGnssCallbacks PlatformGnssBase::sGnssCallbacks = {
-  PlatformGnssBase::requestStateResyncCallback,
-  PlatformGnssBase::locationStatusChangeCallback,
-  PlatformGnssBase::locationEventCallback,
-  PlatformGnssBase::measurementStatusChangeCallback,
-  PlatformGnssBase::measurementEventCallback,
-};
-
 PlatformGnss::~PlatformGnss() {
   if (mGnssApi != nullptr) {
     LOGD("Platform GNSS closing");
@@ -45,7 +37,17 @@ void PlatformGnss::init() {
   prePalApiCall();
   mGnssApi = chrePalGnssGetApi(CHRE_PAL_GNSS_API_CURRENT_VERSION);
   if (mGnssApi != nullptr) {
-    if (!mGnssApi->open(&gChrePalSystemApi, &sGnssCallbacks)) {
+    mGnssCallbacks.requestStateResync =
+        PlatformGnssBase::requestStateResyncCallback;
+    mGnssCallbacks.locationStatusChangeCallback =
+        PlatformGnssBase::locationStatusChangeCallback;
+    mGnssCallbacks.locationEventCallback =
+        PlatformGnssBase::locationEventCallback;
+    mGnssCallbacks.measurementStatusChangeCallback =
+        PlatformGnssBase::measurementStatusChangeCallback;
+    mGnssCallbacks.measurementEventCallback =
+        PlatformGnssBase::measurementEventCallback;
+    if (!mGnssApi->open(&gChrePalSystemApi, &mGnssCallbacks)) {
       LOGE("GNSS PAL open returned false");
       mGnssApi = nullptr;
     } else {
