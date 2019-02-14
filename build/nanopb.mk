@@ -19,6 +19,10 @@ $(error "NANOPB_SRCS is non-empty. You must supply a NANOPB_PREFIX environment \
 endif
 endif
 
+ifeq ($(PROTOC),)
+PROTOC=protoc
+endif
+
 # Generated Source Files #######################################################
 
 NANOPB_GEN_PATH = $(OUT)/nanopb_gen
@@ -31,15 +35,20 @@ COMMON_CFLAGS += -I$(NANOPB_PREFIX)
 COMMON_CFLAGS += -I$(NANOPB_GEN_PATH)
 COMMON_CFLAGS += $(addprefix -I$(NANOPB_GEN_PATH)/, $(NANOPB_INCLUDES))
 
+ifneq ($(NANOPB_INCLUDE_LIBRARY),false)
 COMMON_SRCS += $(NANOPB_PREFIX)/pb_common.c
 COMMON_SRCS += $(NANOPB_PREFIX)/pb_decode.c
 COMMON_SRCS += $(NANOPB_PREFIX)/pb_encode.c
 endif
 
+endif
+
 # NanoPB Compiler Flags ########################################################
 
 ifneq ($(NANOPB_GEN_SRCS),)
+ifneq ($(NANOPB_INCLUDE_LIBRARY),false)
 COMMON_CFLAGS += -DPB_NO_PACKED_STRUCTS=1
+endif
 endif
 
 # NanoPB Generator Setup #######################################################
@@ -60,12 +69,14 @@ $(NANOPB_GEN_PATH)/%.pb.c $(NANOPB_GEN_PATH)/%.pb.h: %.proto \
                                                      %.options \
                                                      $(NANOPB_GENERATOR_SRCS)
 	mkdir -p $(dir $@)
-	protoc --plugin=protoc-gen-nanopb=$(NANOPB_PROTOC) $(NANOPB_FLAGS) \
+	$(PROTOC) --plugin=protoc-gen-nanopb=$(NANOPB_PROTOC) $(NANOPB_FLAGS) \
 	  --nanopb_out="--options-file=$(basename $<).options:$(NANOPB_GEN_PATH)/$(NANOPB_PROTO_PATH)" \
 	  $<
 
 $(NANOPB_GEN_PATH)/%.pb.c $(NANOPB_GEN_PATH)/%.pb.h: %.proto \
+                                                     $(NANOPB_OPTIONS) \
                                                      $(NANOPB_GENERATOR_SRCS)
 	mkdir -p $(dir $@)
-	protoc --plugin=protoc-gen-nanopb=$(NANOPB_PROTOC) $(NANOPB_FLAGS)\
-	  --nanopb_out="$(NANOPB_GEN_PATH)" $<
+	$(PROTOC) --plugin=protoc-gen-nanopb=$(NANOPB_PROTOC) $(NANOPB_FLAGS) \
+	  --nanopb_out="--options-file=$(NANOPB_OPTIONS):$(NANOPB_GEN_PATH)/$(NANOPB_PROTO_PATH)" \
+	  $<
