@@ -78,19 +78,17 @@ class Nanoapp : public PlatformNanoapp {
 
   /**
    * Adds an event to this nanoapp's queue of pending events.
+   *
+   * @param event
    */
-  void postEvent(Event *event) {
-    mEventQueue.push(event);
-  }
+  void postEvent(Event *event);
 
   /**
    * Indicates whether there are any pending events in this apps queue.
    *
    * @return true if there are events waiting to be processed
    */
-  bool hasPendingEvent() {
-    return !mEventQueue.empty();
-  }
+  bool hasPendingEvent();
 
   /**
    * Configures whether nanoapp info events will be sent to the nanoapp.
@@ -123,8 +121,10 @@ class Nanoapp : public PlatformNanoapp {
    * @param buffer Pointer to the start of the buffer.
    * @param bufferPos Pointer to buffer position to start the print (in-out).
    * @param size Size of the buffer in bytes.
+   *
+   * @return true if entire log printed, false if overflow or error.
    */
-  void logStateToBuffer(char *buffer, size_t *bufferPos,
+  bool logStateToBuffer(char *buffer, size_t *bufferPos,
                         size_t bufferSize) const;
 
  private:
