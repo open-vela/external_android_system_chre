@@ -346,7 +346,7 @@ void GenericContextHub::SocketCallbacks::onConnected() {
   if (mHaveConnected) {
     ALOGI("Reconnected to CHRE daemon");
     invokeClientCallback([&]() {
-      return mParent.mCallbacks->handleHubEvent(AsyncEventType::RESTARTED);
+      mParent.mCallbacks->handleHubEvent(AsyncEventType::RESTARTED);
     });
   }
   mHaveConnected = true;
@@ -365,7 +365,7 @@ void GenericContextHub::SocketCallbacks::handleNanoappMessage(
   msg.msg = message.message;
 
   invokeClientCallback([&]() {
-    return mParent.mCallbacks->handleClientMsg(msg);
+    mParent.mCallbacks->handleClientMsg(msg);
   });
 }
 
@@ -430,7 +430,7 @@ void GenericContextHub::SocketCallbacks::handleNanoappListResponse(
   }
 
   invokeClientCallback([&]() {
-    return mParent.mCallbacks->handleAppsInfo(appInfoList);
+    mParent.mCallbacks->handleAppsInfo(appInfoList);
   });
 }
 
@@ -474,8 +474,7 @@ void GenericContextHub::SocketCallbacks::handleLoadNanoappResponse(
         mParent.mPendingLoadTransaction.reset();
         lock.unlock();
         invokeClientCallback([&]() {
-          return mParent.mCallbacks->handleTxnResult(
-              response.transaction_id, result);
+          mParent.mCallbacks->handleTxnResult(response.transaction_id, result);
         });
       }
     }
@@ -499,7 +498,7 @@ void GenericContextHub::SocketCallbacks::handleUnloadNanoappResponse(
   invokeClientCallback([&]() {
     TransactionResult result = (response.success) ?
         TransactionResult::SUCCESS : TransactionResult::FAILURE;
-    return mParent.mCallbacks->handleTxnResult(response.transaction_id, result);
+    mParent.mCallbacks->handleTxnResult(response.transaction_id, result);
   });
 }
 
@@ -529,10 +528,10 @@ void GenericContextHub::SocketCallbacks::handleDebugDumpResponse(
 }
 
 void GenericContextHub::SocketCallbacks::invokeClientCallback(
-    std::function<Return<void>()> callback) {
+    std::function<void()> callback) {
   std::lock_guard<std::mutex> lock(mParent.mCallbacksLock);
-  if (mParent.mCallbacks != nullptr && !callback().isOk()) {
-    ALOGE("Failed to invoke client callback");
+  if (mParent.mCallbacks != nullptr) {
+    callback();
   }
 }
 

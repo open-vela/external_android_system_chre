@@ -17,8 +17,6 @@
 #ifndef CHRE_UTIL_CONDITIONAL_LOCK_GUARD_IMPL_H_
 #define CHRE_UTIL_CONDITIONAL_LOCK_GUARD_IMPL_H_
 
-#include "chre/util/conditional_lock_guard.h"
-
 namespace chre {
 
 template<typename MutexType>

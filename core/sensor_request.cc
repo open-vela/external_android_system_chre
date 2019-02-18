@@ -44,12 +44,11 @@ SensorRequest::SensorRequest()
 
 SensorRequest::SensorRequest(SensorMode mode, Nanoseconds interval,
                              Nanoseconds latency)
-    : SensorRequest(kInvalidInstanceId, mode, interval, latency) {}
+    : SensorRequest(nullptr /* nanoapp */, mode, interval, latency) {}
 
-SensorRequest::SensorRequest(uint32_t instanceId, SensorMode mode,
+SensorRequest::SensorRequest(Nanoapp *nanoapp, SensorMode mode,
                              Nanoseconds interval, Nanoseconds latency)
-    : mInstanceId(instanceId), mInterval(interval), mLatency(latency),
-      mMode(mode) {
+    : mNanoapp(nanoapp), mInterval(interval), mLatency(latency), mMode(mode) {
   // cap non-default interval/latency to ensure no overflow in CHRE internal
   // operations.
   if (interval != Nanoseconds(CHRE_SENSOR_INTERVAL_DEFAULT)) {
