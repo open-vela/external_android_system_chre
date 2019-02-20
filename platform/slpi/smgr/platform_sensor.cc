@@ -367,10 +367,11 @@ void populateSensorDataHeader(
   while (slpiTime > baseTime + kTickRolloverOffset / 2) {
     baseTime += kTickRolloverOffset;
   }
-  memset(header->reserved, 0, sizeof(header->reserved));
+  header->reserved = 0;
   header->baseTimestamp = baseTime;
   header->sensorHandle = getSensorHandleFromSensorType(sensorType);
   header->readingCount = sensorIndex.SampleCount;
+  header->accuracy = CHRE_SENSOR_ACCURACY_UNKNOWN;
 }
 
 void populateThreeAxisEvent(
@@ -837,10 +838,7 @@ void updateSamplingStatus(Sensor *sensor, const SensorRequest& request) {
       auto& requests = EventLoopManagerSingleton::get()->
           getSensorRequestManager().getRequests(sensor->getSensorType());
       for (const auto& req : requests) {
-        if (req.getNanoapp() != nullptr) {
-          postSamplingStatusEvent(req.getNanoapp()->getInstanceId(),
-                                  sensorHandle, status);
-        }
+        postSamplingStatusEvent(req.getInstanceId(), sensorHandle, status);
       }
     }
   }
