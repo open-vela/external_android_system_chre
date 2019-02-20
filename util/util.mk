@@ -9,8 +9,6 @@ COMMON_CFLAGS += -Iutil/include
 
 # Common Source Files ##########################################################
 
-COMMON_SRCS += util/buffer_base.cc
-COMMON_SRCS += util/dynamic_vector_base.cc
 COMMON_SRCS += util/nanoapp/audio.cc
 COMMON_SRCS += util/nanoapp/debug.cc
 COMMON_SRCS += util/nanoapp/sensor.cc
@@ -21,7 +19,6 @@ COMMON_SRCS += util/system/debug_dump.cc
 
 GOOGLETEST_SRCS += util/tests/array_queue_test.cc
 GOOGLETEST_SRCS += util/tests/blocking_queue_test.cc
-GOOGLETEST_SRCS += util/tests/buffer_test.cc
 GOOGLETEST_SRCS += util/tests/dynamic_vector_test.cc
 GOOGLETEST_SRCS += util/tests/fixed_size_vector_test.cc
 GOOGLETEST_SRCS += util/tests/heap_test.cc

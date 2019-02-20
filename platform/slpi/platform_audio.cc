@@ -21,55 +21,78 @@
 #include "chre/core/event_loop_manager.h"
 #include "chre/platform/host_link.h"
 #include "chre/platform/log.h"
-#include "chre/platform/shared/pal_system_api.h"
 #include "chre/platform/slpi/power_control_util.h"
+#include "chre/util/memory.h"
+#include "wcd_spi.h"
+
+static_assert(
+    sizeof(wcd_spi_audio_source_s) == sizeof(struct chreAudioSource),
+    "WCD SPI/CHRE audio sources must be equal in size");
+static_assert(
+    offsetof(wcd_spi_audio_source_s, name)
+        == offsetof(struct chreAudioSource, name),
+    "WCD SPI/CHRE audio source name must have the same offset");
+static_assert(
+    offsetof(wcd_spi_audio_source_s, sample_rate_hz)
+        == offsetof(struct chreAudioSource, sampleRate),
+    "WCD SPI/CHRE audio source sample rate must have the same offset");
+static_assert(
+    offsetof(wcd_spi_audio_source_s, min_buffer_duration_ns)
+        == offsetof(struct chreAudioSource, minBufferDuration),
+    "WCD SPI/CHRE audio source min buffer duration must have the same offset");
+static_assert(
+    offsetof(wcd_spi_audio_source_s, max_buffer_duration_ns)
+        == offsetof(struct chreAudioSource, maxBufferDuration),
+    "WCD SPI/CHRE audio source max buffer duration must have the same offset");
+static_assert(
+    offsetof(wcd_spi_audio_source_s, format)
+        == offsetof(struct chreAudioSource, format),
+    "WCD SPI/CHRE audio source format must have the same offset");
 
 namespace chre {
 namespace {
 
-void handleAudioDataEvent(struct chreAudioDataEvent *event) {
-  EventLoopManagerSingleton::get()->getAudioRequestManager()
-      .handleAudioDataEvent(event);
+void handleWcdSpiAudioDataEvent(const wcd_spi_audio_data_event_s *event) {
+  LOGD("WCD SPI audio data callback");
+
+  auto *dataEvent = memoryAlloc<struct chreAudioDataEvent>();
+  if (dataEvent == nullptr) {
+    LOGE("Failed to allocate data event");
+    wcd_spi_client_release_audio_data_event(event->handle);
+  } else {
+    dataEvent->handle = event->handle;
+    dataEvent->timestamp = event->timestamp_ns;
+    dataEvent->sampleRate = event->sample_rate_hz;
+    dataEvent->sampleCount = event->sample_count;
+    dataEvent->format = event->format;
+
+    // The sample pointers are a union, so the value will be correct regardless
+    // of the sample format. This is just a shallow copy of the data pointer,
+    // not the contents of the buffer itself.
+    dataEvent->samplesULaw8 = event->samples_ulaw8;
+
+    EventLoopManagerSingleton::get()->getAudioRequestManager()
+        .handleAudioDataEvent(dataEvent);
+  }
 }
 
-void handleAudioAvailability(uint32_t handle, bool available) {
-  LOGD("SPI audio handle %" PRIu32 " available: %d", handle, available);
+void handleWcdSpiAudioAvailability(uint32_t handle, bool available) {
+  LOGD("WCD SPI audio handle %" PRIu32 " available: %d", handle, available);
   EventLoopManagerSingleton::get()->getAudioRequestManager()
       .handleAudioAvailability(handle, available);
 }
 
 }  // anonymous namespace
 
-const chrePalAudioCallbacks PlatformAudioBase::sAudioCallbacks = {
-  handleAudioDataEvent,
-  handleAudioAvailability,
-};
-
 PlatformAudio::PlatformAudio() {}
 
 PlatformAudio::~PlatformAudio() {
-  if (mAudioApi != nullptr) {
-    LOGD("Platform audio closing");
-    prePalApiCall();
-    mAudioApi->close();
-    LOGD("Platform audio closed");
-  }
+  wcd_spi_client_deinit();
 }
 
 void PlatformAudio::init() {
-  prePalApiCall();
-  mAudioApi = chrePalAudioGetApi(CHRE_PAL_AUDIO_API_CURRENT_VERSION);
-  if (mAudioApi != nullptr) {
-    if (!mAudioApi->open(&gChrePalSystemApi, &sAudioCallbacks)) {
-      LOGD("Audio PAL open returned false");
-      mAudioApi = nullptr;
-    } else {
-      LOGD("Opened audio PAL version 0x%08" PRIx32, mAudioApi->moduleVersion);
-    }
-  } else {
-    LOGW("Requested audio PAL (version 0x%08" PRIx32 ") not found",
-         CHRE_PAL_AUDIO_API_CURRENT_VERSION);
-  }
+  wcd_spi_client_init(handleWcdSpiAudioDataEvent,
+                      handleWcdSpiAudioAvailability);
 }
 
 void PlatformAudio::setHandleEnabled(uint32_t handle, bool enabled) {
@@ -86,7 +109,7 @@ void PlatformAudio::setHandleEnabled(uint32_t handle, bool enabled) {
   if (lastNumAudioClients == 0 && mNumAudioClients > 0) {
     mTargetAudioEnabled = true;
     if (!mCurrentAudioEnabled) {
-      LOGD("Enabling audio");
+      LOGD("Enabling WCD SLPI");
       mCurrentAudioEnabled = true;
       sendAudioRequest();
     }
@@ -96,7 +119,7 @@ void PlatformAudio::setHandleEnabled(uint32_t handle, bool enabled) {
             .getPowerControlManager().hostIsAwake()) {
       onHostAwake();
     } else {
-      LOGD("Deferring disable audio");
+      LOGD("Deferring disable WCD SLPI");
     }
   }
 }
@@ -104,54 +127,43 @@ void PlatformAudio::setHandleEnabled(uint32_t handle, bool enabled) {
 bool PlatformAudio::requestAudioDataEvent(uint32_t handle,
                                           uint32_t numSamples,
                                           Nanoseconds eventDelay) {
-  bool success = false;
-  if (mAudioApi != nullptr) {
-    prePalApiCall();
-    success = mAudioApi->requestAudioDataEvent(
-        handle, numSamples, eventDelay.toRawNanoseconds());
-  }
-
-  return success;
+  slpiForceBigImage();
+  return wcd_spi_client_request_audio_data_event(handle, numSamples,
+                                                 eventDelay.toRawNanoseconds());
 }
 
 void PlatformAudio::cancelAudioDataEventRequest(uint32_t handle) {
-  if (mAudioApi != nullptr) {
-    prePalApiCall();
-    mAudioApi->cancelAudioDataEvent(handle);
-  }
+  slpiForceBigImage();
+  wcd_spi_client_cancel_audio_data_event(handle);
 }
 
 void PlatformAudio::releaseAudioDataEvent(struct chreAudioDataEvent *event) {
-  if (mAudioApi != nullptr) {
-    prePalApiCall();
-    mAudioApi->releaseAudioDataEvent(event);
-  }
+  wcd_spi_client_release_audio_data_event(event->handle);
+  memoryFree(event);
 }
 
 size_t PlatformAudio::getSourceCount() {
-  size_t sourceCount = 0;
-  if (mAudioApi != nullptr) {
-    prePalApiCall();
-    sourceCount = mAudioApi->getSourceCount();
-  }
-
-  return sourceCount;
+  slpiForceBigImage();
+  return wcd_spi_client_get_source_count();
 }
 
 bool PlatformAudio::getAudioSource(uint32_t handle,
-                                   struct chreAudioSource *source) const {
-  bool success = false;
-  if (mAudioApi != nullptr) {
-    prePalApiCall();
-    success = mAudioApi->getAudioSource(handle, source);
+                                   chreAudioSource *source) const {
+  slpiForceBigImage();
+  wcd_spi_audio_source_s wcd_spi_audio_source;
+  bool result = wcd_spi_client_get_source(handle, &wcd_spi_audio_source);
+  if (result) {
+    // The WCD SPI and CHRE source definitions are binary compatible so a simple
+    // memcpy will suffice.
+    memcpy(source, &wcd_spi_audio_source, sizeof(*source));
   }
 
-  return success;
+  return result;
 }
 
 void PlatformAudioBase::onHostAwake() {
   if (mCurrentAudioEnabled && !mTargetAudioEnabled) {
-    LOGD("Disabling audio");
+    LOGD("Disabling WCD SPI");
     mCurrentAudioEnabled = mTargetAudioEnabled;
     sendAudioRelease();
   }
