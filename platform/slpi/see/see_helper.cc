@@ -52,6 +52,9 @@
 #define LOG_NANOPB_ERROR(stream) \
     LOGE("Nanopb error: %s:%d", PB_GET_ERROR(stream), __LINE__)
 
+#define LOG_UNHANDLED_MSG(message) \
+    LOGW("Unhandled msg ID %" PRIu32 ": line %d", message, __LINE__)
+
 namespace chre {
 namespace {
 
@@ -480,7 +483,7 @@ bool decodeSnsSuidProtoEvent(pb_istream_t *stream, const pb_field_t *field,
       break;
 
     default:
-      LOGW("Unhandled sns_suid.proto msg ID: %" PRIu32, info->msgId);
+      LOG_UNHANDLED_MSG(info->msgId);
       break;
   }
   return success;
@@ -736,7 +739,7 @@ bool decodeSnsStdProtoEvent(pb_istream_t *stream, const pb_field_t *field,
     }
 
     default:
-      LOGW("Unhandled sns_std.proto msg ID %" PRIu32, info->msgId);
+      LOG_UNHANDLED_MSG(info->msgId);
   }
   return success;
 }
@@ -811,6 +814,50 @@ void populateEventSample(SeeInfoArg *info, const float *val) {
 
       case SensorSampleType::Vendor3: {
         auto *event = reinterpret_cast<chrexSensorVendor3Data *>(
+            data->event.get());
+        memcpy(event->readings[index].values, val,
+               sizeof(event->readings[index].values));
+        timestampDelta = &event->readings[index].timestampDelta;
+        break;
+      }
+
+      case SensorSampleType::Vendor4: {
+        auto *event = reinterpret_cast<chrexSensorVendor4Data *>(
+            data->event.get());
+        memcpy(event->readings[index].values, val,
+               sizeof(event->readings[index].values));
+        timestampDelta = &event->readings[index].timestampDelta;
+        break;
+      }
+
+      case SensorSampleType::Vendor5: {
+        auto *event = reinterpret_cast<chrexSensorVendor5Data *>(
+            data->event.get());
+        event->readings[index].value = *val;
+        timestampDelta = &event->readings[index].timestampDelta;
+        break;
+      }
+
+      case SensorSampleType::Vendor6: {
+        auto *event = reinterpret_cast<chrexSensorVendor6Data *>(
+            data->event.get());
+        memcpy(event->readings[index].values, val,
+               sizeof(event->readings[index].values));
+        timestampDelta = &event->readings[index].timestampDelta;
+        break;
+      }
+
+      case SensorSampleType::Vendor7: {
+        auto *event = reinterpret_cast<chrexSensorVendor7Data *>(
+            data->event.get());
+        memcpy(event->readings[index].values, val,
+               sizeof(event->readings[index].values));
+        timestampDelta = &event->readings[index].timestampDelta;
+        break;
+      }
+
+      case SensorSampleType::Vendor8: {
+        auto *event = reinterpret_cast<chrexSensorVendor8Data *>(
             data->event.get());
         memcpy(event->readings[index].values, val,
                sizeof(event->readings[index].values));
@@ -947,7 +994,7 @@ bool decodeSnsStdSensorProtoEvent(pb_istream_t *stream, const pb_field_t *field,
       break;
 
     default:
-      LOGW("Unhandled sns_std_sensor.proto msg ID %" PRIu32, info->msgId);
+      LOG_UNHANDLED_MSG(info->msgId);
   }
   return success;
 }
@@ -999,7 +1046,7 @@ bool decodeSnsCalProtoEvent(pb_istream_t *stream, const pb_field_t *field,
       break;
 
     default:
-      LOGW("Unhandled sns_cal.proto msg ID %" PRIu32, info->msgId);
+      LOG_UNHANDLED_MSG(info->msgId);
   }
   return success;
 }
@@ -1033,7 +1080,7 @@ bool decodeSnsProximityProtoEvent(pb_istream_t *stream, const pb_field_t *field,
       break;
 
     default:
-      LOGW("Unhandled sns_proximity.proto msg ID %" PRIu32, info->msgId);
+      LOG_UNHANDLED_MSG(info->msgId);
   }
   return success;
 }
@@ -1068,7 +1115,7 @@ bool decodeSnsResamplerProtoEvent(pb_istream_t *stream, const pb_field_t *field,
       break;
 
     default:
-      LOGW("Unhandled sns_resampler.proto msg ID %" PRIu32, info->msgId);
+      LOG_UNHANDLED_MSG(info->msgId);
   }
   return success;
 }
@@ -1101,8 +1148,7 @@ bool decodeSnsRemoteProcProtoEvent(
       break;
 
     default:
-      LOGW("Unhandled sns_remote_proc_state.proto msg ID %" PRIu32,
-           info->msgId);
+      LOG_UNHANDLED_MSG(info->msgId);
   }
   return success;
 }
@@ -1145,7 +1191,7 @@ bool assignPayloadCallback(const SeeInfoArg *info, pb_callback_t *payload) {
 
       default:
         success = false;
-        LOGW("Unhandled msg ID %" PRIu32, info->msgId);
+        LOG_UNHANDLED_MSG(info->msgId);
     }
   }
   return success;
@@ -1279,6 +1325,26 @@ void *allocateEvent(SensorType sensorType, size_t numSamples) {
     case SensorSampleType::Vendor3:
       sampleSize = sizeof(chrexSensorVendor3SampleData);
       break;
+
+    case SensorSampleType::Vendor4:
+      sampleSize = sizeof(chrexSensorVendor4SampleData);
+      break;
+
+    case SensorSampleType::Vendor5:
+      sampleSize = sizeof(chrexSensorVendor5SampleData);
+      break;
+
+    case SensorSampleType::Vendor6:
+      sampleSize = sizeof(chrexSensorVendor6SampleData);
+      break;
+
+    case SensorSampleType::Vendor7:
+      sampleSize = sizeof(chrexSensorVendor7SampleData);
+      break;
+
+    case SensorSampleType::Vendor8:
+      sampleSize = sizeof(chrexSensorVendor8SampleData);
+      break;
 #endif  // CHREX_SENSOR_SUPPORT
 
     default:
@@ -1311,10 +1377,11 @@ bool prepareSensorEvent(SeeInfoArg& info) {
 
     auto *header = reinterpret_cast<chreSensorDataHeader *>(
         info.data->event.get());
-    memset(header->reserved, 0, sizeof(header->reserved));
+    header->reserved = 0;
     header->sensorHandle = getSensorHandleFromSensorType(
         info.data->sensorType);
     header->readingCount = info.data->sampleIndex;
+    header->accuracy = CHRE_SENSOR_ACCURACY_UNKNOWN;
 
     // Protect against out of bounds access in data decoding.
     info.data->totalSamples = info.data->sampleIndex;
@@ -1505,9 +1572,9 @@ bool SeeHelper::findSuidSync(const char *dataType,
         mHaveTimedOutOnSuidLookup = true;
       }
       if (trialCount > 1) {
-        LOGD("Waited %" PRIu32 " ms for %s (found: %d)",
+        LOGD("Waited %" PRIu32 " ms for %s (found %zu, required %" PRIu8 ")",
              static_cast<uint32_t>(trialCount * retryDelay.getMilliseconds()),
-             dataType, success);
+             dataType, suids->size(), minNumSuids);
       }
     }
   }
