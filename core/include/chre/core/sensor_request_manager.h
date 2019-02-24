@@ -116,27 +116,16 @@ class SensorRequestManager : public NonCopyable {
   const DynamicVector<SensorRequest>& getRequests(SensorType sensorType) const;
 
   /**
-   * Makes a sensor flush request for a nanoapp asynchronously.
-   *
-   * @param nanoapp A non-null pointer to the nanoapp requesting this change.
-   * @param sensorHandle The sensor handle for which this sensor request is
-   *        directed at.
-   * @param cookie An opaque pointer to data that will be used in the
-   *        chreSensorFlushCompleteEvent.
-   *
-   * @return true if the request was accepted, false otherwise
-   */
-  bool flushAsync(Nanoapp *nanoapp, uint32_t sensorHandle, const void *cookie);
-
-  /**
    * Prints state in a string buffer. Must only be called from the context of
    * the main CHRE thread.
    *
    * @param buffer Pointer to the start of the buffer.
    * @param bufferPos Pointer to buffer position to start the print (in-out).
    * @param size Size of the buffer in bytes.
+   *
+   * @return true if entire log printed, false if overflow or error.
    */
-  void logStateToBuffer(char *buffer, size_t *bufferPos,
+  bool logStateToBuffer(char *buffer, size_t *bufferPos,
                         size_t bufferSize) const;
 
  private:
@@ -158,14 +147,13 @@ class SensorRequestManager : public NonCopyable {
      * given nanoapp. The provided non-null index pointer is populated with the
      * index of the request if it is found.
      *
-     * @param instanceId The instance ID of the nanoapp whose request is being
-     *        searched for.
+     * @param nanoapp The nanoapp whose request is being searched for.
      * @param index A non-null pointer to an index that is populated if a request
      *        for this nanoapp is found.
      * @return A pointer to a SensorRequest that is owned by the provided nanoapp
      *         if one is found otherwise nullptr.
      */
-    const SensorRequest *find(uint32_t instanceId, size_t *index) const;
+    const SensorRequest *find(const Nanoapp *nanoapp, size_t *index) const;
 
     /**
      * Adds a new sensor request to the request multiplexer for this sensor.
