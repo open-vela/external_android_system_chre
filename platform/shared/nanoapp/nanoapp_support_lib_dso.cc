@@ -17,6 +17,7 @@
 #include "chre/platform/shared/nanoapp_support_lib_dso.h"
 
 #include <chre.h>
+#include <dlfcn.h>
 
 #include "chre/util/macros.h"
 
@@ -35,40 +36,36 @@ constexpr int kIsTcmNanoapp = 0;
 #endif  // CHRE_SLPI_UIMG_ENABLED
 
 DLL_EXPORT extern "C" const struct chreNslNanoappInfo _chreNslDsoNanoappInfo = {
-  /* magic */ CHRE_NSL_NANOAPP_INFO_MAGIC,
-  /* structMinorVersion */ CHRE_NSL_NANOAPP_INFO_STRUCT_MINOR_VERSION,
-  /* isSystemNanoapp */ NANOAPP_IS_SYSTEM_NANOAPP,
-  /* isTcmNanoapp */ kIsTcmNanoapp,
-  /* reservedFlags */ 0,
-  /* reserved */ 0,
-  /* targetApiVersion */ CHRE_API_VERSION,
+  .magic = CHRE_NSL_NANOAPP_INFO_MAGIC,
+  .structMinorVersion = CHRE_NSL_NANOAPP_INFO_STRUCT_MINOR_VERSION,
+  .targetApiVersion = CHRE_API_VERSION,
 
-  // These values are supplied by the build environment.
-  /* vendor */ NANOAPP_VENDOR_STRING,
-  /* name */ NANOAPP_NAME_STRING,
-  /* appId */ NANOAPP_ID,
-  /* appVersion */ NANOAPP_VERSION,
-  /* entryPoints */ {
-    /* start */ nanoappStart,
-    /* handleEvent */ nanoappHandleEvent,
-    /* end */ nanoappEnd,
+  // These values are supplied by the build environment
+  .vendor = NANOAPP_VENDOR_STRING,
+  .name = NANOAPP_NAME_STRING,
+  .isSystemNanoapp = NANOAPP_IS_SYSTEM_NANOAPP,
+  .isTcmNanoapp = kIsTcmNanoapp,
+  .appId = NANOAPP_ID,
+  .appVersion = NANOAPP_VERSION,
+
+  .entryPoints = {
+    .start = nanoappStart,
+    .handleEvent = nanoappHandleEvent,
+    .end = nanoappEnd,
   },
-  /* appVersionString */ NANOAPP_VERSION_STRING,
 };
 
 // The code section below provides default implementations for new symbols
-// introduced in CHRE API v1.2+ to provide binary compatibility with previous
+// introduced in CHRE API v1.2 to provide binary compatibility with previous
 // CHRE implementations. Note that we don't presently include symbols for v1.1,
 // as the current known set of CHRE platforms that use this NSL implementation
 // are all v1.1+.
-// If a nanoapp knows that it is only targeting the latest platform version, it
-// can define the CHRE_NANOAPP_DISABLE_BACKCOMPAT flag, so this indirection will
-// be avoided at the expense of a nanoapp not being able to load at all on prior
+// If a nanoapp knows that it is only targeting v1.2+ platforms, it can define
+// the CHRE_NANOAPP_DISABLE_BACKCOMPAT flag, so this indirection will be avoided
+// at the expense of a nanoapp not being able to load at all on prior
 // implementations.
 
 #ifndef CHRE_NANOAPP_DISABLE_BACKCOMPAT
-
-#include <dlfcn.h>
 
 /**
  * Lazily calls dlsym to find the function pointer for a given function
@@ -131,25 +128,6 @@ bool chreWifiRequestRangingAsync(const struct chreWifiRangingParams *params,
                                  const void *cookie) {
   auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreWifiRequestRangingAsync);
   return (fptr != nullptr) ? fptr(params, cookie) : false;
-}
-
-WEAK_SYMBOL
-bool chreSensorConfigureBiasEvents(uint32_t sensorHandle, bool enable) {
-  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreSensorConfigureBiasEvents);
-  return (fptr != nullptr) ? fptr(sensorHandle, enable) : false;
-}
-
-WEAK_SYMBOL
-bool chreSensorGetThreeAxisBias(uint32_t sensorHandle,
-                                struct chreSensorThreeAxisData *bias) {
-  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreSensorGetThreeAxisBias);
-  return (fptr != nullptr) ? fptr(sensorHandle, bias) : false;
-}
-
-WEAK_SYMBOL
-bool chreSensorFlushAsync(uint32_t sensorHandle, const void *cookie) {
-  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreSensorFlushAsync);
-  return (fptr != nullptr) ? fptr(sensorHandle, cookie) : false;
 }
 
 #endif  // CHRE_NANOAPP_DISABLE_BACKCOMPAT
