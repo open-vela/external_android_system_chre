@@ -346,11 +346,11 @@ void SensorRequestManager::handleFlushCompleteEvent(
   state.callbackState.sensorType = sensorType;
 
   auto callback = [](uint16_t /* eventType */, void *eventData) {
-    NestedCallbackState nestedState;
-    nestedState.eventData = eventData;
+    NestedCallbackState state;
+    state.eventData = eventData;
     EventLoopManagerSingleton::get()->getSensorRequestManager()
-        .handleFlushCompleteEventSync(nestedState.callbackState.errorCode,
-                                      nestedState.callbackState.sensorType);
+        .handleFlushCompleteEventSync(state.callbackState.errorCode,
+                                      state.callbackState.sensorType);
   };
 
   EventLoopManagerSingleton::get()->deferCallback(
