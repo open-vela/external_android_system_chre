@@ -24,6 +24,8 @@ extern "C" {
 
 }  // extern "C"
 
+#include "ash/debug.h"
+
 #include "chre/core/event_loop.h"
 #include "chre/core/event_loop_manager.h"
 #include "chre/core/init.h"
@@ -32,7 +34,6 @@ extern "C" {
 #include "chre/platform/log.h"
 #include "chre/platform/memory.h"
 #include "chre/platform/mutex.h"
-#include "chre/platform/slpi/debug_dump.h"
 #include "chre/platform/slpi/fastrpc.h"
 #include "chre/platform/slpi/uimg_util.h"
 #include "chre/util/lock_guard.h"
@@ -96,7 +97,7 @@ bool gTlsKeyValid;
 void performDebugDumpCallback(uint16_t /*eventType*/, void *data) {
   auto *handle = static_cast<const uint32_t *>(data);
   UniquePtr<char> dump = chre::EventLoopManagerSingleton::get()->debugDump();
-  chre::commitDebugDump(*handle, dump.get(), true /*done*/);
+  ashCommitDebugDump(*handle, dump.get(), true /*done*/);
 }
 
 void onDebugDumpRequested(void * /*cookie*/, uint32_t handle) {
@@ -116,10 +117,10 @@ void onDebugDumpRequested(void * /*cookie*/, uint32_t handle) {
 void chreThreadEntry(void * /*data*/) {
   EventLoopManagerSingleton::get()->lateInit();
   chre::loadStaticNanoapps();
-  chre::registerDebugDumpCallback("CHRE", onDebugDumpRequested, nullptr);
+  ashRegisterDebugDumpCallback("CHRE", onDebugDumpRequested, nullptr);
   EventLoopManagerSingleton::get()->getEventLoop().run();
 
-  chre::unregisterDebugDumpCallback(onDebugDumpRequested);
+  ashUnregisterDebugDumpCallback(onDebugDumpRequested);
   chre::deinit();
 #if defined(CHRE_SLPI_SEE) && !defined(IMPORT_CHRE_UTILS)
   chre::IslandVoteClientSingleton::deinit();
