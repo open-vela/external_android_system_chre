@@ -56,7 +56,6 @@
 
 #include <fstream>
 #include <string>
-#include <queue>
 
 #include "chre/platform/slpi/fastrpc.h"
 #include "chre_host/log.h"
@@ -131,9 +130,18 @@ static LpmaEnableThreadData lpmaEnableThread;
 //! clients after the server starts.
 static const uint16_t kHostClientIdDaemon = UINT16_MAX;
 
-//! Contains a set of transaction IDs used to load the preloaded nanoapps.
-//! The IDs are stored in the order they are sent.
-static std::queue<uint32_t> gPreloadedNanoappPendingTransactionIds;
+//! The mutex used to guard state between the nanoapp messaging thread
+//! and loading preloaded nanoapps.
+static pthread_mutex_t gPreloadedNanoappsMutex;
+
+//! The condition variable used to wait for a nanoapp to finish loading.
+static pthread_cond_t gPreloadedNanoappsCond;
+
+//! Set to true when a preloaded nanoapp is pending load.
+static bool gPreloadedNanoappPending;
+
+//! Set to the expected transaction ID for loading a nanoapp.
+static uint32_t gPreloadedNanoappPendingTransactionId;
 
 //! Set to true when we request a graceful shutdown of CHRE
 static volatile bool chre_shutdown_requested = false;
@@ -532,48 +540,79 @@ static bool sendMessageToChre(uint16_t clientId, void *data, size_t length) {
 }
 
 /**
- * Loads a nanoapp by sending the nanoapp filename to the CHRE framework. This
- * method will return after sending the request so no guarantee is made that
- * the nanoapp is loaded until after the response is received.
+ * Loads a nanoapp using fragments.
  *
  * @param appId The ID of the nanoapp to load.
  * @param appVersion The version of the nanoapp to load.
  * @param appTargetApiVersion The version of the CHRE API that the app targets.
- * @param appBinaryName The name of the binary as stored in the filesystem. This
- *     will be used to load the nanoapp into CHRE.
+ * @param appBinary The application binary code.
+ * @param appSize The size of the appBinary.
  * @param transactionId The transaction ID to use when loading.
- * @return true if a request was successfully sent, false otherwise.
+ * @return true if successful, false otherwise.
  */
-static bool sendNanoappLoad(
+static bool sendFragmentedNanoappLoad(
     uint64_t appId, uint32_t appVersion, uint32_t appTargetApiVersion,
-    const std::string& appBinaryName, uint32_t transactionId) {
-  flatbuffers::FlatBufferBuilder builder;
-  HostProtocolHost::encodeLoadNanoappRequestForFile(
-      builder, transactionId, appId, appVersion, appTargetApiVersion,
-      appBinaryName.c_str());
+    const uint8_t *appBinary, size_t appSize, uint32_t transactionId) {
+  std::vector<uint8_t> binary(appSize);
+  std::copy(appBinary, appBinary + appSize, binary.begin());
 
-  bool success = sendMessageToChre(
-      kHostClientIdDaemon, builder.GetBufferPointer(), builder.GetSize());
+  FragmentedLoadTransaction transaction(transactionId, appId, appVersion,
+                                        appTargetApiVersion, binary);
 
-  if (!success) {
-    LOGE("Failed to send nanoapp filename.");
-  } else {
-    gPreloadedNanoappPendingTransactionIds.push(transactionId);
+  bool success = true;
+  while (success && !transaction.isComplete()) {
+    // Pad the builder to avoid allocation churn.
+    const auto& fragment = transaction.getNextRequest();
+    flatbuffers::FlatBufferBuilder builder(fragment.binary.size() + 128);
+    HostProtocolHost::encodeFragmentedLoadNanoappRequest(builder, fragment);
+
+    pthread_mutex_lock(&gPreloadedNanoappsMutex);
+
+    gPreloadedNanoappPendingTransactionId = transactionId;
+    gPreloadedNanoappPending = sendMessageToChre(
+        kHostClientIdDaemon, builder.GetBufferPointer(), builder.GetSize());
+    if (!gPreloadedNanoappPending) {
+      LOGE("Failed to send nanoapp fragment");
+      success = false;
+    } else {
+      struct timespec timeout;
+      int ret = clock_gettime(CLOCK_REALTIME, &timeout);
+
+      // 60s timeout for fragments. Set high for busy first bootups where the
+      // PALs can block CHRE initialization while other subsystems come up.
+      timeout.tv_sec += 60;
+      if (ret != 0) {
+        LOG_ERROR("Nanoapp fragment get time failed", ret);
+        success = false;
+      } else {
+        while (gPreloadedNanoappPending && ret == 0) {
+          ret = pthread_cond_timedwait(&gPreloadedNanoappsCond,
+                                       &gPreloadedNanoappsMutex, &timeout);
+        }
+
+        if (ret != 0) {
+          LOG_ERROR("Nanoapp fragment load wait failed", ret);
+          success = false;
+        }
+      }
+    }
+
+    pthread_mutex_unlock(&gPreloadedNanoappsMutex);
   }
 
   return success;
 }
 
 /**
- * Sends a preloaded nanoapp filename / metadata to CHRE.
+ * Sends a preloaded nanoapp to CHRE.
  *
  * @param header The nanoapp header binary blob.
- * @param nanoappName The filename of the nanoapp to be loaded.
+ * @param nanoapp The nanoapp binary blob.
  * @param transactionId The transaction ID to use when loading the app.
- * @return true if successful, false otherwise.
+ * @return true if succssful, false otherwise.
  */
 static bool loadNanoapp(const std::vector<uint8_t>& header,
-                        const std::string& nanoappName,
+                        const std::vector<uint8_t>& nanoapp,
                         uint32_t transactionId) {
   // This struct comes from build/build_template.mk and must not be modified.
   // Refer to that file for more details.
@@ -601,8 +640,9 @@ static bool loadNanoapp(const std::vector<uint8_t>& header,
     uint32_t targetApiVersion = (appHeader->targetChreApiMajorVersion << 24)
         | (appHeader->targetChreApiMinorVersion << 16);
 
-    success = sendNanoappLoad(appHeader->appId, appHeader->appVersion,
-                              targetApiVersion, nanoappName, transactionId);
+    success = sendFragmentedNanoappLoad(appHeader->appId, appHeader->appVersion,
+                                        targetApiVersion, nanoapp.data(),
+                                        nanoapp.size(), transactionId);
   }
 
   return success;
@@ -615,8 +655,8 @@ static bool loadNanoapp(const std::vector<uint8_t>& header,
  * @param buffer The buffer to load into.
  * @return true if successful, false otherwise.
  */
-static bool readFileContents(const char *filename,
-                             std::vector<uint8_t> *buffer) {
+static bool loadPreloadedNanoappFile(const char *filename,
+                                     std::vector<uint8_t> *buffer) {
   bool success = false;
   std::ifstream file(filename, std::ios::binary | std::ios::ate);
   if (!file) {
@@ -638,29 +678,22 @@ static bool readFileContents(const char *filename,
 }
 
 /**
- * Loads a preloaded nanoapp given a filename to load from. Allows the
- * transaction to complete before the nanoapp starts so the server can start
- * serving requests as soon as possible.
+ * Loads a preloaded nanoapp given a filename to load from.
  *
  * @param name The filepath to load the nanoapp from.
  * @param transactionId The transaction ID to use when loading the app.
  */
-static void loadPreloadedNanoapp(const std::string& name,
-                                 uint32_t transactionId) {
+static void loadPreloadedNanoapp(const char *name, uint32_t transactionId) {
   std::vector<uint8_t> headerBuffer;
+  std::vector<uint8_t> nanoappBuffer;
 
   std::string headerFilename = std::string(name) + ".napp_header";
   std::string nanoappFilename = std::string(name) + ".so";
 
-  // Only send the filename itself e.g activity.so since CHRE will load from
-  // the same directory its own binary resides in.
-  nanoappFilename = nanoappFilename.substr(
-      nanoappFilename.find_last_of("/\\") + 1);
-  if (nanoappFilename.empty()) {
-    LOGE("Failed to get the name of the nanoapp %s", name.c_str());
-  } else if (readFileContents(headerFilename.c_str(), &headerBuffer)
-      && !loadNanoapp(headerBuffer, nanoappFilename, transactionId)) {
-    LOGE("Failed to load nanoapp: '%s'", name.c_str());
+  if (loadPreloadedNanoappFile(headerFilename.c_str(), &headerBuffer)
+      && loadPreloadedNanoappFile(nanoappFilename.c_str(), &nanoappBuffer)
+      && !loadNanoapp(headerBuffer, nanoappBuffer, transactionId)) {
+    LOGE("Failed to load nanoapp: '%s'", name);
   }
 }
 
@@ -676,23 +709,31 @@ static void loadPreloadedNanoapp(const std::string& name,
  * The napp_header and so files will both be loaded. All errors are logged.
  */
 static void loadPreloadedNanoapps() {
-  constexpr char kPreloadedNanoappsConfigPath[] =
-      "/vendor/etc/chre/preloaded_nanoapps.json";
-  std::ifstream configFileStream(kPreloadedNanoappsConfigPath);
-
-  Json::Reader reader;
-  Json::Value config;
-  if (!configFileStream) {
-    LOGE("Failed to open config file '%s': %d (%s)",
-         kPreloadedNanoappsConfigPath, errno, strerror(errno));
-  } else if (!reader.parse(configFileStream, config)) {
-    LOGE("Failed to parse nanoapp config file");
-  } else if (!config.isMember("nanoapps")) {
-    LOGE("Malformed preloaded nanoapps config");
+  int ret;
+  if ((ret = pthread_mutex_init(&gPreloadedNanoappsMutex, NULL)) != 0) {
+    LOG_ERROR("Failed to initialize preloaded nanoapps mutex", ret);
+  } else if ((ret = pthread_cond_init(&gPreloadedNanoappsCond, NULL)) != 0) {
+    LOG_ERROR("Failed to initialize preloaded nanoapps condition variable",
+              ret);
   } else {
-    for (Json::ArrayIndex i = 0; i < config["nanoapps"].size(); i++) {
-      const Json::Value& nanoapp = config["nanoapps"][i];
-      loadPreloadedNanoapp(nanoapp.asString(), static_cast<uint32_t>(i));
+    constexpr char kPreloadedNanoappsConfigPath[] =
+        "/vendor/etc/chre/preloaded_nanoapps.json";
+    std::ifstream configFileStream(kPreloadedNanoappsConfigPath);
+
+    Json::Reader reader;
+    Json::Value config;
+    if (!configFileStream) {
+      LOGE("Failed to open config file '%s': %d (%s)",
+           kPreloadedNanoappsConfigPath, errno, strerror(errno));
+    } else if (!reader.parse(configFileStream, config)) {
+      LOGE("Failed to parse nanoapp config file");
+    } else if (!config.isMember("nanoapps")) {
+      LOGE("Malformed preloaded nanoapps config");
+    } else {
+      for (Json::ArrayIndex i = 0; i < config["nanoapps"].size(); i++) {
+        const Json::Value& nanoapp = config["nanoapps"][i];
+        loadPreloadedNanoapp(nanoapp.asCString(), static_cast<uint32_t>(i));
+      }
     }
   }
 }
@@ -710,20 +751,18 @@ static void handleDaemonMessage(const uint8_t *message) {
     LOGE("Invalid message from CHRE directed to daemon");
   } else {
     const auto *response = container->message.AsLoadNanoappResponse();
-    if (gPreloadedNanoappPendingTransactionIds.empty()) {
+    pthread_mutex_lock(&gPreloadedNanoappsMutex);
+    if (!gPreloadedNanoappPending) {
       LOGE("Received nanoapp load response with no pending load");
-    } else if (gPreloadedNanoappPendingTransactionIds.front()
+    } else if (gPreloadedNanoappPendingTransactionId
                    != response->transaction_id) {
-      LOGE("Received nanoapp load response with ID %" PRIu32
-           " expected transaction id %" PRIu32, response->transaction_id,
-           gPreloadedNanoappPendingTransactionIds.front());
+      LOGE("Received nanoapp load response with invalid transaction id");
     } else {
-      if (!response->success) {
-        LOGE("Received unsuccessful nanoapp load response with ID %" PRIu32,
-             gPreloadedNanoappPendingTransactionIds.front());
-      }
-      gPreloadedNanoappPendingTransactionIds.pop();
+      gPreloadedNanoappPending = false;
     }
+
+    pthread_mutex_unlock(&gPreloadedNanoappsMutex);
+    pthread_cond_signal(&gPreloadedNanoappsCond);
   }
 }
 
