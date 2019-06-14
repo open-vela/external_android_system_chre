@@ -39,7 +39,9 @@
 
 namespace chre {
 
-AudioRequestManager::AudioRequestManager() {
+void AudioRequestManager::init() {
+  mPlatformAudio.init();
+
   size_t sourceCount = mPlatformAudio.getSourceCount();
   if (!mAudioRequestLists.reserve(sourceCount)) {
     FATAL_ERROR_OOM();
@@ -48,10 +50,6 @@ AudioRequestManager::AudioRequestManager() {
   for (size_t i = 0; i < sourceCount; i++) {
     mAudioRequestLists.emplace_back();
   }
-}
-
-void AudioRequestManager::init() {
-  mPlatformAudio.init();
 }
 
 bool AudioRequestManager::configureSource(const Nanoapp *nanoapp,
@@ -68,6 +66,14 @@ bool AudioRequestManager::configureSource(const Nanoapp *nanoapp,
 
 void AudioRequestManager::handleAudioDataEvent(
     const struct chreAudioDataEvent *audioDataEvent) {
+  uint32_t handle = audioDataEvent->handle;
+  if (handle >= mAudioRequestLists.size()) {
+    LOGE("Received audio event for unknown handle %" PRIu32, handle);
+  } else {
+    mAudioRequestLists[handle].lastEventTimestamp
+        = SystemTime::getMonotonicTime();
+  }
+
   auto callback = [](uint16_t /* eventType */, void *eventData) {
     auto *event = static_cast<struct chreAudioDataEvent *>(eventData);
     EventLoopManagerSingleton::get()->getAudioRequestManager()
@@ -107,24 +113,28 @@ void AudioRequestManager::handleAudioAvailability(uint32_t handle, bool availabl
   }
 }
 
-bool AudioRequestManager::logStateToBuffer(char *buffer, size_t *bufferPos,
+void AudioRequestManager::logStateToBuffer(char *buffer, size_t *bufferPos,
                                            size_t bufferSize) const {
-  bool success = debugDumpPrint(buffer, bufferPos, bufferSize, "\nAudio:\n");
+  debugDumpPrint(buffer, bufferPos, bufferSize, "\nAudio:\n");
   for (size_t i = 0; i < mAudioRequestLists.size(); i++) {
     uint32_t handle = static_cast<uint32_t>(i);
     struct chreAudioSource source;
     mPlatformAudio.getAudioSource(handle, &source);
-    success &= debugDumpPrint(buffer, bufferPos, bufferSize,
-        " handle=%" PRIu32 ", name=\"%s\", sampleRate=%" PRIu32
-        ", buffer(ms)=[%" PRIu64 ",%" PRIu64 "], format=%" PRIu8 "\n",
-        handle, source.name, source.sampleRate,
+
+    Nanoseconds timeSinceLastAudioEvent = SystemTime::getMonotonicTime()
+        - mAudioRequestLists[i].lastEventTimestamp;
+    debugDumpPrint(buffer, bufferPos, bufferSize,
+        " handle=%" PRIu32 ", name=\"%s\", available=%d, sampleRate=%" PRIu32
+        ", buffer(ms)=[%" PRIu64 ",%" PRIu64 "], format=%" PRIu8
+        ", timeSinceLastAudioEvent(ms)=%" PRIu64 "\n",
+        handle, source.name, mAudioRequestLists[i].available, source.sampleRate,
         Milliseconds(Nanoseconds(source.minBufferDuration)).getMilliseconds(),
         Milliseconds(Nanoseconds(source.maxBufferDuration)).getMilliseconds(),
-        source.format);
+        source.format, Milliseconds(timeSinceLastAudioEvent).getMilliseconds());
 
     for (const auto& request : mAudioRequestLists[i].requests) {
       for (const auto& instanceId : request.instanceIds) {
-        success &= debugDumpPrint(buffer, bufferPos, bufferSize,
+        debugDumpPrint(buffer, bufferPos, bufferSize,
             "  nanoappId=%" PRIu32 ", numSamples=%" PRIu32
             ", interval(ms)=%" PRIu64 "\n", instanceId, request.numSamples,
             Milliseconds(Nanoseconds(request.deliveryInterval))
@@ -132,8 +142,6 @@ bool AudioRequestManager::logStateToBuffer(char *buffer, size_t *bufferPos,
       }
     }
   }
-
-  return success;
 }
 
 bool AudioRequestManager::validateConfigureSourceArguments(
