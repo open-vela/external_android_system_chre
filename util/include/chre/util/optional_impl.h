@@ -37,11 +37,6 @@ Optional<ObjectType>::Optional(ObjectType&& object) {
 }
 
 template<typename ObjectType>
-Optional<ObjectType>::~Optional() {
-  reset();
-}
-
-template<typename ObjectType>
 bool Optional<ObjectType>::has_value() const {
   return mHasValue;
 }

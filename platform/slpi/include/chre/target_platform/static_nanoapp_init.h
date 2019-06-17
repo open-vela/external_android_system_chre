@@ -50,7 +50,6 @@ UniquePtr<Nanoapp> initializeStaticNanoapp##appName() {        \
   appInfo.entryPoints.start = nanoappStart;                    \
   appInfo.entryPoints.handleEvent = nanoappHandleEvent;        \
   appInfo.entryPoints.end = nanoappEnd;                        \
-  appInfo.appVersionString = "<undefined>";                    \
   if (nanoapp.isNull()) {                                      \
     FATAL_ERROR("Failed to allocate nanoapp " #appName);       \
   } else {                                                     \
