@@ -19,12 +19,8 @@ COMMON_CFLAGS += -DCHRE_VARIANT_SUPPLIES_STATIC_NANOAPP_LIST
 # Enable exceptions for TCLAP.
 GOOGLE_X86_LINUX_CFLAGS += -fexceptions
 
-# Optional Features ############################################################
-
+# Enable audio support
 CHRE_AUDIO_SUPPORT_ENABLED = true
-CHRE_GNSS_SUPPORT_ENABLED = true
-CHRE_WIFI_SUPPORT_ENABLED = true
-CHRE_WWAN_SUPPORT_ENABLED = true
 
 # Common Source Files ##########################################################
 

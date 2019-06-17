@@ -24,12 +24,6 @@
 
 namespace chre {
 
-Nanoapp::~Nanoapp() {
-  CHRE_ASSERT_LOG(getTotalAllocatedBytes() == 0,
-      "Nanoapp ID=0x%016" PRIx64 " still has %zu allocated bytes!", getAppId(),
-      getTotalAllocatedBytes());
-}
-
 bool Nanoapp::isRegisteredForBroadcastEvent(uint16_t eventType) const {
   return (mRegisteredEvents.find(eventType) != mRegisteredEvents.size());
 }
@@ -40,7 +34,7 @@ bool Nanoapp::registerForBroadcastEvent(uint16_t eventId) {
   }
 
   if (!mRegisteredEvents.push_back(eventId)) {
-    FATAL_ERROR_OOM();
+    FATAL_ERROR("App failed to register for event: out of memory");
   }
 
   return true;
@@ -54,6 +48,14 @@ bool Nanoapp::unregisterForBroadcastEvent(uint16_t eventId) {
 
   mRegisteredEvents.erase(registeredEventIndex);
   return true;
+}
+
+void Nanoapp::postEvent(Event *event) {
+  mEventQueue.push(event);
+}
+
+bool Nanoapp::hasPendingEvent() {
+  return !mEventQueue.empty();
 }
 
 void Nanoapp::configureNanoappInfoEvents(bool enable) {
@@ -87,16 +89,16 @@ Event *Nanoapp::processNextEvent() {
   return event;
 }
 
-void Nanoapp::logStateToBuffer(char *buffer, size_t *bufferPos,
+bool Nanoapp::logStateToBuffer(char *buffer, size_t *bufferPos,
                                size_t bufferSize) const {
-  PlatformNanoapp::logStateToBuffer(buffer, bufferPos, bufferSize);
-  debugDumpPrint(
-      buffer, bufferPos, bufferSize,
-      " Id=%" PRIu32 " AppId=0x%016" PRIx64
-      " ver=0x%" PRIx32 " targetAPI=0x%" PRIx32
-      " currentAllocatedBytes=%zu peakAllocatedBytes=%zu\n",
-      getInstanceId(), getAppId(), getAppVersion(), getTargetApiVersion(),
-      getTotalAllocatedBytes(), getPeakAllocatedBytes());
+  bool success = PlatformNanoapp::logStateToBuffer(buffer, bufferPos,
+                                                   bufferSize);
+  success &= debugDumpPrint(buffer, bufferPos, bufferSize,
+                            " Id=%" PRIu32 " AppId=0x%016" PRIx64
+                            " ver=0x%" PRIx32 " targetAPI=0x%" PRIx32 "\n",
+                            getInstanceId(), getAppId(),
+                            getAppVersion(), getTargetApiVersion());
+  return success;
 }
 
 }  // namespace chre
