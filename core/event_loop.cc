@@ -22,9 +22,11 @@
 #include "chre/platform/context.h"
 #include "chre/platform/fatal_error.h"
 #include "chre/platform/log.h"
+#include "chre/platform/system_time.h"
 #include "chre/util/conditional_lock_guard.h"
 #include "chre/util/lock_guard.h"
 #include "chre/util/system/debug_dump.h"
+#include "chre/util/time.h"
 #include "chre_api/chre/version.h"
 
 namespace chre {
@@ -250,7 +252,7 @@ bool EventLoop::postEvent(uint16_t eventType, void *eventData,
   if (mRunning && (senderInstanceId == kSystemInstanceId ||
       mEventPool.getFreeBlockCount() > kMinReservedSystemEventCount)) {
     success = allocateAndPostEvent(eventType, eventData, freeCallback,
-                                   senderInstanceId,targetInstanceId);
+                                   senderInstanceId, targetInstanceId);
     if (!success) {
       // This can only happen if the event is a system event type. This
       // postEvent method will fail if a non-system event is posted when the
@@ -281,8 +283,15 @@ bool EventLoop::postEventOrFree(uint16_t eventType, void *eventData,
 }
 
 void EventLoop::stop() {
-  postEvent(0, nullptr, nullptr, kSystemInstanceId, kSystemInstanceId);
-  // Stop accepting new events and tell the main loop to finish
+  auto callback = [](uint16_t /* type */, void * /* data */) {
+    EventLoopManagerSingleton::get()->getEventLoop().onStopComplete();
+  };
+
+  // Stop accepting new events and tell the main loop to finish.
+  postEvent(0, nullptr, callback, kSystemInstanceId, kSystemInstanceId);
+}
+
+void EventLoop::onStopComplete() {
   mRunning = false;
 }
 
@@ -309,19 +318,17 @@ bool EventLoop::currentNanoappIsStopping() const {
   return (mCurrentApp == mStoppingNanoapp || !mRunning);
 }
 
-bool EventLoop::logStateToBuffer(char *buffer, size_t *bufferPos,
+void EventLoop::logStateToBuffer(char *buffer, size_t *bufferPos,
                                  size_t bufferSize) const {
-  bool success = debugDumpPrint(buffer, bufferPos, bufferSize, "\nNanoapps:\n");
+  debugDumpPrint(buffer, bufferPos, bufferSize, "\nNanoapps:\n");
   for (const UniquePtr<Nanoapp>& app : mNanoapps) {
-    success &= app->logStateToBuffer(buffer, bufferPos, bufferSize);
+    app->logStateToBuffer(buffer, bufferPos, bufferSize);
   }
 
-  success &= debugDumpPrint(buffer, bufferPos, bufferSize,
-                            "\nEvent Loop:\n");
-  success &= debugDumpPrint(buffer, bufferPos, bufferSize,
-                            "  Max event pool usage: %zu/%zu\n",
-                            mMaxEventPoolUsage, kMaxEventCount);
-  return success;
+  debugDumpPrint(buffer, bufferPos, bufferSize, "\nEvent Loop:\n");
+  debugDumpPrint(buffer, bufferPos, bufferSize,
+                 "  Max event pool usage: %zu/%zu\n",
+                 mMaxEventPoolUsage, kMaxEventCount);
 }
 
 bool EventLoop::allocateAndPostEvent(uint16_t eventType, void *eventData,
@@ -329,8 +336,15 @@ bool EventLoop::allocateAndPostEvent(uint16_t eventType, void *eventData,
     uint32_t targetInstanceId) {
   bool success = false;
 
-  Event *event = mEventPool.allocate(eventType, eventData, freeCallback,
-                                     senderInstanceId, targetInstanceId);
+  Milliseconds receivedTime = Nanoseconds(SystemTime::getMonotonicTime());
+  // The event loop should never contain more than 65 seconds worth of data
+  // unless something has gone terribly wrong so use uint16_t to save space.
+  uint16_t receivedTimeMillis = receivedTime.getMilliseconds();
+
+  Event *event = mEventPool.allocate(eventType, receivedTimeMillis, eventData,
+                                     freeCallback, senderInstanceId,
+                                     targetInstanceId);
+
   if (event != nullptr) {
     success = mEvents.push(event);
   }
@@ -446,16 +460,17 @@ void EventLoop::notifyAppStatusChange(uint16_t eventType,
 void EventLoop::unloadNanoappAtIndex(size_t index) {
   const UniquePtr<Nanoapp>& nanoapp = mNanoapps[index];
 
+  // Lock here to prevent the nanoapp instance from being accessed between the
+  // time it is ended and fully erased
+  LockGuard<Mutex> lock(mNanoappsLock);
+
   // Let the app know it's going away
   mCurrentApp = nanoapp.get();
   nanoapp->end();
   mCurrentApp = nullptr;
 
   // Destroy the Nanoapp instance
-  {
-    LockGuard<Mutex> lock(mNanoappsLock);
-    mNanoapps.erase(index);
-  }
+  mNanoapps.erase(index);
 }
 
 }  // namespace chre
