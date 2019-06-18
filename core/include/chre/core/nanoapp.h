@@ -39,8 +39,6 @@ namespace chre {
  */
 class Nanoapp : public PlatformNanoapp {
  public:
-  ~Nanoapp();
-
   /**
    * @return The unique identifier for this Nanoapp instance
    */
@@ -54,34 +52,6 @@ class Nanoapp : public PlatformNanoapp {
    */
   void setInstanceId(uint32_t instanceId) {
     mInstanceId = instanceId;
-  }
-
-  /**
-   * @return The current total number of bytes the nanoapp has allocated.
-   */
-  size_t getTotalAllocatedBytes() const {
-    return mTotalAllocatedBytes;
-  }
-
-  /**
-   * @return The peak total number of bytes the nanoapp has allocated.
-   */
-  size_t getPeakAllocatedBytes() const {
-    return mPeakAllocatedBytes;
-  }
-
-
-  /**
-   * Sets the total number of bytes the nanoapp has allocated. Also, modifies
-   * the peak allocated bytes if the current total is higher than the peak.
-   *
-   * @param The total number of bytes the nanoapp has allocated.
-   */
-  void setTotalAllocatedBytes(size_t totalAllocatedBytes) {
-    mTotalAllocatedBytes = totalAllocatedBytes;
-    if (mTotalAllocatedBytes > mPeakAllocatedBytes) {
-      mPeakAllocatedBytes = mTotalAllocatedBytes;
-    }
   }
 
   /**
@@ -108,19 +78,17 @@ class Nanoapp : public PlatformNanoapp {
 
   /**
    * Adds an event to this nanoapp's queue of pending events.
+   *
+   * @param event
    */
-  void postEvent(Event *event) {
-    mEventQueue.push(event);
-  }
+  void postEvent(Event *event);
 
   /**
    * Indicates whether there are any pending events in this apps queue.
    *
    * @return true if there are events waiting to be processed
    */
-  bool hasPendingEvent() {
-    return !mEventQueue.empty();
-  }
+  bool hasPendingEvent();
 
   /**
    * Configures whether nanoapp info events will be sent to the nanoapp.
@@ -153,18 +121,14 @@ class Nanoapp : public PlatformNanoapp {
    * @param buffer Pointer to the start of the buffer.
    * @param bufferPos Pointer to buffer position to start the print (in-out).
    * @param size Size of the buffer in bytes.
+   *
+   * @return true if entire log printed, false if overflow or error.
    */
-  void logStateToBuffer(char *buffer, size_t *bufferPos,
+  bool logStateToBuffer(char *buffer, size_t *bufferPos,
                         size_t bufferSize) const;
 
  private:
   uint32_t mInstanceId = kInvalidInstanceId;
-
-  //! The total memory allocated by the nanoapp in bytes.
-  size_t mTotalAllocatedBytes = 0;
-
-  //! The peak total number of bytes allocated by the nanoapp.
-  size_t mPeakAllocatedBytes = 0;
 
   //! The set of broadcast events that this app is registered for.
   // TODO: Implement a set container and replace DynamicVector here. There may
