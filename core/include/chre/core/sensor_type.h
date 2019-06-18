@@ -38,7 +38,7 @@ union ChreSensorData {
  * specification. The details of these sensors are left to the CHRE API
  * sensor definitions.
  */
-enum class SensorType : uint8_t {
+enum class SensorType {
   Unknown,
   Accelerometer,
   InstantMotion,
@@ -48,7 +48,6 @@ enum class SensorType : uint8_t {
   Pressure,
   Light,
   Proximity,
-  StepDetect,
   AccelerometerTemperature,
   GyroscopeTemperature,
   GeomagneticFieldTemperature,
@@ -60,11 +59,6 @@ enum class SensorType : uint8_t {
   VendorType1,
   VendorType2,
   VendorType3,
-  VendorType4,
-  VendorType5,
-  VendorType6,
-  VendorType7,
-  VendorType8,
 
   // Note to future developers: don't forget to update the implementation of
   // 1) getSensorTypeName,
@@ -93,11 +87,6 @@ enum class SensorSampleType {
   Vendor1,
   Vendor2,
   Vendor3,
-  Vendor4,
-  Vendor5,
-  Vendor6,
-  Vendor7,
-  Vendor8,
   Unknown,
 };
 
@@ -286,45 +275,6 @@ bool sensorTypeIsOnChange(SensorType sensorType);
  * @return true if the sensor is a continuous sensor.
  */
 bool sensorTypeIsContinuous(SensorType sensorType);
-
-/**
- * Indicates whether the sensor type reports bias events.
- *
- * @param sensorType The sensor type of the sensor.
- * @return true if the sensor reports bias events.
- */
-bool sensorTypeReportsBias(SensorType sensorType);
-
-/**
- * @param sensorType The sensor type.
- * @param eventType A non-null pointer to where the event type is stored.
- *
- * @return true if the sensor type reports bias events.
- */
-bool getSensorBiasEventType(SensorType sensorType, uint16_t *eventType);
-
-/**
- * @param sensorType The sensor type.
- *
- * @return true if the sensor is a runtime-calibrated sensor.
- */
-bool sensorTypeIsCalibrated(SensorType sensorType);
-
-/**
- * @param sensorType The sensor type.
- *
- * @return The corresponding runtime-calibrated sensor type. If the sensor does
- *     not have one, then the input sensorType is returned.
- */
-SensorType toCalibratedSensorType(SensorType sensorType);
-
-/**
- * @param sensorType The sensor type.
- *
- * @return The corresponding uncalibrated sensor type. If the sensor does not
- *     have one, then the input sensorType is returned.
- */
-SensorType toUncalibratedSensorType(SensorType sensorType);
 
 }  // namespace chre
 

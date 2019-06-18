@@ -763,11 +763,7 @@ uint32_t chreWifiGetCapabilities(void);
  * not result in duplicate delivery of scan results generated from
  * chreWifiRequestScanAsync().
  *
- * If no monitor subscription is active at the time of a request with
- * enable=false, it is treated as if an active subscription was successfully
- * ended.
- *
- * The result of this request is delivered asynchronously via an event of type
+ * This result of this request is delivered asynchronously via an event of type
  * CHRE_EVENT_WIFI_ASYNC_RESULT. Refer to the note in {@link #chreAsyncResult}
  * for more details.
  *
@@ -793,9 +789,8 @@ bool chreWifiConfigureScanMonitorAsync(bool enable, const void *cookie);
  * note in {@link #chreAsyncResult} for more details.
  *
  * A successful result provided in CHRE_EVENT_WIFI_ASYNC_RESULT indicates that
- * the scan results are ready to be delivered in a subsequent event (or events,
- * which arrive consecutively without any other scan results in between)
- * of type CHRE_EVENT_WIFI_SCAN_RESULT.
+ * the scan results will be delivered in a subsequent event (or events) of type
+ * CHRE_EVENT_WIFI_SCAN_RESULT.
  *
  * It is not valid for a client to request a new scan while a result is pending
  * based on a previous scan request from the same client. In this situation, the

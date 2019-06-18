@@ -31,8 +31,6 @@ namespace fbs = ::chre::fbs;
 namespace android {
 namespace chre {
 
-// This is similar to getStringFromByteVector in host_protocol_chre.h. Ensure
-// that method's implementation is kept in sync with this.
 const char *getStringFromByteVector(const std::vector<int8_t>& vec) {
   constexpr int8_t kNullChar = static_cast<int8_t>('\0');
   const char *str = nullptr;
@@ -100,7 +98,7 @@ void HostProtocolHost::encodeHubInfoRequest(FlatBufferBuilder& builder) {
 void HostProtocolHost::encodeFragmentedLoadNanoappRequest(
     flatbuffers::FlatBufferBuilder& builder,
     const FragmentedLoadRequest& request) {
-  encodeLoadNanoappRequestForBinary(
+  encodeLoadNanoappRequest(
       builder, request.transactionId, request.appId, request.appVersion,
       request.targetApiVersion, request.binary, request.fragmentId,
       request.appTotalSizeBytes);
@@ -166,7 +164,7 @@ bool HostProtocolHost::mutateHostClientId(void *message, size_t messageLen,
   return success;
 }
 
-void HostProtocolHost::encodeLoadNanoappRequestForBinary(
+void HostProtocolHost::encodeLoadNanoappRequest(
     FlatBufferBuilder& builder, uint32_t transactionId, uint64_t appId,
     uint32_t appVersion, uint32_t targetApiVersion,
     const std::vector<uint8_t>& nanoappBinary, uint32_t fragmentId,
@@ -175,19 +173,6 @@ void HostProtocolHost::encodeLoadNanoappRequestForBinary(
   auto request = fbs::CreateLoadNanoappRequest(
       builder, transactionId, appId, appVersion, targetApiVersion, appBinary,
       fragmentId, appTotalSizeBytes);
-  finalize(builder, fbs::ChreMessage::LoadNanoappRequest, request.Union());
-}
-
-void HostProtocolHost::encodeLoadNanoappRequestForFile(
-      flatbuffers::FlatBufferBuilder& builder, uint32_t transactionId,
-      uint64_t appId, uint32_t appVersion, uint32_t targetApiVersion,
-      const char *nanoappBinaryName) {
-  const std::vector<uint8_t> emptyAppBinary;
-  auto appBinary = builder.CreateVector(emptyAppBinary);
-  auto appBinaryName = addStringAsByteVector(builder, nanoappBinaryName);
-  auto request = fbs::CreateLoadNanoappRequest(
-      builder, transactionId, appId, appVersion, targetApiVersion, appBinary,
-      0 /* fragmentId */, 0 /* appTotalSizeBytes */, appBinaryName);
   finalize(builder, fbs::ChreMessage::LoadNanoappRequest, request.Union());
 }
 

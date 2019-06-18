@@ -30,15 +30,12 @@
 #include "chre/platform/shared/platform_sensor_util.h"
 #include "chre/platform/slpi/power_control_util.h"
 #include "chre/platform/slpi/see/see_client.h"
+#include "chre/platform/slpi/see/see_helper.h"
 #include "chre/platform/system_time.h"
 
 #ifdef CHREX_SENSOR_SUPPORT
 #include "chre/extensions/platform/slpi/see/vendor_data_types.h"
 #endif  // CHREX_SENSOR_SUPPORT
-
-#ifdef CHRE_VARIANT_SUPPLIES_SEE_SENSORS_LIST
-#include "see_sensors.h"
-#endif  // CHRE_VARIANT_SUPPLIES_SEE_SENSORS_LIST
 
 #ifndef CHRE_SEE_NUM_TEMP_SENSORS
 // There are usually more than one 'sensor_temperature' sensors in SEE.
@@ -58,55 +55,7 @@ namespace {
 #error "CHRE extensions are required for micro-image SEE support"
 #endif  // CHREX_SENSOR_SUPPORT
 
-bool isBigImageSensorType(SensorType sensorType) {
-  return (sensorType == SensorType::VendorType3       // accel
-          || sensorType == SensorType::VendorType6    // uncal accel
-          || sensorType == SensorType::VendorType7    // uncal gyro
-          || sensorType == SensorType::VendorType8);  // uncal mag
-}
-
-/**
- * Obtains the big-image sensor type given the specified data type and whether
- * the sensor is runtime-calibrated or not.
- */
-SensorType getBigImageSensorTypeFromDataType(const char *dataType,
-                                             bool calibrated) {
-  SensorType sensorType = SensorType::Unknown;
-  if (strcmp(dataType, "accel") == 0) {
-    if (calibrated) {
-      sensorType = SensorType::VendorType3;
-    } else {
-      sensorType = SensorType::VendorType6;
-    }
-  } else if (strcmp(dataType, "gyro") == 0 && !calibrated) {
-    sensorType = SensorType::VendorType7;
-  } else if (strcmp(dataType, "mag") == 0 && !calibrated) {
-    sensorType = SensorType::VendorType8;
-  }
-  return sensorType;
-}
-
-/**
- * Obtains the micro-image sensor type given the specified sensor type.
- *
- * @param sensorType The sensor type to convert from.
- * @return The associated micro-image sensor type, or the input sensor type
- *     if not associated with one
- */
-SensorType getUimgSensorType(SensorType sensorType) {
-  switch (sensorType) {
-    case SensorType::VendorType3:
-      return SensorType::Accelerometer;
-    case SensorType::VendorType6:
-      return SensorType::UncalibratedAccelerometer;
-    case SensorType::VendorType7:
-      return SensorType::UncalibratedGyroscope;
-    case SensorType::VendorType8:
-      return SensorType::UncalibratedGeomagneticField;
-    default:
-      return sensorType;
-  }
-}
+constexpr SensorType kAccelBigImageSensorType = SensorType::VendorType3;
 #endif  // CHRE_SLPI_UIMG_ENABLED
 
 //! A class that implements SeeHelperCallbackInterface.
@@ -119,11 +68,6 @@ class SeeHelperCallback : public SeeHelperCallbackInterface {
       SensorType sensorType, UniquePtr<uint8_t>&& eventData) override;
 
   void onHostWakeSuspendEvent(bool awake) override;
-
-  void onSensorBiasEvent(UniquePtr<struct chreSensorThreeAxisData>&& biasData)
-      override;
-
-  void onFlushCompleteEvent(SensorType sensorType) override;
 };
 
 //! A struct to facilitate sensor discovery
@@ -131,8 +75,6 @@ struct SuidAttr {
   sns_std_suid suid;
   SeeAttributes attr;
 };
-
-#ifndef CHRE_VARIANT_SUPPLIES_SEE_SENSORS_LIST
 
 //! The list of SEE platform sensor data types that CHRE intends to support.
 //! The standardized strings are defined in sns_xxx.proto.
@@ -146,25 +88,6 @@ const char *kSeeDataTypes[] = {
   "motion_detect",
   "stationary_detect",
 };
-
-#endif  // CHRE_VARIANT_SUPPLIES_SEE_SENSORS_LIST
-
-void handleMissingSensor() {
-  // Try rebooting if a sensor is missing, which might help recover from a
-  // transient failure/race condition at startup. But to avoid endless crashes,
-  // only do this within 15 seconds of the timeout on initializing SEE - we rely
-  // on knowledge that getMonotonicTime() maps into QTimer here, and QTimer only
-  // resets when the entire system is rebooted (it continues increasing after
-  // SLPI SSR).
-#ifndef CHRE_LOG_ONLY_NO_SENSOR
-  if (SystemTime::getMonotonicTime() < (kDefaultSeeWaitTimeout + Seconds(15))) {
-    FATAL_ERROR("Missing required sensor(s)");
-  } else
-#endif
-  {
-    LOGE("Missing required sensor(s)");
-  }
-}
 
 /**
  * Obtains the sensor type given the specified data type and whether the sensor
@@ -200,8 +123,6 @@ SensorType getSensorTypeFromDataType(const char *dataType, bool calibrated) {
     sensorType = SensorType::InstantMotion;
   } else if (strcmp(dataType, "stationary_detect") == 0) {
     sensorType = SensorType::StationaryDetect;
-  } else if (strcmp(dataType, "step_detect") == 0) {
-    sensorType = SensorType::StepDetect;
 #ifdef CHREX_SENSOR_SUPPORT
   } else if (strcmp(dataType, kVendorDataTypes[0]) == 0) {
     sensorType = SensorType::VendorType0;
@@ -247,42 +168,18 @@ void postSamplingStatusEvent(uint32_t instanceId, uint32_t sensorHandle,
 }
 
 /**
- * Helper function to post a bias event given the bias data.
- *
- * @param sensorType The sensor type to post the event for.
- * @param bias The bias data.
- */
-void postSensorBiasEvent(SensorType sensorType,
-                         const chreSensorThreeAxisData& bias) {
-  uint16_t eventType;
-  if (getSensorBiasEventType(sensorType, &eventType)) {
-    auto *event = memoryAlloc<struct chreSensorThreeAxisData>();
-    if (event == nullptr) {
-      LOG_OOM();
-    } else {
-      *event = bias;
-      event->header.sensorHandle = getSensorHandleFromSensorType(sensorType);
-      EventLoopManagerSingleton::get()->getEventLoop().postEventOrFree(
-          eventType, event, freeEventDataCallback);
-    }
-  }
-}
-
-/**
  * Updates the sampling status.
- *
- * This should only be called when the new SamplingStatusData is different
- * from the most recently processed SamplingStatusData to avoid duplicate
- * updates being posted to nanoapps.
  */
 void updateSamplingStatus(
     const SeeHelperCallbackInterface::SamplingStatusData& update) {
   Sensor *sensor = EventLoopManagerSingleton::get()->getSensorRequestManager()
       .getSensor(update.sensorType);
-  struct chreSensorSamplingStatus newStatus;
+  struct chreSensorSamplingStatus prevStatus;
 
   if (sensor != nullptr && !sensorTypeIsOneShot(update.sensorType)
-      && sensor->getSamplingStatus(&newStatus)) {
+      && sensor->getSamplingStatus(&prevStatus)) {
+    struct chreSensorSamplingStatus newStatus = prevStatus;
+
     if (update.enabledValid) {
       newStatus.enabled = update.status.enabled;
     }
@@ -293,75 +190,38 @@ void updateSamplingStatus(
       newStatus.latency = update.status.latency;
     }
 
-    sensor->setSamplingStatus(newStatus);
+    if (newStatus.enabled != prevStatus.enabled ||
+        (newStatus.enabled && (newStatus.interval != prevStatus.interval
+                               || newStatus.latency != prevStatus.latency))) {
+      sensor->setSamplingStatus(newStatus);
 
-    // Only post to Nanoapps with an open request.
-    uint32_t sensorHandle = getSensorHandleFromSensorType(update.sensorType);
-    const DynamicVector<SensorRequest>& requests =
-        EventLoopManagerSingleton::get()->getSensorRequestManager()
-        .getRequests(update.sensorType);
-    for (const auto& req : requests) {
-      postSamplingStatusEvent(req.getInstanceId(), sensorHandle, newStatus);
+      // Only post to Nanoapps with an open request.
+      uint32_t sensorHandle = getSensorHandleFromSensorType(update.sensorType);
+      const DynamicVector<SensorRequest>& requests =
+          EventLoopManagerSingleton::get()->getSensorRequestManager()
+          .getRequests(update.sensorType);
+      for (const auto& req : requests) {
+        if (req.getNanoapp() != nullptr) {
+          postSamplingStatusEvent(req.getNanoapp()->getInstanceId(),
+                                  sensorHandle, newStatus);
+        }
+      }
     }
   }
-}
-
-/**
- * Compares the given status updates and returns true if they are the same.
- *
- * A simple memcmp cannot be done because if a given field is not valid, then
- * the field may be different across updates, but doesn't indicate the update
- * is different.
- */
-bool isSameStatusUpdate(
-    const SeeHelperCallbackInterface::SamplingStatusData& status1,
-    const SeeHelperCallbackInterface::SamplingStatusData& status2) {
-  bool sameStatus = status1.enabledValid == status2.enabledValid;
-  if (sameStatus && status1.enabledValid) {
-    sameStatus &= status1.status.enabled == status2.status.enabled;
-  }
-
-  // Only check interval / latency fields if both status updates say the sensor
-  // is enabled since CHRE doesn't care what the fields are set to if the sensor
-  // is disabled.
-  if (sameStatus && status1.status.enabled) {
-    sameStatus &= status1.intervalValid == status2.intervalValid;
-    if (sameStatus && status1.intervalValid) {
-      sameStatus &= status1.status.interval == status2.status.interval;
-    }
-
-    sameStatus &= status1.latencyValid == status2.latencyValid;
-    if (sameStatus && status1.latencyValid) {
-      sameStatus &= status1.status.latency == status2.status.latency;
-    }
-  }
-
-  return sameStatus;
 }
 
 void SeeHelperCallback::onSamplingStatusUpdate(
     UniquePtr<SeeHelperCallbackInterface::SamplingStatusData>&& status) {
-  Sensor *sensor = EventLoopManagerSingleton::get()->getSensorRequestManager()
-      .getSensor(status->sensorType);
+  auto callback = [](uint16_t /* type */, void *data) {
+    auto cbData = UniquePtr<SeeHelperCallbackInterface::SamplingStatusData>(
+        static_cast<SeeHelperCallbackInterface::SamplingStatusData *>(data));
+    updateSamplingStatus(*cbData);
+  };
 
-  // TODO: Once the latency field is actually filled in by SEE, modify this
-  // logic to avoid reacting if the latency and interval of the sensor are
-  // updated separately, but contain the same info as before.
-  if (sensor != nullptr &&
-      !isSameStatusUpdate(sensor->mLastReceivedSamplingStatus, *status.get())) {
-    sensor->mLastReceivedSamplingStatus = *status.get();
-
-    auto callback = [](uint16_t /* type */, void *data) {
-      auto cbData = UniquePtr<SeeHelperCallbackInterface::SamplingStatusData>(
-          static_cast<SeeHelperCallbackInterface::SamplingStatusData *>(data));
-      updateSamplingStatus(*cbData);
-    };
-
-    // Schedule a deferred callback to handle sensor status change in the main
-    // thread.
-    EventLoopManagerSingleton::get()->deferCallback(
-        SystemCallbackType::SensorStatusUpdate, status.release(), callback);
- }
+  // Schedule a deferred callback to handle sensor status change in the main
+  // thread.
+  EventLoopManagerSingleton::get()->deferCallback(
+      SystemCallbackType::SensorStatusUpdate, status.release(), callback);
 }
 
 void SeeHelperCallback::onSensorDataEvent(
@@ -382,31 +242,6 @@ void SeeHelperCallback::onHostWakeSuspendEvent(bool awake) {
   if (EventLoopManagerSingleton::isInitialized()) {
     EventLoopManagerSingleton::get()->getEventLoop()
         .getPowerControlManager().onHostWakeSuspendEvent(awake);
-  }
-}
-
-void SeeHelperCallback::onSensorBiasEvent(
-    UniquePtr<struct chreSensorThreeAxisData>&& biasData) {
-  SensorType sensorType = getSensorTypeFromSensorHandle(
-      biasData->header.sensorHandle);
-
-  uint16_t eventType;
-  if (!sensorTypeIsCalibrated(sensorType) ||
-      !getSensorBiasEventType(sensorType, &eventType)) {
-    LOGE("Received bias event for unsupported sensor type %" PRIu8, sensorType);
-  } else {
-    // Posts a newly allocated event for the uncalibrated type
-    postSensorBiasEvent(toUncalibratedSensorType(sensorType), *biasData.get());
-
-    EventLoopManagerSingleton::get()->getEventLoop().postEventOrFree(
-        eventType, biasData.release(), freeEventDataCallback);
-  }
-}
-
-void SeeHelperCallback::onFlushCompleteEvent(SensorType sensorType) {
-  if (EventLoopManagerSingleton::isInitialized()) {
-    EventLoopManagerSingleton::get()->getSensorRequestManager()
-        .handleFlushCompleteEvent(CHRE_ERROR_NONE, sensorType);
   }
 }
 
@@ -490,9 +325,9 @@ void addSensor(SeeHelper& seeHelper, SensorType sensorType,
     FATAL_ERROR("Failed to allocate new sensor: out of memory");
   }
 
-  // Resample big image sensors to reduce system load during sw flush.
+  // Resample big image accel to reduce system load during sw flush.
 #ifdef CHRE_SLPI_UIMG_ENABLED
-  bool resample = isBigImageSensorType(sensorType);
+  bool resample = (sensorType == kAccelBigImageSensorType);
 #else
   bool resample = false;
 #endif
@@ -594,7 +429,7 @@ void findAndAddSensorsForType(
   DynamicVector<SuidAttr> primarySensors;
   if (!getSuidAndAttrs(seeHelper, dataType, &primarySensors,
                        1 /* minNumSuids */)) {
-    handleMissingSensor();
+    FATAL_ERROR("Failed to get primary sensor UID and attributes");
   }
 
   for (const auto& primarySensor : primarySensors) {
@@ -647,53 +482,16 @@ void findAndAddSensorsForType(
  * Registers alternate sensor(s) to be used separately by big image nanoapps.
  */
 void getBigImageSensors(DynamicVector<Sensor> *sensors) {
-  CHRE_ASSERT(sensors);
-
-  // Currently, just adding calibrated accel and uncal accel/gyro/mag as they
-  // are the ones we know that big image nanoapps will need at a different
-  // batching rate compared to uimg.
-  const char *kBigImageDataTypes[] = {
-    "accel",
-    "gyro",
-    "mag",
-  };
-
+  // Currently, just adding calibrated accel, as it's the one we know that big
+  // image nanoapps will need at a different batching rate compared to uimg
   SeeHelper& seeHelper = *getBigImageSeeHelper();
+  const char *kAccelDataType = "accel";
   DynamicVector<SuidAttr> nullTemperatureSensorList;
-
-  for (size_t i = 0; i < ARRAY_SIZE(kBigImageDataTypes); i++) {
-    const char *dataType = kBigImageDataTypes[i];
-    // Loop through potential cal/uncal sensors.
-    for (size_t j = 0; j < 2; j++) {
-      SensorType sensorType = getBigImageSensorTypeFromDataType(
-          dataType, (j == 0) /* calibrated */);
-      if (sensorType != SensorType::Unknown) {
-        findAndAddSensorsForType(
-            seeHelper, nullTemperatureSensorList, dataType, sensorType,
-            true /* skipAdditionalTypes */, sensors);
-      }
-    }
-  }
+  findAndAddSensorsForType(
+      seeHelper, nullTemperatureSensorList, kAccelDataType,
+      kAccelBigImageSensorType, true /* skipAdditionalTypes */, sensors);
 }
 #endif  // CHRE_SLPI_UIMG_ENABLED
-
-/**
- * Helper function to retrieve the SeeHelper for a given sensor type.
- * @param sensorType the sensor type
- * @return the appropriate (bimg or uimg) SeeHelper
- */
-SeeHelper *getSeeHelperForSensorType(SensorType sensorType) {
-  SeeHelper *seeHelper = getSeeHelper();
-#ifdef CHRE_SLPI_UIMG_ENABLED
-  if (isBigImageSensorType(sensorType)) {
-    seeHelper = getBigImageSeeHelper();
-    slpiForceBigImage();
-  }
-#endif
-
-  return seeHelper;
-}
-
 
 }  // anonymous namespace
 
@@ -737,7 +535,7 @@ bool PlatformSensor::getSensors(DynamicVector<Sensor> *sensors) {
   DynamicVector<SuidAttr> tempSensors;
   if (!getSuidAndAttrs(seeHelper, "sensor_temperature", &tempSensors,
                        CHRE_SEE_NUM_TEMP_SENSORS)) {
-    handleMissingSensor();
+      FATAL_ERROR("Failed to get temperature sensor UID and attributes");
   }
 
 #ifndef CHREX_SENSOR_SUPPORT
@@ -786,7 +584,14 @@ bool PlatformSensor::applyRequest(const SensorRequest& request) {
          static_cast<uint8_t>(getSensorType()));
   }
 
-  SeeHelper *seeHelper = getSeeHelperForSensorType(getSensorType());
+  SeeHelper *seeHelper = getSeeHelper();
+#ifdef CHRE_SLPI_UIMG_ENABLED
+  if (getSensorType() == kAccelBigImageSensorType) {
+    seeHelper = getBigImageSeeHelper();
+    slpiForceBigImage();
+  }
+#endif
+
   bool wasInUImage = slpiInUImage();
   bool success = seeHelper->makeRequest(req);
 
@@ -822,11 +627,6 @@ bool PlatformSensor::applyRequest(const SensorRequest& request) {
     }
   }
   return success;
-}
-
-bool PlatformSensor::flushAsync() {
-  SensorType sensorType = getSensorType();
-  return getSeeHelperForSensorType(sensorType)->flush(sensorType);
 }
 
 SensorType PlatformSensor::getSensorType() const {
@@ -877,38 +677,6 @@ bool PlatformSensor::getSamplingStatus(
 
   memcpy(status, &mSamplingStatus, sizeof(*status));
   return true;
-}
-
-bool PlatformSensor::getThreeAxisBias(
-    struct chreSensorThreeAxisData *bias) const {
-  SensorType sensorType = getSensorType();
-  SeeCalHelper *calHelper =
-      getSeeHelperForSensorType(sensorType)->getCalHelper();
-
-  bool success = sensorTypeReportsBias(sensorType);
-  if (success) {
-    // We use the runtime-calibrated sensor type here, per documentation
-    // of SeeCalHelper::getBias(), but overwrite the sensorHandle to that of
-    // the curent sensor, because the calibration data itself is equivalent
-    // for both calibrated/uncalibrated sensor types.
-#ifdef CHRE_SLPI_UIMG_ENABLED
-    // Use the uimg runtime-calibrated sensor type to get the calibration
-    // bias, since SeeCalHelper is unaware of the bimg/uimg differentiation.
-    SensorType calSensorType =
-        toCalibratedSensorType(getUimgSensorType(sensorType));
-#else
-    SensorType calSensorType = toCalibratedSensorType(sensorType);
-#endif
-    if (calHelper->getBias(calSensorType, bias)) {
-      bias->header.sensorHandle = getSensorHandleFromSensorType(sensorType);
-    } else {
-      // Set to zero value + unknown accuracy per CHRE API requirements.
-      memset(bias, 0, sizeof(chreSensorThreeAxisData));
-      bias->header.accuracy = CHRE_SENSOR_ACCURACY_UNKNOWN;
-    }
-  }
-
-  return success;
 }
 
 void PlatformSensorBase::initBase(
