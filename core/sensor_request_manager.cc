@@ -91,7 +91,7 @@ void SensorRequestManager::init() {
       SensorType sensorType = sensors[i].getSensorType();
       size_t sensorIndex = getSensorTypeArrayIndex(sensorType);
 
-      if (!isValidSensorType(sensorType)) {
+      if (sensorType == SensorType::Unknown) {
         LOGE("Invalid sensor type");
       } else if (sensors[i].getMinInterval() == 0) {
         LOGE("Invalid sensor minInterval: %s", getSensorTypeName(sensorType));
@@ -108,8 +108,8 @@ bool SensorRequestManager::getSensorHandle(SensorType sensorType,
   CHRE_ASSERT(sensorHandle);
 
   bool sensorHandleIsValid = false;
-  if (!isValidSensorType(sensorType)) {
-    LOGW("Querying for unknown sensor type %" PRIu8, sensorType);
+  if (sensorType == SensorType::Unknown) {
+    LOGW("Querying for unknown sensor type");
   } else {
     size_t sensorIndex = getSensorTypeArrayIndex(sensorType);
     sensorHandleIsValid = mSensorRequests[sensorIndex].isSensorSupported();
@@ -127,7 +127,7 @@ bool SensorRequestManager::setSensorRequest(Nanoapp *nanoapp,
 
   // Validate the input to ensure that a valid handle has been provided.
   SensorType sensorType = getSensorTypeFromSensorHandle(sensorHandle);
-  if (!isValidSensorType(sensorType)) {
+  if (sensorType == SensorType::Unknown) {
     LOGW("Attempting to configure an invalid sensor handle");
     return false;
   }
@@ -159,8 +159,6 @@ bool SensorRequestManager::setSensorRequest(Nanoapp *nanoapp,
       // unregistered from events of this type if this request was successful.
       success = requests.remove(requestIndex, &requestChanged);
       if (success) {
-        cancelFlushRequests(sensorType, nanoapp->getInstanceId());
-
         nanoapp->unregisterForBroadcastEvent(eventType);
 
         uint16_t biasEventType;
@@ -225,7 +223,7 @@ bool SensorRequestManager::getSensorInfo(uint32_t sensorHandle,
 
   // Validate the input to ensure that a valid handle has been provided.
   SensorType sensorType = getSensorTypeFromSensorHandle(sensorHandle);
-  if (!isValidSensorType(sensorType)) {
+  if (sensorType == SensorType::Unknown) {
     LOGW("Attempting to access sensor with an invalid handle %" PRIu32,
          sensorHandle);
   } else {
@@ -260,7 +258,7 @@ bool SensorRequestManager::getSensorInfo(uint32_t sensorHandle,
 
 bool SensorRequestManager::removeAllRequests(SensorType sensorType) {
   bool success = false;
-  if (!isValidSensorType(sensorType)) {
+  if (sensorType == SensorType::Unknown) {
     LOGW("Attempting to remove all requests of an invalid sensor type");
   } else {
     size_t sensorIndex = getSensorTypeArrayIndex(sensorType);
@@ -275,7 +273,6 @@ bool SensorRequestManager::removeAllRequests(SensorType sensorType) {
       }
     }
 
-    cancelFlushRequests(sensorType);
     success = requests.removeAll();
   }
   return success;
@@ -283,7 +280,8 @@ bool SensorRequestManager::removeAllRequests(SensorType sensorType) {
 
 Sensor *SensorRequestManager::getSensor(SensorType sensorType) {
   Sensor *sensorPtr = nullptr;
-  if (!isValidSensorType(sensorType)) {
+  if (sensorType == SensorType::Unknown
+      || sensorType >= SensorType::SENSOR_TYPE_COUNT) {
     LOGW("Attempting to get Sensor of an invalid SensorType %d",
          static_cast<int>(sensorType));
   } else {
@@ -301,7 +299,7 @@ bool SensorRequestManager::getSensorSamplingStatus(
 
   bool success = false;
   SensorType sensorType = getSensorTypeFromSensorHandle(sensorHandle);
-  if (!isValidSensorType(sensorType)) {
+  if (sensorType == SensorType::Unknown) {
     LOGW("Attempting to access sensor with an invalid handle %" PRIu32,
          sensorHandle);
   } else {
@@ -316,7 +314,8 @@ bool SensorRequestManager::getSensorSamplingStatus(
 const DynamicVector<SensorRequest>& SensorRequestManager::getRequests(
     SensorType sensorType) const {
   size_t sensorIndex = 0;
-  if (!isValidSensorType(sensorType)) {
+  if (sensorType == SensorType::Unknown
+      || sensorType >= SensorType::SENSOR_TYPE_COUNT) {
     LOGW("Attempting to get requests of an invalid SensorType");
   } else {
     sensorIndex = getSensorTypeArrayIndex(sensorType);
@@ -349,7 +348,7 @@ bool SensorRequestManager::getThreeAxisBias(
   bool success = false;
   if (bias != nullptr) {
     SensorType sensorType = getSensorTypeFromSensorHandle(sensorHandle);
-    if (!isValidSensorType(sensorType)) {
+    if (sensorType == SensorType::Unknown) {
       LOGW("Attempting to access sensor with an invalid handle %" PRIu32,
            sensorHandle);
     } else {
@@ -370,7 +369,7 @@ bool SensorRequestManager::flushAsync(
   uint32_t nanoappInstanceId = nanoapp->getInstanceId();
   SensorType sensorType = getSensorTypeFromSensorHandle(sensorHandle);
   // NOTE: One-shot sensors do not support flush per API
-  if (!isValidSensorType(sensorType) || sensorTypeIsOneShot(sensorType)) {
+  if (sensorType == SensorType::Unknown || sensorTypeIsOneShot(sensorType)) {
     LOGE("Cannot flush for sensor type %" PRIu32,
          static_cast<uint32_t>(sensorType));
   } else if (mFlushRequestQueue.full()) {
@@ -391,7 +390,8 @@ bool SensorRequestManager::flushAsync(
 void SensorRequestManager::handleFlushCompleteEvent(
     uint8_t errorCode, SensorType sensorType) {
   size_t sensorIndex = getSensorTypeArrayIndex(sensorType);
-  if (isValidSensorType(sensorType)
+  if (sensorType > SensorType::Unknown
+      && sensorType < SensorType::SENSOR_TYPE_COUNT
       && mSensorRequests[sensorIndex].isFlushRequestPending()) {
     struct CallbackState {
       uint8_t errorCode;
@@ -429,7 +429,7 @@ void SensorRequestManager::logStateToBuffer(char *buffer, size_t *bufferPos,
   for (uint8_t i = 0; i < static_cast<uint8_t>(SensorType::SENSOR_TYPE_COUNT);
        i++) {
     SensorType sensor = static_cast<SensorType>(i);
-    if (isValidSensorType(sensor)) {
+    if (sensor != SensorType::Unknown) {
       for (const auto& request : getRequests(sensor)) {
         debugDumpPrint(buffer, bufferPos, bufferSize, " %s: mode=%d"
                        " interval(ns)=%" PRIu64 " latency(ns)=%"
@@ -460,35 +460,19 @@ void SensorRequestManager::postFlushCompleteEvent(
   }
 }
 
-void SensorRequestManager::completeFlushRequestAtIndex(
-    size_t index, uint8_t errorCode) {
-  if (index < mFlushRequestQueue.size()) {
-    const FlushRequest& request = mFlushRequestQueue[index];
-    SensorType sensorType = request.sensorType;
-    if (request.isActive) {
-      SensorRequests& requests = getSensorRequests(sensorType);
-      requests.clearPendingFlushRequest();
-    }
-
-    uint32_t sensorHandle;
-    if (getSensorHandle(sensorType, &sensorHandle)) {
-      postFlushCompleteEvent(sensorHandle, errorCode, request);
-    }
-    mFlushRequestQueue.erase(index);
-  }
-}
-
-void SensorRequestManager::dispatchNextFlushRequest(SensorType sensorType) {
+void SensorRequestManager::dispatchNextFlushRequest(
+    uint32_t sensorHandle, SensorType sensorType) {
   SensorRequests& requests = getSensorRequests(sensorType);
 
   for (size_t i = 0; i < mFlushRequestQueue.size(); i++) {
-    FlushRequest& request = mFlushRequestQueue[i];
+    const FlushRequest& request = mFlushRequestQueue[i];
     if (request.sensorType == sensorType) {
       uint8_t newRequestErrorCode = requests.makeFlushRequest(request);
       if (newRequestErrorCode == CHRE_ERROR_NONE) {
         break;
       } else {
-        completeFlushRequestAtIndex(i,  newRequestErrorCode);
+        postFlushCompleteEvent(sensorHandle, newRequestErrorCode, request);
+        mFlushRequestQueue.erase(i);
         i--;
       }
     }
@@ -498,30 +482,19 @@ void SensorRequestManager::dispatchNextFlushRequest(SensorType sensorType) {
 void SensorRequestManager::handleFlushCompleteEventSync(
     uint8_t errorCode, SensorType sensorType) {
   for (size_t i = 0; i < mFlushRequestQueue.size(); i++) {
-    if (mFlushRequestQueue[i].sensorType == sensorType) {
-      completeFlushRequestAtIndex(i, errorCode);
-      dispatchNextFlushRequest(sensorType);
+    const FlushRequest& request = mFlushRequestQueue[i];
+    if (request.sensorType == sensorType) {
+      uint32_t sensorHandle;
+      if (getSensorHandle(sensorType, &sensorHandle)) {
+        SensorRequests& requests = getSensorRequests(sensorType);
+        requests.clearPendingFlushRequest();
+        mFlushRequestQueue.erase(i);
+
+        postFlushCompleteEvent(sensorHandle, errorCode, request);
+        dispatchNextFlushRequest(sensorHandle, sensorType);
+      }
       break;
     }
-  }
-}
-
-void SensorRequestManager::cancelFlushRequests(
-    SensorType sensorType, uint32_t nanoappInstanceId) {
-  bool removeAll = (nanoappInstanceId == kSystemInstanceId);
-  for (size_t i = 0; i < mFlushRequestQueue.size(); i++) {
-    const FlushRequest& request = mFlushRequestQueue[i];
-    if (request.sensorType == sensorType &&
-        (request.nanoappInstanceId == nanoappInstanceId || removeAll)) {
-      completeFlushRequestAtIndex(
-          i, CHRE_ERROR_FUNCTION_DISABLED /* errorCode */);
-      i--;
-    }
-  }
-
-  SensorRequests& requests = getSensorRequests(sensorType);
-  if (!requests.isFlushRequestPending()) {
-    dispatchNextFlushRequest(sensorType);
   }
 }
 
@@ -647,7 +620,7 @@ bool SensorRequestManager::SensorRequests::removeAll() {
 }
 
 uint8_t SensorRequestManager::SensorRequests::makeFlushRequest(
-    FlushRequest& request) {
+    const FlushRequest& request) {
   uint8_t errorCode = CHRE_ERROR;
   if (!isSensorSupported()) {
     LOGE("Cannot flush on unsupported sensor");
@@ -664,7 +637,6 @@ uint8_t SensorRequestManager::SensorRequests::makeFlushRequest(
     } else if (doMakeFlushRequest()) {
       errorCode = CHRE_ERROR_NONE;
       Nanoseconds delay = deadline - now;
-      request.isActive = true;
       mFlushRequestTimerHandle =
           EventLoopManagerSingleton::get()->setDelayedCallback(
               SystemCallbackType::SensorFlushTimeout, nullptr /* data */,
@@ -681,11 +653,9 @@ uint8_t SensorRequestManager::SensorRequests::makeFlushRequest(
 }
 
 void SensorRequestManager::SensorRequests::clearPendingFlushRequest() {
-  if (mFlushRequestTimerHandle != CHRE_TIMER_INVALID) {
-    EventLoopManagerSingleton::get()->cancelDelayedCallback(
-        mFlushRequestTimerHandle);
-    mFlushRequestTimerHandle = CHRE_TIMER_INVALID;
-  }
+  EventLoopManagerSingleton::get()->cancelDelayedCallback(
+      mFlushRequestTimerHandle);
+  mFlushRequestTimerHandle = CHRE_TIMER_INVALID;
   mFlushRequestPending = false;
 }
 
