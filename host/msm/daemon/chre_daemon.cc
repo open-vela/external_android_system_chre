@@ -81,7 +81,6 @@
 #include <hardware_legacy/power.h>
 
 using android::sp;
-using android::wp;
 using android::hardware::Return;
 using android::hardware::soundtrigger::V2_0::ISoundTriggerHw;
 using android::hardware::soundtrigger::V2_0::SoundModelHandle;
@@ -116,32 +115,15 @@ static bool start_thread(pthread_t *thread_handle,
 //! The name of the wakelock to use for the CHRE daemon.
 static const char kWakeLockName[] = "chre_daemon";
 
-//! Forward declarations
-static void onStHalServiceDeath();
-
-//! Class to handle when a connected ST HAL service dies.
-class StHalDeathRecipient : public android::hardware::hidl_death_recipient {
-  virtual void serviceDied(
-      uint64_t /* cookie */,
-      const wp<::android::hidl::base::V1_0::IBase>& /* who */) override {
-    LOGE("ST HAL service died.");
-    onStHalServiceDeath();
-  }
-};
-
 struct LpmaEnableThreadData {
   pthread_t thread;
   pthread_mutex_t mutex;
   pthread_cond_t cond;
   bool currentLpmaEnabled;
   bool targetLpmaEnabled;
-  bool connectedToService;
-  sp<StHalDeathRecipient> deathRecipient = new StHalDeathRecipient();
-  sp<ISoundTriggerHw> stHalService;
 };
 
 static LpmaEnableThreadData lpmaEnableThread;
-
 #endif  // CHRE_DAEMON_LPMA_ENABLED
 
 //! The host ID to use when preloading nanoapps. This is used before the server
@@ -344,38 +326,6 @@ static void setLpmaState(bool enabled) {
   pthread_cond_signal(&lpmaEnableThread.cond);
 }
 
-static void onStHalServiceDeath() {
-  pthread_mutex_lock(&lpmaEnableThread.mutex);
-  lpmaEnableThread.connectedToService = false;
-  if (lpmaEnableThread.targetLpmaEnabled) {
-    // ST HAL has died, so assume that the sound model is no longer active,
-    // and trigger a reload of the sound model.
-    lpmaEnableThread.currentLpmaEnabled = false;
-    pthread_cond_signal(&lpmaEnableThread.cond);
-  }
-  pthread_mutex_unlock(&lpmaEnableThread.mutex);
-}
-
-/**
- * Connects to the ST HAL service, if not already. This method should only
- * be invoked after acquiring the lpmaEnableThread.mutex lock.
- *
- * @return true if successfully connected to the HAL.
- */
-static bool connectToStHalServiceLocked() {
-  if (!lpmaEnableThread.connectedToService) {
-    lpmaEnableThread.stHalService = ISoundTriggerHw::getService();
-    if (lpmaEnableThread.stHalService != nullptr) {
-      LOGI("Connected to ST HAL service");
-      lpmaEnableThread.connectedToService = true;
-      lpmaEnableThread.stHalService->linkToDeath(
-          lpmaEnableThread.deathRecipient, 0 /* flags */);
-    }
-  }
-
-  return lpmaEnableThread.connectedToService;
-}
-
 /**
  * Loads the LPMA use case via the SoundTrigger HAL HIDL service.
  *
@@ -398,12 +348,12 @@ static bool loadLpma(SoundModelHandle *lpmaHandle) {
   soundModel.data.resize(1);  // Insert a dummy byte to bypass HAL NULL checks.
 
   bool loaded = false;
-  if (!connectToStHalServiceLocked()) {
+  sp<ISoundTriggerHw> stHal = ISoundTriggerHw::getService();
+  if (stHal == nullptr) {
     LOGE("Failed to get ST HAL service for LPMA load");
   } else {
     int32_t loadResult;
-    Return<void> hidlResult = lpmaEnableThread.stHalService->loadSoundModel(
-        soundModel, NULL /* callback */, 0 /* cookie */,
+    Return<void> hidlResult = stHal->loadSoundModel(soundModel, NULL, 0,
         [&](int32_t retval, SoundModelHandle handle) {
             loadResult = retval;
             *lpmaHandle = handle;
@@ -439,11 +389,11 @@ static bool loadLpma(SoundModelHandle *lpmaHandle) {
 static void unloadLpma(SoundModelHandle lpmaHandle) {
   LOGD("Unloading LPMA");
 
-  if (!connectToStHalServiceLocked()) {
+  sp<ISoundTriggerHw> stHal = ISoundTriggerHw::getService();
+  if (stHal == nullptr) {
     LOGE("Failed to get ST HAL service for LPMA unload");
   } else {
-    Return<int32_t> hidlResult =
-        lpmaEnableThread.stHalService->unloadSoundModel(lpmaHandle);
+    Return<int32_t> hidlResult = stHal->unloadSoundModel(lpmaHandle);
 
     if (hidlResult.isOk()) {
       if (hidlResult == 0) {
@@ -692,22 +642,23 @@ static bool readFileContents(const char *filename,
  * transaction to complete before the nanoapp starts so the server can start
  * serving requests as soon as possible.
  *
- * @param directory The directory to load the nanoapp from.
- * @param name The filename of the nanoapp to load.
+ * @param name The filepath to load the nanoapp from.
  * @param transactionId The transaction ID to use when loading the app.
  */
-static void loadPreloadedNanoapp(const std::string& directory,
-                                 const std::string& name,
+static void loadPreloadedNanoapp(const std::string& name,
                                  uint32_t transactionId) {
   std::vector<uint8_t> headerBuffer;
 
-  std::string headerFile = directory + "/" + name + ".napp_header";
+  std::string headerFilename = std::string(name) + ".napp_header";
+  std::string nanoappFilename = std::string(name) + ".so";
 
-  // Only create the nanoapp filename as the CHRE framework will load from
-  // within the directory its own binary resides in.
-  std::string nanoappFilename = name + ".so";
-
-  if (readFileContents(headerFile.c_str(), &headerBuffer)
+  // Only send the filename itself e.g activity.so since CHRE will load from
+  // the same directory its own binary resides in.
+  nanoappFilename = nanoappFilename.substr(
+      nanoappFilename.find_last_of("/\\") + 1);
+  if (nanoappFilename.empty()) {
+    LOGE("Failed to get the name of the nanoapp %s", name.c_str());
+  } else if (readFileContents(headerFilename.c_str(), &headerBuffer)
       && !loadNanoapp(headerBuffer, nanoappFilename, transactionId)) {
     LOGE("Failed to load nanoapp: '%s'", name.c_str());
   }
@@ -736,14 +687,12 @@ static void loadPreloadedNanoapps() {
          kPreloadedNanoappsConfigPath, errno, strerror(errno));
   } else if (!reader.parse(configFileStream, config)) {
     LOGE("Failed to parse nanoapp config file");
-  } else if (!config.isMember("nanoapps") || !config.isMember("source_dir")) {
+  } else if (!config.isMember("nanoapps")) {
     LOGE("Malformed preloaded nanoapps config");
   } else {
-    const Json::Value& directory = config["source_dir"];
     for (Json::ArrayIndex i = 0; i < config["nanoapps"].size(); i++) {
       const Json::Value& nanoapp = config["nanoapps"][i];
-      loadPreloadedNanoapp(directory.asString(), nanoapp.asString(),
-                           static_cast<uint32_t>(i));
+      loadPreloadedNanoapp(nanoapp.asString(), static_cast<uint32_t>(i));
     }
   }
 }
