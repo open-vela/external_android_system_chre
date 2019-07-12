@@ -692,22 +692,23 @@ static bool readFileContents(const char *filename,
  * transaction to complete before the nanoapp starts so the server can start
  * serving requests as soon as possible.
  *
- * @param directory The directory to load the nanoapp from.
- * @param name The filename of the nanoapp to load.
+ * @param name The filepath to load the nanoapp from.
  * @param transactionId The transaction ID to use when loading the app.
  */
-static void loadPreloadedNanoapp(const std::string& directory,
-                                 const std::string& name,
+static void loadPreloadedNanoapp(const std::string& name,
                                  uint32_t transactionId) {
   std::vector<uint8_t> headerBuffer;
 
-  std::string headerFile = directory + "/" + name + ".napp_header";
+  std::string headerFilename = std::string(name) + ".napp_header";
+  std::string nanoappFilename = std::string(name) + ".so";
 
-  // Only create the nanoapp filename as the CHRE framework will load from
-  // within the directory its own binary resides in.
-  std::string nanoappFilename = name + ".so";
-
-  if (readFileContents(headerFile.c_str(), &headerBuffer)
+  // Only send the filename itself e.g activity.so since CHRE will load from
+  // the same directory its own binary resides in.
+  nanoappFilename = nanoappFilename.substr(
+      nanoappFilename.find_last_of("/\\") + 1);
+  if (nanoappFilename.empty()) {
+    LOGE("Failed to get the name of the nanoapp %s", name.c_str());
+  } else if (readFileContents(headerFilename.c_str(), &headerBuffer)
       && !loadNanoapp(headerBuffer, nanoappFilename, transactionId)) {
     LOGE("Failed to load nanoapp: '%s'", name.c_str());
   }
@@ -736,14 +737,12 @@ static void loadPreloadedNanoapps() {
          kPreloadedNanoappsConfigPath, errno, strerror(errno));
   } else if (!reader.parse(configFileStream, config)) {
     LOGE("Failed to parse nanoapp config file");
-  } else if (!config.isMember("nanoapps") || !config.isMember("source_dir")) {
+  } else if (!config.isMember("nanoapps")) {
     LOGE("Malformed preloaded nanoapps config");
   } else {
-    const Json::Value& directory = config["source_dir"];
     for (Json::ArrayIndex i = 0; i < config["nanoapps"].size(); i++) {
       const Json::Value& nanoapp = config["nanoapps"][i];
-      loadPreloadedNanoapp(directory.asString(), nanoapp.asString(),
-                           static_cast<uint32_t>(i));
+      loadPreloadedNanoapp(nanoapp.asString(), static_cast<uint32_t>(i));
     }
   }
 }
