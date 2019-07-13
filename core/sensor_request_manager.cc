@@ -398,11 +398,9 @@ void SensorRequestManager::handleFlushCompleteEvent(
       SensorType sensorType;
     };
 
-    CallbackState callbackState = {
-      .errorCode = errorCode,
-      .sensorType = sensorType,
-    };
-    NestedDataPtr<CallbackState> state(callbackState);
+    NestedDataPtr<CallbackState> state = {};
+    state.data.errorCode = errorCode;
+    state.data.sensorType = sensorType;
 
     auto callback = [](uint16_t /* eventType */, void *eventData) {
       NestedDataPtr<CallbackState> nestedState;
@@ -660,7 +658,8 @@ uint8_t SensorRequestManager::SensorRequests::makeFlushRequest(
       Nanoseconds delay = deadline - now;
       request.isActive = true;
 
-      NestedDataPtr<SensorType> nestedType(request.sensorType);
+      NestedDataPtr<SensorType> nestedType = {};
+      nestedType.data = request.sensorType;
 
       auto callback = [](uint16_t /* eventType */, void * eventData) {
         LOGE("Flush request timed out.");
