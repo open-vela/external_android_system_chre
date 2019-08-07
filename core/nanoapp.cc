@@ -22,14 +22,7 @@
 #include "chre/platform/log.h"
 #include "chre/util/system/debug_dump.h"
 
-#include <algorithm>
-
 namespace chre {
-
-Nanoapp::Nanoapp() {
-  // Push first bucket onto wakeup bucket queue
-  cycleWakeupBuckets(1);
-}
 
 Nanoapp::~Nanoapp() {
   CHRE_ASSERT_LOG(getTotalAllocatedBytes() == 0,
@@ -94,20 +87,6 @@ Event *Nanoapp::processNextEvent() {
   return event;
 }
 
-void Nanoapp::blameHostWakeup() {
-  if (mWakeupBuckets.back() < UINT16_MAX) ++mWakeupBuckets.back();
-}
-
-void Nanoapp::cycleWakeupBuckets(size_t numBuckets) {
-  numBuckets = std::min(numBuckets, kMaxSizeWakeupBuckets);
-  for (size_t i = 0; i < numBuckets; ++i) {
-    if (mWakeupBuckets.full()) {
-      mWakeupBuckets.erase(0);
-    }
-    mWakeupBuckets.push_back(0);
-  }
-}
-
 void Nanoapp::logStateToBuffer(char *buffer, size_t *bufferPos,
                                size_t bufferSize) const {
   PlatformNanoapp::logStateToBuffer(buffer, bufferPos, bufferSize);
@@ -115,23 +94,9 @@ void Nanoapp::logStateToBuffer(char *buffer, size_t *bufferPos,
       buffer, bufferPos, bufferSize,
       " Id=%" PRIu32 " AppId=0x%016" PRIx64
       " ver=0x%" PRIx32 " targetAPI=0x%" PRIx32
-      " currentAllocatedBytes=%zu peakAllocatedBytes=%zu",
+      " currentAllocatedBytes=%zu peakAllocatedBytes=%zu\n",
       getInstanceId(), getAppId(), getAppVersion(), getTargetApiVersion(),
       getTotalAllocatedBytes(), getPeakAllocatedBytes());
-  logWakeupsStateToBuffer(buffer, bufferPos, bufferSize);
-}
-
-void Nanoapp::logWakeupsStateToBuffer(char *buffer, size_t *bufferPos,
-                                      size_t bufferSize) const {
-  debugDumpPrint(buffer, bufferPos, bufferSize, " HostWakeups=[ Latest-> ");
-  // Get buckets latest -> earliest except last one
-  for (size_t i = mWakeupBuckets.size() - 1; i > 0; --i) {
-    debugDumpPrint(buffer, bufferPos, bufferSize,
-                   "%" PRIu16 ", ", mWakeupBuckets[i]);
-  }
-  // earliest bucket gets no comma
-  debugDumpPrint(buffer, bufferPos, bufferSize, "%" PRIu16 " ]\n",
-                 mWakeupBuckets.front());
 }
 
 }  // namespace chre

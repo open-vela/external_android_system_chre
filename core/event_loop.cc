@@ -31,9 +31,6 @@
 
 namespace chre {
 
-// Out of line declaration required for nonintegral static types
-constexpr Nanoseconds EventLoop::kIntervalWakeupBucket;
-
 namespace {
 
 /**
@@ -324,16 +321,6 @@ bool EventLoop::currentNanoappIsStopping() const {
 void EventLoop::logStateToBuffer(char *buffer, size_t *bufferPos,
                                  size_t bufferSize) const {
   debugDumpPrint(buffer, bufferPos, bufferSize, "\nNanoapps:\n");
-  Nanoseconds timeSince =
-      SystemTime::getMonotonicTime() - mTimeLastWakeupBucketCycled;
-  uint64_t timeSinceMins = timeSince.toRawNanoseconds()
-      / kOneMinuteInNanoseconds;
-  uint64_t durationMins = kIntervalWakeupBucket.toRawNanoseconds()
-      / kOneMinuteInNanoseconds;
-  debugDumpPrint(buffer, bufferPos, bufferSize,
-                 " SinceLastBucketCycle=%" PRIu64 "mins"
-                 " BucketDuration=%" PRIu64 "mins\n\n",
-                 timeSinceMins, durationMins);
   for (const UniquePtr<Nanoapp>& app : mNanoapps) {
     app->logStateToBuffer(buffer, bufferPos, bufferSize);
   }
@@ -352,8 +339,7 @@ bool EventLoop::allocateAndPostEvent(uint16_t eventType, void *eventData,
   Milliseconds receivedTime = Nanoseconds(SystemTime::getMonotonicTime());
   // The event loop should never contain more than 65 seconds worth of data
   // unless something has gone terribly wrong so use uint16_t to save space.
-  uint16_t receivedTimeMillis =
-      static_cast<uint16_t>(receivedTime.getMilliseconds());
+  uint16_t receivedTimeMillis = receivedTime.getMilliseconds();
 
   Event *event = mEventPool.allocate(eventType, receivedTimeMillis, eventData,
                                      freeCallback, senderInstanceId,
@@ -485,19 +471,6 @@ void EventLoop::unloadNanoappAtIndex(size_t index) {
 
   // Destroy the Nanoapp instance
   mNanoapps.erase(index);
-}
-
-void EventLoop::handleNanoappWakeupBuckets() {
-  Nanoseconds now = SystemTime::getMonotonicTime();
-  Nanoseconds duration = now - mTimeLastWakeupBucketCycled;
-  if (duration > kIntervalWakeupBucket) {
-    size_t numBuckets = static_cast<size_t>(duration.toRawNanoseconds() /
-        kIntervalWakeupBucket.toRawNanoseconds());
-    mTimeLastWakeupBucketCycled = now;
-    for (auto& nanoapp : mNanoapps) {
-      nanoapp->cycleWakeupBuckets(numBuckets);
-    }
-  }
 }
 
 }  // namespace chre

@@ -23,7 +23,6 @@
 #include "chre/core/event_ref_queue.h"
 #include "chre/platform/platform_nanoapp.h"
 #include "chre/util/dynamic_vector.h"
-#include "chre/util/fixed_size_vector.h"
 
 namespace chre {
 
@@ -40,7 +39,6 @@ namespace chre {
  */
 class Nanoapp : public PlatformNanoapp {
  public:
-  Nanoapp();
   ~Nanoapp();
 
   /**
@@ -149,21 +147,6 @@ class Nanoapp : public PlatformNanoapp {
   Event *processNextEvent();
 
   /**
-   * Log info about a single host wakeup that this nanoapp triggered by storing
-   * the count of wakeups in mWakeupBuckets.
-   */
-  void blameHostWakeup();
-
-  /*
-   * If buckets not full, then just pushes a 0 to back of buckets. If full, then
-   * shifts down all buckets from back to front and sets back to 0, losing the
-   * latest bucket value that was in front.
-   *
-   * @param numBuckets the number of buckets to cycle into to mWakeupBuckets
-   */
-  void cycleWakeupBuckets(size_t numBuckets);
-
-  /**
    * Prints state in a string buffer. Must only be called from the context of
    * the main CHRE thread.
    *
@@ -183,14 +166,6 @@ class Nanoapp : public PlatformNanoapp {
   //! The peak total number of bytes allocated by the nanoapp.
   size_t mPeakAllocatedBytes = 0;
 
-  //! The number of buckets for wakeup logging, adjust along with
-  //! EventLoop::kIntervalWakupBucketInMins.
-  static constexpr size_t kMaxSizeWakeupBuckets = 4;
-
-  //! A fixed size buffer of buckets that keeps track of the number of host
-  //! wakeups over time intervals.
-  FixedSizeVector<uint16_t, kMaxSizeWakeupBuckets> mWakeupBuckets;
-
   //! The set of broadcast events that this app is registered for.
   // TODO: Implement a set container and replace DynamicVector here. There may
   // also be a better way of handling this (perhaps we map event type to apps
@@ -198,12 +173,6 @@ class Nanoapp : public PlatformNanoapp {
   DynamicVector<uint16_t> mRegisteredEvents;
 
   EventRefQueue mEventQueue;
-
-  /*
-   * Helper function to log the state of the wakeups buckets.
-   */
-  void logWakeupsStateToBuffer(char *buffer, size_t *bufferPos,
-                               size_t bufferSize) const;
 };
 
 }
