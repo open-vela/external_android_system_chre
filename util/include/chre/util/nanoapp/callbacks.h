@@ -14,30 +14,23 @@
  * limitations under the License.
  */
 
-#ifndef CHRE_PLATFORM_SLPI_ATOMIC_BASE_H_
-#define CHRE_PLATFORM_SLPI_ATOMIC_BASE_H_
+#ifndef CHRE_UTIL_CALLBACKS_H_
+#define CHRE_UTIL_CALLBACKS_H_
 
-#include <cstdint>
+#include <cstddef>
 
 namespace chre {
 
 /**
- * The SLPI implementation of AtomicBase. The underlying atomic
- * value is a unsigned int because the QURT atomic APIs require
- * unsigned ints.
+ * Implementation of a chreMessageFreeFunction that frees the given message
+ * using the appropriate free function depending on whether this is included by
+ * a nanoapp or the CHRE framework. This should be used when no other work needs
+ * to be done after a nanoapp sends a message to the host.
+ *
+ * @see chreMessageFreeFunction
  */
-class AtomicBase {
-  static_assert(sizeof(unsigned int) == sizeof(uint32_t),
-                "Unsigned int must be the same size as uint32_t or"
-                " atomic operations may fail.");
- protected:
-  //! The underlying atomic value.
-  unsigned int mValue;
-};
-
-typedef AtomicBase AtomicBoolBase;
-typedef AtomicBase AtomicUint32Base;
+void heapFreeMessageCallback(void *message, size_t messageSize);
 
 }  // namespace chre
 
-#endif  // CHRE_PLATFORM_SLPI_ATOMIC_BASE_H_
+#endif  // CHRE_UTIL_CALLBACKS_H_
