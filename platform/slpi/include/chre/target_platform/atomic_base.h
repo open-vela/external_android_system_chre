@@ -17,8 +17,6 @@
 #ifndef CHRE_PLATFORM_SLPI_ATOMIC_BASE_H_
 #define CHRE_PLATFORM_SLPI_ATOMIC_BASE_H_
 
-#include <cstdint>
-
 namespace chre {
 
 /**

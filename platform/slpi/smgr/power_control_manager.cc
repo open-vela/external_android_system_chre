@@ -22,7 +22,7 @@
 
 namespace chre {
 
-PowerControlManagerBase::PowerControlManagerBase() : mHostIsAwake(true) {
+PowerControlManagerBase::PowerControlManagerBase() {
 #ifdef CHRE_SLPI_UIMG_ENABLED
   char kClientName[] = "CHRE";
   sns_pm_err_code_e result = sns_pm_client_init(
@@ -63,8 +63,6 @@ void PowerControlManagerBase::apSuspendCallback(bool apSuspended) {
   EventLoopManagerSingleton::get()->getEventLoop()
       .getPowerControlManager().mHostIsAwake = !apSuspended;
   if (apSuspended) {
-    EventLoopManagerSingleton::get()->getHostCommsManager()
-        .resetBlameForNanoappHostWakeup();
     EventLoopManagerSingleton::get()->getEventLoop()
         .postEvent(CHRE_EVENT_HOST_ASLEEP, nullptr, nullptr);
   } else {
