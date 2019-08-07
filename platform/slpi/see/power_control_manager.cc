@@ -23,7 +23,7 @@
 
 namespace chre {
 
-PowerControlManagerBase::PowerControlManagerBase() {
+PowerControlManagerBase::PowerControlManagerBase() : mHostIsAwake(true) {
 #ifdef CHRE_THREAD_UTIL_ENABLED
   sns_client_create_thread_utilization_client(&mThreadUtilClient);
 #endif  // CHRE_THREAD_UTIL_ENABLED
@@ -42,6 +42,11 @@ bool PowerControlManagerBase::voteBigImage(bool bigImage) {
 void PowerControlManagerBase::onHostWakeSuspendEvent(bool awake) {
   if (mHostIsAwake != awake) {
     mHostIsAwake = awake;
+
+    if (!awake) {
+      EventLoopManagerSingleton::get()->getHostCommsManager()
+          .resetBlameForNanoappHostWakeup();
+    }
 
     EventLoopManagerSingleton::get()->getEventLoop().postEvent(
         mHostIsAwake ? CHRE_EVENT_HOST_AWAKE : CHRE_EVENT_HOST_ASLEEP,
