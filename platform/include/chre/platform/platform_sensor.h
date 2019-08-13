@@ -32,7 +32,8 @@ class Sensor;
  *
  * @see Sensor
  */
-class PlatformSensor : public PlatformSensorBase, public NonCopyable {
+class PlatformSensor : public PlatformSensorBase,
+                       public NonCopyable {
  public:
   /**
    * Initializes the sensors subsystem. This must be called as part of the
@@ -127,8 +128,8 @@ class PlatformSensor : public PlatformSensorBase, public NonCopyable {
    */
   PlatformSensor() = default;
 
-  PlatformSensor(PlatformSensor &&other);
-  PlatformSensor &operator=(PlatformSensor &&other);
+  PlatformSensor(PlatformSensor&& other);
+  PlatformSensor& operator=(PlatformSensor&& other);
 
   /**
    * Perform any necessary cleanup of resources acquired in PlatformSensorBase.
@@ -150,7 +151,7 @@ class PlatformSensor : public PlatformSensorBase, public NonCopyable {
    * @return true if the platform sensor was successfully configured with the
    *         supplied request.
    */
-  bool applyRequest(const SensorRequest &request);
+  bool applyRequest(const SensorRequest& request);
 };
 
 }  // namespace chre
