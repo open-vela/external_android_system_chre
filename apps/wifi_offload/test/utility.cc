@@ -160,4 +160,4 @@ void init(chreWifiScanResult &result, RandomGenerator &rand_gen) {
   init_security_mode(result.securityMode, rand_gen);
 }
 
-}  // namespace wifi_offload_test
+}  // wifioffloadtesthelper namespace
