@@ -22,12 +22,21 @@
 #include "chre/platform/log.h"
 #include "chre/util/system/debug_dump.h"
 
+#include <algorithm>
+
 namespace chre {
+
+constexpr size_t Nanoapp::kMaxSizeWakeupBuckets;
+
+Nanoapp::Nanoapp() {
+  // Push first bucket onto wakeup bucket queue
+  cycleWakeupBuckets(1);
+}
 
 Nanoapp::~Nanoapp() {
   CHRE_ASSERT_LOG(getTotalAllocatedBytes() == 0,
-      "Nanoapp ID=0x%016" PRIx64 " still has %zu allocated bytes!", getAppId(),
-      getTotalAllocatedBytes());
+                  "Nanoapp ID=0x%016" PRIx64 " still has %zu allocated bytes!",
+                  getAppId(), getTotalAllocatedBytes());
 }
 
 bool Nanoapp::isRegisteredForBroadcastEvent(uint16_t eventType) const {
@@ -87,16 +96,35 @@ Event *Nanoapp::processNextEvent() {
   return event;
 }
 
-void Nanoapp::logStateToBuffer(char *buffer, size_t *bufferPos,
-                               size_t bufferSize) const {
-  PlatformNanoapp::logStateToBuffer(buffer, bufferPos, bufferSize);
-  debugDumpPrint(
-      buffer, bufferPos, bufferSize,
-      " Id=%" PRIu32 " AppId=0x%016" PRIx64
-      " ver=0x%" PRIx32 " targetAPI=0x%" PRIx32
-      " currentAllocatedBytes=%zu peakAllocatedBytes=%zu\n",
-      getInstanceId(), getAppId(), getAppVersion(), getTargetApiVersion(),
-      getTotalAllocatedBytes(), getPeakAllocatedBytes());
+void Nanoapp::blameHostWakeup() {
+  if (mWakeupBuckets.back() < UINT16_MAX) ++mWakeupBuckets.back();
+}
+
+void Nanoapp::cycleWakeupBuckets(size_t numBuckets) {
+  numBuckets = std::min(numBuckets, kMaxSizeWakeupBuckets);
+  for (size_t i = 0; i < numBuckets; ++i) {
+    if (mWakeupBuckets.full()) {
+      mWakeupBuckets.erase(0);
+    }
+    mWakeupBuckets.push_back(0);
+  }
+}
+
+void Nanoapp::logStateToBuffer(DebugDumpWrapper &debugDump) const {
+  PlatformNanoapp::logStateToBuffer(debugDump);
+  debugDump.print(" Id=%" PRIu32 " AppId=0x%016" PRIx64 " ver=0x%" PRIx32
+                  " targetAPI=0x%" PRIx32
+                  " currentAllocatedBytes=%zu peakAllocatedBytes=%zu",
+                  getInstanceId(), getAppId(), getAppVersion(),
+                  getTargetApiVersion(), getTotalAllocatedBytes(),
+                  getPeakAllocatedBytes());
+  debugDump.print(" HostWakeups=[ Latest-> ");
+  // Get buckets latest -> earliest except last one
+  for (size_t i = mWakeupBuckets.size() - 1; i > 0; --i) {
+    debugDump.print("%" PRIu16 ", ", mWakeupBuckets[i]);
+  }
+  // earliest bucket gets no comma
+  debugDump.print("%" PRIu16 " ]\n", mWakeupBuckets.front());
 }
 
 }  // namespace chre
