@@ -82,6 +82,24 @@ const char *getSensorTypeName(SensorType sensorType) {
   }
 }
 
+const char *getSensorModeName(SensorMode sensorMode) {
+  switch (sensorMode) {
+    case SensorMode::Off:
+      return "Off";
+    case SensorMode::ActiveOneShot:
+      return "ActiveOneShot";
+    case SensorMode::PassiveOneShot:
+      return "PassiveOneShot";
+    case SensorMode::ActiveContinuous:
+      return "ActiveContinuous";
+    case SensorMode::PassiveContinuous:
+      return "PassiveContinuous";
+    default:
+      CHRE_ASSERT(false);
+      return "";
+  }
+}
+
 uint16_t getSampleEventTypeForSensorType(SensorType sensorType) {
   // The enum values of SensorType may not map to the defined values in the
   // CHRE API.
@@ -292,26 +310,25 @@ SensorMode getSensorModeFromEnum(enum chreSensorConfigureMode enumSensorMode) {
 }
 
 bool sensorTypeIsOneShot(SensorType sensorType) {
-  return (sensorType == SensorType::InstantMotion
-          || sensorType == SensorType::StationaryDetect
+  return (sensorType == SensorType::InstantMotion ||
+          sensorType == SensorType::StationaryDetect
 #ifdef CHREX_SENSOR_SUPPORT
           || extension::vendorSensorTypeIsOneShot(sensorType)
 #endif
-         );
+  );
 }
 
 bool sensorTypeIsOnChange(SensorType sensorType) {
-  return (sensorType == SensorType::Light
-          || sensorType == SensorType::Proximity
+  return (sensorType == SensorType::Light || sensorType == SensorType::Proximity
 #ifdef CHREX_SENSOR_SUPPORT
           || extension::vendorSensorTypeIsOnChange(sensorType)
 #endif
-         );
+  );
 }
 
 bool sensorTypeIsContinuous(SensorType sensorType) {
-  return (!sensorTypeIsOneShot(sensorType)
-          && !sensorTypeIsOnChange(sensorType));
+  return (!sensorTypeIsOneShot(sensorType) &&
+          !sensorTypeIsOnChange(sensorType));
 }
 
 bool sensorTypeReportsBias(SensorType sensorType) {
@@ -357,9 +374,9 @@ bool getSensorBiasEventType(SensorType sensorType, uint16_t *eventType) {
 }
 
 bool sensorTypeIsCalibrated(SensorType sensorType) {
-  return (sensorType == SensorType::Accelerometer
-          || sensorType == SensorType::Gyroscope
-          || sensorType == SensorType::GeomagneticField);
+  return (sensorType == SensorType::Accelerometer ||
+          sensorType == SensorType::Gyroscope ||
+          sensorType == SensorType::GeomagneticField);
 }
 
 SensorType toCalibratedSensorType(SensorType sensorType) {

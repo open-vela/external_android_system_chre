@@ -63,7 +63,7 @@ namespace {
 
 const uint32_t kCookies[] = {0, 1, 2};
 
-} // anonymous namespace
+}  // anonymous namespace
 
 void TimerStressTest::startStages() {
   uint32_t cancelId = chreTimerSet(kDuration, &kCookies[0], true);
@@ -87,25 +87,22 @@ void TimerStressTest::startStages() {
   }
   markSuccess(0);
   if (chreTimerSet(kDuration, &kCookies[2], true) == CHRE_TIMER_INVALID) {
-    sendFatalFailureToHost("Unable to set new timer after successful "
-                           "cancel.");
+    sendFatalFailureToHost("Unable to set new timer after successful cancel.");
   }
 }
 
 TimerStressTest::TimerStressTest()
-  : Test(CHRE_API_VERSION_1_0),
-    mInMethod(false),
-    mFinishedBitmask(0),
-    mStage1CallbacksLeft(0) {
-}
+    : Test(CHRE_API_VERSION_1_0),
+      mInMethod(false),
+      mFinishedBitmask(0),
+      mStage1CallbacksLeft(0) {}
 
 void TimerStressTest::setUp(uint32_t messageSize, const void * /* message */) {
   mInMethod = true;
 
   if (messageSize != 0) {
     sendFatalFailureToHost(
-        "TimerStress message expects 0 additional bytes, got ",
-        &messageSize);
+        "TimerStress message expects 0 additional bytes, got ", &messageSize);
   }
 
   startStages();
@@ -135,11 +132,11 @@ void TimerStressTest::handleStageEvent(uint32_t index) {
   }
 }
 
-void TimerStressTest::handleEvent(uint32_t senderInstanceId,
-                                  uint16_t eventType, const void* eventData) {
+void TimerStressTest::handleEvent(uint32_t senderInstanceId, uint16_t eventType,
+                                  const void *eventData) {
   if (mInMethod) {
-    sendFatalFailureToHost("handleEvent invoked while another nanoapp "
-                           "method is running");
+    sendFatalFailureToHost(
+        "handleEvent invoked while another nanoapp method is running");
   }
   mInMethod = true;
   if (senderInstanceId != CHRE_INSTANCE_ID) {
@@ -170,6 +167,5 @@ void TimerStressTest::markSuccess(uint32_t stage) {
     sendSuccessToHost();
   }
 }
-
 
 }  // namespace general_test

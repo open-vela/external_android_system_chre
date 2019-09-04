@@ -184,9 +184,10 @@ constexpr uint32_t getSensorHandleFromSensorType(SensorType sensorType) {
  * @return The sensor type for a given handle.
  */
 constexpr SensorType getSensorTypeFromSensorHandle(uint32_t handle) {
-  return (handle > static_cast<uint32_t>(SensorType::Unknown)
-          && handle < static_cast<uint32_t>(SensorType::SENSOR_TYPE_COUNT))
-      ? static_cast<SensorType>(handle) : SensorType::Unknown;
+  return (handle > static_cast<uint32_t>(SensorType::Unknown) &&
+          handle < static_cast<uint32_t>(SensorType::SENSOR_TYPE_COUNT))
+             ? static_cast<SensorType>(handle)
+             : SensorType::Unknown;
 }
 
 /**
@@ -220,12 +221,20 @@ enum class SensorMode {
 };
 
 /**
+ * Returns a string representation of the given sensor mode.
+ *
+ * @param sensorMode The sensor mode to obtain a string for.
+ * @return A string representation of the sensor mode.
+ */
+const char *getSensorModeName(SensorMode sensorMode);
+
+/**
  * @return true if the sensor mode is considered to be active and would cause a
  *         sensor to be powered on in order to get sensor data.
  */
 constexpr bool sensorModeIsActive(SensorMode sensorMode) {
-  return (sensorMode == SensorMode::ActiveContinuous
-      || sensorMode == SensorMode::ActiveOneShot);
+  return (sensorMode == SensorMode::ActiveContinuous ||
+          sensorMode == SensorMode::ActiveOneShot);
 }
 
 /**
@@ -233,24 +242,24 @@ constexpr bool sensorModeIsActive(SensorMode sensorMode) {
  *         cause a sensor to be powered on in order to get sensor data.
  */
 constexpr bool sensorModeIsPassive(SensorMode sensorMode) {
-  return (sensorMode == SensorMode::PassiveContinuous
-      || sensorMode == SensorMode::PassiveOneShot);
+  return (sensorMode == SensorMode::PassiveContinuous ||
+          sensorMode == SensorMode::PassiveOneShot);
 }
 
 /**
  * @return true if the sensor mode is considered to be contunuous.
  */
 constexpr bool sensorModeIsContinuous(SensorMode sensorMode) {
-  return (sensorMode == SensorMode::ActiveContinuous
-      || sensorMode == SensorMode::PassiveContinuous);
+  return (sensorMode == SensorMode::ActiveContinuous ||
+          sensorMode == SensorMode::PassiveContinuous);
 }
 
 /**
  * @return true if the sensor mode is considered to be one-shot.
  */
 constexpr bool sensorModeIsOneShot(SensorMode sensorMode) {
-  return (sensorMode == SensorMode::ActiveOneShot
-      || sensorMode == SensorMode::PassiveOneShot);
+  return (sensorMode == SensorMode::ActiveOneShot ||
+          sensorMode == SensorMode::PassiveOneShot);
 }
 
 /**
@@ -325,6 +334,18 @@ SensorType toCalibratedSensorType(SensorType sensorType);
  *     have one, then the input sensorType is returned.
  */
 SensorType toUncalibratedSensorType(SensorType sensorType);
+
+/**
+ * @param sensorType The sensor type.
+ *
+ * @return true if the sensor type is for a valid sensor.
+ */
+inline bool isValidSensorType(SensorType sensorType) {
+  // TODO: Consider asserting that sensorType < SensorType::SENSOR_TYPE_COUNT
+  //       once assertion can be enabled without costing extra memory overhead.
+  return sensorType > SensorType::Unknown &&
+         sensorType < SensorType::SENSOR_TYPE_COUNT;
+}
 
 }  // namespace chre
 
