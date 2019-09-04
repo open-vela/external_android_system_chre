@@ -19,7 +19,9 @@
 
 namespace general_test {
 
-SensorInfoTest::SensorInfoTest() : Test(CHRE_API_VERSION_1_1) {}
+SensorInfoTest::SensorInfoTest()
+    : Test(CHRE_API_VERSION_1_1) {
+}
 
 void SensorInfoTest::setUp(uint32_t messageSize, const void * /* message */) {
   if (messageSize != 0) {
@@ -33,7 +35,8 @@ void SensorInfoTest::setUp(uint32_t messageSize, const void * /* message */) {
     struct chreSensorInfo info;
 
     if (!chreGetSensorInfo(mSensorHandle, &info)) {
-      nanoapp_testing::sendFatalFailureToHost("Failed to gather sensor info");
+      nanoapp_testing::sendFatalFailureToHost(
+          "Failed to gather sensor info");
     } else {
       mCompleted = true;
       validateSensorInfo(info);
@@ -41,17 +44,17 @@ void SensorInfoTest::setUp(uint32_t messageSize, const void * /* message */) {
   }
 }
 
-void SensorInfoTest::validateSensorInfo(
-    const struct chreSensorInfo &info) const {
+void SensorInfoTest::validateSensorInfo(const struct chreSensorInfo& info) const {
   if ((mApiVersion < CHRE_API_VERSION_1_1) && (info.minInterval != 0)) {
     nanoapp_testing::sendFatalFailureToHost(
         "Sensor minimum interval is non-zero");
   } else if (info.minInterval == 0) {
     nanoapp_testing::sendFatalFailureToHost(
         "Sensor minimum interval is unknown");
-  } else if (!chreSensorConfigure(
-                 mSensorHandle, CHRE_SENSOR_CONFIGURE_MODE_CONTINUOUS,
-                 info.minInterval, CHRE_SENSOR_LATENCY_DEFAULT)) {
+  } else if (!chreSensorConfigure(mSensorHandle,
+                                  CHRE_SENSOR_CONFIGURE_MODE_CONTINUOUS,
+                                  info.minInterval,
+                                  CHRE_SENSOR_LATENCY_DEFAULT)) {
     nanoapp_testing::sendFatalFailureToHost(
         "Sensor failed configuration with minimum interval");
   } else if (!chreSensorConfigureModeOnly(mSensorHandle,
@@ -71,4 +74,4 @@ void SensorInfoTest::handleEvent(uint32_t /* senderInstanceId */,
   }
 }
 
-}  // namespace general_test
+} // namespace general_test
