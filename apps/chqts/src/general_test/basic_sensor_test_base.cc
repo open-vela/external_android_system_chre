@@ -24,9 +24,9 @@
 
 #include <chre.h>
 
-using nanoapp_testing::MessageType;
 using nanoapp_testing::kOneMillisecondInNanoseconds;
 using nanoapp_testing::kOneSecondInNanoseconds;
+using nanoapp_testing::MessageType;
 using nanoapp_testing::sendFatalFailureToHost;
 using nanoapp_testing::sendFatalFailureToHostUint8;
 using nanoapp_testing::sendInternalFailureToHost;
@@ -51,7 +51,6 @@ using nanoapp_testing::sendSuccessToHost;
  * change events, as well as bias data reports.
  */
 
-
 namespace general_test {
 
 namespace {
@@ -66,23 +65,21 @@ uint64_t getEventDuration(const chreSensorThreeAxisData *event) {
 
   return duration;
 }
-} // anonymous namespace
+}  // anonymous namespace
 
 BasicSensorTestBase::BasicSensorTestBase()
-  : Test(CHRE_API_VERSION_1_0),
-    mInMethod(true),
-    mExternalSamplingStatusChange(false),
-    mState(State::kPreStart),
-    mInstanceId(chreGetInstanceId())
-    /* All other members initialized later */ {
-}
+    : Test(CHRE_API_VERSION_1_0),
+      mInMethod(true),
+      mExternalSamplingStatusChange(false),
+      mState(State::kPreStart),
+      mInstanceId(chreGetInstanceId())
+/* All other members initialized later */ {}
 
 void BasicSensorTestBase::setUp(uint32_t messageSize,
                                 const void * /* message */) {
   if (messageSize != 0) {
-    sendFatalFailureToHost(
-        "Beginning message expects 0 additional bytes, got ",
-        &messageSize);
+    sendFatalFailureToHost("Beginning message expects 0 additional bytes, got ",
+                           &messageSize);
   }
   // Most tests start running in the constructor.  However, since this
   // is a base class, and we invoke abstract methods when running our
@@ -95,22 +92,22 @@ void BasicSensorTestBase::setUp(uint32_t messageSize,
 }
 
 void BasicSensorTestBase::checkPassiveConfigure() {
-  chreSensorConfigureMode mode = isOneShotSensor() ?
-      CHRE_SENSOR_CONFIGURE_MODE_PASSIVE_ONE_SHOT :
-      CHRE_SENSOR_CONFIGURE_MODE_PASSIVE_CONTINUOUS;
+  chreSensorConfigureMode mode =
+      isOneShotSensor() ? CHRE_SENSOR_CONFIGURE_MODE_PASSIVE_ONE_SHOT
+                        : CHRE_SENSOR_CONFIGURE_MODE_PASSIVE_CONTINUOUS;
 
   if (mApiVersion == CHRE_API_VERSION_1_0) {
     // Any attempt to make a PASSIVE call with a non-default interval
     // or latency should fail.
-    if (chreSensorConfigure(mSensorHandle, mode,
-                            CHRE_SENSOR_INTERVAL_DEFAULT, 999)) {
-      sendFatalFailureToHost("chreSensorConfigure() allowed passive with "
-                             "different latency");
+    if (chreSensorConfigure(mSensorHandle, mode, CHRE_SENSOR_INTERVAL_DEFAULT,
+                            999)) {
+      sendFatalFailureToHost(
+          "chreSensorConfigure() allowed passive with different latency");
     }
-    if (chreSensorConfigure(mSensorHandle, mode,
-                            999, CHRE_SENSOR_LATENCY_DEFAULT)) {
-      sendFatalFailureToHost("chreSensorConfigure() allowed passive with "
-                             "different interval");
+    if (chreSensorConfigure(mSensorHandle, mode, 999,
+                            CHRE_SENSOR_LATENCY_DEFAULT)) {
+      sendFatalFailureToHost(
+          "chreSensorConfigure() allowed passive with different interval");
     }
     // TODO: In a more in-depth test, we should test passive mode
     //     receiving data.  This is somewhat complicated by the fact that
@@ -120,23 +117,25 @@ void BasicSensorTestBase::checkPassiveConfigure() {
     //     usage, but there's still the complication of other nanoapps in
     //     the system.
   } else {
-    if (!chreSensorConfigure(mSensorHandle, mode,
-                             CHRE_SENSOR_INTERVAL_DEFAULT,
+    if (!chreSensorConfigure(mSensorHandle, mode, CHRE_SENSOR_INTERVAL_DEFAULT,
                              kOneSecondInNanoseconds)) {
-      sendFatalFailureToHost("chreSensorConfigure() failed passive with "
-                             "default interval and non-default latency");
+      sendFatalFailureToHost(
+          "chreSensorConfigure() failed passive with default interval and "
+          "non-default latency");
     }
-    if (!isOneShotSensor() && !chreSensorConfigure(
-        mSensorHandle, mode, kOneSecondInNanoseconds,
-        CHRE_SENSOR_LATENCY_DEFAULT)) {
-      sendFatalFailureToHost("chreSensorConfigure() failed passive with "
-                             "non-default interval and default latency");
+    if (!isOneShotSensor() &&
+        !chreSensorConfigure(mSensorHandle, mode, kOneSecondInNanoseconds,
+                             CHRE_SENSOR_LATENCY_DEFAULT)) {
+      sendFatalFailureToHost(
+          "chreSensorConfigure() failed passive with non-default interval and "
+          "default latency");
     }
-    if (!isOneShotSensor() && !chreSensorConfigure(
-        mSensorHandle, mode, kOneSecondInNanoseconds,
-        kOneSecondInNanoseconds)) {
-      sendFatalFailureToHost("chreSensorConfigure() failed passive with "
-                             "non-default interval and latency");
+    if (!isOneShotSensor() &&
+        !chreSensorConfigure(mSensorHandle, mode, kOneSecondInNanoseconds,
+                             kOneSecondInNanoseconds)) {
+      sendFatalFailureToHost(
+          "chreSensorConfigure() failed passive with "
+          "non-default interval and latency");
     }
   }
 }
@@ -147,8 +146,8 @@ void BasicSensorTestBase::startTest() {
     if (isRequiredSensor()) {
       sendFatalFailureToHost("Sensor is required, but no default found.");
     }
-    sendStringToHost(MessageType::kSkipped, "No default sensor found for "
-                     "optional sensor.");
+    sendStringToHost(MessageType::kSkipped,
+                     "No default sensor found for optional sensor.");
     return;
   }
 
@@ -161,16 +160,16 @@ void BasicSensorTestBase::startTest() {
   }
   if (info.sensorType != getSensorType()) {
     uint32_t type = info.sensorType;
-    sendFatalFailureToHost("chreSensorInfo::sensorType is not expected "
-                           "value, is:", &type);
+    sendFatalFailureToHost(
+        "chreSensorInfo::sensorType is not expected value, is:", &type);
   }
   if (info.isOnChange != isOnChangeSensor()) {
-    sendFatalFailureToHost("chreSensorInfo::isOnChange is opposite of "
-                           "what we expected");
+    sendFatalFailureToHost(
+        "chreSensorInfo::isOnChange is opposite of what we expected");
   }
   if (info.isOneShot != isOneShotSensor()) {
-    sendFatalFailureToHost("chreSensorInfo::isOneShot is opposite of "
-                           "what we expected");
+    sendFatalFailureToHost(
+        "chreSensorInfo::isOneShot is opposite of what we expected");
   }
 
   if (!chreGetSensorSamplingStatus(mSensorHandle, &mOriginalStatus)) {
@@ -182,18 +181,18 @@ void BasicSensorTestBase::startTest() {
 
   // Default interval/latency must be accepted by all sensors.
   mNewStatus = {
-    CHRE_SENSOR_INTERVAL_DEFAULT, /* interval */
-    CHRE_SENSOR_LATENCY_DEFAULT, /* latency */
-    true /* enabled */
+      CHRE_SENSOR_INTERVAL_DEFAULT, /* interval */
+      CHRE_SENSOR_LATENCY_DEFAULT,  /* latency */
+      true                          /* enabled */
   };
-  chreSensorConfigureMode mode = isOneShotSensor() ?
-      CHRE_SENSOR_CONFIGURE_MODE_ONE_SHOT :
-      CHRE_SENSOR_CONFIGURE_MODE_CONTINUOUS;
+  chreSensorConfigureMode mode = isOneShotSensor()
+                                     ? CHRE_SENSOR_CONFIGURE_MODE_ONE_SHOT
+                                     : CHRE_SENSOR_CONFIGURE_MODE_CONTINUOUS;
 
-  if (!chreSensorConfigure(mSensorHandle, mode,
-                           mNewStatus.interval, mNewStatus.latency)) {
-    sendFatalFailureToHost("chreSensorConfigure() call failed with default"
-                           " interval and latency");
+  if (!chreSensorConfigure(mSensorHandle, mode, mNewStatus.interval,
+                           mNewStatus.latency)) {
+    sendFatalFailureToHost(
+        "chreSensorConfigure() call failed with default interval and latency");
   }
   // handleEvent may start getting events, and our testing continues there.
   // (Note: The CHRE is not allow to call handleEvent() while we're still
@@ -201,22 +200,23 @@ void BasicSensorTestBase::startTest() {
 
   // Set a new request so the test can receive events before test timeout.
   mNewStatus = {
-    // This will be valid on all required sensors.
-    // TODO: A more in-depth test could try to change this interval
-    //     from what it currently is for the sensor, and confirm it
-    //     changes back when we're DONE.  But that's beyond the current
-    //     scope of this 'basic' test.
-    kOneSecondInNanoseconds, /* interval */
-    // We want the test to run as quickly as possible.
-    // TODO: Similar to the interval, we could try to test changes in
-    //     this value, but it's beyond our 'basic' scope for now.
-    CHRE_SENSOR_LATENCY_ASAP, /* latency */
-    true /* enabled */
+      // This will be valid on all required sensors.
+      // TODO: A more in-depth test could try to change this interval
+      //     from what it currently is for the sensor, and confirm it
+      //     changes back when we're DONE.  But that's beyond the current
+      //     scope of this 'basic' test.
+      kOneSecondInNanoseconds, /* interval */
+      // We want the test to run as quickly as possible.
+      // TODO: Similar to the interval, we could try to test changes in
+      //     this value, but it's beyond our 'basic' scope for now.
+      CHRE_SENSOR_LATENCY_ASAP, /* latency */
+      true                      /* enabled */
   };
 
   // Skip one-shot sensors for non-default interval configurations.
-  if (!isOneShotSensor() && !chreSensorConfigure(
-      mSensorHandle, mode, mNewStatus.interval, mNewStatus.latency)) {
+  if (!isOneShotSensor() &&
+      !chreSensorConfigure(mSensorHandle, mode, mNewStatus.interval,
+                           mNewStatus.latency)) {
     sendFatalFailureToHost("chreSensorConfigure() call failed");
   }
 
@@ -266,7 +266,7 @@ void BasicSensorTestBase::finishTest() {
   sendSuccessToHost();
 }
 
-void BasicSensorTestBase::sanityCheckHeader(const chreSensorDataHeader* header,
+void BasicSensorTestBase::sanityCheckHeader(const chreSensorDataHeader *header,
                                             bool modifyTimestamps,
                                             uint64_t eventDuration) {
   if (header->sensorHandle != mSensorHandle) {
@@ -287,7 +287,7 @@ void BasicSensorTestBase::sanityCheckHeader(const chreSensorDataHeader* header,
     } else if (mState == State::kExpectingLastDataEvent) {
       minTime = &mFirstEventTimestamp;
       timeToUpdate = &mLastEventTimestamp;
-    } else { // State::kFinished
+    } else {  // State::kFinished
       minTime = &mLastEventTimestamp;
       // Go ahead and update this timestamp again.
       timeToUpdate = &mLastEventTimestamp;
@@ -298,15 +298,16 @@ void BasicSensorTestBase::sanityCheckHeader(const chreSensorDataHeader* header,
     // kEventLoopSlack to handle this nanoapp before handling the sensor
     // event.
     uint64_t minTimeWithSlack =
-        (*minTime > eventDuration + kEventLoopSlack) ?
-        (*minTime - eventDuration - kEventLoopSlack) : 0;
+        (*minTime > eventDuration + kEventLoopSlack)
+            ? (*minTime - eventDuration - kEventLoopSlack)
+            : 0;
     if (header->baseTimestamp < minTimeWithSlack) {
       chreLog(CHRE_LOG_ERROR,
               "baseTimestamp %" PRIu64 " < minTimeWithSlack %" PRIu64
               ": minTime %" PRIu64 " eventDuration %" PRIu64
               " kEventLoopSlack %" PRIu64,
-              header->baseTimestamp, minTimeWithSlack,
-              *minTime, eventDuration, kEventLoopSlack);
+              header->baseTimestamp, minTimeWithSlack, *minTime, eventDuration,
+              kEventLoopSlack);
       sendFatalFailureToHost("SensorDataHeader is in the past");
     }
     if ((mState == State::kFinished) &&
@@ -335,7 +336,6 @@ void BasicSensorTestBase::sanityCheckHeader(const chreSensorDataHeader* header,
   }
 }
 
-
 void BasicSensorTestBase::handleBiasEvent(
     uint16_t eventType, const chreSensorThreeAxisData *eventData) {
   uint8_t expectedSensorType = 0;
@@ -345,8 +345,7 @@ void BasicSensorTestBase::handleBiasEvent(
   } else if (eventType == CHRE_EVENT_SENSOR_GEOMAGNETIC_FIELD_BIAS_INFO) {
     expectedSensorType = CHRE_SENSOR_TYPE_GEOMAGNETIC_FIELD;
   } else {
-    sendInternalFailureToHost("Illegal eventType in handleBiasEvent",
-                              &eType);
+    sendInternalFailureToHost("Illegal eventType in handleBiasEvent", &eType);
   }
 
   if (expectedSensorType != getSensorType()) {
@@ -359,7 +358,7 @@ void BasicSensorTestBase::handleBiasEvent(
 }
 
 void BasicSensorTestBase::handleSamplingChangeEvent(
-    const chreSensorSamplingStatusEvent* eventData) {
+    const chreSensorSamplingStatusEvent *eventData) {
   if (eventData->sensorHandle != mSensorHandle) {
     sendFatalFailureToHost("SamplingChangeEvent for wrong sensor handle:",
                            &eventData->sensorHandle);
@@ -384,17 +383,17 @@ void BasicSensorTestBase::handleSamplingChangeEvent(
   }
 }
 
-void BasicSensorTestBase::handleSensorDataEvent(const void* eventData) {
+void BasicSensorTestBase::handleSensorDataEvent(const void *eventData) {
   if ((mState == State::kPreStart) || (mState == State::kPreConfigure)) {
     sendFatalFailureToHost("SensorDataEvent sent too early.");
   }
   // Note, if mState is kFinished, we could be getting batched data which
   // hadn't been delivered yet at the time we were DONE.  We'll sanity
   // check it, even though in theory we're done testing.
-  uint64_t eventDuration = getEventDuration(
-      static_cast<const chreSensorThreeAxisData *>(eventData));
-  sanityCheckHeader(static_cast<const chreSensorDataHeader*>(eventData),
-                    true, eventDuration);
+  uint64_t eventDuration =
+      getEventDuration(static_cast<const chreSensorThreeAxisData *>(eventData));
+  sanityCheckHeader(static_cast<const chreSensorDataHeader *>(eventData), true,
+                    eventDuration);
 
   // Send to the sensor itself for any additional checks of actual data.
   confirmDataIsSane(eventData);
@@ -409,11 +408,11 @@ void BasicSensorTestBase::handleSensorDataEvent(const void* eventData) {
   }
 }
 
-void BasicSensorTestBase::handleEvent(
-    uint32_t senderInstanceId, uint16_t eventType, const void* eventData) {
+void BasicSensorTestBase::handleEvent(uint32_t senderInstanceId,
+                                      uint16_t eventType,
+                                      const void *eventData) {
   if (mInMethod) {
-    sendFatalFailureToHost("handleEvent() invoked while already in "
-                           "method.");
+    sendFatalFailureToHost("handleEvent() invoked while already in method.");
   }
   mInMethod = true;
   const uint16_t dataEventType =
@@ -423,13 +422,11 @@ void BasicSensorTestBase::handleEvent(
     if ((eventType == kStartEvent) && (mState == State::kPreStart)) {
       startTest();
     }
-  } else if ((mState == State::kPreStart) ||
-             (mState == State::kPreConfigure)) {
+  } else if ((mState == State::kPreStart) || (mState == State::kPreConfigure)) {
     unexpectedEvent(eventType);
 
   } else if (senderInstanceId != CHRE_INSTANCE_ID) {
-    sendFatalFailureToHost("Unexpected senderInstanceId:",
-                           &senderInstanceId);
+    sendFatalFailureToHost("Unexpected senderInstanceId:", &senderInstanceId);
 
   } else if (eventData == nullptr) {
     uint32_t eType = eventType;
@@ -440,12 +437,12 @@ void BasicSensorTestBase::handleEvent(
 
   } else if (eventType == CHRE_EVENT_SENSOR_SAMPLING_CHANGE) {
     handleSamplingChangeEvent(
-        static_cast<const chreSensorSamplingStatusEvent*>(eventData));
+        static_cast<const chreSensorSamplingStatusEvent *>(eventData));
 
   } else if ((eventType == CHRE_EVENT_SENSOR_GYROSCOPE_BIAS_INFO) ||
              (eventType == CHRE_EVENT_SENSOR_GEOMAGNETIC_FIELD_BIAS_INFO)) {
     handleBiasEvent(eventType,
-                    static_cast<const chreSensorThreeAxisData*>(eventData));
+                    static_cast<const chreSensorThreeAxisData *>(eventData));
 
   } else {
     unexpectedEvent(eventType);
