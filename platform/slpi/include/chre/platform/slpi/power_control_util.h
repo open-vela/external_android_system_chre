@@ -41,10 +41,8 @@ inline bool slpiInUImage() {
 inline bool slpiForceBigImage() {
   bool success = false;
   if (isSlpiUimgSupported() && slpiInUImage()) {
-    success = EventLoopManagerSingleton::get()
-                  ->getEventLoop()
-                  .getPowerControlManager()
-                  .voteBigImage(true);
+    success = EventLoopManagerSingleton::get()->getEventLoop().
+        getPowerControlManager().voteBigImage(true);
   }
 
   return success;
@@ -57,12 +55,10 @@ inline bool slpiForceBigImage() {
  * @return true if the vote succeeds.
  */
 inline bool slpiRemoveBigImageVote() {
-  return EventLoopManagerSingleton::get()
-      ->getEventLoop()
-      .getPowerControlManager()
-      .voteBigImage(false);
+  return EventLoopManagerSingleton::get()->getEventLoop().
+      getPowerControlManager().voteBigImage(false);
 }
 
-}  // namespace chre
+} // namespace chre
 
-#endif  // CHRE_PLATFORM_POWER_CONTROL_UTIL_H
+#endif // CHRE_PLATFORM_POWER_CONTROL_UTIL_H

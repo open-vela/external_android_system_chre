@@ -21,7 +21,9 @@
 
 namespace general_test {
 
-GnssCapabilitiesTest::GnssCapabilitiesTest() : Test(CHRE_API_VERSION_1_1) {}
+GnssCapabilitiesTest::GnssCapabilitiesTest()
+    : Test(CHRE_API_VERSION_1_1) {
+}
 
 void GnssCapabilitiesTest::setUp(uint32_t messageSize,
                                  const void * /* message */) {
@@ -32,8 +34,8 @@ void GnssCapabilitiesTest::setUp(uint32_t messageSize,
     uint32_t allCapabilities = CHRE_GNSS_CAPABILITIES_NONE;
 
     if (mApiVersion >= CHRE_API_VERSION_1_1) {
-      allCapabilities |=
-          CHRE_GNSS_CAPABILITIES_LOCATION | CHRE_GNSS_CAPABILITIES_MEASUREMENTS;
+      allCapabilities |= CHRE_GNSS_CAPABILITIES_LOCATION
+          | CHRE_GNSS_CAPABILITIES_MEASUREMENTS;
     }
     if (mApiVersion >= CHRE_API_VERSION_1_2) {
       allCapabilities |=
@@ -65,4 +67,4 @@ void GnssCapabilitiesTest::handleEvent(uint32_t /* senderInstanceId */,
   unexpectedEvent(eventType);
 }
 
-}  // namespace general_test
+} // namespace general_test
