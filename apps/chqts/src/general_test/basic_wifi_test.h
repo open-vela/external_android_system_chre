@@ -38,7 +38,6 @@ namespace general_test {
 class BasicWifiTest : public Test {
  public:
   BasicWifiTest();
-
  protected:
   /**
    * Handles WiFi events, including:
@@ -62,7 +61,6 @@ class BasicWifiTest : public Test {
    * @param message a pointer to the received message.
    */
   void setUp(uint32_t messageSize, const void *message) override;
-
  private:
   /**
    * Validates chre WiFi async events.
@@ -94,7 +92,8 @@ class BasicWifiTest : public Test {
    * @param requestType a type of request.
    * @param timeoutNs expected maximum elapse to receive chre WiFi result.
    */
-  void resetCurrentWifiRequest(const void *cookie, uint8_t requestType,
+  void resetCurrentWifiRequest(const void *cookie,
+                               uint8_t requestType,
                                uint64_t timeoutNs);
 
   /**
@@ -114,7 +113,8 @@ class BasicWifiTest : public Test {
    * @param count the size of results.
    * @param results a pointer to the structure containing the results.
    */
-  void validateWifiScanResult(uint8_t count, const chreWifiScanResult *results);
+  void validateWifiScanResult(uint8_t count,
+                              const chreWifiScanResult *results);
 
   /**
    * Basic WiFi test stages and total number of stages.
@@ -147,6 +147,6 @@ class BasicWifiTest : public Test {
   uint32_t mWiFiScanResultRemaining = 0;
 };
 
-}  // namespace general_test
+} // namespace general_test
 
-#endif  // _GTS_NANOAPPS_GENERAL_TEST_BASIC_WIFI_TEST_H_
+#endif // _GTS_NANOAPPS_GENERAL_TEST_BASIC_WIFI_TEST_H_

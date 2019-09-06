@@ -70,7 +70,7 @@ constexpr uint32_t kWifiBandFreqOfChannel_14 = 2484;
  * @param cookie An opaque value that will be included in the chreAsyncResult
  *        sent in relation to this request.
  */
-void testConfigureScanMonitorAsync(bool enable, const void *cookie) {
+void testConfigureScanMonitorAsync(bool enable, const void * cookie) {
   if (!chreWifiConfigureScanMonitorAsync(enable, cookie)) {
     if (enable) {
       sendFatalFailureToHost("Failed to request to enable scan monitor.");
@@ -99,7 +99,8 @@ void testRequestScanAsync() {
  * @param startFrequency start frequency of band 2.4/5 GHz.
  * @param maxChannelNumber max channel number of band 2.4/5 GHz.
  */
-void validatePrimaryChannel(uint32_t primaryChannel, uint32_t startFrequency,
+void validatePrimaryChannel(uint32_t primaryChannel,
+                            uint32_t startFrequency,
                             uint8_t maxChannelNumber) {
   if ((primaryChannel - startFrequency) % 5 != 0) {
     chreLog(CHRE_LOG_ERROR,
@@ -129,14 +130,16 @@ void validatePrimaryChannel(uint32_t primaryChannel, uint32_t startFrequency,
  *
  * @param result WiFi scan result.
  */
-void validatePrimaryChannel(const chreWifiScanResult &result) {
+void validatePrimaryChannel(const chreWifiScanResult& result) {
   // channel 14 (primaryChannel = 2484) is not applicable for this test.
   if (result.band == CHRE_WIFI_BAND_2_4_GHZ &&
       result.primaryChannel != kWifiBandFreqOfChannel_14) {
-    validatePrimaryChannel(result.primaryChannel, kWifiBandStartFreq_2_4_GHz,
+    validatePrimaryChannel(result.primaryChannel,
+                           kWifiBandStartFreq_2_4_GHz,
                            13);
   } else if (result.band == CHRE_WIFI_BAND_5_GHZ) {
-    validatePrimaryChannel(result.primaryChannel, kWifiBandStartFreq_5_GHz,
+    validatePrimaryChannel(result.primaryChannel,
+                           kWifiBandStartFreq_5_GHz,
                            200);
   }
 }
@@ -145,9 +148,9 @@ void validatePrimaryChannel(const chreWifiScanResult &result) {
  * Validates centerFreqPrimary and centerFreqSecondary
  * TODO (jacksun) add test when channelWidth is 20, 40, 80, or 160 MHz
  */
-void validateCenterFreq(const chreWifiScanResult &result) {
-  if (result.channelWidth != CHRE_WIFI_CHANNEL_WIDTH_80_PLUS_80_MHZ &&
-      result.centerFreqSecondary != 0) {
+void validateCenterFreq(const chreWifiScanResult& result) {
+  if (result.channelWidth != CHRE_WIFI_CHANNEL_WIDTH_80_PLUS_80_MHZ
+      && result.centerFreqSecondary != 0) {
     // TODO (jacksun) Format the centerFreqSecondary into the message
     // after redesigning of sendFatalFailureToHost()
     sendFatalFailureToHost(
@@ -155,14 +158,17 @@ void validateCenterFreq(const chreWifiScanResult &result) {
   }
 }
 
-}  // anonymous namespace
+} // anonymous namespace
 
-BasicWifiTest::BasicWifiTest() : Test(CHRE_API_VERSION_1_1) {}
+BasicWifiTest::BasicWifiTest()
+    : Test(CHRE_API_VERSION_1_1) {
+}
 
-void BasicWifiTest::setUp(uint32_t messageSize, const void * /* message */) {
+void BasicWifiTest::setUp(
+    uint32_t messageSize, const void * /* message */) {
   if (messageSize != 0) {
-    sendFatalFailureToHost("Expected 0 byte message, got more bytes:",
-                           &messageSize);
+    sendFatalFailureToHost(
+        "Expected 0 byte message, got more bytes:", &messageSize);
   } else {
     mWifiCapabilities = chreWifiGetCapabilities();
     startScanMonitorTestStage();
@@ -170,31 +176,35 @@ void BasicWifiTest::setUp(uint32_t messageSize, const void * /* message */) {
 }
 
 void BasicWifiTest::handleEvent(uint32_t /* senderInstanceId */,
-                                uint16_t eventType, const void *eventData) {
+                                uint16_t eventType,
+                                const void *eventData) {
   if (eventData == nullptr) {
     sendFatalFailureToHost("Received null eventData");
   }
   switch (eventType) {
     case CHRE_EVENT_WIFI_ASYNC_RESULT:
-      handleChreWifiAsyncEvent(static_cast<const chreAsyncResult *>(eventData));
+      handleChreWifiAsyncEvent(
+          static_cast<const chreAsyncResult *>(eventData));
       break;
-    case CHRE_EVENT_WIFI_SCAN_RESULT: {
-      const auto *result = static_cast<const chreWifiScanEvent *>(eventData);
-      if (isActiveWifiScanType(result)) {
-        // The first chreWifiScanResult is expected to come immediately,
-        // but a long delay is possible if it's implemented incorrectly,
-        // e.g. the async result comes right away (before the scan is actually
-        // completed), then there's a long delay to the scan result.
-        if (mStartTimestampNs != 0 && chreGetTime() - mStartTimestampNs >
-                                          50 * kOneMillisecondInNanoseconds) {
-          sendFatalFailureToHost(
-              "Did not receive chreWifiScanResult within 50 milliseconds.");
+    case CHRE_EVENT_WIFI_SCAN_RESULT:
+      {
+        const auto *result = static_cast<const chreWifiScanEvent *>(eventData);
+        if (isActiveWifiScanType(result)) {
+          // The first chreWifiScanResult is expected to come immediately,
+          // but a long delay is possible if it's implemented incorrectly,
+          // e.g. the async result comes right away (before the scan is actually
+          // completed), then there's a long delay to the scan result.
+          if (mStartTimestampNs != 0
+              && chreGetTime() - mStartTimestampNs >
+                  50 * kOneMillisecondInNanoseconds) {
+            sendFatalFailureToHost(
+                "Did not receive chreWifiScanResult within 50 milliseconds.");
+          }
+          mStartTimestampNs = 0;
+          validateWifiScanEvent(result);
         }
-        mStartTimestampNs = 0;
-        validateWifiScanEvent(result);
       }
       break;
-    }
     default:
       unexpectedEvent(eventType);
       break;
@@ -225,8 +235,8 @@ void BasicWifiTest::handleChreWifiAsyncEvent(const chreAsyncResult *result) {
       }
       break;
     default:
-      sendFatalFailureToHostUint8("Received unexpected requestType %d",
-                                  result->requestType);
+      sendFatalFailureToHostUint8(
+          "Received unexpected requestType %d", result->requestType);
       break;
   }
 }
@@ -264,17 +274,19 @@ void BasicWifiTest::startScanAsyncTestStage() {
 void BasicWifiTest::resetCurrentWifiRequest(const void *cookie,
                                             uint8_t requestType,
                                             uint64_t timeoutNs) {
-  chreAsyncRequest request = {.cookie = cookie,
-                              .requestType = requestType,
-                              .requestTimeNs = chreGetTime(),
-                              .timeoutNs = timeoutNs};
+  chreAsyncRequest request = {
+    .cookie = cookie,
+    .requestType = requestType,
+    .requestTimeNs = chreGetTime(),
+    .timeoutNs = timeoutNs
+  };
   mCurrentWifiRequest = request;
 }
 
 void BasicWifiTest::validateWifiScanEvent(const chreWifiScanEvent *eventData) {
   if (eventData->version != CHRE_WIFI_SCAN_EVENT_VERSION) {
-    sendFatalFailureToHostUint8("Got unexpected scan event version %d",
-                                eventData->version);
+    sendFatalFailureToHostUint8(
+        "Got unexpected scan event version %d", eventData->version);
   }
 
   if (mNextExpectedIndex != eventData->eventIndex) {
@@ -302,18 +314,18 @@ void BasicWifiTest::validateWifiScanEvent(const chreWifiScanEvent *eventData) {
   }
 }
 
-void BasicWifiTest::validateWifiScanResult(uint8_t count,
-                                           const chreWifiScanResult *results) {
+void BasicWifiTest::validateWifiScanResult(
+    uint8_t count, const chreWifiScanResult *results) {
   for (uint8_t i = 0; i < count; ++i) {
     if (results[i].ssidLen > CHRE_WIFI_SSID_MAX_LEN) {
-      sendFatalFailureToHostUint8("Got unexpected ssidLen %d",
-                                  results[i].ssidLen);
+      sendFatalFailureToHostUint8(
+          "Got unexpected ssidLen %d", results[i].ssidLen);
     }
 
     // TODO: Enable fatal failures on band, RSSI, and primary channel
     //       validations when proper error waiver is implemented in CHQTS.
-    if (results[i].band != CHRE_WIFI_BAND_2_4_GHZ &&
-        results[i].band != CHRE_WIFI_BAND_5_GHZ) {
+    if (results[i].band != CHRE_WIFI_BAND_2_4_GHZ
+        && results[i].band != CHRE_WIFI_BAND_5_GHZ) {
       chreLog(CHRE_LOG_ERROR, "Got unexpected band %d", results[i].band);
     }
 
@@ -331,4 +343,4 @@ void BasicWifiTest::validateWifiScanResult(uint8_t count,
   }
 }
 
-}  // namespace general_test
+} // namespace general_test
