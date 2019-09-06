@@ -21,7 +21,9 @@
 
 namespace general_test {
 
-WwanCapabilitiesTest::WwanCapabilitiesTest() : Test(CHRE_API_VERSION_1_1) {}
+WwanCapabilitiesTest::WwanCapabilitiesTest()
+    : Test(CHRE_API_VERSION_1_1) {
+}
 
 void WwanCapabilitiesTest::setUp(uint32_t messageSize,
                                  const void * /* message */) {
@@ -60,4 +62,4 @@ void WwanCapabilitiesTest::handleEvent(uint32_t /* senderInstanceId */,
   unexpectedEvent(eventType);
 }
 
-}  // namespace general_test
+} // namespace general_test

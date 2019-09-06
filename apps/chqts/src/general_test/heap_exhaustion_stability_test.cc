@@ -62,11 +62,12 @@ constexpr uint32_t kEventStage = 1;
 
 void HeapExhaustionStabilityTest::exhaustHeap() {
   constexpr size_t kNumPtrs = 256;
-  mExhaustionPtrs = reinterpret_cast<void **>(
+  mExhaustionPtrs = reinterpret_cast<void**>(
       chreHeapAlloc(kNumPtrs * sizeof(*mExhaustionPtrs)));
   if (mExhaustionPtrs == nullptr) {
     // Oh, the irony.
-    sendFatalFailureToHost("Insufficient free heap to exhaust the heap.");
+    sendFatalFailureToHost(
+        "Insufficient free heap to exhaust the heap.");
   }
 
   // We start by trying to allocate massive sizes (256MB to start).
@@ -74,7 +75,8 @@ void HeapExhaustionStabilityTest::exhaustHeap() {
   // half.  We repeat until we've either done kNumPtrs allocations,
   // or reduced our allocation size below 16 bytes.
   uint32_t allocSize = 1024 * 1024 * 256;
-  for (mExhaustionPtrCount = 0; mExhaustionPtrCount < kNumPtrs;
+  for (mExhaustionPtrCount = 0;
+       mExhaustionPtrCount < kNumPtrs;
        mExhaustionPtrCount++) {
     void *ptr = chreHeapAlloc(allocSize);
     while (ptr == nullptr) {
@@ -90,7 +92,8 @@ void HeapExhaustionStabilityTest::exhaustHeap() {
     mExhaustionPtrs[mExhaustionPtrCount] = ptr;
   }
   if (mExhaustionPtrCount == 0) {
-    sendFatalFailureToHost("Failed to allocate anything for heap exhaustion");
+    sendFatalFailureToHost(
+        "Failed to allocate anything for heap exhaustion");
   }
 }
 
@@ -102,15 +105,16 @@ void HeapExhaustionStabilityTest::freeMemory() {
 }
 
 HeapExhaustionStabilityTest::HeapExhaustionStabilityTest()
-    : Test(CHRE_API_VERSION_1_0) {}
+  : Test(CHRE_API_VERSION_1_0) {
+}
 
 void HeapExhaustionStabilityTest::setUp(uint32_t messageSize,
                                         const void * /* message */) {
   mInMethod = true;
   if (messageSize != 0) {
     sendFatalFailureToHost(
-        "HeapExhaustionStability message expects 0 additional bytes, got ",
-        &messageSize);
+        "HeapExhaustionStability message expects 0 additional bytes, "
+        "got ", &messageSize);
   }
 
   if (chreTimerSet(kExhaustionDuration, &kExhaustionDuration, true) ==
@@ -208,10 +212,10 @@ void HeapExhaustionStabilityTest::testMessageToHost() {
 
 void HeapExhaustionStabilityTest::handleEvent(uint32_t senderInstanceId,
                                               uint16_t eventType,
-                                              const void *eventData) {
+                                              const void* eventData) {
   if (mInMethod) {
-    sendFatalFailureToHost(
-        "handleEvent invoked while another nanoapp method is running");
+    sendFatalFailureToHost("handleEvent invoked while another nanoapp "
+                           "method is running");
   }
   mInMethod = true;
 
@@ -239,8 +243,8 @@ void HeapExhaustionStabilityTest::handleTimer(uint32_t senderInstanceId,
     // Our test is done.
     freeMemory();
     if (mFinishedBitmask != kAllFinished) {
-      sendFatalFailureToHost("Done with test, but not all stages done.",
-                             &mFinishedBitmask);
+      sendFatalFailureToHost("Done with test, but not all stages "
+                             "done.", &mFinishedBitmask);
     }
     sendSuccessToHost();
 
@@ -277,5 +281,6 @@ void HeapExhaustionStabilityTest::markSuccess(uint32_t stage) {
   // check against kAllFinished here.  That happens when the
   // timer for kExhaustionDuration fires.
 }
+
 
 }  // namespace general_test

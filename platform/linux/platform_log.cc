@@ -30,8 +30,9 @@ void PlatformLogBase::logLooper() {
 
     {
       std::unique_lock<std::mutex> lock(mMutex);
-      mConditionVariable.wait(
-          lock, [this] { return (!mLogQueue.empty() || mStopLogger); });
+      mConditionVariable.wait(lock, [this]{
+        return (!mLogQueue.empty() || mStopLogger);
+      });
 
       if (!mLogQueue.empty()) {
         // Move the log message to avoid holding a lock for longer than

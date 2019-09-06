@@ -47,15 +47,15 @@
 #include <chre.h>
 
 #include <shared/send_message.h>
-#include <shared/test_success_marker.h>
 #include <shared/time_util.h>
+#include <shared/test_success_marker.h>
 
 using nanoapp_testing::MessageType;
+using nanoapp_testing::TestSuccessMarker;
+using nanoapp_testing::sendMessageToHost;
 using nanoapp_testing::sendFatalFailureToHost;
 using nanoapp_testing::sendFatalFailureToHostUint8;
-using nanoapp_testing::sendMessageToHost;
 using nanoapp_testing::sendSuccessToHost;
-using nanoapp_testing::TestSuccessMarker;
 
 static bool gInMethod = false;
 static uint32_t gInstanceId;
@@ -103,7 +103,7 @@ static void checkTimerEvent(const uint32_t *eventData) {
 }
 
 static void checkSensorEvent(const void *eventData) {
-  const chreSensorDataHeader *header =
+  const chreSensorDataHeader* header =
       static_cast<const chreSensorDataHeader *>(eventData);
   if (header == nullptr) {
     sendFatalFailureToHost("sensorEvent, null data");
@@ -132,7 +132,8 @@ static void checkSensorEvent(const void *eventData) {
 }
 
 extern "C" void nanoappHandleEvent(uint32_t senderInstanceId,
-                                   uint16_t eventType, const void *eventData) {
+                                   uint16_t eventType,
+                                   const void* eventData) {
   if (gInMethod) {
     sendFatalFailureToHost("CHRE reentered nanoapp");
   }
@@ -154,7 +155,8 @@ extern "C" void nanoappHandleEvent(uint32_t senderInstanceId,
       sendFatalFailureToHost("Unexpected event from CHRE:", &e);
     }
   } else {
-    sendFatalFailureToHost("Unexpected senderInstanceId", &senderInstanceId);
+    sendFatalFailureToHost("Unexpected senderInstanceId",
+                           &senderInstanceId);
   }
   gInMethod = false;
 }
@@ -195,14 +197,16 @@ extern "C" bool nanoappStart(void) {
   chreHeapFree(ptr);
 
   // Confirm we can find and configure a sensor.
-  if (!chreSensorFindDefault(CHRE_SENSOR_TYPE_ACCELEROMETER, &gSensorHandle)) {
+  if (!chreSensorFindDefault(CHRE_SENSOR_TYPE_ACCELEROMETER,
+                             &gSensorHandle)) {
     chreLog(CHRE_LOG_ERROR, "Failed sensorFindDefault in start");
     return false;
   }
 
   // Configure accel request at 50 Hz (reasonable rate, e.g. for AR)
   // TODO: Add a way to find the range of possible sample rates
-  if (!chreSensorConfigure(gSensorHandle, CHRE_SENSOR_CONFIGURE_MODE_CONTINUOUS,
+  if (!chreSensorConfigure(gSensorHandle,
+                           CHRE_SENSOR_CONFIGURE_MODE_CONTINUOUS,
                            20 * nanoapp_testing::kOneMillisecondInNanoseconds,
                            CHRE_SENSOR_LATENCY_ASAP)) {
     chreLog(CHRE_LOG_ERROR, "Failed sensorConfigure in start");
