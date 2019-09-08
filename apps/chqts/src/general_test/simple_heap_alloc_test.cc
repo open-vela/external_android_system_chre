@@ -70,9 +70,10 @@ static void testMaxAlignment(uint32_t zero) {
 #define FLOAT_C(value) value
 #endif
 
-  alignas(kMaxAlignment * 2)
-      uint8_t myFloatMemory[sizeof(MyFloat) * 3 + kMaxAlignment];
-  MyFloat *mfArray = reinterpret_cast<MyFloat *>(myFloatMemory + kMaxAlignment);
+  alignas(kMaxAlignment * 2) uint8_t
+      myFloatMemory[sizeof(MyFloat) * 3 + kMaxAlignment];
+  MyFloat *mfArray =
+      reinterpret_cast<MyFloat*>(myFloatMemory + kMaxAlignment);
   mfArray[0] = static_cast<MyFloat>(zero) + FLOAT_C(1.0);
   mfArray[1] = static_cast<MyFloat>(zero) + FLOAT_C(3.0);
   mfArray[2] = mfArray[0] / mfArray[1];
@@ -82,12 +83,12 @@ static void testMaxAlignment(uint32_t zero) {
 
   constexpr size_t kUllSize = sizeof(unsigned long long);
   static_assert(kUllSize >= 8, "Size of long long violates spec");
-  alignas(kMaxAlignment * 2)
-      uint8_t longlongMemory[kUllSize * 3 + kMaxAlignment];
+  alignas(kMaxAlignment * 2) uint8_t
+      longlongMemory[kUllSize * 3 + kMaxAlignment];
   unsigned long long *ullArray =
-      reinterpret_cast<unsigned long long *>(longlongMemory + kMaxAlignment);
-  ullArray[0] =
-      static_cast<unsigned long long>(zero) + (1ULL << (kUllSize * 8 - 4));
+      reinterpret_cast<unsigned long long*>(longlongMemory + kMaxAlignment);
+  ullArray[0] = static_cast<unsigned long long>(zero) +
+      (1ULL << (kUllSize * 8 - 4));
   ullArray[1] = static_cast<unsigned long long>(zero) + (1ULL << 3);
   ullArray[2] = ullArray[0] * ullArray[1];
   constexpr unsigned long long kExpected = 747134227367742ULL;
@@ -99,8 +100,10 @@ static void testMaxAlignment(uint32_t zero) {
 }
 #endif  // CHRE_CUSTOM_MAX_ALIGNMENT
 
+
 SimpleHeapAllocTest::SimpleHeapAllocTest()
-    : Test(CHRE_API_VERSION_1_0), mHasFreed(false) {}
+  : Test(CHRE_API_VERSION_1_0), mHasFreed(false) {
+}
 
 void SimpleHeapAllocTest::setUp(uint32_t messageSize,
                                 const void * /* message */) {
@@ -113,7 +116,8 @@ void SimpleHeapAllocTest::setUp(uint32_t messageSize,
   }
 
   // Allocate random small-ish sizes.
-  static constexpr size_t kSizes[5] = {16, 53, 2, 32, 40};
+  static constexpr size_t kSizes[5] = {
+    16, 53, 2, 32, 40 };
 
   mPtrs[0] = chreHeapAlloc(kSizes[0]);
   mPtrs[1] = chreHeapAlloc(kSizes[1]);
@@ -158,7 +162,7 @@ void SimpleHeapAllocTest::setUp(uint32_t messageSize,
 
 void SimpleHeapAllocTest::handleEvent(uint32_t senderInstanceId,
                                       uint16_t eventType,
-                                      const void *eventData) {
+                                      const void* eventData) {
   // We ignore the return value, since we expect no data.
   getMessageDataFromHostEvent(senderInstanceId, eventType, eventData,
                               MessageType::kContinue, 0);
