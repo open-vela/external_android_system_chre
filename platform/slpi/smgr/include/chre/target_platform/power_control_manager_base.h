@@ -17,16 +17,14 @@
 #ifndef CHRE_PLATFORM_SLPI_SMGR_POWER_CONTROL_MANAGER_BASE_H_
 #define CHRE_PLATFORM_SLPI_SMGR_POWER_CONTROL_MANAGER_BASE_H_
 
-#include "chre/platform/atomic.h"
-
 extern "C" {
 
 #include "qurt.h"
 #ifdef CHRE_SLPI_UIMG_ENABLED
 #include "sns_pm.h"
-#endif  // CHRE_SLPI_UIMG_ENABLED
+#endif // CHRE_SLPI_UIMG_ENABLED
 
-}  // extern "C"
+} // extern "C"
 
 namespace chre {
 
@@ -48,10 +46,10 @@ class PowerControlManagerBase {
 #ifdef CHRE_SLPI_UIMG_ENABLED
   //! Client handle for the subscription to the power manager
   sns_pm_handle_t mClientHandle = nullptr;
-#endif  // CHRE_SLPI_UIMG_ENABLED
+#endif // CHRE_SLPI_UIMG_ENABLED
 
   //! Set to true if the host is awake, false if asleep.
-  AtomicBool mHostIsAwake;
+  bool mHostIsAwake = true;
 
   /**
    * Invoked by the SNS Power Manager when the AP has suspended or resumed.
@@ -61,6 +59,6 @@ class PowerControlManagerBase {
   static void apSuspendCallback(bool apSuspended);
 };
 
-}  // namespace chre
+} // namespace chre
 
-#endif  // CHRE_PLATFORM_SLPI_SMGR_POWER_CONTROL_MANAGER_BASE_H_
+#endif // CHRE_PLATFORM_SLPI_SMGR_POWER_CONTROL_MANAGER_BASE_H_

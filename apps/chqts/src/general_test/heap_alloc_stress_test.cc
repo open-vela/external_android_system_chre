@@ -40,7 +40,9 @@ static void tryAbsurdMalloc(uint32_t hugeSize) {
   }
 }
 
-HeapAllocStressTest::HeapAllocStressTest() : Test(CHRE_API_VERSION_1_0) {}
+HeapAllocStressTest::HeapAllocStressTest()
+  : Test(CHRE_API_VERSION_1_0) {
+}
 
 void HeapAllocStressTest::setUp(uint32_t messageSize,
                                 const void * /* message */) {
@@ -66,14 +68,16 @@ void HeapAllocStressTest::setUp(uint32_t messageSize,
   // an error by the caller, and there's no requirement for the CHRE
   // implementation to handle it nicely.
 
+
   // Now let's exhaust the heap, and make sure it properly frees up to allow
   // things to be allocated again.
   constexpr size_t kNumPtrs = 256;
-  void **ptrs =
-      reinterpret_cast<void **>(chreHeapAlloc(kNumPtrs * sizeof(void *)));
+  void **ptrs = reinterpret_cast<void**>(
+      chreHeapAlloc(kNumPtrs * sizeof(void*)));
   if (ptrs == NULL) {
     // Oh, the irony.
-    sendFatalFailureToHost("Insufficient free heap to test heap exhaustion.");
+    sendFatalFailureToHost(
+        "Insufficient free heap to test heap exhaustion.");
   }
 
   size_t index;
@@ -95,7 +99,8 @@ void HeapAllocStressTest::setUp(uint32_t messageSize,
     ptrs[index] = ptr;
   }
   if (index == 0) {
-    sendFatalFailureToHost("Failed to allocate anything for heap exhaustion");
+    sendFatalFailureToHost(
+        "Failed to allocate anything for heap exhaustion");
   }
 
   // We should be able to free this allocation, and then obtain it again.
@@ -104,9 +109,8 @@ void HeapAllocStressTest::setUp(uint32_t messageSize,
   ptrs[index] = chreHeapAlloc(last_alloc_size);
   if (ptrs[index] == NULL) {
     sendFatalFailureToHost(
-        "After exhausting heap and then free'ing, unable to alloc again for "
-        "size",
-        &last_alloc_size);
+        "After exhausting heap and then free'ing, unable to alloc "
+        "again for size ", &last_alloc_size);
   }
 
   // Everything's good, let's free up our memory.
@@ -120,7 +124,7 @@ void HeapAllocStressTest::setUp(uint32_t messageSize,
 
 void HeapAllocStressTest::handleEvent(uint32_t /* senderInstanceId */,
                                       uint16_t eventType,
-                                      const void * /* eventData */) {
+                                      const void* /* eventData */) {
   unexpectedEvent(eventType);
 }
 
