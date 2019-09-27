@@ -19,8 +19,8 @@
 
 #include <condition_variable>
 #include <mutex>
-#include <queue>
 #include <thread>
+#include <queue>
 
 namespace chre {
 

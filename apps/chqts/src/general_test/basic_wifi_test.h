@@ -22,7 +22,6 @@
 
 #include <shared/test_success_marker.h>
 
-#include "chre/util/buffer.h"
 #include "chre/util/optional.h"
 
 namespace general_test {
@@ -39,7 +38,6 @@ namespace general_test {
 class BasicWifiTest : public Test {
  public:
   BasicWifiTest();
-
  protected:
   /**
    * Handles WiFi events, including:
@@ -63,7 +61,6 @@ class BasicWifiTest : public Test {
    * @param message a pointer to the received message.
    */
   void setUp(uint32_t messageSize, const void *message) override;
-
  private:
   /**
    * Validates chre WiFi async events.
@@ -87,7 +84,6 @@ class BasicWifiTest : public Test {
    */
   void startScanMonitorTestStage();
   void startScanAsyncTestStage();
-  void startRangingAsyncTestStage();
 
   /**
    * This method must be called after making an async request to CHRE.
@@ -96,7 +92,8 @@ class BasicWifiTest : public Test {
    * @param requestType a type of request.
    * @param timeoutNs expected maximum elapse to receive chre WiFi result.
    */
-  void resetCurrentWifiRequest(const void *cookie, uint8_t requestType,
+  void resetCurrentWifiRequest(const void *cookie,
+                               uint8_t requestType,
                                uint64_t timeoutNs);
 
   /**
@@ -116,24 +113,8 @@ class BasicWifiTest : public Test {
    * @param count the size of results.
    * @param results a pointer to the structure containing the results.
    */
-  void validateWifiScanResult(uint8_t count, const chreWifiScanResult *results);
-
-  /**
-   * Validates a ranging event, including the event version, the number of
-   * results, and the results themselves. Sends a fatal failure to host if
-   * anything is invalid.
-   *
-   * @param eventData received ranging event data.
-   */
-  void validateRangingEvent(const chreWifiRangingEvent *eventData);
-
-  /**
-   * Verifies that the current test stage is expecting the event received.
-   *
-   * @return true if the event should be received in the current stage.
-   */
-  bool rangingEventExpected();
-  bool scanEventExpected();
+  void validateWifiScanResult(uint8_t count,
+                              const chreWifiScanResult *results);
 
   /**
    * Basic WiFi test stages and total number of stages.
@@ -141,7 +122,6 @@ class BasicWifiTest : public Test {
   enum BasicWifiTestStage {
     BASIC_WIFI_TEST_STAGE_SCAN_MONITOR = 0,
     BASIC_WIFI_TEST_STAGE_SCAN_ASYNC,
-    BASIC_WIFI_TEST_STAGE_SCAN_RTT,
     BASIC_WIFI_TEST_STAGE_COUNT,
   };
 
@@ -155,9 +135,6 @@ class BasicWifiTest : public Test {
   //! Used to indicate if a chreAsyncResult is being expected.
   chre::Optional<chreAsyncRequest> mCurrentWifiRequest;
 
-  //! Used to store the latest WiFi scan access points received by the test.
-  chre::Buffer<struct chreWifiScanResult> mLatestWifiScanResults;
-
   //! Start timestamp used to timing an event.
   uint64_t mStartTimestampNs = 0;
 
@@ -170,6 +147,6 @@ class BasicWifiTest : public Test {
   uint32_t mWiFiScanResultRemaining = 0;
 };
 
-}  // namespace general_test
+} // namespace general_test
 
-#endif  // _GTS_NANOAPPS_GENERAL_TEST_BASIC_WIFI_TEST_H_
+#endif // _GTS_NANOAPPS_GENERAL_TEST_BASIC_WIFI_TEST_H_
