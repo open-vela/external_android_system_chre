@@ -38,6 +38,21 @@ SLPI_CFLAGS += -Iplatform/slpi/include
 # We use FlatBuffers in the SLPI platform layer
 SLPI_CFLAGS += $(FLATBUFFERS_CFLAGS)
 
+# SLPI/SMGR-specific Compiler Flags ############################################
+
+# Include paths.
+SLPI_SMGR_CFLAGS += -I$(SLPI_PREFIX)/Sensors/api
+SLPI_SMGR_CFLAGS += -I$(SLPI_PREFIX)/Sensors/common/idl/inc
+SLPI_SMGR_CFLAGS += -I$(SLPI_PREFIX)/Sensors/common/inc
+SLPI_SMGR_CFLAGS += -I$(SLPI_PREFIX)/Sensors/common/smr/inc
+SLPI_SMGR_CFLAGS += -I$(SLPI_PREFIX)/Sensors/common/util/mathtools/inc
+SLPI_SMGR_CFLAGS += -I$(SLPI_PREFIX)/Sensors/goog/api
+SLPI_SMGR_CFLAGS += -I$(SLPI_PREFIX)/Sensors/pm/inc
+
+SLPI_SMGR_CFLAGS += -Iplatform/slpi/smgr/include
+
+SLPI_SMGR_CFLAGS += -DCHRE_SLPI_SMGR
+
 # SLPI/SEE-specific Compiler Flags #############################################
 
 # Include paths.
@@ -114,6 +129,13 @@ endif
 ifeq ($(CHRE_WWAN_SUPPORT_ENABLED), true)
 SLPI_SRCS += platform/shared/platform_wwan.cc
 endif
+
+# SLPI/SMGR-specific Source Files ##############################################
+
+SLPI_SMGR_SRCS += platform/slpi/smgr/platform_sensor.cc
+SLPI_SMGR_SRCS += platform/slpi/smgr/platform_sensor_util.cc
+SLPI_SMGR_SRCS += platform/slpi/smgr/power_control_manager.cc
+SLPI_SMGR_SRCS += platform/slpi/smgr/smr_helper.cc
 
 # SLPI/SEE-specific Source Files ###############################################
 
@@ -258,3 +280,5 @@ GOOGLETEST_CFLAGS += -Iplatform/slpi/include
 GOOGLETEST_SRCS += platform/linux/assert.cc
 GOOGLETEST_SRCS += platform/linux/audio_source.cc
 GOOGLETEST_SRCS += platform/linux/platform_audio.cc
+GOOGLETEST_SRCS += platform/slpi/smgr/platform_sensor_util.cc
+GOOGLETEST_SRCS += platform/slpi/smgr/tests/platform_sensor_util_test.cc

@@ -53,30 +53,22 @@ void AudioRequestManager::init() {
 }
 
 bool AudioRequestManager::configureSource(const Nanoapp *nanoapp,
-                                          uint32_t handle, bool enable,
+                                          uint32_t handle,
+                                          bool enable,
                                           uint64_t bufferDuration,
                                           uint64_t deliveryInterval) {
   uint32_t numSamples;
   return validateConfigureSourceArguments(handle, enable, bufferDuration,
-                                          deliveryInterval, &numSamples) &&
-         doConfigureSource(nanoapp->getInstanceId(), handle, enable, numSamples,
+                                          deliveryInterval, &numSamples)
+      && doConfigureSource(nanoapp->getInstanceId(), handle, enable, numSamples,
                            Nanoseconds(deliveryInterval));
 }
 
 void AudioRequestManager::handleAudioDataEvent(
     const struct chreAudioDataEvent *audioDataEvent) {
-  uint32_t handle = audioDataEvent->handle;
-  if (handle >= mAudioRequestLists.size()) {
-    LOGE("Received audio event for unknown handle %" PRIu32, handle);
-  } else {
-    mAudioRequestLists[handle].lastEventTimestamp =
-        SystemTime::getMonotonicTime();
-  }
-
   auto callback = [](uint16_t /* eventType */, void *eventData) {
     auto *event = static_cast<struct chreAudioDataEvent *>(eventData);
-    EventLoopManagerSingleton::get()
-        ->getAudioRequestManager()
+    EventLoopManagerSingleton::get()->getAudioRequestManager()
         .handleAudioDataEventSync(event);
   };
 
@@ -88,8 +80,7 @@ void AudioRequestManager::handleAudioDataEvent(
       const_cast<struct chreAudioDataEvent *>(audioDataEvent), callback);
 }
 
-void AudioRequestManager::handleAudioAvailability(uint32_t handle,
-                                                  bool available) {
+void AudioRequestManager::handleAudioAvailability(uint32_t handle, bool available) {
   struct CallbackState {
     uint32_t handle;
     bool available;
@@ -104,8 +95,7 @@ void AudioRequestManager::handleAudioAvailability(uint32_t handle,
 
     auto callback = [](uint16_t /* eventType */, void *eventData) {
       auto *state = static_cast<CallbackState *>(eventData);
-      EventLoopManagerSingleton::get()
-          ->getAudioRequestManager()
+      EventLoopManagerSingleton::get()->getAudioRequestManager()
           .handleAudioAvailabilitySync(state->handle, state->available);
       memoryFree(state);
     };
@@ -115,32 +105,28 @@ void AudioRequestManager::handleAudioAvailability(uint32_t handle,
   }
 }
 
-void AudioRequestManager::logStateToBuffer(DebugDumpWrapper &debugDump) const {
-  debugDump.print("\nAudio:\n");
+void AudioRequestManager::logStateToBuffer(char *buffer, size_t *bufferPos,
+                                           size_t bufferSize) const {
+  debugDumpPrint(buffer, bufferPos, bufferSize, "\nAudio:\n");
   for (size_t i = 0; i < mAudioRequestLists.size(); i++) {
     uint32_t handle = static_cast<uint32_t>(i);
     struct chreAudioSource source;
     mPlatformAudio.getAudioSource(handle, &source);
-
-    Nanoseconds timeSinceLastAudioEvent =
-        SystemTime::getMonotonicTime() -
-        mAudioRequestLists[i].lastEventTimestamp;
-    debugDump.print(
-        " handle=%" PRIu32 ", name=\"%s\", available=%d, sampleRate=%" PRIu32
-        ", buffer(ms)=[%" PRIu64 ",%" PRIu64 "], format=%" PRIu8
-        ", timeSinceLastAudioEvent(ms)=%" PRIu64 "\n",
-        handle, source.name, mAudioRequestLists[i].available, source.sampleRate,
+    debugDumpPrint(buffer, bufferPos, bufferSize,
+        " handle=%" PRIu32 ", name=\"%s\", sampleRate=%" PRIu32
+        ", buffer(ms)=[%" PRIu64 ",%" PRIu64 "], format=%" PRIu8 "\n",
+        handle, source.name, source.sampleRate,
         Milliseconds(Nanoseconds(source.minBufferDuration)).getMilliseconds(),
         Milliseconds(Nanoseconds(source.maxBufferDuration)).getMilliseconds(),
-        source.format, Milliseconds(timeSinceLastAudioEvent).getMilliseconds());
+        source.format);
 
-    for (const auto &request : mAudioRequestLists[i].requests) {
-      for (const auto &instanceId : request.instanceIds) {
-        debugDump.print("  nanoappId=%" PRIu32 ", numSamples=%" PRIu32
-                        ", interval(ms)=%" PRIu64 "\n",
-                        instanceId, request.numSamples,
-                        Milliseconds(Nanoseconds(request.deliveryInterval))
-                            .getMilliseconds());
+    for (const auto& request : mAudioRequestLists[i].requests) {
+      for (const auto& instanceId : request.instanceIds) {
+        debugDumpPrint(buffer, bufferPos, bufferSize,
+            "  nanoappId=%" PRIu32 ", numSamples=%" PRIu32
+            ", interval(ms)=%" PRIu64 "\n", instanceId, request.numSamples,
+            Milliseconds(Nanoseconds(request.deliveryInterval))
+                .getMilliseconds());
       }
     }
   }
@@ -158,11 +144,10 @@ bool AudioRequestManager::validateConfigureSourceArguments(
       LOGE("Failed to query for audio source");
     } else if (bufferDuration > deliveryInterval) {
       LOGE("Buffer duration must be less than or equal to delivery interval");
-    } else if (bufferDuration < audioSource.minBufferDuration ||
-               bufferDuration > audioSource.maxBufferDuration) {
+    } else if (bufferDuration < audioSource.minBufferDuration
+               || bufferDuration > audioSource.maxBufferDuration) {
       LOGE("Invalid buffer duration %" PRIu64 " not in range [%" PRIu64
-           ",%" PRIu64 "]",
-           bufferDuration, audioSource.minBufferDuration,
+           ",%" PRIu64 "]", bufferDuration, audioSource.minBufferDuration,
            audioSource.maxBufferDuration);
     } else {
       *numSamples = getSampleCountFromRateAndDuration(
@@ -177,23 +162,22 @@ bool AudioRequestManager::validateConfigureSourceArguments(
   return success;
 }
 
-bool AudioRequestManager::doConfigureSource(uint32_t instanceId,
-                                            uint32_t handle, bool enable,
-                                            uint32_t numSamples,
-                                            Nanoseconds deliveryInterval) {
+bool AudioRequestManager::doConfigureSource(
+    uint32_t instanceId, uint32_t handle, bool enable, uint32_t numSamples,
+    Nanoseconds deliveryInterval) {
   size_t requestIndex;
   size_t requestInstanceIdIndex;
   auto *audioRequest = findAudioRequestByInstanceId(
       handle, instanceId, &requestIndex, &requestInstanceIdIndex);
 
-  AudioRequestList &requestList = mAudioRequestLists[handle];
+  AudioRequestList& requestList = mAudioRequestLists[handle];
   size_t lastNumRequests = requestList.requests.size();
 
   bool success = false;
   if (audioRequest == nullptr) {
     if (enable) {
-      success =
-          createAudioRequest(handle, instanceId, numSamples, deliveryInterval);
+      success = createAudioRequest(handle, instanceId, numSamples,
+                                   deliveryInterval);
     } else {
       LOGW("Nanoapp disabling nonexistent audio request");
     }
@@ -222,8 +206,8 @@ bool AudioRequestManager::doConfigureSource(uint32_t instanceId,
   return success;
 }
 
-void AudioRequestManager::updatePlatformHandleEnabled(uint32_t handle,
-                                                      size_t lastNumRequests) {
+void AudioRequestManager::updatePlatformHandleEnabled(
+    uint32_t handle, size_t lastNumRequests) {
   size_t numRequests = mAudioRequestLists[handle].requests.size();
   if (lastNumRequests == 0 && numRequests > 0) {
     mPlatformAudio.setHandleEnabled(handle, true /* enabled */);
@@ -232,11 +216,10 @@ void AudioRequestManager::updatePlatformHandleEnabled(uint32_t handle,
   }
 }
 
-bool AudioRequestManager::createAudioRequest(uint32_t handle,
-                                             uint32_t instanceId,
-                                             uint32_t numSamples,
-                                             Nanoseconds deliveryInterval) {
-  AudioRequestList &requestList = mAudioRequestLists[handle];
+bool AudioRequestManager::createAudioRequest(
+    uint32_t handle, uint32_t instanceId, uint32_t numSamples,
+    Nanoseconds deliveryInterval) {
+  AudioRequestList& requestList = mAudioRequestLists[handle];
 
   size_t matchingRequestIndex;
   auto *matchingAudioRequest = findAudioRequestByConfiguration(
@@ -270,15 +253,14 @@ bool AudioRequestManager::createAudioRequest(uint32_t handle,
   return success;
 }
 
-AudioRequestManager::AudioRequest *
-AudioRequestManager::findAudioRequestByInstanceId(uint32_t handle,
-                                                  uint32_t instanceId,
-                                                  size_t *index,
-                                                  size_t *instanceIdIndex) {
+AudioRequestManager::AudioRequest *AudioRequestManager::
+    findAudioRequestByInstanceId(
+        uint32_t handle, uint32_t instanceId, size_t *index,
+        size_t *instanceIdIndex) {
   AudioRequest *foundAudioRequest = nullptr;
-  auto &requests = mAudioRequestLists[handle].requests;
+  auto& requests = mAudioRequestLists[handle].requests;
   for (size_t i = 0; i < requests.size(); i++) {
-    auto &audioRequest = requests[i];
+    auto& audioRequest = requests[i];
     size_t foundInstanceIdIndex = audioRequest.instanceIds.find(instanceId);
     if (foundInstanceIdIndex != audioRequest.instanceIds.size()) {
       foundAudioRequest = &audioRequest;
@@ -291,16 +273,16 @@ AudioRequestManager::findAudioRequestByInstanceId(uint32_t handle,
   return foundAudioRequest;
 }
 
-AudioRequestManager::AudioRequest *
-AudioRequestManager::findAudioRequestByConfiguration(
-    uint32_t handle, uint32_t numSamples, Nanoseconds deliveryInterval,
-    size_t *index) {
+AudioRequestManager::AudioRequest *AudioRequestManager::
+    findAudioRequestByConfiguration(
+        uint32_t handle, uint32_t numSamples, Nanoseconds deliveryInterval,
+        size_t *index) {
   AudioRequest *foundAudioRequest = nullptr;
-  auto &requests = mAudioRequestLists[handle].requests;
+  auto& requests = mAudioRequestLists[handle].requests;
   for (size_t i = 0; i < requests.size(); i++) {
-    auto &audioRequest = requests[i];
-    if (audioRequest.numSamples == numSamples &&
-        audioRequest.deliveryInterval == deliveryInterval) {
+    auto& audioRequest = requests[i];
+    if (audioRequest.numSamples == numSamples
+        && audioRequest.deliveryInterval == deliveryInterval) {
       foundAudioRequest = &audioRequest;
       *index = i;
       break;
@@ -315,8 +297,8 @@ AudioRequestManager::AudioRequest *AudioRequestManager::findNextAudioRequest(
   Nanoseconds earliestNextEventTimestamp = Nanoseconds(UINT64_MAX);
   AudioRequest *nextRequest = nullptr;
 
-  auto &reqList = mAudioRequestLists[handle];
-  for (auto &req : reqList.requests) {
+  auto& reqList = mAudioRequestLists[handle];
+  for (auto& req : reqList.requests) {
     if (req.nextEventTimestamp < earliestNextEventTimestamp) {
       earliestNextEventTimestamp = req.nextEventTimestamp;
       nextRequest = &req;
@@ -330,12 +312,12 @@ void AudioRequestManager::handleAudioDataEventSync(
     struct chreAudioDataEvent *event) {
   uint32_t handle = event->handle;
   if (handle < mAudioRequestLists.size()) {
-    auto &reqList = mAudioRequestLists[handle];
+    auto& reqList = mAudioRequestLists[handle];
     AudioRequest *nextAudioRequest = reqList.nextAudioRequest;
     if (nextAudioRequest != nullptr) {
       postAudioDataEventFatal(event, nextAudioRequest->instanceIds);
-      nextAudioRequest->nextEventTimestamp =
-          SystemTime::getMonotonicTime() + nextAudioRequest->deliveryInterval;
+      nextAudioRequest->nextEventTimestamp = SystemTime::getMonotonicTime()
+          + nextAudioRequest->deliveryInterval;
     } else {
       LOGW("Received audio data event with no pending audio request");
       mPlatformAudio.releaseAudioDataEvent(event);
@@ -362,7 +344,7 @@ void AudioRequestManager::handleAudioAvailabilitySync(uint32_t handle,
 }
 
 void AudioRequestManager::scheduleNextAudioDataEvent(uint32_t handle) {
-  auto &reqList = mAudioRequestLists[handle];
+  auto& reqList = mAudioRequestLists[handle];
   AudioRequest *nextRequest = findNextAudioRequest(handle);
 
   // Clear the next request and it will be reset below if needed.
@@ -374,17 +356,17 @@ void AudioRequestManager::scheduleNextAudioDataEvent(uint32_t handle) {
       eventDelay = nextRequest->nextEventTimestamp - curTime;
     }
     reqList.nextAudioRequest = nextRequest;
-    mPlatformAudio.requestAudioDataEvent(handle, nextRequest->numSamples,
-                                         eventDelay);
+    mPlatformAudio.requestAudioDataEvent(
+        handle, nextRequest->numSamples, eventDelay);
   } else {
     mPlatformAudio.cancelAudioDataEventRequest(handle);
   }
 }
 
 void AudioRequestManager::postAudioSamplingChangeEvents(uint32_t handle) {
-  const auto &requestList = mAudioRequestLists[handle];
-  for (const auto &request : requestList.requests) {
-    for (const auto &instanceId : request.instanceIds) {
+  const auto& requestList = mAudioRequestLists[handle];
+  for (const auto& request : requestList.requests) {
+    for (const auto& instanceId : request.instanceIds) {
       postAudioSamplingChangeEvent(instanceId, handle, requestList.available);
     }
   }
@@ -398,21 +380,23 @@ void AudioRequestManager::postAudioSamplingChangeEvent(uint32_t instanceId,
   event->status.enabled = true;
   event->status.suspended = !available;
 
-  EventLoopManagerSingleton::get()->getEventLoop().postEventOrDie(
-      CHRE_EVENT_AUDIO_SAMPLING_CHANGE, event, freeEventDataCallback,
-      instanceId);
+  EventLoopManagerSingleton::get()->getEventLoop()
+      .postEvent(CHRE_EVENT_AUDIO_SAMPLING_CHANGE, event,
+                 freeEventDataCallback, kSystemInstanceId, instanceId);
 }
 
 void AudioRequestManager::postAudioDataEventFatal(
     struct chreAudioDataEvent *event,
-    const DynamicVector<uint32_t> &instanceIds) {
+    const DynamicVector<uint32_t>& instanceIds) {
   if (instanceIds.empty()) {
     LOGW("Received audio data event for no clients");
     mPlatformAudio.releaseAudioDataEvent(event);
   } else {
-    for (const auto &instanceId : instanceIds) {
-      EventLoopManagerSingleton::get()->getEventLoop().postEventOrDie(
-          CHRE_EVENT_AUDIO_DATA, event, freeAudioDataEventCallback, instanceId);
+    for (const auto& instanceId : instanceIds) {
+      EventLoopManagerSingleton::get()->getEventLoop()
+          .postEvent(CHRE_EVENT_AUDIO_DATA, event,
+                     freeAudioDataEventCallback,
+                     kSystemInstanceId, instanceId);
     }
 
     mAudioDataEventRefCounts.emplace_back(
@@ -427,7 +411,7 @@ void AudioRequestManager::handleFreeAudioDataEvent(
   if (audioDataEventRefCountIndex == mAudioDataEventRefCounts.size()) {
     LOGE("Freeing invalid audio data event");
   } else {
-    auto &audioDataEventRefCount =
+    auto& audioDataEventRefCount =
         mAudioDataEventRefCounts[audioDataEventRefCountIndex];
     if (audioDataEventRefCount.refCount == 0) {
       LOGE("Attempting to free an event with zero published events");
@@ -444,8 +428,7 @@ void AudioRequestManager::handleFreeAudioDataEvent(
 void AudioRequestManager::freeAudioDataEventCallback(uint16_t eventType,
                                                      void *eventData) {
   auto *event = static_cast<struct chreAudioDataEvent *>(eventData);
-  EventLoopManagerSingleton::get()
-      ->getAudioRequestManager()
+  EventLoopManagerSingleton::get()->getAudioRequestManager()
       .handleFreeAudioDataEvent(event);
 }
 
