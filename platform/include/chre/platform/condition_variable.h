@@ -29,7 +29,8 @@ namespace chre {
  * similar to std::condition_variable. ConditionVariableBase is subclassed here
  * to allow platforms to inject their own storage for their implementation.
  */
-class ConditionVariable : public ConditionVariableBase, public NonCopyable {
+class ConditionVariable : public ConditionVariableBase,
+                          public NonCopyable {
  public:
   /**
    * Allows the platform to do any condition variable initialization at
@@ -56,9 +57,9 @@ class ConditionVariable : public ConditionVariableBase, public NonCopyable {
    *
    * @param The currently locked mutex.
    */
-  void wait(Mutex &mutex);
+  void wait(Mutex& mutex);
 
-  /**
+   /**
    * Same behavior as the wait function, but with a timeout to unblock the
    * calling thread if not notified within the timeout period.
    *
@@ -67,7 +68,7 @@ class ConditionVariable : public ConditionVariableBase, public NonCopyable {
    *
    * @return false if timed out, true if notified.
    */
-  bool wait_for(Mutex &mutex, Nanoseconds timeout);
+  bool wait_for(Mutex& mutex, Nanoseconds timeout);
 };
 
 }  // namespace chre
