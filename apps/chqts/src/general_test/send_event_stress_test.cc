@@ -52,9 +52,7 @@ bool SendEventStressTest::sInitTime = false;
 int32_t SendEventStressTest::sEventsLeft = 0;
 int32_t SendEventStressTest::sCompleteCallbacksLeft = 0;
 
-SendEventStressTest::SendEventStressTest()
-    : Test(CHRE_API_VERSION_1_0) {
-}
+SendEventStressTest::SendEventStressTest() : Test(CHRE_API_VERSION_1_0) {}
 
 void SendEventStressTest::setUp(uint32_t messageSize,
                                 const void * /* message */) {
@@ -76,8 +74,7 @@ void SendEventStressTest::setUp(uint32_t messageSize,
 
   // We anticipate most CHREs will not reach kMaxEventsToSend.
   while ((sEventsLeft < kMaxEventsToSend) &&
-         chreSendEvent(kEventType, kEventData, completeCallback,
-                       mInstanceId)) {
+         chreSendEvent(kEventType, kEventData, completeCallback, mInstanceId)) {
     sEventsLeft++;
   }
   sInitTime = false;
@@ -96,10 +93,10 @@ void SendEventStressTest::setUp(uint32_t messageSize,
 
 void SendEventStressTest::handleEvent(uint32_t senderInstanceId,
                                       uint16_t eventType,
-                                      const void* eventData) {
+                                      const void *eventData) {
   if (sInMethod) {
-    sendFatalFailureToHost("handleEvent invoked while another nanoapp "
-                           "method is running");
+    sendFatalFailureToHost(
+        "handleEvent invoked while another nanoapp method is running");
   }
   sInMethod = true;
   if (senderInstanceId != mInstanceId) {
@@ -127,7 +124,6 @@ void SendEventStressTest::sanityCheck(uint16_t eventType, const void *data,
   }
 }
 
-
 void SendEventStressTest::completeCallback(uint16_t eventType, void *data) {
   if (sInitTime) {
     // The CHRE must be directly calling this from within
@@ -140,8 +136,8 @@ void SendEventStressTest::completeCallback(uint16_t eventType, void *data) {
   }
 
   if (sInMethod) {
-    sendFatalFailureToHost("completeCallback invoked while another nanoapp "
-                           "method is running");
+    sendFatalFailureToHost(
+        "completeCallback invoked while another nanoapp method is running");
   }
   sanityCheck(eventType, data, 1);
 
@@ -157,6 +153,5 @@ void SendEventStressTest::completeCallback(uint16_t eventType, void *data) {
     sendFatalFailureToHost("completeCallback called too many times");
   }
 }
-
 
 }  // namespace general_test
