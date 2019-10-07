@@ -38,8 +38,8 @@ bool HostCommsManager::sendMessageToHostFromNanoapp(
   if (messageSize > 0 && messageData == nullptr) {
     LOGW("Rejecting malformed message (null data but non-zero size)");
   } else if (messageSize > CHRE_MESSAGE_TO_HOST_MAX_SIZE) {
-    LOGW("Rejecting message of size %zu bytes (max %d)",
-         messageSize, CHRE_MESSAGE_TO_HOST_MAX_SIZE);
+    LOGW("Rejecting message of size %zu bytes (max %d)", messageSize,
+         CHRE_MESSAGE_TO_HOST_MAX_SIZE);
   } else if (hostEndpoint == kHostEndpointUnspecified) {
     LOGW("Rejecting message to invalid host endpoint");
   } else {
@@ -58,9 +58,22 @@ bool HostCommsManager::sendMessageToHostFromNanoapp(
       // debugging
       msgToHost->toHostData.reserved = kMessageToHostReservedFieldValue;
 
+      // Let the nanoapp know that it woke up the host and record it
+      bool hostWasAwake = EventLoopManagerSingleton::get()
+                              ->getEventLoop()
+                              .getPowerControlManager()
+                              .hostIsAwake();
+
       success = mHostLink.sendMessage(msgToHost);
       if (!success) {
         mMessagePool.deallocate(msgToHost);
+      } else if (!hostWasAwake && !mIsNanoappBlamedForWakeup) {
+        // If message successfully sent and host was suspended before sending
+        EventLoopManagerSingleton::get()
+            ->getEventLoop()
+            .handleNanoappWakeupBuckets();
+        mIsNanoappBlamedForWakeup = true;
+        nanoapp->blameHostWakeup();
       }
     }
   }
@@ -77,15 +90,15 @@ void HostCommsManager::deliverNanoappMessageFromHost(
   if (msgFromHost == nullptr) {
     LOG_OOM();
   } else if (!msgFromHost->message.copy_array(
-      static_cast<const uint8_t *>(messageData), messageSize)) {
-    LOGE("Couldn't allocate %" PRIu32 " bytes for message data from host "
-             "(endpoint 0x%" PRIx16 " type %" PRIu32 ")", messageSize,
-         hostEndpoint, messageType);
+                 static_cast<const uint8_t *>(messageData), messageSize)) {
+    LOGE("Couldn't allocate %" PRIu32
+         " bytes for message data from host "
+         "(endpoint 0x%" PRIx16 " type %" PRIu32 ")",
+         messageSize, hostEndpoint, messageType);
   } else {
     msgFromHost->appId = appId;
     msgFromHost->fromHostData.messageType = messageType;
-    msgFromHost->fromHostData.messageSize = static_cast<uint32_t>(
-        messageSize);
+    msgFromHost->fromHostData.messageSize = static_cast<uint32_t>(messageSize);
     msgFromHost->fromHostData.message = msgFromHost->message.data();
     msgFromHost->fromHostData.hostEndpoint = hostEndpoint;
 
@@ -99,11 +112,12 @@ void HostCommsManager::deliverNanoappMessageFromHost(
   }
 }
 
-void HostCommsManager::sendMessageToNanoappFromHost(
-    uint64_t appId, uint32_t messageType, uint16_t hostEndpoint,
-    const void *messageData, size_t messageSize) {
-  const EventLoop& eventLoop = EventLoopManagerSingleton::get()
-      ->getEventLoop();
+void HostCommsManager::sendMessageToNanoappFromHost(uint64_t appId,
+                                                    uint32_t messageType,
+                                                    uint16_t hostEndpoint,
+                                                    const void *messageData,
+                                                    size_t messageSize) {
+  const EventLoop &eventLoop = EventLoopManagerSingleton::get()->getEventLoop();
   uint32_t targetInstanceId;
 
   if (hostEndpoint == kHostEndpointBroadcast) {
@@ -122,6 +136,10 @@ void HostCommsManager::sendMessageToNanoappFromHost(
                                   static_cast<uint32_t>(messageSize),
                                   targetInstanceId);
   }
+}
+
+void HostCommsManager::resetBlameForNanoappHostWakeup() {
+  mIsNanoappBlamedForWakeup = false;
 }
 
 void HostCommsManager::onMessageToHostComplete(const MessageToHost *message) {
@@ -169,9 +187,8 @@ void HostCommsManager::freeMessageFromHostCallback(uint16_t /*type*/,
 
   auto *eventData = static_cast<chreMessageFromHostData *>(data);
   auto *msgFromHost = reinterpret_cast<MessageFromHost *>(eventData);
-  auto& hostCommsMgr = EventLoopManagerSingleton::get()->getHostCommsManager();
+  auto &hostCommsMgr = EventLoopManagerSingleton::get()->getHostCommsManager();
   hostCommsMgr.mMessagePool.deallocate(msgFromHost);
 }
-
 
 }  // namespace chre

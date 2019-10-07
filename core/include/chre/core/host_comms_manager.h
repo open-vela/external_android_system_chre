@@ -19,12 +19,13 @@
 
 #include <cstddef>
 
-#include "chre_api/chre/event.h"
 #include "chre/core/event_loop.h"
+#include "chre/platform/atomic.h"
 #include "chre/platform/host_link.h"
 #include "chre/util/buffer.h"
 #include "chre/util/non_copyable.h"
 #include "chre/util/synchronized_memory_pool.h"
+#include "chre_api/chre/event.h"
 
 namespace chre {
 
@@ -54,12 +55,12 @@ struct HostMessage : public NonCopyable {
       //! Padding used to align this structure with chreMessageFromHostData
       uint32_t reserved;
 
-      //! Message free callback supplied by the nanoapp. Must only be invoked from
-      //! the EventLoop where the nanoapp runs.
+      //! Message free callback supplied by the nanoapp. Must only be invoked
+      //! from the EventLoop where the nanoapp runs.
       chreMessageFreeFunction *nanoappFreeFunction;
 
-      //! Identifier for the host-side entity that should receive this message, or
-      //! that which sent it
+      //! Identifier for the host-side entity that should receive this message,
+      //! or that which sent it
       uint16_t hostEndpoint;
     } toHostData;
   };
@@ -81,6 +82,8 @@ typedef HostMessage MessageToHost;
  */
 class HostCommsManager : public NonCopyable {
  public:
+  HostCommsManager() : mIsNanoappBlamedForWakeup(false) {}
+
   /**
    * @see HostLink::flushMessagesSentByNanoapp
    */
@@ -107,10 +110,10 @@ class HostCommsManager : public NonCopyable {
    *
    * @see chreSendMessageToHost
    */
-  bool sendMessageToHostFromNanoapp(
-      Nanoapp *nanoapp, void *messageData, size_t messageSize,
-      uint32_t messageType, uint16_t hostEndpoint,
-      chreMessageFreeFunction *freeCallback);
+  bool sendMessageToHostFromNanoapp(Nanoapp *nanoapp, void *messageData,
+                                    size_t messageSize, uint32_t messageType,
+                                    uint16_t hostEndpoint,
+                                    chreMessageFreeFunction *freeCallback);
 
   /**
    * Makes a copy of the supplied message data and posts it to the queue for
@@ -126,9 +129,17 @@ class HostCommsManager : public NonCopyable {
    *        be null if messageSize is 0
    * @param messageSize Size of messageData, in bytes
    */
-  void sendMessageToNanoappFromHost(
-      uint64_t appId, uint32_t messageType, uint16_t hostEndpoint,
-      const void *messageData, size_t messageSize);
+  void sendMessageToNanoappFromHost(uint64_t appId, uint32_t messageType,
+                                    uint16_t hostEndpoint,
+                                    const void *messageData,
+                                    size_t messageSize);
+
+  /*
+   * Resets mIsNanoappBlamedForWakeup to false so that
+   * nanoapp->blameHostWakeup() can be called again on next wakeup for one of
+   * the nanoapps.
+   */
+  void resetBlameForNanoappHostWakeup();
 
   /**
    * Invoked by the HostLink platform layer when it is done with a message to
@@ -143,6 +154,11 @@ class HostCommsManager : public NonCopyable {
  private:
   //! The maximum number of messages we can have outstanding at any given time
   static constexpr size_t kMaxOutstandingMessages = 32;
+
+  //! Ensures that we do not blame more than once per host wakeup. This is
+  //! checked before calling host blame to make sure it is set once. The power
+  //! control managers then reset back to false on host suspend.
+  AtomicBool mIsNanoappBlamedForWakeup;
 
   //! Memory pool used to allocate message metadata (but not the contents of the
   //! messages themselves). Must be synchronized as the same HostCommsManager
@@ -165,9 +181,11 @@ class HostCommsManager : public NonCopyable {
    *
    * @see sendMessageToNanoappFromHost
    */
-  void deliverNanoappMessageFromHost(
-      uint64_t appId, uint16_t hostEndpoint, uint32_t messageType,
-      const void *messageData, uint32_t messageSize, uint32_t targetInstanceId);
+  void deliverNanoappMessageFromHost(uint64_t appId, uint16_t hostEndpoint,
+                                     uint32_t messageType,
+                                     const void *messageData,
+                                     uint32_t messageSize,
+                                     uint32_t targetInstanceId);
 
   /**
    * Releases memory associated with a message to the host, including invoking
@@ -188,6 +206,6 @@ class HostCommsManager : public NonCopyable {
   static void freeMessageFromHostCallback(uint16_t type, void *data);
 };
 
-} // namespace chre
+}  // namespace chre
 
 #endif  // CHRE_CORE_HOST_COMMS_MANAGER_H_
