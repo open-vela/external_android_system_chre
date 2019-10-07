@@ -19,8 +19,8 @@
 
 #include <cstddef>
 
-#include "chre/util/singleton.h"
 #include "chre_host/socket_server.h"
+#include "chre/util/singleton.h"
 
 namespace chre {
 
