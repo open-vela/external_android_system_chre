@@ -152,7 +152,7 @@ endif
 # Makefile environment into something like python or even a small C program
 # is an unnecessary step.
 
-$$($$(1)_HEADER): $$(OUT)/$$$(1) $$($$$(1)_DIRS)
+$$($$(1)_HEADER):
 	printf "00000000  %.8x " `$(BE_TO_LE_SCRIPT) 0x00000001` > $$@
 	printf "%.8x " `$(BE_TO_LE_SCRIPT) 0x4f4e414e` >> $$@
 	printf "%.16x\n" `$(BE_TO_LE_SCRIPT) $(NANOAPP_ID)` >> $$@
