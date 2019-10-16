@@ -41,4 +41,4 @@ void RandomGenerator::Reset() {
   uniform_distribution_.reset();
 }
 
-}  // namespace wifi_offload_test
+}  // wifi_offload_test namespace
