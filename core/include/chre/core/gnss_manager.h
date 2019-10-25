@@ -22,7 +22,6 @@
 #include "chre/core/nanoapp.h"
 #include "chre/platform/platform_gnss.h"
 #include "chre/util/non_copyable.h"
-#include "chre/util/system/debug_dump.h"
 #include "chre/util/time.h"
 
 namespace chre {
@@ -87,10 +86,10 @@ class GnssSession {
    * Prints state in a string buffer. Must only be called from the context of
    * the main CHRE thread.
    *
-   * @param debugDump The debug dump wrapper where a string can be printed
-   *     into one of the buffers.
+   * @see GnssManager::logStateToBuffer
    */
-  void logStateToBuffer(DebugDumpWrapper &debugDump) const;
+  void logStateToBuffer(char *buffer, size_t *bufferPos, size_t bufferSize)
+      const;
 
  private:
   /**
@@ -103,20 +102,6 @@ class GnssSession {
 
     //! The interval of results requested.
     Milliseconds minInterval;
-  };
-
-  //! Internal struct with data needed to log last X session requests
-  struct SessionRequestLog {
-    SessionRequestLog(Nanoseconds timestampIn, uint32_t instanceIdIn,
-                      Milliseconds intervalIn, bool startIn)
-        : timestamp(timestampIn),
-          instanceId(instanceIdIn),
-          interval(intervalIn),
-          start(startIn) {}
-    Nanoseconds timestamp;
-    uint32_t instanceId;
-    Milliseconds interval;
-    bool start;
   };
 
   /**
@@ -155,10 +140,6 @@ class GnssSession {
   //! state transition can be in flight at one time. Any further requests are
   //! queued here.
   ArrayQueue<StateTransition, kMaxGnssStateTransitions> mStateTransitions;
-
-  //! The list of most recent session request logs
-  static constexpr size_t kNumSessionRequestLogs = 10;
-  ArrayQueue<SessionRequestLog, kNumSessionRequestLogs> mSessionRequestLogs;
 
   //! The request multiplexer for GNSS session requests.
   DynamicVector<Request> mRequests;
@@ -203,8 +184,8 @@ class GnssSession {
    *
    * @return true if the provided instanceId was found.
    */
-  bool nanoappHasRequest(uint32_t instanceId,
-                         size_t *requestIndex = nullptr) const;
+  bool nanoappHasRequest(uint32_t instanceId, size_t *requestIndex = nullptr)
+      const;
 
   /**
    * Adds a request for a session to the queue of state transitions.
@@ -237,9 +218,9 @@ class GnssSession {
    *
    * @return true if a state transition is required.
    */
-  bool stateTransitionIsRequired(bool requestedState, Milliseconds minInterval,
-                                 bool nanoappHasRequest,
-                                 size_t requestIndex) const;
+  bool stateTransitionIsRequired(
+      bool requestedState, Milliseconds minInterval, bool nanoappHasRequest,
+      size_t requestIndex) const;
 
   /**
    * Updates the session requests given a nanoapp and the interval requested.
@@ -265,9 +246,9 @@ class GnssSession {
    *
    * @return true if the event was successfully posted.
    */
-  bool postAsyncResultEvent(uint32_t instanceId, bool success, bool enable,
-                            Milliseconds minInterval, uint8_t errorCode,
-                            const void *cookie);
+  bool postAsyncResultEvent(
+      uint32_t instanceId, bool success, bool enable,
+      Milliseconds minInterval, uint8_t errorCode, const void *cookie);
 
   /**
    * Calls through to postAsyncResultEvent but invokes FATAL_ERROR if the
@@ -276,9 +257,9 @@ class GnssSession {
    * enqueue one. For parameter details,
    * @see postAsyncResultEvent
    */
-  void postAsyncResultEventFatal(uint32_t instanceId, bool success, bool enable,
-                                 Milliseconds minInterval, uint8_t errorCode,
-                                 const void *cookie);
+  void postAsyncResultEventFatal(
+      uint32_t instanceId, bool success, bool enable,
+      Milliseconds minInterval, uint8_t errorCode, const void *cookie);
 
   /**
    * Handles the result of a request to PlatformGnss to change the state of
@@ -306,16 +287,6 @@ class GnssSession {
    */
   bool controlPlatform(bool enable, Milliseconds minInterval,
                        Milliseconds minTimeToNext);
-
-  /**
-   * Add a log to list of session logs possibly pushing out the oldest log.
-   *
-   * @param nanoappInstanceId the instance of id of nanoapp requesting
-   * @param interval the interval in milliseconds for request
-   * @param start true if the is a start request, false if a stop request
-   */
-  void addSessionRequestLog(uint32_t nanoappInstanceId, Milliseconds interval,
-                            bool start);
 };
 
 /**
@@ -344,11 +315,11 @@ class GnssManager : public NonCopyable {
    */
   uint32_t getCapabilities();
 
-  GnssSession &getLocationSession() {
+  GnssSession& getLocationSession() {
     return mLocationSession;
   };
 
-  GnssSession &getMeasurementSession() {
+  GnssSession& getMeasurementSession() {
     return mMeasurementSession;
   };
 
@@ -356,10 +327,14 @@ class GnssManager : public NonCopyable {
    * Prints state in a string buffer. Must only be called from the context of
    * the main CHRE thread.
    *
-   * @param debugDump The debug dump wrapper where a string can be printed
-   *     into one of the buffers.
+   * @param buffer Pointer to the start of the buffer.
+   * @param bufferPos Pointer to buffer position to start the print (in-out).
+   * @param size Size of the buffer in bytes.
+   *
+   * @return true if entire log printed, false if overflow or error.
    */
-  void logStateToBuffer(DebugDumpWrapper &debugDump) const;
+  void logStateToBuffer(char *buffer, size_t *bufferPos,
+                        size_t bufferSize) const;
 
  private:
   // Allows GnssSession to access mPlatformGnss.
