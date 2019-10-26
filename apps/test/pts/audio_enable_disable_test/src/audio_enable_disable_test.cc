@@ -109,11 +109,9 @@ void handleMessageFromHost(const chreMessageFromHostData *message) {
       LOGE("Failed to enable audio source");
     } else {
       gAudioEnabled = true;
-      // Start a timer to ensure we receive the first audio data event quickly.
-      // Since it may take some time to load the sound model, choose a
-      // reasonably long timeout.
-      gTimerHandle = chreTimerSet(10 * kOneSecondInNanoseconds,
-                                  nullptr /* cookie */, true /* oneShot */);
+      gTimerHandle = chreTimerSet(
+          gAudioSource.minBufferDuration + 2 * kOneSecondInNanoseconds,
+          nullptr /* cookie */, true /* oneShot */);
       if (gTimerHandle == CHRE_TIMER_INVALID) {
         LOGE("Failed to set audio enabled timer");
       } else {
