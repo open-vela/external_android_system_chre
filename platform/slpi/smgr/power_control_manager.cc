@@ -22,7 +22,7 @@
 
 namespace chre {
 
-PowerControlManagerBase::PowerControlManagerBase() : mHostIsAwake(true) {
+PowerControlManagerBase::PowerControlManagerBase() {
 #ifdef CHRE_SLPI_UIMG_ENABLED
   char kClientName[] = "CHRE";
   sns_pm_err_code_e result = sns_pm_client_init(
@@ -30,13 +30,13 @@ PowerControlManagerBase::PowerControlManagerBase() : mHostIsAwake(true) {
   if (result != SNS_PM_SUCCESS) {
     FATAL_ERROR("Power manager client init failed");
   }
-#endif  // CHRE_SLPI_UIMG_ENABLED
+#endif // CHRE_SLPI_UIMG_ENABLED
 }
 
 PowerControlManagerBase::~PowerControlManagerBase() {
 #ifdef CHRE_SLPI_UIMG_ENABLED
   sns_pm_client_close(mClientHandle);
-#endif  // CHRE_SLPI_UIMG_ENABLED
+#endif // CHRE_SLPI_UIMG_ENABLED
 }
 
 bool PowerControlManagerBase::voteBigImage(bool bigImage) {
@@ -50,7 +50,7 @@ bool PowerControlManagerBase::voteBigImage(bool bigImage) {
   return (result == SNS_PM_SUCCESS);
 #else
   return true;
-#endif  // CHRE_SLPI_UIMG_ENABLED
+#endif // CHRE_SLPI_UIMG_ENABLED
 }
 
 void PowerControlManager::postEventLoopProcess(size_t numPendingEvents) {
@@ -60,14 +60,9 @@ void PowerControlManager::postEventLoopProcess(size_t numPendingEvents) {
 }
 
 void PowerControlManagerBase::apSuspendCallback(bool apSuspended) {
-  EventLoopManagerSingleton::get()
-      ->getEventLoop()
-      .getPowerControlManager()
-      .mHostIsAwake = !apSuspended;
+  EventLoopManagerSingleton::get()->getEventLoop()
+      .getPowerControlManager().mHostIsAwake = !apSuspended;
   if (apSuspended) {
-    EventLoopManagerSingleton::get()
-        ->getHostCommsManager()
-        .resetBlameForNanoappHostWakeup();
     EventLoopManagerSingleton::get()->getEventLoop().postEventOrDie(
         CHRE_EVENT_HOST_ASLEEP, nullptr, nullptr);
   } else {
@@ -80,4 +75,4 @@ bool PowerControlManager::hostIsAwake() {
   return mHostIsAwake;
 }
 
-}  // namespace chre
+} // namespace chre
