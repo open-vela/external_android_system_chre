@@ -49,13 +49,12 @@ void updateLastEvent(SensorType sensorType, const void *eventData) {
         auto *cbData = static_cast<CallbackData *>(data);
 
         Sensor *sensor = EventLoopManagerSingleton::get()
-                             ->getSensorRequestManager()
-                             .getSensor(cbData->sensorType);
+            ->getSensorRequestManager().getSensor(cbData->sensorType);
 
         // Mark last event as valid only if the sensor is enabled. Event data
         // may arrive after sensor is disabled.
-        if (sensor != nullptr &&
-            sensor->getRequest().getMode() != SensorMode::Off) {
+        if (sensor != nullptr
+            && sensor->getRequest().getMode() != SensorMode::Off) {
           sensor->setLastEvent(cbData->event);
         }
         memoryFree(cbData);
@@ -65,20 +64,6 @@ void updateLastEvent(SensorType sensorType, const void *eventData) {
       EventLoopManagerSingleton::get()->deferCallback(
           SystemCallbackType::SensorLastEventUpdate, callbackData, callback);
     }
-  }
-}
-
-void sensorDataEventFree(uint16_t eventType, void *eventData) {
-  // TODO: Consider using a MemoryPool.
-  memoryFree(eventData);
-
-  // Remove all requests if it's a one-shot sensor and only after data has been
-  // delivered to all clients.
-  SensorType sensorType = getSensorTypeForSampleEventType(eventType);
-  if (sensorTypeIsOneShot(sensorType)) {
-    EventLoopManagerSingleton::get()
-        ->getSensorRequestManager()
-        .removeAllRequests(sensorType);
   }
 }
 

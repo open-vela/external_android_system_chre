@@ -18,7 +18,6 @@
 #define CHRE_PLATFORM_SLPI_SEE_PLATFORM_SENSOR_BASE_H_
 
 #include "chre/core/sensor_request.h"
-#include "chre/platform/slpi/see/see_helper.h"
 
 namespace chre {
 
@@ -33,9 +32,9 @@ class PlatformSensorBase {
   /**
    * Initializes the members of PlatformSensorBase.
    */
-  void initBase(SensorType sensorType, uint64_t mMinInterval,
-                const char *sensorName, ChreSensorData *lastEvent,
-                size_t lastEventSize, bool passiveSupported);
+  void initBase(
+      SensorType sensorType, uint64_t mMinInterval, const char *sensorName,
+      ChreSensorData *lastEvent, size_t lastEventSize, bool passiveSupported);
 
   /**
    * Copies the supplied event to the sensor's last event and marks last event
@@ -50,11 +49,7 @@ class PlatformSensorBase {
    *
    * @param status The current sampling status.
    */
-  void setSamplingStatus(const struct chreSensorSamplingStatus &status);
-
-  //! Stores the last received sampling status from SEE for this sensor making
-  //! it easier to dedup updates that come in later from SEE.
-  SeeHelperCallbackInterface::SamplingStatusData mLastReceivedSamplingStatus{};
+  void setSamplingStatus(const struct chreSensorSamplingStatus& status);
 
  protected:
   //! The sensor type of this sensor.
