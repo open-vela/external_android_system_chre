@@ -27,14 +27,14 @@ namespace chre {
  * A container for storing a sequential array of elements. This container
  * resizes dynamically using heap allocations.
  */
-template <typename ElementType>
+template<typename ElementType>
 class DynamicVector : private DynamicVectorBase {
  public:
   /**
    * Random-access iterator that points to some element in the container.
    */
-  typedef ElementType *iterator;
-  typedef const ElementType *const_iterator;
+  typedef ElementType* iterator;
+  typedef const ElementType* const_iterator;
 
   typedef size_t size_type;
 
@@ -49,37 +49,18 @@ class DynamicVector : private DynamicVectorBase {
    *
    * @param other The other vector to move from.
    */
-  DynamicVector(DynamicVector<ElementType> &&other);
+  DynamicVector(DynamicVector<ElementType>&& other);
 
   /**
    * Move-constructs a dynamic vector from another. The other dynamic vector is
    * left in an empty state.
    */
-  DynamicVector &operator=(DynamicVector<ElementType> &&other);
+  DynamicVector& operator=(DynamicVector<ElementType>&& other);
 
   /**
    * Destructs the objects and releases the memory owned by the vector.
    */
   ~DynamicVector();
-
-  /**
-   * If called before any other methods are invoked on the DynamicVector after
-   * default construction, allocates capacity for newSize elements and
-   * default-inserts that many instances of ElementType into the vector. No
-   * copies are made.
-   *
-   * If the DynamicVector is not in its default-constructed state, this method
-   * will make no changes to the vector's size and will return false.
-   *
-   * This is meant to provide a method to construct to a DynamicVector of
-   * immovable and non-copyable elements similar to
-   * std::vector(size_type count). This can't be made into a constructor since
-   * CHRE is unable to throw an exception if the memory allocation fails.
-   *
-   * @param size The size the vector should become.
-   * @return true if the init operation was successful.
-   */
-  bool initDefaultSize(size_type size);
 
   /**
    * Removes all elements from the vector, but does not change the capacity.
@@ -143,8 +124,8 @@ class DynamicVector : private DynamicVectorBase {
    * @param The element to push onto the vector.
    * @return true if the element was pushed successfully.
    */
-  bool push_back(const ElementType &element);
-  bool push_back(ElementType &&element);
+  bool push_back(const ElementType& element);
+  bool push_back(ElementType&& element);
 
   /**
    * Constructs an element onto the back of the vector. All iterators and
@@ -154,8 +135,8 @@ class DynamicVector : private DynamicVectorBase {
    * @param The arguments to the constructor
    * @return true if the element is constructed successfully.
    */
-  template <typename... Args>
-  bool emplace_back(Args &&... args);
+  template<typename... Args>
+  bool emplace_back(Args&&... args);
 
   /**
    * Obtains an element of the vector given an index. It is illegal to index
@@ -166,7 +147,7 @@ class DynamicVector : private DynamicVectorBase {
    * @param The index of the element.
    * @return The element.
    */
-  ElementType &operator[](size_type index);
+  ElementType& operator[](size_type index);
 
   /**
    * Obtains a const element of the vector given an index. It is illegal to
@@ -177,7 +158,7 @@ class DynamicVector : private DynamicVectorBase {
    * @param The index of the element.
    * @return The element.
    */
-  const ElementType &operator[](size_type index) const;
+  const ElementType& operator[](size_type index) const;
 
   /**
    * Compares two vectors for equality. It will compare the vector sizes and
@@ -188,7 +169,7 @@ class DynamicVector : private DynamicVectorBase {
    * @param Right-hand side vector to compared with.
    * @return true if two vectors are equal, false otherwise.
    */
-  bool operator==(const DynamicVector<ElementType> &other) const;
+  bool operator==(const DynamicVector<ElementType>& other) const;
 
   /**
    * Resizes the vector to a new capacity returning true if allocation was
@@ -199,7 +180,7 @@ class DynamicVector : private DynamicVectorBase {
    * All iterators and references are invalidated unless the container did not
    * resize.
    *
-   * @param newCapacity The new capacity of the vector.
+   * @param The new capacity of the vector.
    * @return true if the resize operation was successful.
    */
   bool reserve(size_type newCapacity);
@@ -210,7 +191,7 @@ class DynamicVector : private DynamicVectorBase {
    * capacity is larger than the current size, the new objects are
    * default-constructed.
    *
-   * @param newSize The new size of the vector.
+   * @param size The new size of the vector.
    * @return true if the resize operation was successful.
    */
   bool resize(size_type newSize);
@@ -223,15 +204,14 @@ class DynamicVector : private DynamicVectorBase {
    * not possible to have a sparse list of items. If the index is > the current
    * size of the vector, false will be returned. All iterators and references
    * to and after the indexed element are invalidated. Iterators and references
-   * to before the indexed elements are unaffected if the container did not
-   * resize.
+   * to before the indexed elements are unaffected if the container did not resize.
    *
    * @param index The index to insert an element at.
    * @param element The element to insert.
    * @return Whether or not the insert operation was successful.
    */
-  bool insert(size_type index, const ElementType &element);
-  bool insert(size_type index, ElementType &&element);
+  bool insert(size_type index, const ElementType& element);
+  bool insert(size_type index, ElementType&& element);
 
   /**
    * Removes an element from the vector given an index. All elements after the
@@ -252,7 +232,7 @@ class DynamicVector : private DynamicVectorBase {
    * @return The index of the element found. If the return is equal to size()
    *         then the element was not found.
    */
-  size_type find(const ElementType &element) const;
+  size_type find(const ElementType& element) const;
 
   /**
    * Swaps the location of two elements stored in the vector. The indices
@@ -265,13 +245,14 @@ class DynamicVector : private DynamicVectorBase {
    */
   void swap(size_type index0, size_type index1);
 
+
   /**
    * Returns a reference to the first element in the vector. It is illegal to
    * call this on an empty vector.
    *
    * @return The first element in the vector.
    */
-  ElementType &front();
+  ElementType& front();
 
   /**
    * Returns a const reference to the first element in the vector. It is illegal
@@ -279,7 +260,7 @@ class DynamicVector : private DynamicVectorBase {
    *
    * @return The first element in the vector.
    */
-  const ElementType &front() const;
+  const ElementType& front() const;
 
   /**
    * Returns a reference to the last element in the vector. It is illegal to
@@ -287,7 +268,7 @@ class DynamicVector : private DynamicVectorBase {
    *
    * @return The last element in the vector.
    */
-  ElementType &back();
+  ElementType& back();
 
   /**
    * Returns a const reference to the last element in the vector. It is illegal
@@ -295,7 +276,7 @@ class DynamicVector : private DynamicVectorBase {
    *
    * @return The last element in the vector.
    */
-  const ElementType &back() const;
+  const ElementType& back() const;
 
   /**
    * Prepares a vector to push a minimum of one element onto the back. The
@@ -373,17 +354,16 @@ class DynamicVector : private DynamicVectorBase {
 
   /**
    * Performs the push back operation for DynamicVector when ElementType is a
-   * trivial type. See {@link DynamicVector::push_back} for the rest of the
-   * details.
+   * trivial type. See {@link DynamicVector::push_back} for the rest of the details.
    */
-  bool doPushBack(const ElementType &element, std::true_type);
+  bool doPushBack(const ElementType& element, std::true_type);
 
   /**
    * Performs the push back operation for DynamicVector when ElementType is a
    * non-trivial type. See {@link DynamicVector::push_back} for the rest of the
    * details.
    */
-  bool doPushBack(const ElementType &element, std::false_type);
+  bool doPushBack(const ElementType& element, std::false_type);
 };
 
 }  // namespace chre

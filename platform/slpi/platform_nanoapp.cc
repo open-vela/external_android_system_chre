@@ -34,7 +34,7 @@
 
 namespace chre {
 #if defined(CHRE_SLPI_SEE) && defined(CHRE_SLPI_UIMG_ENABLED)
-namespace {
+namespace{
 void rewriteToChreEventType(uint16_t *eventType) {
   CHRE_ASSERT(eventType);
 
@@ -108,15 +108,14 @@ uint32_t getBigImageSensorHandle(uint32_t sensorHandle) {
  */
 bool isBiasEventType(uint16_t eventType) {
   return eventType == CHRE_EVENT_SENSOR_ACCELEROMETER_BIAS_INFO ||
-         eventType == CHRE_EVENT_SENSOR_UNCALIBRATED_ACCELEROMETER_BIAS_INFO ||
-         eventType == CHRE_EVENT_SENSOR_GYROSCOPE_BIAS_INFO ||
-         eventType == CHRE_EVENT_SENSOR_UNCALIBRATED_GYROSCOPE_BIAS_INFO ||
-         eventType == CHRE_EVENT_SENSOR_GEOMAGNETIC_FIELD_BIAS_INFO ||
-         eventType ==
-             CHRE_EVENT_SENSOR_UNCALIBRATED_GEOMAGNETIC_FIELD_BIAS_INFO;
+      eventType == CHRE_EVENT_SENSOR_UNCALIBRATED_ACCELEROMETER_BIAS_INFO ||
+      eventType == CHRE_EVENT_SENSOR_GYROSCOPE_BIAS_INFO ||
+      eventType == CHRE_EVENT_SENSOR_UNCALIBRATED_GYROSCOPE_BIAS_INFO ||
+      eventType == CHRE_EVENT_SENSOR_GEOMAGNETIC_FIELD_BIAS_INFO ||
+      eventType == CHRE_EVENT_SENSOR_UNCALIBRATED_GEOMAGNETIC_FIELD_BIAS_INFO;
 }
 
-}  //  anonymous namespace
+} //  anonymous namespace
 #endif  // defined(CHRE_SLPI_SEE) && defined(CHRE_SLPI_UIMG_ENABLED)
 
 PlatformNanoapp::~PlatformNanoapp() {
@@ -135,7 +134,8 @@ bool PlatformNanoapp::start() {
   return openNanoapp() && mAppInfo->entryPoints.start();
 }
 
-void PlatformNanoapp::handleEvent(uint32_t senderInstanceId, uint16_t eventType,
+void PlatformNanoapp::handleEvent(uint32_t senderInstanceId,
+                                  uint16_t eventType,
                                   const void *eventData) {
   if (!isUimgApp()) {
     slpiForceBigImage();
@@ -170,8 +170,8 @@ void PlatformNanoapp::end() {
   closeNanoapp();
 }
 
-bool PlatformNanoappBase::setAppInfo(uint64_t appId, uint32_t appVersion,
-                                     const char *appFilename) {
+bool PlatformNanoappBase::setAppInfo(
+    uint64_t appId, uint32_t appVersion, const char *appFilename) {
   CHRE_ASSERT(!isLoaded());
   mExpectedAppId = appId;
   mExpectedAppVersion = appVersion;
@@ -189,8 +189,8 @@ bool PlatformNanoappBase::setAppInfo(uint64_t appId, uint32_t appVersion,
   return success;
 }
 
-bool PlatformNanoappBase::reserveBuffer(uint64_t appId, uint32_t appVersion,
-                                        size_t appBinaryLen) {
+bool PlatformNanoappBase::reserveBuffer(
+    uint64_t appId, uint32_t appVersion, size_t appBinaryLen) {
   CHRE_ASSERT(!isLoaded());
   bool success = false;
   constexpr size_t kMaxAppSize = 2 * 1024 * 1024;  // 2 MiB
@@ -213,8 +213,8 @@ bool PlatformNanoappBase::reserveBuffer(uint64_t appId, uint32_t appVersion,
   return success;
 }
 
-bool PlatformNanoappBase::copyNanoappFragment(const void *buffer,
-                                              size_t bufferLen) {
+bool PlatformNanoappBase::copyNanoappFragment(
+    const void *buffer, size_t bufferLen) {
   CHRE_ASSERT(!isLoaded());
 
   bool success = true;
@@ -238,9 +238,8 @@ void PlatformNanoappBase::loadStatic(const struct chreNslNanoappInfo *appInfo) {
 }
 
 bool PlatformNanoappBase::isLoaded() const {
-  return (mIsStatic ||
-          (mAppBinary != nullptr && mBytesLoaded == mAppBinaryLen) ||
-          mDsoHandle != nullptr || mAppFilename != nullptr);
+  return (mIsStatic || (mAppBinary != nullptr && mBytesLoaded == mAppBinaryLen)
+          || mDsoHandle != nullptr || mAppFilename != nullptr);
 }
 
 bool PlatformNanoappBase::isUimgApp() const {
@@ -293,8 +292,9 @@ bool PlatformNanoappBase::openNanoappFromBuffer() {
   char filename[kMaxFilenameLen];
   snprintf(filename, sizeof(filename), "%016" PRIx64, mExpectedAppId);
 
-  mDsoHandle = dlopenbuf(filename, static_cast<const char *>(mAppBinary),
-                         static_cast<int>(mAppBinaryLen), RTLD_NOW);
+  mDsoHandle = dlopenbuf(
+      filename, static_cast<const char *>(mAppBinary),
+      static_cast<int>(mAppBinaryLen), RTLD_NOW);
   memoryFreeBigImage(mAppBinary);
   mAppBinary = nullptr;
 
@@ -327,11 +327,10 @@ bool PlatformNanoappBase::verifyNanoappInfo() {
       if (!success) {
         mAppInfo = nullptr;
       } else {
-        LOGI("Successfully loaded nanoapp: %s (0x%016" PRIx64
-             ") version 0x%" PRIx32 " (%s) uimg %d system %d",
-             mAppInfo->name, mAppInfo->appId, mAppInfo->appVersion,
-             getAppVersionString(), mAppInfo->isTcmNanoapp,
-             mAppInfo->isSystemNanoapp);
+        LOGI("Successfully loaded nanoapp: %s (0x%016" PRIx64 ") version 0x%"
+             PRIx32 " (%s) uimg %d system %d", mAppInfo->name, mAppInfo->appId,
+             mAppInfo->appVersion, getAppVersionString(),
+             mAppInfo->isTcmNanoapp, mAppInfo->isSystemNanoapp);
       }
     }
   }
@@ -341,15 +340,15 @@ bool PlatformNanoappBase::verifyNanoappInfo() {
 
 const char *PlatformNanoappBase::getAppVersionString() const {
   const char *versionString = "<undefined>";
-  if (mAppInfo != nullptr && mAppInfo->structMinorVersion >= 2 &&
-      mAppInfo->appVersionString != NULL) {
+  if (mAppInfo != nullptr && mAppInfo->structMinorVersion >= 2 
+      && mAppInfo->appVersionString != NULL) {
     size_t appVersionStringLength = strlen(mAppInfo->appVersionString);
 
     size_t offset = 0;
     for (size_t i = 0; i < appVersionStringLength; i++) {
       size_t newOffset = i + 1;
-      if (mAppInfo->appVersionString[i] == '@' &&
-          newOffset < appVersionStringLength) {
+      if (mAppInfo->appVersionString[i] == '@'
+          && newOffset < appVersionStringLength) {
         offset = newOffset;
         break;
       }
@@ -382,10 +381,12 @@ bool PlatformNanoapp::isSystemNanoapp() const {
   return (mAppInfo != nullptr) ? mAppInfo->isSystemNanoapp : false;
 }
 
-void PlatformNanoapp::logStateToBuffer(DebugDumpWrapper &debugDump) const {
+void PlatformNanoapp::logStateToBuffer(char *buffer, size_t *bufferPos,
+                                       size_t bufferSize) const {
   if (mAppInfo != nullptr) {
-    debugDump.print(" %s: vendor=\"%s\" commit=\"%s\"", mAppInfo->name,
-                    mAppInfo->vendor, getAppVersionString());
+    debugDumpPrint(buffer, bufferPos, bufferSize,
+                   " %s: vendor=\"%s\" commit=\"%s\"",
+                   mAppInfo->name, mAppInfo->vendor, getAppVersionString());
   }
 }
 
