@@ -17,6 +17,7 @@
 #ifndef CHRE_CORE_EVENT_LOOP_MANAGER_H_
 #define CHRE_CORE_EVENT_LOOP_MANAGER_H_
 
+#include "chre_api/chre/event.h"
 #include "chre/core/event_loop.h"
 #include "chre/core/event_loop_common.h"
 #include "chre/core/gnss_manager.h"
@@ -30,7 +31,6 @@
 #include "chre/util/non_copyable.h"
 #include "chre/util/singleton.h"
 #include "chre/util/unique_ptr.h"
-#include "chre_api/chre/event.h"
 
 #ifdef CHRE_AUDIO_SUPPORT_ENABLED
 #include "chre/core/audio_request_manager.h"
@@ -45,28 +45,31 @@ namespace chre {
  */
 class EventLoopManager : public NonCopyable {
  public:
-  /**
-   * Validates that a CHRE API is invoked from a valid nanoapp context and
-   * returns a pointer to the currently executing nanoapp. This should be
-   * called by most CHRE API methods that require accessing details about the
-   * event loop or the nanoapp itself. If the current event loop or nanoapp are
-   * null, this is an assertion error.
-   *
-   * @param functionName The name of the CHRE API. This should be __func__.
-   * @param eventLoop Optional output parameter, which will be populated with
-   *        the EventLoop that is currently executing if this function is
-   *        successful
-   * @return A pointer to the currently executing nanoapp or null if outside
-   *         the context of a nanoapp.
-   */
+   /**
+    * Validates that a CHRE API is invoked from a valid nanoapp context and
+    * returns a pointer to the currently executing nanoapp. This should be
+    * called by most CHRE API methods that require accessing details about the
+    * event loop or the nanoapp itself. If the current event loop or nanoapp are
+    * null, this is an assertion error.
+    *
+    * @param functionName The name of the CHRE API. This should be __func__.
+    * @param eventLoop Optional output parameter, which will be populated with
+    *        the EventLoop that is currently executing if this function is
+    *        successful
+    * @return A pointer to the currently executing nanoapp or null if outside
+    *         the context of a nanoapp.
+    */
   static Nanoapp *validateChreApiCall(const char *functionName);
 
   /**
-   * Prints debug dump data into the debugDump object via its buffers.
+   * Collect debugging information for this CHRE instance. Must only be called
+   * from the context of the main CHRE thread.
    *
-   * @param debugDump the object used to store the buffers for debug dump data
+   * @return Buffer containing debugging information stored in a null-terminated
+   *         string allocated on the heap (possibly nullptr if the allocation
+   *         failed)
    */
-  void debugDump(DebugDumpWrapper &debugDump);
+  UniquePtr<char> debugDump();
 
   /**
    * Leverages the event queue mechanism to schedule a CHRE system callback to
@@ -107,8 +110,8 @@ class EventLoopManager : public NonCopyable {
   TimerHandle setDelayedCallback(SystemCallbackType type, void *data,
                                  SystemCallbackFunction *callback,
                                  Nanoseconds delay) {
-    return mEventLoop.getTimerPool().setSystemTimer(delay, callback, type,
-                                                    data);
+    return mEventLoop.getTimerPool().setSystemTimer(
+        delay, callback, type, data);
   }
 
   /**
@@ -138,7 +141,7 @@ class EventLoopManager : public NonCopyable {
    *         with the audio subsystem and manages requests from various
    *         nanoapps.
    */
-  AudioRequestManager &getAudioRequestManager() {
+  AudioRequestManager& getAudioRequestManager() {
     return mAudioRequestManager;
   }
 #endif  // CHRE_AUDIO_SUPPORT_ENABLED
@@ -146,7 +149,7 @@ class EventLoopManager : public NonCopyable {
   /**
    * @return The event loop managed by this event loop manager.
    */
-  EventLoop &getEventLoop() {
+  EventLoop& getEventLoop() {
     return mEventLoop;
   }
 
@@ -156,7 +159,7 @@ class EventLoopManager : public NonCopyable {
    *         with the platform GNSS subsystem and manages requests from various
    *         nanoapps.
    */
-  GnssManager &getGnssManager() {
+  GnssManager& getGnssManager() {
     return mGnssManager;
   }
 #endif  // CHRE_GNSS_SUPPORT_ENABLED
@@ -165,7 +168,7 @@ class EventLoopManager : public NonCopyable {
    * @return A reference to the host communications manager that enables
    *         transferring arbitrary data between the host processor and CHRE.
    */
-  HostCommsManager &getHostCommsManager() {
+  HostCommsManager& getHostCommsManager() {
     return mHostCommsManager;
   }
 
@@ -174,7 +177,7 @@ class EventLoopManager : public NonCopyable {
    *         interacting with the platform sensors and managing requests from
    *         various nanoapps.
    */
-  SensorRequestManager &getSensorRequestManager() {
+  SensorRequestManager& getSensorRequestManager() {
     return mSensorRequestManager;
   }
 
@@ -184,7 +187,7 @@ class EventLoopManager : public NonCopyable {
    *         interacting with the platform wifi subsystem and manages the
    *         requests from various nanoapps.
    */
-  WifiRequestManager &getWifiRequestManager() {
+  WifiRequestManager& getWifiRequestManager() {
     return mWifiRequestManager;
   }
 #endif  // CHRE_WIFI_SUPPORT_ENABLED
@@ -195,7 +198,7 @@ class EventLoopManager : public NonCopyable {
    *         with the platform WWAN subsystem and manages requests from various
    *         nanoapps.
    */
-  WwanRequestManager &getWwanRequestManager() {
+  WwanRequestManager& getWwanRequestManager() {
     return mWwanRequestManager;
   }
 #endif  // CHRE_WWAN_SUPPORT_ENABLED
@@ -204,7 +207,7 @@ class EventLoopManager : public NonCopyable {
    * @return A reference to the memory manager. This allows central control of
    *         the heap space allocated by nanoapps.
    */
-  MemoryManager &getMemoryManager() {
+  MemoryManager& getMemoryManager() {
     return mMemoryManager;
   }
 
