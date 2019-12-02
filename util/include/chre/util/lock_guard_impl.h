@@ -21,12 +21,13 @@
 
 namespace chre {
 
-template <typename MutexType>
-LockGuard<MutexType>::LockGuard(MutexType &mutex) : mMutex(mutex) {
+template<typename MutexType>
+LockGuard<MutexType>::LockGuard(MutexType& mutex)
+    : mMutex(mutex) {
   mMutex.lock();
 }
 
-template <typename MutexType>
+template<typename MutexType>
 LockGuard<MutexType>::~LockGuard() {
   mMutex.unlock();
 }
