@@ -65,7 +65,7 @@ HEXAGON_LIB_PATH = "{0}/{1}/Tools/target/hexagon/lib/{2}/G0/pic".format(hexagon_
 #-------------------------------------------------------------------------------
 env.Replace(ASM_DFLAGS = '-D__V_DYNAMIC__')
 env.Replace(CC_DFLAGS = '-D__V_DYNAMIC__')
-env.Replace(HEXAGONCC_OPT = ' -Os ')
+env.Replace(HEXAGONCC_OPT = ' -O0 ')
 env.Replace(CFLAGS = ' -G0')
 
 env.Replace(HEXAGONCC_WARN = '-Wall  -Wno-cast-align -Wpointer-arith -Wno-missing-braces' \
@@ -172,11 +172,13 @@ env.RequirePrivateApi('CHRE')
 # Define various preprocessor definitions needed to compile CHRE
 #-------------------------------------------------------------------------------
 
-oem_ver = os.environ.get('SCONS_OEM_BUILD_VER')
-if oem_ver is not None:
-    oem_ver = str(oem_ver).strip().strip('"')
-else:
-    oem_ver = 'undefined'
+# If SCONS_OEM_BUILD_VER is defined for your build target, uncomment the following
+# code to ensure that build version is used by the CHRE library as well.
+# oem_ver = os.environ.get('SCONS_OEM_BUILD_VER')
+# oem_ver = str(oem_ver).strip().strip('"')
+
+# Remove this line if the above code is used.
+oem_ver = 'undefined'
 
 CHRE_DEFINES = [
     'CHRE_MINIMUM_LOG_LEVEL=CHRE_LOG_LEVEL_DEBUG',
@@ -217,10 +219,6 @@ libchre_slpi_skel_idl = "${BUILDPATH}/system/chre/host/msm/daemon/idl/chre_slpi.
 prereq = env.HeaderBuilder("${BUILDPATH}/chre_slpi.h", libchre_slpi_skel_idl)
 
 chre_cc_src = [
-    # QMI interfaces
-    "${BUILD_ROOT}/qmimsgs/common/src/common_v01.c",
-    "${BUILD_ROOT}/qmimsgs/sns_client_api/src/sns_client_api_v01.c",
-
     # Qualcomm protobufs needed by CHRE code
     "${BUILD_ROOT}/ssc_api/build/${BUILDPATH}/pb/sns_client.pb.c",
     "${BUILD_ROOT}/ssc_api/build/${BUILDPATH}/pb/sns_suid.pb.c",
@@ -288,6 +286,7 @@ chre_cc_src = [
     "${BUILDPATH}/system/chre/util/buffer_base.cc",
     "${BUILDPATH}/system/chre/util/dynamic_vector_base.cc",
     "${BUILDPATH}/system/chre/util/nanoapp/audio.cc",
+    "${BUILDPATH}/system/chre/util/nanoapp/callbacks.cc",
     "${BUILDPATH}/system/chre/util/nanoapp/debug.cc",
     "${BUILDPATH}/system/chre/util/nanoapp/sensor.cc",
     "${BUILDPATH}/system/chre/util/nanoapp/wifi.cc",
