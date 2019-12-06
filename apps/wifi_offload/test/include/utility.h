@@ -89,6 +89,6 @@ void init(wifi_offload::Vector<T> &vec, RandomGenerator &rand_gen) {
   init(vec, rand_gen, vec_len);
 }
 
-}  // namespace wifi_offload_test
+}  // wifioffloadtesthelper namespace
 
 #endif  // CHRE_WIFI_OFFLOAD_TEST_UTILITY_H_
