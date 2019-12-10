@@ -37,9 +37,4 @@ bool PlatformSensorTypeHelpers::getVendorSensorBiasEventType(
   return false;
 }
 
-const char *PlatformSensorTypeHelpers::getVendorSensorTypeName(
-    uint8_t sensorType) {
-  return "";
-}
-
 }  // namespace chre
