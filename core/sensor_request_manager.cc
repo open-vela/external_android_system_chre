@@ -545,7 +545,7 @@ void SensorRequestManager::logStateToBuffer(DebugDumpWrapper &debugDump) const {
       // below
       debugDump.print(
           " %s: mode=%d int=%" PRIu64 " lat=%" PRIu64 " nappId=%" PRIu32 "\n",
-          mSensors[i].getSensorTypeName(), request.getMode(),
+          mSensors[i].getSensorName(), request.getMode(),
           request.getInterval().toRawNanoseconds(),
           request.getLatency().toRawNanoseconds(), request.getInstanceId());
     }
@@ -560,7 +560,7 @@ void SensorRequestManager::logStateToBuffer(DebugDumpWrapper &debugDump) const {
     if (getSensorHandle(log.sensorType, &sensorHandle)) {
       debugDump.print("  ts=%" PRIu64 " nappId=%" PRIu32 " sensType=%s mode=%s",
                       log.timestamp.toRawNanoseconds(), log.instanceId,
-                      mSensors[sensorHandle].getSensorTypeName(),
+                      mSensors[sensorHandle].getSensorName(),
                       getSensorModeName(log.mode));
     }
 
