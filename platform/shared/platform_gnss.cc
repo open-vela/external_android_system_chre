@@ -19,17 +19,17 @@
 #include <cinttypes>
 
 #include "chre/core/event_loop_manager.h"
-#include "chre/platform/log.h"
 #include "chre/platform/shared/pal_system_api.h"
+#include "chre/platform/log.h"
 
 namespace chre {
 
 const chrePalGnssCallbacks PlatformGnssBase::sGnssCallbacks = {
-    PlatformGnssBase::requestStateResyncCallback,
-    PlatformGnssBase::locationStatusChangeCallback,
-    PlatformGnssBase::locationEventCallback,
-    PlatformGnssBase::measurementStatusChangeCallback,
-    PlatformGnssBase::measurementEventCallback,
+  PlatformGnssBase::requestStateResyncCallback,
+  PlatformGnssBase::locationStatusChangeCallback,
+  PlatformGnssBase::locationEventCallback,
+  PlatformGnssBase::measurementStatusChangeCallback,
+  PlatformGnssBase::measurementEventCallback,
 };
 
 PlatformGnss::~PlatformGnss() {
@@ -70,8 +70,8 @@ bool PlatformGnss::controlLocationSession(bool enable, Milliseconds minInterval,
                                           Milliseconds minTimeToNextFix) {
   if (mGnssApi != nullptr) {
     prePalApiCall();
-    return mGnssApi->controlLocationSession(
-        enable, static_cast<uint32_t>(minInterval.getMilliseconds()),
+    return mGnssApi->controlLocationSession(enable,
+        static_cast<uint32_t>(minInterval.getMilliseconds()),
         static_cast<uint32_t>(minTimeToNextFix.getMilliseconds()));
   } else {
     return false;
@@ -91,17 +91,13 @@ void PlatformGnssBase::requestStateResyncCallback() {
 
 void PlatformGnssBase::locationStatusChangeCallback(bool enabled,
                                                     uint8_t errorCode) {
-  EventLoopManagerSingleton::get()
-      ->getGnssManager()
-      .getLocationSession()
+  EventLoopManagerSingleton::get()->getGnssManager().getLocationSession()
       .handleStatusChange(enabled, errorCode);
 }
 
 void PlatformGnssBase::locationEventCallback(
     struct chreGnssLocationEvent *event) {
-  EventLoopManagerSingleton::get()
-      ->getGnssManager()
-      .getLocationSession()
+  EventLoopManagerSingleton::get()->getGnssManager().getLocationSession()
       .handleReportEvent(event);
 }
 
@@ -109,8 +105,8 @@ bool PlatformGnss::controlMeasurementSession(bool enable,
                                              Milliseconds minInterval) {
   if (mGnssApi != nullptr) {
     prePalApiCall();
-    return mGnssApi->controlMeasurementSession(
-        enable, static_cast<uint32_t>(minInterval.getMilliseconds()));
+    return mGnssApi->controlMeasurementSession(enable,
+        static_cast<uint32_t>(minInterval.getMilliseconds()));
   } else {
     return false;
   }
@@ -125,17 +121,13 @@ void PlatformGnss::releaseMeasurementDataEvent(chreGnssDataEvent *event) {
 
 void PlatformGnssBase::measurementStatusChangeCallback(bool enabled,
                                                        uint8_t errorCode) {
-  EventLoopManagerSingleton::get()
-      ->getGnssManager()
-      .getMeasurementSession()
+  EventLoopManagerSingleton::get()->getGnssManager().getMeasurementSession()
       .handleStatusChange(enabled, errorCode);
 }
 
 void PlatformGnssBase::measurementEventCallback(
     struct chreGnssDataEvent *event) {
-  EventLoopManagerSingleton::get()
-      ->getGnssManager()
-      .getMeasurementSession()
+  EventLoopManagerSingleton::get()->getGnssManager().getMeasurementSession()
       .handleReportEvent(event);
 }
 
