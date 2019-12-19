@@ -17,12 +17,11 @@
 #ifndef CHRE_PLATFORM_PLATFORM_NANOAPP_H_
 #define CHRE_PLATFORM_PLATFORM_NANOAPP_H_
 
-#include <cstddef>
 #include <cstdint>
+#include <cstddef>
 
-#include "chre/target_platform/platform_nanoapp_base.h"
 #include "chre/util/non_copyable.h"
-#include "chre/util/system/debug_dump.h"
+#include "chre/target_platform/platform_nanoapp_base.h"
 
 namespace chre {
 
@@ -100,10 +99,12 @@ class PlatformNanoapp : public PlatformNanoappBase, public NonCopyable {
    * Prints state in a string buffer. Must only be called from the context of
    * the main CHRE thread.
    *
-   * @param debugDump The debug dump wrapper object where logs are printed
-   * into.
+   * @param buffer Pointer to the start of the buffer.
+   * @param bufferPos Pointer to buffer position to start the print (in-out).
+   * @param size Size of the buffer in bytes.
    */
-  void logStateToBuffer(DebugDumpWrapper &debugDump) const;
+  void logStateToBuffer(char *buffer, size_t *bufferPos,
+                        size_t bufferSize) const;
 
  protected:
   /**
