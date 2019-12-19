@@ -27,10 +27,9 @@ class CellInfoWcdma : private CellInfoBase {
   static bool validate(const struct chreWwanCellInfoWcdma &cell);
 
  private:
-  static bool validateIdentity(
-      const struct chreWwanCellIdentityWcdma &identity);
+  static bool validateIdentity(const struct chreWwanCellIdentityWcdma identity);
   static bool validateSignalStrength(
-      const struct chreWwanSignalStrengthWcdma &strength);
+      const struct chreWwanSignalStrengthWcdma strength);
 };
 
 }  // namespace general_test
