@@ -46,23 +46,6 @@ else:
     USE_CHRE_WWAN = 'USES_CHRE_WWAN' in env
 
 #-------------------------------------------------------------------------------
-# Configure testing nanoapps
-#-------------------------------------------------------------------------------
-
-# CHRE provides several nanoapps that can be used to verify that APIs are
-# working as expected. To use these nanoapps, set 1 or more of the following
-# flags to True and recompile CHRE. Once restarted, CHRE will load the enabled
-# nanoapps
-LOAD_GNSS_WORLD = False
-LOAD_SENSOR_WORLD = False
-LOAD_WIFI_WORLD = False
-LOAD_WWAN_WORLD = False
-
-TESTING_NANOAPPS_ENABLED = False
-if LOAD_GNSS_WORLD or LOAD_SENSOR_WORLD or LOAD_WIFI_WORLD or LOAD_WWAN_WORLD:
-    TESTING_NANOAPPS_ENABLED = True
-
-#-------------------------------------------------------------------------------
 # Setup source and tooling paths
 #-------------------------------------------------------------------------------
 SRCPATH = "${BUILD_ROOT}/chre/chre/src"
@@ -158,7 +141,7 @@ qmimsgs_public_apis = [
     'SNS_CLIENT_API',
 ]
 
-chre_priv_api = [
+env.PublishPrivateApi('CHRE',[
     "${BUILD_ROOT}/chre/chre/src/system/chre/chre_api/include",
     "${BUILD_ROOT}/chre/chre/src/system/chre/chre_api/include/chre_api",
     "${BUILD_ROOT}/chre/chre/src/system/chre/core/include",
@@ -177,12 +160,7 @@ chre_priv_api = [
     "${BUILD_ROOT}/ssc/inc",
     "${BUILD_ROOT}/ssc/inc/internal",
     "${BUILD_ROOT}/ssc/inc/utils/nanopb",
-]
-
-if TESTING_NANOAPPS_ENABLED:
-    chre_priv_api.append("${BUILD_ROOT}/chre/chre/src/system/chre/apps/include")
-
-env.PublishPrivateApi('CHRE', chre_priv_api)
+])
 
 env.RequirePublicApi(core_public_apis, area='core')
 env.RequirePublicApi(platform_public_apis, area='platform')
@@ -227,17 +205,6 @@ if USE_CHRE_WIFI:
 if USE_CHRE_WWAN:
     CHRE_DEFINES.append('CHRE_WWAN_SUPPORT_ENABLED')
 
-if TESTING_NANOAPPS_ENABLED:
-    CHRE_DEFINES.append('CHRE_INCLUDE_DEFAULT_STATIC_NANOAPPS')
-if LOAD_GNSS_WORLD:
-    CHRE_DEFINES.append('CHRE_LOAD_GNSS_WORLD')
-if LOAD_SENSOR_WORLD:
-    CHRE_DEFINES.append('CHRE_LOAD_SENSOR_WORLD')
-if LOAD_WIFI_WORLD:
-    CHRE_DEFINES.append('CHRE_LOAD_WIFI_WORLD')
-if LOAD_WWAN_WORLD:
-    CHRE_DEFINES.append('CHRE_LOAD_WWAN_WORLD')
-
 env.Append(CPPDEFINES = CHRE_DEFINES)
 
 #-------------------------------------------------------------------------------
@@ -278,8 +245,10 @@ chre_cc_src = [
     "${BUILDPATH}/system/chre/core/nanoapp.cc",
     "${BUILDPATH}/system/chre/core/sensor_request.cc",
     "${BUILDPATH}/system/chre/core/sensor_request_manager.cc",
+    "${BUILDPATH}/system/chre/core/sensor_request_multiplexer.cc",
     "${BUILDPATH}/system/chre/core/sensor.cc",
     "${BUILDPATH}/system/chre/core/sensor_type.cc",
+    "${BUILDPATH}/system/chre/core/sensor_type_helpers.cc",
     "${BUILDPATH}/system/chre/core/static_nanoapps.cc",
     "${BUILDPATH}/system/chre/core/timer_pool.cc",
 
@@ -297,9 +266,9 @@ chre_cc_src = [
     "${BUILDPATH}/system/chre/platform/shared/memory_manager.cc",
     "${BUILDPATH}/system/chre/platform/shared/nanoapp/nanoapp_dso_util.cc",
     "${BUILDPATH}/system/chre/platform/shared/pal_system_api.cc",
-    "${BUILDPATH}/system/chre/platform/shared/platform_sensor_util.cc",
     "${BUILDPATH}/system/chre/platform/shared/system_time.cc",
     "${BUILDPATH}/system/chre/platform/slpi/chre_api_re.cc",
+    "${BUILDPATH}/system/chre/platform/slpi/debug_dump.cc",
     "${BUILDPATH}/system/chre/platform/slpi/host_link.cc",
     "${BUILDPATH}/system/chre/platform/slpi/init.cc",
     "${BUILDPATH}/system/chre/platform/slpi/memory.cc",
@@ -307,13 +276,14 @@ chre_cc_src = [
     "${BUILDPATH}/system/chre/platform/slpi/nanoapp_load_manager.cc",
     "${BUILDPATH}/system/chre/platform/slpi/platform_nanoapp.cc",
     "${BUILDPATH}/system/chre/platform/slpi/platform_pal.cc",
-    "${BUILDPATH}/system/chre/platform/slpi/debug_dump.cc",
+    "${BUILDPATH}/system/chre/platform/slpi/platform_sensor_type_helpers.cc",
     "${BUILDPATH}/system/chre/platform/slpi/system_time.cc",
     "${BUILDPATH}/system/chre/platform/slpi/system_time_util.cc",
     "${BUILDPATH}/system/chre/platform/slpi/system_timer.cc",
     "${BUILDPATH}/system/chre/platform/slpi/see/island_vote_client.cc",
-    "${BUILDPATH}/system/chre/platform/slpi/see/power_control_manager.cc",
     "${BUILDPATH}/system/chre/platform/slpi/see/platform_sensor.cc",
+    "${BUILDPATH}/system/chre/platform/slpi/see/platform_sensor_manager.cc",
+    "${BUILDPATH}/system/chre/platform/slpi/see/power_control_manager.cc",
     "${BUILDPATH}/system/chre/platform/slpi/see/see_helper.cc",
     "${BUILDPATH}/system/chre/platform/slpi/see/see_cal_helper.cc",
     "${BUILDPATH}/system/chre/platform/slpi/see/sns_qmi_client.c",
@@ -323,8 +293,8 @@ chre_cc_src = [
     "${BUILDPATH}/system/chre/util/buffer_base.cc",
     "${BUILDPATH}/system/chre/util/dynamic_vector_base.cc",
     "${BUILDPATH}/system/chre/util/nanoapp/audio.cc",
+    "${BUILDPATH}/system/chre/util/nanoapp/callbacks.cc",
     "${BUILDPATH}/system/chre/util/nanoapp/debug.cc",
-    "${BUILDPATH}/system/chre/util/nanoapp/sensor.cc",
     "${BUILDPATH}/system/chre/util/nanoapp/wifi.cc",
 ]
 
@@ -352,15 +322,6 @@ if USE_CHRE_WWAN:
         "${BUILDPATH}/system/chre/core/wwan_request_manager.cc",
         "${BUILDPATH}/system/chre/platform/shared/platform_wwan.cc",
     ])
-
-if LOAD_GNSS_WORLD:
-    chre_cc_src.append("${BUILDPATH}/system/chre/apps/gnss_world/gnss_world.cc")
-if LOAD_SENSOR_WORLD:
-    chre_cc_src.append("${BUILDPATH}/system/chre/apps/sensor_world/sensor_world.cc")
-if LOAD_WIFI_WORLD:
-    chre_cc_src.append("${BUILDPATH}/system/chre/apps/wifi_world/wifi_world.cc")
-if LOAD_WWAN_WORLD:
-    chre_cc_src.append("${BUILDPATH}/system/chre/apps/wwan_world/wwan_world.cc")
 
 #-------------------------------------------------------------------------------
 # Add CHRE as a shared library that should be built
