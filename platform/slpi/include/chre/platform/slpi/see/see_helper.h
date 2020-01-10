@@ -25,6 +25,7 @@ extern "C" {
 
 #include "sns_suid.pb.h"
 
+#include "chre/core/sensor_type.h"
 #include "chre/platform/condition_variable.h"
 #include "chre/platform/mutex.h"
 #include "chre/platform/slpi/see/see_cal_helper.h"
@@ -36,17 +37,17 @@ extern "C" {
 
 namespace chre {
 
-inline bool suidsMatch(const sns_std_suid &suid0, const sns_std_suid &suid1) {
-  return (suid0.suid_high == suid1.suid_high &&
-          suid0.suid_low == suid1.suid_low);
+inline bool suidsMatch(const sns_std_suid& suid0, const sns_std_suid& suid1) {
+  return (suid0.suid_high == suid1.suid_high
+          && suid0.suid_low == suid1.suid_low);
 }
 
 //! A callback interface for receiving SeeHelper data events.
 class SeeHelperCallbackInterface {
  public:
   struct SamplingStatusData {
+    SensorType sensorType;
     struct chreSensorSamplingStatus status;
-    uint8_t sensorType;
     bool enabledValid;
     bool intervalValid;
     bool latencyValid;
@@ -56,13 +57,13 @@ class SeeHelperCallbackInterface {
 
   //! Invoked by the SEE thread to update sampling status.
   virtual void onSamplingStatusUpdate(
-      UniquePtr<SamplingStatusData> &&status) = 0;
+      UniquePtr<SamplingStatusData>&& status) = 0;
 
   //! Invoked by the SEE thread to provide sensor data events. The event data
   //! format is one of the chreSensorXXXData defined in the CHRE API, implicitly
   //! specified by sensorType.
-  virtual void onSensorDataEvent(uint8_t sensorType,
-                                 UniquePtr<uint8_t> &&eventData) = 0;
+  virtual void onSensorDataEvent(
+      SensorType sensorType, UniquePtr<uint8_t>&& eventData) = 0;
 
   //! Invoked by the SEE thread to update the AP wake/suspend status.
   virtual void onHostWakeSuspendEvent(bool apAwake) = 0;
@@ -72,11 +73,10 @@ class SeeHelperCallbackInterface {
   //! runtime-calibrated sensors, regardless of whether the runtime-calibrated
   //! or uncalibrated versions of the sensor is enabled.
   virtual void onSensorBiasEvent(
-      uint8_t sensorType,
-      UniquePtr<struct chreSensorThreeAxisData> &&biasData) = 0;
+      UniquePtr<struct chreSensorThreeAxisData>&& biasData) = 0;
 
   //! Invoked by the SEE thread to notify a flush complete
-  virtual void onFlushCompleteEvent(uint8_t sensorType) = 0;
+  virtual void onFlushCompleteEvent(SensorType sensorType) = 0;
 };
 
 //! Default timeout for waitForService. Have a longer timeout since there may be
@@ -99,6 +99,7 @@ constexpr size_t kSeeAttrStrValLen = 64;
 struct SeeAttributes {
   char vendor[kSeeAttrStrValLen];
   char name[kSeeAttrStrValLen];
+  char type[kSeeAttrStrValLen];
   int64_t hwId;
   float maxSampleRate;
   uint8_t streamType;
@@ -107,7 +108,7 @@ struct SeeAttributes {
 
 //! A struct to facilitate making sensor request
 struct SeeSensorRequest {
-  uint8_t sensorType;
+  SensorType sensorType;
   bool enable;
   bool passive;
   float samplingRateHz;
@@ -127,7 +128,7 @@ class SeeHelper : public NonCopyable {
   //! SensorType.
   struct SensorInfo {
     sns_std_suid suid;
-    uint8_t sensorType;
+    SensorType sensorType;
     sns_client *client;
     //! The SUID of the underlying physical sensor, different from suid if
     //! resampler is used.
@@ -163,7 +164,7 @@ class SeeHelper : public NonCopyable {
    *
    * @return true on success
    */
-  bool configureOnChangeSensor(const sns_std_suid &suid, bool enable);
+  bool configureOnChangeSensor(const sns_std_suid& suid, bool enable);
 
   /**
    * A synchronous call to discover SUID(s) that supports the specified data
@@ -206,12 +207,12 @@ class SeeHelper : public NonCopyable {
    *
    * @return true if the attribute was successfully obtained and attr populated.
    */
-  bool getAttributesSync(const sns_std_suid &suid, SeeAttributes *attr);
+  bool getAttributesSync(const sns_std_suid& suid, SeeAttributes *attr);
 
   /**
    * @return the SeeCalHelper instance used by this SeeHelper
    */
-  SeeCalHelper *getCalHelper() const {
+  SeeCalHelper *getCalHelper() {
     return mCalHelper;
   }
 
@@ -242,7 +243,7 @@ class SeeHelper : public NonCopyable {
    *
    * @return true if the request has been successfully made.
    */
-  bool makeRequest(const SeeSensorRequest &request);
+  bool makeRequest(const SeeSensorRequest& request);
 
   /**
    * Makes a sensor flush request to SEE.
@@ -251,7 +252,7 @@ class SeeHelper : public NonCopyable {
    *
    * @return true if the request has been successfully made.
    */
-  bool flush(uint8_t sensorType);
+  bool flush(SensorType sensorType);
 
   /**
    * Register a SensorType with the SUID of the SEE sensor/driver.
@@ -271,7 +272,7 @@ class SeeHelper : public NonCopyable {
    *
    * @return true if the SUID/SensorType pair was successfully registered.
    */
-  bool registerSensor(uint8_t sensorType, const sns_std_suid &suid,
+  bool registerSensor(SensorType sensorType, const sns_std_suid& suid,
                       bool resample, bool *prevRegistered);
 
   /**
@@ -282,13 +283,13 @@ class SeeHelper : public NonCopyable {
    *
    * @return true if the given sensor type has been registered, false otherwise
    */
-  bool sensorIsRegistered(uint8_t sensorType) const;
+  bool sensorIsRegistered(SensorType sensorType) const;
 
  protected:
   struct SnsClientApi {
-    decltype(sns_client_init) *sns_client_init;
+    decltype(sns_client_init)   *sns_client_init;
     decltype(sns_client_deinit) *sns_client_deinit;
-    decltype(sns_client_send) *sns_client_send;
+    decltype(sns_client_send)   *sns_client_send;
   };
 
   //! Contains the API this SeeHelper instance uses to interact with SEE
@@ -303,7 +304,7 @@ class SeeHelper : public NonCopyable {
    * @return A constant reference to the calibration sensor's SUID if present.
    *         Otherwise, a reference to sns_suid_sensor_init_zero is returned.
    */
-  const sns_std_suid &getCalSuidFromSensorType(uint8_t sensorType) const {
+  const sns_std_suid& getCalSuidFromSensorType(SensorType sensorType) const {
     return mCalHelper->getCalSuidFromSensorType(sensorType);
   }
 
@@ -313,15 +314,20 @@ class SeeHelper : public NonCopyable {
    *
    * @see sendReq
    */
-  bool sendReq(const sns_std_suid &suid, void *syncData,
-               const char *syncDataType, uint32_t msgId, void *payload,
-               size_t payloadLen, bool batchValid, uint32_t batchPeriodUs,
-               bool passive, bool waitForIndication,
-               Nanoseconds timeoutResp = kDefaultSeeRespTimeout,
-               Nanoseconds timeoutInd = kDefaultSeeIndTimeout) {
-    return sendReq(mSeeClients[0], suid, syncData, syncDataType, msgId, payload,
-                   payloadLen, batchValid, batchPeriodUs, passive,
-                   waitForIndication, timeoutResp, timeoutInd);
+  bool sendReq(
+      const sns_std_suid& suid,
+      void *syncData, const char *syncDataType,
+      uint32_t msgId, void *payload, size_t payloadLen,
+      bool batchValid, uint32_t batchPeriodUs, bool passive,
+      bool waitForIndication,
+      Nanoseconds timeoutResp = kDefaultSeeRespTimeout,
+      Nanoseconds timeoutInd = kDefaultSeeIndTimeout) {
+    return sendReq(mSeeClients[0], suid,
+                   syncData, syncDataType,
+                   msgId, payload, payloadLen,
+                   batchValid, batchPeriodUs, passive,
+                   waitForIndication,
+                   timeoutResp, timeoutInd);
   }
 
  private:
@@ -436,19 +442,21 @@ class SeeHelper : public NonCopyable {
    * @return true if the request has been sent and the response/indication it's
    *         waiting for has been successfully received
    */
-  bool sendReq(sns_client *client, const sns_std_suid &suid, void *syncData,
-               const char *syncDataType, uint32_t msgId, void *payload,
-               size_t payloadLen, bool batchValid, uint32_t batchPeriodUs,
-               bool passive, bool waitForIndication,
-               Nanoseconds timeoutResp = kDefaultSeeRespTimeout,
-               Nanoseconds timeoutInd = kDefaultSeeIndTimeout);
+  bool sendReq(
+      sns_client *client, const sns_std_suid& suid,
+      void *syncData, const char *syncDataType,
+      uint32_t msgId, void *payload, size_t payloadLen,
+      bool batchValid, uint32_t batchPeriodUs, bool passive,
+      bool waitForIndication,
+      Nanoseconds timeoutResp = kDefaultSeeRespTimeout,
+      Nanoseconds timeoutInd = kDefaultSeeIndTimeout);
 
   /**
    * A helper function that prepares SeeHelper to wait for an indication.
    *
    * @see sendReq
    */
-  void prepareWaitForInd(const sns_std_suid &suid, void *syncData,
+  void prepareWaitForInd(const sns_std_suid& suid, void *syncData,
                          const char *syncDataType);
 
   /**
@@ -463,8 +471,8 @@ class SeeHelper : public NonCopyable {
   /**
    * Handles the payload of a sns_client_event_msg.
    */
-  void handleSnsClientEventMsg(sns_client *client, const void *payload,
-                               size_t payloadLen);
+  void handleSnsClientEventMsg(
+      sns_client *client, const void *payload, size_t payloadLen);
 
   /**
    * Handles a response from SEE for a request sent with the specified
@@ -497,9 +505,9 @@ class SeeHelper : public NonCopyable {
 
   /**
    * @return SensorInfo instance found in mSensorInfos with the given
-   *         sensor type, or nullptr if not found
+   *         SensorType, or nullptr if not found
    */
-  const SensorInfo *getSensorInfo(uint8_t sensorType) const;
+  const SensorInfo *getSensorInfo(SensorType sensorType) const;
 };
 
 #ifdef CHRE_SLPI_UIMG_ENABLED
