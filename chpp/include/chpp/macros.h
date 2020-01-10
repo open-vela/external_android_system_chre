@@ -17,8 +17,6 @@
 #ifndef CHPP_MACROS_H_
 #define CHPP_MACROS_H_
 
-#include <stdlib.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif

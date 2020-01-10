@@ -25,7 +25,6 @@
 
 #include "chpp/log.h"
 #include "chpp/macros.h"
-#include "chpp/memory.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -41,8 +40,8 @@ extern "C" {
  * @defgroup CHPP_TRANSPORT_FLAG
  * @{
  */
-// Set if packet is part of a fragmented datagram, except for the last fragment
-#define CHPP_TRANSPORT_FLAG_UNFINISHED_DATAGRAM 0x01
+// Set if a packet is part of a fragmented message except for the last fragment
+#define CHPP_TRANSPORT_FLAG_UNFINISHED_FRAGMENT 0x01
 // Set for first packet after bootup or to reset after irrecoverable error
 #define CHPP_TRANSPORT_FLAG_RESET 0x02
 // Reserved for future use
