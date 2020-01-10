@@ -9,12 +9,6 @@ include $(CHRE_PREFIX)/external/flatbuffers/flatbuffers.mk
 # Include paths.
 COMMON_CFLAGS += -Iplatform/include
 
-# Common Compiler Flags ########################################################
-
-# Common Source Files ##########################################################
-
-COMMON_SRCS += platform/shared/platform_sensor_util.cc
-
 # SLPI-specific Compiler Flags #################################################
 
 # Include paths.
@@ -42,21 +36,6 @@ SLPI_CFLAGS += $(FLATBUFFERS_CFLAGS)
 ifneq ($(CHRE_ENABLE_ACCEL_CAL), false)
 SLPI_CFLAGS += -DCHRE_ENABLE_ACCEL_CAL
 endif
-
-# SLPI/SMGR-specific Compiler Flags ############################################
-
-# Include paths.
-SLPI_SMGR_CFLAGS += -I$(SLPI_PREFIX)/Sensors/api
-SLPI_SMGR_CFLAGS += -I$(SLPI_PREFIX)/Sensors/common/idl/inc
-SLPI_SMGR_CFLAGS += -I$(SLPI_PREFIX)/Sensors/common/inc
-SLPI_SMGR_CFLAGS += -I$(SLPI_PREFIX)/Sensors/common/smr/inc
-SLPI_SMGR_CFLAGS += -I$(SLPI_PREFIX)/Sensors/common/util/mathtools/inc
-SLPI_SMGR_CFLAGS += -I$(SLPI_PREFIX)/Sensors/goog/api
-SLPI_SMGR_CFLAGS += -I$(SLPI_PREFIX)/Sensors/pm/inc
-
-SLPI_SMGR_CFLAGS += -Iplatform/slpi/smgr/include
-
-SLPI_SMGR_CFLAGS += -DCHRE_SLPI_SMGR
 
 # SLPI/SEE-specific Compiler Flags #############################################
 
@@ -104,6 +83,7 @@ SLPI_SRCS += platform/shared/pal_system_api.cc
 SLPI_SRCS += platform/shared/system_time.cc
 SLPI_SRCS += platform/slpi/chre_api_re.cc
 SLPI_SRCS += platform/slpi/debug_dump.cc
+SLPI_SRCS += platform/slpi/fatal_error.cc
 SLPI_SRCS += platform/slpi/host_link.cc
 SLPI_SRCS += platform/slpi/init.cc
 SLPI_SRCS += platform/slpi/memory.cc
@@ -111,6 +91,7 @@ SLPI_SRCS += platform/slpi/memory_manager.cc
 SLPI_SRCS += platform/slpi/nanoapp_load_manager.cc
 SLPI_SRCS += platform/slpi/platform_nanoapp.cc
 SLPI_SRCS += platform/slpi/platform_pal.cc
+SLPI_SRCS += platform/slpi/platform_sensor_type_helpers.cc
 SLPI_SRCS += platform/slpi/system_time.cc
 SLPI_SRCS += platform/slpi/system_time_util.cc
 SLPI_SRCS += platform/slpi/system_timer.cc
@@ -135,16 +116,10 @@ ifeq ($(CHRE_WWAN_SUPPORT_ENABLED), true)
 SLPI_SRCS += platform/shared/platform_wwan.cc
 endif
 
-# SLPI/SMGR-specific Source Files ##############################################
-
-SLPI_SMGR_SRCS += platform/slpi/smgr/platform_sensor.cc
-SLPI_SMGR_SRCS += platform/slpi/smgr/platform_sensor_util.cc
-SLPI_SMGR_SRCS += platform/slpi/smgr/power_control_manager.cc
-SLPI_SMGR_SRCS += platform/slpi/smgr/smr_helper.cc
-
 # SLPI/SEE-specific Source Files ###############################################
 
 SLPI_SEE_SRCS += platform/slpi/see/platform_sensor.cc
+SLPI_SEE_SRCS += platform/slpi/see/platform_sensor_manager.cc
 SLPI_SEE_SRCS += platform/slpi/see/power_control_manager.cc
 
 ifneq ($(IMPORT_CHRE_UTILS), true)
@@ -181,11 +156,13 @@ SIM_SRCS += platform/linux/memory.cc
 SIM_SRCS += platform/linux/memory_manager.cc
 SIM_SRCS += platform/linux/platform_log.cc
 SIM_SRCS += platform/linux/platform_pal.cc
+SIM_SRCS += platform/linux/platform_sensor_type_helpers.cc
 SIM_SRCS += platform/linux/power_control_manager.cc
 SIM_SRCS += platform/linux/system_time.cc
 SIM_SRCS += platform/linux/system_timer.cc
 SIM_SRCS += platform/linux/platform_nanoapp.cc
 SIM_SRCS += platform/linux/platform_sensor.cc
+SIM_SRCS += platform/linux/platform_sensor_type_helpers.cc
 SIM_SRCS += platform/shared/chre_api_audio.cc
 SIM_SRCS += platform/shared/chre_api_core.cc
 SIM_SRCS += platform/shared/chre_api_gnss.cc
@@ -196,7 +173,9 @@ SIM_SRCS += platform/shared/chre_api_wifi.cc
 SIM_SRCS += platform/shared/chre_api_wwan.cc
 SIM_SRCS += platform/shared/memory_manager.cc
 SIM_SRCS += platform/shared/nanoapp/nanoapp_dso_util.cc
+SIM_SRCS += platform/shared/pal_sensor_stub.cc
 SIM_SRCS += platform/shared/pal_system_api.cc
+SIM_SRCS += platform/shared/platform_sensor_manager.cc
 SIM_SRCS += platform/shared/system_time.cc
 
 # Optional GNSS support.
@@ -285,5 +264,3 @@ GOOGLETEST_CFLAGS += -Iplatform/slpi/include
 GOOGLETEST_SRCS += platform/linux/assert.cc
 GOOGLETEST_SRCS += platform/linux/audio_source.cc
 GOOGLETEST_SRCS += platform/linux/platform_audio.cc
-GOOGLETEST_SRCS += platform/slpi/smgr/platform_sensor_util.cc
-GOOGLETEST_SRCS += platform/slpi/smgr/tests/platform_sensor_util_test.cc
