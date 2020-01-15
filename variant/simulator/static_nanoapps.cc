@@ -14,26 +14,24 @@
  * limitations under the License.
  */
 
-#include "chre/core/static_nanoapps.h"
 #include "chre/apps/apps.h"
+#include "chre/core/static_nanoapps.h"
 #include "chre/util/macros.h"
 
 namespace chre {
 
 //! The default list of static nanoapps to load.
 const StaticNanoappInitFunction kStaticNanoappList[] = {
-    // clang-format off
-    initializeStaticNanoappAudioWorld,
-    initializeStaticNanoappGnssWorld,
-    initializeStaticNanoappHelloWorld,
-    initializeStaticNanoappMessageWorld,
-    initializeStaticNanoappSensorWorld,
-    initializeStaticNanoappSpammer,
-    initializeStaticNanoappTimerWorld,
-    initializeStaticNanoappUnloadTester,
-    initializeStaticNanoappWifiWorld,
-    initializeStaticNanoappWwanWorld,
-    // clang-format on
+  initializeStaticNanoappAudioWorld,
+  initializeStaticNanoappGnssWorld,
+  initializeStaticNanoappHelloWorld,
+  initializeStaticNanoappMessageWorld,
+  initializeStaticNanoappSensorWorld,
+  initializeStaticNanoappSpammer,
+  initializeStaticNanoappTimerWorld,
+  initializeStaticNanoappUnloadTester,
+  initializeStaticNanoappWifiWorld,
+  initializeStaticNanoappWwanWorld,
 };
 
 //! The size of the default static nanoapp list.
