@@ -31,10 +31,6 @@ extern "C" {
 #define MIN(a, b) ((a) < (b)) ? (a) : (b)
 #endif
 
-#ifndef MAX
-#define MAX(a, b) ((a) > (b)) ? (a) : (b)
-#endif
-
 #ifndef CHPP_ASSERT
 #define CHPP_ASSERT(var) assert(var)
 #endif
