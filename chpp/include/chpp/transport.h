@@ -73,14 +73,12 @@ enum ChppErrorCode {
   CHPP_ERROR_NONE = 0,
   // Checksum failure
   CHPP_ERROR_CHECKSUM = 1,
-  // Out of memory
-  CHPP_ERROR_OOM = 2,
+  // Invalid header
+  CHPP_ERROR_HEADER = 2,
   // Busy
   CHPP_ERROR_BUSY = 3,
-  // Invalid header
-  CHPP_ERROR_HEADER = 4,
-  // Out of order
-  CHPP_ERROR_ORDER = 5,
+  // Out of memory
+  CHPP_ERROR_OOM = 4,
 };
 
 /**
@@ -145,18 +143,9 @@ struct ChppRxStatus {
   // Location counter in bytes within each state. Must always be reinitialized
   // to 0 when switching states.
   size_t loc;
-
-  // Next expected sequence number (for a payload-bearing packet)
-  uint8_t expectedSeq;
 };
 
-struct ChppTxStatus {
-  // Last received ACK sequence number (i.e. next expected sequence number for
-  // an outgoing payload-bearing packet)
-  uint8_t ackedSeq;
-};
-
-struct ChppDatagram {
+struct ChppRxDatagram {
   // Length of datagram payload in bytes (A datagram can be constituted from one
   // or more packets)
   size_t length;
@@ -172,12 +161,7 @@ struct ChppTransportState {
   struct ChppRxStatus rxStatus;         // Rx state and location within
   struct ChppTransportHeader rxHeader;  // Rx packet header
   struct ChppTransportFooter rxFooter;  // Rx packet footer (checksum)
-  struct ChppDatagram rxDatagram;       // Rx datagram
-
-  struct ChppTxStatus txStatus;         // Tx state
-  struct ChppTransportHeader txHeader;  // Tx packet header
-  struct ChppTransportFooter txFooter;  // Tx packet footer (checksum)
-  struct ChppDatagram txDatagram;       // Tx datagram
+  struct ChppRxDatagram rxDatagram;     // Rx datagram
 };
 
 /************************************************
