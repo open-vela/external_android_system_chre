@@ -197,7 +197,7 @@ bool SensorRequestManager::setSensorRequest(
           // was successful.
           success = removeRequest(sensor, requestIndex, &requestChanged);
           if (success) {
-            cancelFlushRequests(sensorHandle, nanoapp->getInstanceId());
+            cancelFlushRequests(sensorType, nanoapp->getInstanceId());
 
             nanoapp->unregisterForBroadcastEvent(eventType);
 
@@ -295,7 +295,7 @@ bool SensorRequestManager::removeAllRequests(uint32_t sensorHandle) {
       }
     }
 
-    cancelFlushRequests(sensorHandle);
+    cancelFlushRequests(sensorType);
     success = removeAllRequests(sensor);
   }
 
