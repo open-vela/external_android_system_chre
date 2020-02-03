@@ -22,7 +22,7 @@
 
 namespace {
 
-// Max size of payload sent to chppRxDataCb (bytes)
+// Max size of payload sent to chppRxData (bytes)
 constexpr size_t kMaxChunkSize = 20000;
 
 constexpr size_t kMaxPacketSize = kMaxChunkSize + CHPP_PREAMBLE_LEN_BYTES +
@@ -52,10 +52,6 @@ void chppAddPreamble(uint8_t *buf, size_t loc) {
  */
 class TransportTests : public testing::TestWithParam<int> {
  protected:
-  void SetUp() override {
-    chppTransportInit(&context);
-  }
-
   ChppTransportState context = {};
   uint8_t buf[kMaxPacketSize] = {};
 };
@@ -66,7 +62,7 @@ class TransportTests : public testing::TestWithParam<int> {
 TEST_P(TransportTests, ZeroNoPreambleInput) {
   size_t len = static_cast<size_t>(GetParam());
   if (len <= kMaxChunkSize) {
-    EXPECT_TRUE(chppRxDataCb(&context, buf, len));
+    EXPECT_TRUE(chppRxData(&context, buf, len));
     EXPECT_EQ(context.rxStatus.state, CHPP_STATE_PREAMBLE);
   }
 }
@@ -83,10 +79,10 @@ TEST_P(TransportTests, ZeroThenPreambleInput) {
     chppAddPreamble(buf, MAX(0, len - CHPP_PREAMBLE_LEN_BYTES));
 
     if (len >= CHPP_PREAMBLE_LEN_BYTES) {
-      EXPECT_FALSE(chppRxDataCb(&context, buf, len));
+      EXPECT_FALSE(chppRxData(&context, buf, len));
       EXPECT_EQ(context.rxStatus.state, CHPP_STATE_HEADER);
     } else {
-      EXPECT_TRUE(chppRxDataCb(&context, buf, len));
+      EXPECT_TRUE(chppRxData(&context, buf, len));
       EXPECT_EQ(context.rxStatus.state, CHPP_STATE_PREAMBLE);
     }
   }
@@ -110,7 +106,7 @@ TEST_P(TransportTests, RxPayloadOfZeros) {
     memcpy(buf, &header, sizeof(header));
 
     // Send header and check for correct state
-    EXPECT_FALSE(chppRxDataCb(&context, buf, sizeof(ChppTransportHeader)));
+    EXPECT_FALSE(chppRxData(&context, buf, sizeof(ChppTransportHeader)));
     if (len > 0) {
       EXPECT_EQ(context.rxStatus.state, CHPP_STATE_PAYLOAD);
     } else {
@@ -125,7 +121,7 @@ TEST_P(TransportTests, RxPayloadOfZeros) {
     // Send payload if any and check for correct state
     if (len > 0) {
       EXPECT_FALSE(
-          chppRxDataCb(&context, &buf[sizeof(ChppTransportHeader)], len));
+          chppRxData(&context, &buf[sizeof(ChppTransportHeader)], len));
       EXPECT_EQ(context.rxStatus.state, CHPP_STATE_FOOTER);
     }
 
@@ -133,8 +129,8 @@ TEST_P(TransportTests, RxPayloadOfZeros) {
     EXPECT_EQ(context.rxDatagram.loc, len);
 
     // Send footer and check for correct state
-    EXPECT_TRUE(chppRxDataCb(&context, &buf[sizeof(ChppTransportHeader) + len],
-                             sizeof(ChppTransportFooter)));
+    EXPECT_TRUE(chppRxData(&context, &buf[sizeof(ChppTransportHeader) + len],
+                           sizeof(ChppTransportFooter)));
     EXPECT_EQ(context.rxStatus.state, CHPP_STATE_PREAMBLE);
 
     // Should have reset loc and length for next packet / datagram
