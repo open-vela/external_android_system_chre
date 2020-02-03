@@ -14,17 +14,33 @@
  * limitations under the License.
  */
 
-#include <chre.h>
+#ifndef CHPP_PLATFORM_MUTEX_H_
+#define CHPP_PLATFORM_MUTEX_H_
 
-namespace chre {
+#include <pthread.h>
 
-extern "C" void nanoappHandleEvent(uint32_t senderInstanceId,
-                                   uint16_t eventType, const void *eventData) {}
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-extern "C" bool nanoappStart(void) {
-  return true;
+struct ChppMutex {
+  pthread_mutex_t lock;
+};
+
+static inline void chppMutexInit(struct ChppMutex *mutex) {
+  pthread_mutex_init(&mutex->lock, NULL);
 }
 
-extern "C" void nanoappEnd(void) {}
+static inline void chppMutexLock(struct ChppMutex *mutex) {
+  pthread_mutex_lock(&mutex->lock);
+}
 
-}  // namespace chre
+static inline void chppMutexUnlock(struct ChppMutex *mutex) {
+  pthread_mutex_unlock(&mutex->lock);
+}
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif  // CHPP_PLATFORM_MUTEX_H_
