@@ -82,8 +82,6 @@ enum ChppErrorCode {
   CHPP_ERROR_HEADER = 4,
   // Out of order
   CHPP_ERROR_ORDER = 5,
-  // Timeout (implicit, deduced and used internally only)
-  CHPP_ERROR_TIMEOUT = 0xF,
 };
 
 /**
@@ -151,9 +149,6 @@ struct ChppRxStatus {
 
   // Next expected sequence number (for a payload-bearing packet)
   uint8_t expectedSeq;
-
-  // Error code, if any, of the last received packet
-  enum ChppErrorCode receivedErrorCode;
 };
 
 struct ChppTxStatus {
@@ -228,14 +223,6 @@ void chppTransportInit(struct ChppTransportState *context);
  */
 bool chppRxDataCb(struct ChppTransportState *context, const uint8_t *buf,
                   size_t len);
-
-/**
- * Callback function for the timer that detects timeouts during transmit
- *
- * @param context Is used to maintain status. Must be provided and initialized
- * through chppTransportInit for each transport layer instance. Cannot be null.
- */
-void chppTxTimeoutTimerCb(struct ChppTransportState *context);
 
 #ifdef __cplusplus
 }
