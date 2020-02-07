@@ -47,11 +47,6 @@ class Manager {
     DISABLED,
   };
 
-  enum class TestStep : uint8_t {
-    SETUP = 0,
-    START,
-  };
-
   /**
    * Handles an event from CHRE. Semantics are the same as nanoappHandleEvent.
    */
@@ -63,14 +58,11 @@ class Manager {
     uint16_t hostEndpointId;
     Feature feature;
     FeatureState featureState;
-    TestStep step;
 
-    TestSession(uint16_t id, Feature feature, FeatureState state,
-                TestStep step) {
+    TestSession(uint16_t id, Feature feature, FeatureState state) {
       this->hostEndpointId = id;
       this->feature = feature;
       this->featureState = state;
-      this->step = step;
     }
   };
 
@@ -96,10 +88,9 @@ class Manager {
    * @param hostEndpointId The test host endpoint ID.
    * @param feature The feature to test.
    * @param state The feature state.
-   * @param step The test step.
    */
   void handleStartTestMessage(uint16_t hostEndpointId, Feature feature,
-                              FeatureState state, TestStep step);
+                              FeatureState state);
 
   /**
    * Processes data from CHRE.
@@ -139,11 +130,6 @@ class Manager {
   void handleWwanCellInfoResult(const chreWwanCellInfoResult *result);
 
   /**
-   * @param result The WiFi scan event result.
-   */
-  void handleWifiScanResult(const chreWifiScanEvent *result);
-
-  /**
    * End the current test session and sends result to host.
    *
    * @param hostEndpointId The host to send the result to.
@@ -153,9 +139,6 @@ class Manager {
 
   //! The current test session.
   chre::Optional<TestSession> mTestSession;
-
-  //! The cached target to issue an RTT ranging request.
-  chre::Optional<chreWifiRangingTarget> mCachedRangingTarget;
 };
 
 // The settings test manager singleton.
