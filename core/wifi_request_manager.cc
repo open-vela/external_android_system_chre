@@ -19,7 +19,6 @@
 #include <cstring>
 
 #include "chre/core/event_loop_manager.h"
-#include "chre/core/settings.h"
 #include "chre/core/wifi_request_manager.h"
 #include "chre/platform/fatal_error.h"
 #include "chre/platform/log.h"
@@ -93,16 +92,11 @@ bool WifiRequestManager::requestRanging(
 
     if (mPendingRangingRequests.size() == 1) {
       // First in line; dispatch request immediately
-      if (getSettingState(Setting::LOCATION) == SettingState::DISABLED) {
-        // Treat as success but post async failure per API.
-        success = true;
-        postRangingAsyncResult(CHRE_ERROR_FUNCTION_DISABLED);
-        mPendingRangingRequests.pop_back();
-      } else if (!mPlatformWifi.requestRanging(params)) {
+      success = mPlatformWifi.requestRanging(params);
+      if (!success) {
         LOGE("WiFi RTT request failed");
         mPendingRangingRequests.pop_back();
       } else {
-        success = true;
         mRangingResponseTimeout =
             SystemTime::getMonotonicTime() +
             Nanoseconds(CHRE_WIFI_RANGING_RESULT_TIMEOUT_NS);
@@ -608,16 +602,12 @@ bool WifiRequestManager::dispatchQueuedRangingRequest() {
   params.targetListLen = static_cast<uint8_t>(req.targetList.size());
   params.targetList = req.targetList.data();
 
-  bool success = false;
-  if (getSettingState(Setting::LOCATION) == SettingState::DISABLED) {
-    postRangingAsyncResult(CHRE_ERROR_FUNCTION_DISABLED);
-    mPendingRangingRequests.pop();
-  } else if (!mPlatformWifi.requestRanging(&params)) {
+  bool success = mPlatformWifi.requestRanging(&params);
+  if (!success) {
     LOGE("Failed to issue queued ranging result");
     postRangingAsyncResult(CHRE_ERROR);
     mPendingRangingRequests.pop();
   } else {
-    success = true;
     mRangingResponseTimeout = SystemTime::getMonotonicTime() +
                               Nanoseconds(CHRE_WIFI_RANGING_RESULT_TIMEOUT_NS);
   }
@@ -627,16 +617,9 @@ bool WifiRequestManager::dispatchQueuedRangingRequest() {
 
 void WifiRequestManager::handleRangingEventSync(
     uint8_t errorCode, struct chreWifiRangingEvent *event) {
-  if (getSettingState(Setting::LOCATION) == SettingState::DISABLED) {
-    errorCode = CHRE_ERROR_FUNCTION_DISABLED;
-  }
-
   if (postRangingAsyncResult(errorCode)) {
     if (errorCode != CHRE_ERROR_NONE) {
       LOGW("RTT ranging failed with error %d", errorCode);
-      if (event != nullptr) {
-        freeWifiRangingEventCallback(CHRE_EVENT_WIFI_RANGING_RESULT, event);
-      }
     } else {
       EventLoopManagerSingleton::get()->getEventLoop().postEventOrDie(
           CHRE_EVENT_WIFI_RANGING_RESULT, event, freeWifiRangingEventCallback,
