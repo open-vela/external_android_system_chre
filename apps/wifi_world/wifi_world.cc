@@ -143,8 +143,6 @@ void logChreRangingResult(const chreWifiRangingResult &result) {
     bssidStr = bssidBuffer;
   }
   LOGI("BSSID %s", bssidStr);
-  LOGI("  age: %" PRIu64 " ms",
-       (chreGetTime() - result.timestamp) / kOneMillisecondInNanoseconds);
 
   if (result.status != CHRE_WIFI_RANGING_STATUS_SUCCESS) {
     LOGE("  ranging failed");
@@ -153,7 +151,8 @@ void logChreRangingResult(const chreWifiRangingResult &result) {
     LOGI("  distance: %" PRIu32 " mm", result.distance);
     LOGI("  distanceStdDev: %" PRIu32 " mm", result.distanceStdDev);
 
-    if (result.flags & CHRE_WIFI_RTT_RESULT_HAS_LCI) {
+    if ((result.flags & CHRE_WIFI_RTT_RESULT_HAS_LCI) ==
+        CHRE_WIFI_RTT_RESULT_HAS_LCI) {
       const chreWifiRangingResult::chreWifiLci lci = result.lci;
       LOGI("  latitude: 0x%" PRIx64 ", %f degs", lci.latitude,
            lci.latitude / static_cast<float>(1 << 25));
