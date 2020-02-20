@@ -19,8 +19,6 @@
 
 #include <cinttypes>
 
-#include "chre/util/system/debug_dump.h"
-
 namespace chre {
 
 enum class Setting : uint8_t {
@@ -52,14 +50,6 @@ void postSettingChange(Setting setting, SettingState state);
  * setting is invalid.
  */
 SettingState getSettingState(Setting setting);
-
-/**
- * Logs the settings related stats in the debug dump. Must be called from the
- * context of the main CHRE thread.
- *
- * @param debugDump The object that is printed into for debug dump logs.
- */
-void logSettingStateToBuffer(DebugDumpWrapper &debugDump);
 
 }  // namespace chre
 

@@ -160,18 +160,16 @@ void validatePrimaryChannel(uint32_t primaryChannel, uint32_t startFrequency,
                             uint8_t maxChannelNumber) {
   if ((primaryChannel - startFrequency) % 5 != 0) {
     chreLog(CHRE_LOG_ERROR,
-            "primaryChannel - %" PRIu32
-            " must be a multiple of 5,"
-            "got primaryChannel: %" PRIu32,
+            "primaryChannel - %d must be a multiple of 5,"
+            "got primaryChannel: %d",
             startFrequency, primaryChannel);
   }
 
   uint32_t primaryChannelNumber = (primaryChannel - startFrequency) / 5;
   if (primaryChannelNumber < 1 || primaryChannelNumber > maxChannelNumber) {
     chreLog(CHRE_LOG_ERROR,
-            "primaryChannelNumber must be between 1 and %" PRIu8
-            ","
-            "got primaryChannel: %" PRIu32,
+            "primaryChannelNumber must be between 1 and %d,"
+            "got primaryChannel: %d",
             maxChannelNumber, primaryChannel);
   }
 }
@@ -476,8 +474,7 @@ void BasicWifiTest::validateWifiScanEvent(const chreWifiScanEvent *eventData) {
   }
 
   if (mNextExpectedIndex != eventData->eventIndex) {
-    chreLog(CHRE_LOG_ERROR,
-            "Expected index: %" PRIu32 ", received index: %" PRIu8,
+    chreLog(CHRE_LOG_ERROR, "Expected index: %d, received index: %d",
             mNextExpectedIndex, eventData->eventIndex);
     sendFatalFailureToHost("Received out-of-order events");
   }
@@ -487,8 +484,7 @@ void BasicWifiTest::validateWifiScanEvent(const chreWifiScanEvent *eventData) {
     mWiFiScanResultRemaining = eventData->resultTotal;
   }
   if (mWiFiScanResultRemaining < eventData->resultCount) {
-    chreLog(CHRE_LOG_ERROR,
-            "Remaining scan results %" PRIu32 ", received %" PRIu8,
+    chreLog(CHRE_LOG_ERROR, "Remaining scan results %d, received %d",
             mWiFiScanResultRemaining, eventData->resultCount);
     sendFatalFailureToHost("Received too many WiFi scan results");
   }

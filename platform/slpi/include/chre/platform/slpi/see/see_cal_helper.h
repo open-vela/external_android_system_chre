@@ -67,30 +67,15 @@ class SeeCalHelper : public NonCopyable {
                struct chreSensorThreeAxisData *biasData) const;
 
   /**
-   * @return Whether calibration updates are enabled for the given SUID.
-   */
-  bool areCalUpdatesEnabled(const sns_std_suid &suid) const;
-
-  /**
-   * Configures calibration updates for the given SUID.
-   *
-   * @param suid The cached SUID of a calibration sensor
-   * @param enable Whether to enable or disable updates
-   * @param helper SeeHelper used to configure updates
-   * @return true if updates were successfully configured
-   */
-  bool configureCalUpdates(const sns_std_suid &suid, bool enable,
-                           SeeHelper &helper);
-
-  /**
    * Get the cached SUID of a calibration sensor that corresponds to the
    * specified sensorType.
    *
-   * @param sensorType The sensor type of the calibration sensor
+   * @param sensorType The sensor type of the calibration sensor.
    *
-   * @return If found, a valid pointer to the SUID. Otherwise, nullptr.
+   * @return A constant reference to the calibration sensor's SUID if present.
+   *         Otherwise, a reference to sns_suid_sensor_init_zero is returned.
    */
-  const sns_std_suid *getCalSuidFromSensorType(uint8_t sensorType) const;
+  const sns_std_suid &getCalSuidFromSensorType(uint8_t sensorType) const;
 
   /**
    * Uses the supplied SeeHelper instance to register for updates to all
@@ -153,7 +138,6 @@ class SeeCalHelper : public NonCopyable {
   struct SeeCalInfo {
     Optional<sns_std_suid> suid;
     SeeCalData cal;
-    bool enabled = false;
   };
 
   //! The list of SEE cal sensors supported.

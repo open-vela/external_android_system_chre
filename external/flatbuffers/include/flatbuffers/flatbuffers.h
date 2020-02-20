@@ -54,7 +54,10 @@
   #include "chre/util/unique_ptr.h"
 
   #ifndef CHRE_ASSERT_USES_STDLIB_ASSERT
-    #pragma push_macro("assert")
+    #ifdef assert
+      #define FLATBUFFERS_PRIOR_ASSERT assert
+      #undef assert
+    #endif
     #define assert CHRE_ASSERT
   #endif  // CHRE_ASSERT_USES_STDLIB_ASSERT
 #endif  // FLATBUFFERS_CHRE
@@ -1943,7 +1946,10 @@ volatile __attribute__((weak)) const char *flatbuffer_version_string =
 
 #ifdef FLATBUFFERS_CHRE
   #ifndef CHRE_ASSERT_USES_STDLIB_ASSERT
-    #pragma pop_macro("assert")
+    #undef assert
+    #ifdef FLATBUFFERS_PRIOR_ASSERT
+      #define assert FLATBUFFERS_PRIOR_ASSERT
+    #endif
   #endif  // define CHRE_ASSERT_USES_STDLIB_ASSERT
 #endif
 

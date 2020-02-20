@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 The Android Open Source Project
+ * Copyright (C) 2020 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,20 +14,14 @@
  * limitations under the License.
  */
 
-#include "generic_context_hub_v1_0.h"
+#include "chpp/link.h"
+#include "chpp/macros.h"
 
-namespace android {
-namespace hardware {
-namespace contexthub {
-namespace V1_0 {
-namespace implementation {
-
-extern "C" V1_0::IContexthub *HIDL_FETCH_IContexthub(const char * /* name */) {
-  return new GenericContextHub();
+bool chppPlatformLinkSend(struct ChppPlatformLinkParameters *params,
+                          uint8_t *buf, size_t len) {
+  // TODO
+  UNUSED_VAR(params);
+  UNUSED_VAR(buf);
+  UNUSED_VAR(len);
+  return params->sync;
 }
-
-}  // namespace implementation
-}  // namespace V1_0
-}  // namespace contexthub
-}  // namespace hardware
-}  // namespace android

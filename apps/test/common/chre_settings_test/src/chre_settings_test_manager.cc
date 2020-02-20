@@ -101,11 +101,6 @@ bool getTestStep(const chre_settings_test_TestCommand &command,
   return success;
 }
 
-bool isTestSupported() {
-  // CHRE settings requirements were introduced in CHRE v1.4
-  return chreGetVersion() >= CHRE_API_VERSION_1_4;
-}
-
 }  // anonymous namespace
 
 void Manager::handleEvent(uint32_t senderInstanceId, uint16_t eventType,
@@ -203,8 +198,8 @@ void Manager::handleMessageFromHost(uint32_t senderInstanceId,
 
 void Manager::handleStartTestMessage(uint16_t hostEndpointId, Feature feature,
                                      FeatureState state, TestStep step) {
-  // If the test/feature is not supported, treat as success and skip the test.
-  if (!isTestSupported() || !isFeatureSupported(feature)) {
+  // If the feature is not supported, treat as success and skip the test.
+  if (!isFeatureSupported(feature)) {
     sendTestResult(hostEndpointId, true /* success */);
   } else {
     bool success = false;
