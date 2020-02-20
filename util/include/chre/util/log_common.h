@@ -17,8 +17,6 @@
 #ifndef CHRE_UTIL_LOG_COMMON_H_
 #define CHRE_UTIL_LOG_COMMON_H_
 
-#include <chre/toolchain.h>
-
 #include "chre/util/toolchain.h"
 
 /**

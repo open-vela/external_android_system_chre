@@ -21,6 +21,8 @@
 #define LOG_TAG "CHRE"
 #endif
 
+#include "chre/util/log_common.h"
+
 #include <log/log.h>
 
 /**
@@ -43,9 +45,6 @@
 #define LOGD(format, ...) CHRE_LOG(LOG_DEBUG, stdout, format, ##__VA_ARGS__)
 
 #if LOG_NDEBUG
-__attribute__((format(printf, 1, 2))) inline void chreLogNull(
-    const char * /*fmt*/, ...) {}
-
 #define LOGV(format, ...) chreLogNull(format, ##__VA_ARGS__)
 #else
 #define LOGV(format, ...) CHRE_LOG(LOG_VERBOSE, stdout, format, ##__VA_ARGS__)

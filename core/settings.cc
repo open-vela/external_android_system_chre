@@ -53,21 +53,6 @@ void setSettingState(Setting setting, SettingState state) {
   }
 }
 
-const char *getSettingStateString(Setting setting) {
-  switch (getSettingState(Setting::LOCATION)) {
-    case SettingState::ENABLED:
-      return "enabled";
-      break;
-    case SettingState::DISABLED:
-      return "disabled";
-      break;
-    default:
-      break;
-  }
-
-  return "unknown";
-}
-
 }  // anonymous namespace
 
 void postSettingChange(Setting setting, SettingState state) {
@@ -87,10 +72,8 @@ void postSettingChange(Setting setting, SettingState state) {
     NestedDataPtr<SettingChange> setting;
     setting.dataPtr = data;
     setSettingState(setting.data.setting, setting.data.state);
-#ifdef CHRE_GNSS_SUPPORT_ENABLED
     EventLoopManagerSingleton::get()->getGnssManager().onSettingChanged(
         setting.data.setting, setting.data.state);
-#endif  // CHRE_GNSS_SUPPORT_ENABLED
   };
 
   EventLoopManagerSingleton::get()->deferCallback(
@@ -105,11 +88,6 @@ SettingState getSettingState(Setting setting) {
 
   LOGE("Unknown setting %" PRIu8, setting);
   return SettingState::SETTING_STATE_MAX;
-}
-
-void logSettingStateToBuffer(DebugDumpWrapper &debugDump) {
-  debugDump.print("\nSettings:");
-  debugDump.print("\n Location %s", getSettingStateString(Setting::LOCATION));
 }
 
 }  // namespace chre
