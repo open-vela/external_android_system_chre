@@ -34,9 +34,12 @@
 
 #define CHRE_LOG_EPILOGUE _Pragma("GCC diagnostic pop")
 
-// Enable printf-style compiler warnings for mismatched format string and args
-#define CHRE_PRINTF_ATTR(formatPos, argStart) \
-  __attribute__((format(printf, formatPos, argStart)))
+// Allows using deprecated APIs locally.
+#define CHRE_DEPRECATED_PREAMBLE \
+  _Pragma("GCC diagnostic push") \
+      _Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
+
+#define CHRE_DEPRECATED_EPILOGUE _Pragma("GCC diagnostic pop")
 
 #else  // if !defined(__GNUC__) && !defined(__clang__)
 
