@@ -39,12 +39,10 @@ static void chppRegisterRxAck(struct ChppTransportState *context);
 
 static void chppEnqueueTxPacket(struct ChppTransportState *context,
                                 enum ChppErrorCode errorCode);
-size_t chppAddPreamble(uint8_t *buf);
-uint32_t chppCalculateChecksum(uint8_t *buf, size_t len);
+static size_t chppAddPreamble(uint8_t *buf);
+static uint32_t chppCalculateChecksum(uint8_t *buf, size_t len);
 bool chppDequeueTxDatagram(struct ChppTransportState *context);
 void chppTransportDoWork(struct ChppTransportState *context);
-void chppAppendToPendingTxPacket(struct PendingTxPacket *packet,
-                                 const uint8_t *buf, size_t len);
 
 /************************************************
  *  Private Functions
@@ -55,7 +53,8 @@ void chppAppendToPendingTxPacket(struct PendingTxPacket *packet,
  * counter among that state (rxStatus.locInState) is also reset at the same
  * time.
  *
- * @param context Maintains status for each transport layer instance.
+ * @param context Is used to maintain status. Must be provided and initialized
+ * through chppTransportInit for each transport layer instance. Cannot be null.
  * @param newState Next Rx state
  */
 static void chppSetRxState(struct ChppTransportState *context,
@@ -73,7 +72,8 @@ static void chppSetRxState(struct ChppTransportState *context,
  * Any future backwards-incompatible versions of CHPP Transport will use a
  * different preamble.
  *
- * @param context Maintains status for each transport layer instance.
+ * @param context Is used to maintain status. Must be provided and initialized
+ * through chppTransportInit for each transport layer instance. Cannot be null.
  * @param buf Input data
  * @param len Length of input data in bytes
  *
@@ -119,7 +119,8 @@ static size_t chppConsumePreamble(struct ChppTransportState *context,
  * stream.
  * Moves the Rx state to CHPP_STATE_PAYLOAD afterwards.
  *
- * @param context Maintains status for each transport layer instance.
+ * @param context Is used to maintain status. Must be provided and initialized
+ * through chppTransportInit for each transport layer instance. Cannot be null.
  * @param buf Input data
  * @param len Length of input data in bytes
  *
@@ -140,10 +141,10 @@ static size_t chppConsumeHeader(struct ChppTransportState *context,
   if (context->rxStatus.locInState == sizeof(struct ChppTransportHeader)) {
     // Header fully copied. Move on
 
-    enum ChppErrorCode headerCheckResult = chppRxHeaderCheck(context);
-    if (headerCheckResult != CHPP_ERROR_NONE) {
+    enum ChppErrorCode headerSanity = chppRxHeaderCheck(context);
+    if (headerSanity != CHPP_ERROR_NONE) {
       // Header fails sanity check. NACK and return to preamble state
-      chppEnqueueTxPacket(context, headerCheckResult);
+      chppEnqueueTxPacket(context, headerSanity);
       chppSetRxState(context, CHPP_STATE_PREAMBLE);
 
     } else {
@@ -191,7 +192,8 @@ static size_t chppConsumeHeader(struct ChppTransportState *context,
  * by the header, from the incoming data stream.
  * Moves the Rx state to CHPP_STATE_FOOTER afterwards.
  *
- * @param context Maintains status for each transport layer instance.
+ * @param context Is used to maintain status. Must be provided and initialized
+ * through chppTransportInit for each transport layer instance. Cannot be null.
  * @param buf Input data
  * @param len Length of input data in bytes
  *
@@ -224,7 +226,8 @@ static size_t chppConsumePayload(struct ChppTransportState *context,
  * stream. Checks checksum, triggering the correct response (ACK / NACK).
  * Moves the Rx state to CHPP_STATE_PREAMBLE afterwards.
  *
- * @param context Maintains status for each transport layer instance.
+ * @param context Is used to maintain status. Must be provided and initialized
+ * through chppTransportInit for each transport layer instance. Cannot be null.
  * @param buf Input data
  * @param len Length of input data in bytes
  *
@@ -308,7 +311,8 @@ static size_t chppConsumeFooter(struct ChppTransportState *context,
  * Process the payload of a validated payload-bearing packet and send out the
  * ACK
  *
- * @param context Maintains status for each transport layer instance.
+ * @param context Is used to maintain status. Must be provided and initialized
+ * through chppTransportInit for each transport layer instance. Cannot be null.
  */
 static void chppProcessRxPayload(struct ChppTransportState *context) {
   if (context->rxHeader.flags & CHPP_TRANSPORT_FLAG_UNFINISHED_DATAGRAM) {
@@ -343,7 +347,8 @@ static void chppProcessRxPayload(struct ChppTransportState *context) {
 /**
  * Validates the checksum of an incoming packet.
  *
- * @param context Maintains status for each transport layer instance.
+ * @param context Is used to maintain status. Must be provided and initialized
+ * through chppTransportInit for each transport layer instance. Cannot be null.
  *
  * @return True if and only if the checksum is correct
  */
@@ -359,7 +364,8 @@ static bool chppRxChecksumIsOk(const struct ChppTransportState *context) {
  * Performs sanity check on received packet header. Discards packet if header is
  * obviously corrupt / invalid.
  *
- * @param context Maintains status for each transport layer instance.
+ * @param context Is used to maintain status. Must be provided and initialized
+ * through chppTransportInit for each transport layer instance. Cannot be null.
  *
  * @return True if and only if header passes sanity check
  */
@@ -384,7 +390,8 @@ static enum ChppErrorCode chppRxHeaderCheck(
  * Registers a received ACK. If an outgoing datagram is fully ACKed, it is
  * popped from the Tx queue.
  *
- * @param context Maintains status for each transport layer instance.
+ * @param context Is used to maintain status. Must be provided and initialized
+ * through chppTransportInit for each transport layer instance. Cannot be null.
  */
 static void chppRegisterRxAck(struct ChppTransportState *context) {
   if (context->txStatus.ackedSeq != context->rxHeader.ackSeq) {
@@ -424,7 +431,8 @@ static void chppRegisterRxAck(struct ChppTransportState *context) {
  * would only need to send an ACK for the last (correct) packet, hence we only
  * need a queue length of one here.
  *
- * @param context Maintains status for each transport layer instance.
+ * @param context Is used to maintain status. Must be provided and initialized
+ * through chppTransportInit for each transport layer instance. Cannot be null.
  * @param errorCode Error code for the next outgoing packet
  */
 static void chppEnqueueTxPacket(struct ChppTransportState *context,
@@ -432,8 +440,7 @@ static void chppEnqueueTxPacket(struct ChppTransportState *context,
   context->txStatus.hasPacketsToSend = true;
   context->txStatus.errorCodeToSend = errorCode;
 
-  // Notifies the main CHPP Transport Layer to run chppTransportDoWork().
-  chppNotifierEvent(&context->notifier);
+  // TODO: Notify chppTransportDoWork
 }
 
 /**
@@ -443,7 +450,7 @@ static void chppEnqueueTxPacket(struct ChppTransportState *context,
  *
  * @return Size of the added preamble
  */
-size_t chppAddPreamble(uint8_t *buf) {
+static size_t chppAddPreamble(uint8_t *buf) {
   for (size_t i = 0; i < CHPP_PREAMBLE_LEN_BYTES; i++) {
     buf[i] = (uint8_t)(CHPP_PREAMBLE_DATA >> (CHPP_PREAMBLE_LEN_BYTES - 1 - i) &
                        0xff);
@@ -459,7 +466,7 @@ size_t chppAddPreamble(uint8_t *buf) {
  *
  * @return Calculated checksum.
  */
-uint32_t chppCalculateChecksum(uint8_t *buf, size_t len) {
+static uint32_t chppCalculateChecksum(uint8_t *buf, size_t len) {
   // TODO
 
   UNUSED_VAR(buf);
@@ -471,7 +478,8 @@ uint32_t chppCalculateChecksum(uint8_t *buf, size_t len) {
  * Dequeues the datagram at the front of the datagram tx queue, if any, and
  * frees the payload. Returns false if the queue is empty.
  *
- * @param context Maintains status for each transport layer instance.
+ * @param context Is used to maintain status. Must be provided and initialized
+ * through chppTransportInit for each transport layer instance. Cannot be null.
  * @return True indicates success. False indicates failure, i.e. the queue was
  * empty.
  */
@@ -502,7 +510,7 @@ bool chppDequeueTxDatagram(struct ChppTransportState *context) {
 
 /**
  * Sends out a pending outgoing packet based on a notification from
- * chppEnqueueTxPacket().
+ * chppEnqueueTxPacket.
  *
  * A payload may or may not be included be according the following:
  * No payload: If Tx datagram queue is empty OR we are waiting on a pending ACK.
@@ -511,35 +519,32 @@ bool chppDequeueTxDatagram(struct ChppTransportState *context) {
  * Repeat payload: If we haven't received an ACK yet for our previous payload,
  * i.e. we have registered an explicit or implicit NACK.
  *
- * @param context Maintains status for each transport layer instance.
+ * @param context Is used to maintain status. Must be provided and initialized
+ * through chppTransportInit for each transport layer instance. Cannot be null.
  */
 void chppTransportDoWork(struct ChppTransportState *context) {
   // Note: For a future ACK window >1, there needs to be a loop outside the lock
 
-  LOGD(
-      "chppTransportDoWork start, (state = %d, packets to send = %d, link busy "
-      "= %d)",
-      context->rxStatus.state, context->txStatus.hasPacketsToSend,
-      context->txStatus.linkBusy);
-
   chppMutexLock(&context->mutex);
 
-  if (context->txStatus.hasPacketsToSend && !context->txStatus.linkBusy) {
-    // There are pending outgoing packets and the link isn't busy
-    context->txStatus.linkBusy = true;
+  if (context->txStatus.hasPacketsToSend) {
+    // There are pending outgoing packets
 
-    context->pendingTxPacket.length = 0;
-    memset(&context->pendingTxPacket.payload, 0, CHPP_LINK_MTU_BYTES);
+    // Lock linkLayerMutex before modifying packetToSend
+    chppMutexLock(&context->linkLayerMutex);
+
+    context->packetToSend.length = 0;
+    memset(&context->packetToSend.payload, 0, CHPP_LINK_MTU_BYTES);
 
     // Add preamble
-    context->pendingTxPacket.length +=
-        chppAddPreamble(&context->pendingTxPacket.payload[0]);
+    context->packetToSend.length +=
+        chppAddPreamble(&context->packetToSend.payload[0]);
 
     // Add header
     struct ChppTransportHeader *txHeader =
-        (struct ChppTransportHeader *)&context->pendingTxPacket
-            .payload[context->pendingTxPacket.length];
-    context->pendingTxPacket.length += sizeof(*txHeader);
+        (struct ChppTransportHeader *)&context->packetToSend
+            .payload[context->packetToSend.length];
+    context->packetToSend.length += sizeof(*txHeader);
 
     txHeader->errorCode = context->txStatus.errorCodeToSend;
     txHeader->ackSeq = context->rxStatus.expectedSeq;
@@ -574,12 +579,12 @@ void chppTransportDoWork(struct ChppTransportState *context) {
       }
 
       // Copy payload
-      chppAppendToPendingTxPacket(
-          &context->pendingTxPacket,
-          context->txDatagramQueue.datagram[context->txDatagramQueue.front]
-                  .payload +
-              context->txStatus.sentLocInDatagram,
-          txHeader->length);
+      memcpy(&context->packetToSend.payload[context->packetToSend.length],
+             context->txDatagramQueue.datagram[context->txDatagramQueue.front]
+                     .payload +
+                 context->txStatus.sentLocInDatagram,
+             txHeader->length);
+      context->packetToSend.length += txHeader->length;
 
       context->txStatus.sentLocInDatagram += txHeader->length;
 
@@ -592,41 +597,26 @@ void chppTransportDoWork(struct ChppTransportState *context) {
     chppMutexUnlock(&context->mutex);
 
     // Populate checksum
-    uint32_t checksum = chppCalculateChecksum(context->pendingTxPacket.payload,
-                                              context->pendingTxPacket.length);
-    chppAppendToPendingTxPacket(&context->pendingTxPacket, (uint8_t *)&checksum,
-                                sizeof(checksum));
+    uint32_t *checksum = (uint32_t *)&context->packetToSend
+                             .payload[context->packetToSend.length];
+    context->packetToSend.length += sizeof(*checksum);
+    *checksum = chppCalculateChecksum(context->packetToSend.payload,
+                                      context->packetToSend.length);
 
-    // Send out the packet
-    if (chppPlatformLinkSend(&context->linkParams,
-                             context->pendingTxPacket.payload,
-                             context->pendingTxPacket.length)) {
-      // Platform implementation for platformLinkSend() is synchronous.
-      // Otherwise, it is up to the platform implementation to call
-      // chppLinkSendDoneCb() after processing the contents of pendingTxPacket.
-      chppLinkSendDoneCb(&context->linkParams);
-    }  // else {Platform implementation for platformLinkSend() is asynchronous}
+    // TODO: Send out notification to function that sends out the packet.
+    // context->linkLayerMutex must be unlocked by the function that is actually
+    // sending out the packet, and only after it is done sending.
+
+    // TODO: Do we even need linkLayerMutex? We'll see once the new approach
+    // to signalling is in.
+
+    // TODO: For now, unlocking here, but remove once above is addressed
+    chppMutexUnlock(&context->linkLayerMutex);
 
   } else {
-    // Either there are no pending outgoing packets or we are blocked on the
-    // link layer.
+    // There are no pending outgoing packets. Unlock mutex.
     chppMutexUnlock(&context->mutex);
   }
-}
-
-/**
- * Appends data from a buffer of length len to a PendingTxPacket, updating its
- * length.
- *
- * @param packet The PendingTxBuffer to be appended to.
- * @param buf Input data to be copied from.
- * @param len Length of input data in bytes.
- */
-void chppAppendToPendingTxPacket(struct PendingTxPacket *packet,
-                                 const uint8_t *buf, size_t len) {
-  CHPP_ASSERT(packet->length + len <= sizeof(packet->payload));
-  memcpy(&packet->payload[packet->length], buf, len);
-  packet->length += len;
 }
 
 /************************************************
@@ -638,7 +628,6 @@ void chppTransportInit(struct ChppTransportState *context) {
 
   memset(context, 0, sizeof(struct ChppTransportState));
   chppMutexInit(&context->mutex);
-  chppNotifierInit(&context->notifier);
 }
 
 bool chppRxDataCb(struct ChppTransportState *context, const uint8_t *buf,
@@ -727,24 +716,4 @@ bool chppEnqueueTxDatagram(struct ChppTransportState *context, size_t len,
   chppMutexUnlock(&context->mutex);
 
   return success;
-}
-
-void chppWorkThreadStart(struct ChppTransportState *context) {
-  while (chppNotifierWait(&context->notifier)) {
-    chppTransportDoWork(context);
-  }
-}
-
-void chppWorkThreadStop(struct ChppTransportState *context) {
-  chppNotifierExit(&context->notifier);
-}
-
-void chppLinkSendDoneCb(struct ChppPlatformLinkParameters *params) {
-  struct ChppTransportState *context =
-      container_of(params, struct ChppTransportState, linkParams);
-
-  context->txStatus.linkBusy = false;
-  if (context->txStatus.hasPacketsToSend) {
-    chppNotifierEvent(&context->notifier);
-  }
 }
