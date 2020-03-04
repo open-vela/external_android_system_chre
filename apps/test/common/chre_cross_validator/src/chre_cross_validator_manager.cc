@@ -71,8 +71,7 @@ void Manager::handleEvent(uint32_t senderInstanceId, uint16_t eventType,
     // type for current test.
     case CHRE_EVENT_SENSOR_ACCELEROMETER_DATA:
       handleSensorThreeAxisData(
-          static_cast<const chreSensorThreeAxisData *>(eventData),
-          chre_cross_validation_SensorType_ACCELEROMETER);
+          static_cast<const chreSensorThreeAxisData *>(eventData));
       break;
     default:
       LOGE("Got unknown event type from senderInstanceId %" PRIu32
@@ -226,12 +225,11 @@ void Manager::handleMessageFromHost(uint32_t senderInstanceId,
   }
 }
 
-chre_cross_validation_Data Manager::makeSensorThreeAxisData(
-    const chreSensorThreeAxisData *threeAxisDataFromChre,
-    chre_cross_validation_SensorType sensorType) {
+chre_cross_validation_Data Manager::makeAccelSensorData(
+    const chreSensorThreeAxisData *threeAxisDataFromChre) {
   chre_cross_validation_SensorData newThreeAxisData = {
       .has_sensorType = true,
-      .sensorType = sensorType,
+      .sensorType = chre_cross_validation_SensorType_ACCELEROMETER,
       .has_accuracy = true,
       .accuracy = threeAxisDataFromChre->header.accuracy,
       .datapoints = {
@@ -248,15 +246,14 @@ chre_cross_validation_Data Manager::makeSensorThreeAxisData(
 }
 
 void Manager::handleSensorThreeAxisData(
-    const chreSensorThreeAxisData *threeAxisDataFromChre,
-    chre_cross_validation_SensorType sensorType) {
+    const chreSensorThreeAxisData *threeAxisDataFromChre) {
   if (!isValidHeader(threeAxisDataFromChre->header)) {
     LOGE("Invalid threeAxisData being thrown away");
   } else if (!mCrossValidatorState.has_value()) {
     LOGE("Start message not received or invalid when threeAxisData received");
   } else {
     chre_cross_validation_Data newData =
-        makeSensorThreeAxisData(threeAxisDataFromChre, sensorType);
+        makeAccelSensorData(threeAxisDataFromChre);
     size_t encodedSize;
     if (!pb_get_encoded_size(&encodedSize, chre_cross_validation_Data_fields,
                              &newData)) {
