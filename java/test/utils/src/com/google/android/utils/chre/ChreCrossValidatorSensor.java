@@ -15,7 +15,6 @@
  */
 package com.google.android.utils.chre;
 
-import android.content.Context;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -24,7 +23,6 @@ import android.hardware.location.ContextHubInfo;
 import android.hardware.location.ContextHubManager;
 import android.hardware.location.NanoAppBinary;
 import android.hardware.location.NanoAppMessage;
-import androidx.test.InstrumentationRegistry;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -32,7 +30,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.junit.Assert;
-import org.junit.Assume;
 
 public class ChreCrossValidatorSensor
     extends ChreCrossValidatorBase implements SensorEventListener {
@@ -139,16 +136,7 @@ public class ChreCrossValidatorSensor
 
   @Override
   protected void registerApDataListener() {
-    mSensorManager =
-        (SensorManager) InstrumentationRegistry.getInstrumentation().getContext().getSystemService(
-            Context.SENSOR_SERVICE);
-    Assert.assertNotNull("Sensor manager could not be instantiated.", mSensorManager);
-    mSensor = mSensorManager.getDefaultSensor(mSensorTypeInfo.sensorType);
-    Assume.assumeNotNull(String.format("Sensor could not be instantiated for sensor type %d.",
-                             mSensorTypeInfo.sensorType),
-        mSensor);
-    Assert.assertTrue(mSensorManager.registerListener(
-        this, mSensor, (int) TimeUnit.MILLISECONDS.toMicros(SAMPLING_INTERVAL_IN_MS)));
+    // TODO: Implement
   }
 
   @Override
