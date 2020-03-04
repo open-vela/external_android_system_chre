@@ -30,7 +30,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 import org.junit.Assert;
 import org.junit.Assume;
 
@@ -52,7 +51,7 @@ abstract class ChreCrossValidatorBase {
 
   private final CountDownLatch mAwaitDataLatch = new CountDownLatch(1);
 
-  private final AtomicReference<String> mErrorStr = new AtomicReference<String>();
+  private AtomicBoolean mResetOccurred = new AtomicBoolean(false);
   protected AtomicBoolean mCollectingData = new AtomicBoolean(false);
 
   /**
@@ -83,7 +82,8 @@ abstract class ChreCrossValidatorBase {
 
       @Override
       public void onHubReset(ContextHubClient client) {
-        setErrorStr("Context Hub reset occurred");
+        mResetOccurred.set(true);
+        mAwaitDataLatch.countDown();
       }
     };
     mContextHubClient = mContextHubManager.createClient(mContextHubInfo, callback);
@@ -150,8 +150,8 @@ abstract class ChreCrossValidatorBase {
     } catch (InterruptedException e) {
       Assert.fail("await data latch interrupted");
     }
-    if (mErrorStr.get() != null) {
-      Assert.fail(mErrorStr.get());
+    if (mResetOccurred.get()) {
+      Assert.fail("Context Hub Reset occurred interrupting data collection");
     } else {
       deinit();
     }
@@ -168,8 +168,8 @@ abstract class ChreCrossValidatorBase {
    * Clean up open connections and event listeners. Should be called in @After methods of tests.
    */
   public void deinit() throws AssertionError {
-    if (mErrorStr.get() != null) {
-      Assert.fail(mErrorStr.get());
+    if (mResetOccurred.get()) {
+      Assert.fail("Context Hub Reset occurred after data collection.");
     }
     mCollectingData.set(false);
     closeContextHubConnection();
@@ -199,17 +199,6 @@ abstract class ChreCrossValidatorBase {
    */
   private void closeContextHubConnection() {
     mContextHubClient.close();
-  }
-
-  /**
-   * Stop data collection by counting down the await data latch and providing an error that will be
-   * logged.
-   *
-   * @param errorStr The string used to describe the error.
-   */
-  protected void setErrorStr(String errorStr) {
-    mErrorStr.set(errorStr);
-    mAwaitDataLatch.countDown();
   }
 
   /**
