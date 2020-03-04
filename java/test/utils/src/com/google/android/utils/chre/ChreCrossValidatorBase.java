@@ -22,10 +22,15 @@ import android.hardware.location.ContextHubManager;
 import android.hardware.location.ContextHubTransaction;
 import android.hardware.location.NanoAppBinary;
 import android.hardware.location.NanoAppMessage;
+import android.hardware.location.NanoAppState;
+import android.util.Log;
+import androidx.test.InstrumentationRegistry;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.Assert;
 import org.junit.Assume;
 
@@ -37,9 +42,8 @@ import org.junit.Assume;
  */
 /*package*/
 abstract class ChreCrossValidatorBase {
+  protected static final String TAG = "ChreCrossValidator";
   private static final long NANO_APP_ID = 0x476f6f6754000002L;
-  private static final long LOAD_NANOAPP_TIMEOUT_SECONDS = 30;
-  private static final long UNLOAD_NANOAPP_TIMEOUT_SECONDS = 5;
 
   private final ContextHubManager mContextHubManager;
   private final ContextHubClient mContextHubClient;
@@ -48,7 +52,7 @@ abstract class ChreCrossValidatorBase {
 
   private final CountDownLatch mAwaitDataLatch = new CountDownLatch(1);
 
-  private AtomicBoolean mResetOccurred = new AtomicBoolean(false);
+  private final AtomicReference<String> mErrorStr = new AtomicReference<String>();
   protected AtomicBoolean mCollectingData = new AtomicBoolean(false);
 
   /**
@@ -79,29 +83,40 @@ abstract class ChreCrossValidatorBase {
 
       @Override
       public void onHubReset(ContextHubClient client) {
-        mResetOccurred.set(true);
-        mAwaitDataLatch.countDown();
+        setErrorStr("Context Hub reset occurred");
       }
     };
     mContextHubClient = mContextHubManager.createClient(mContextHubInfo, callback);
   }
 
   /**
-   * Load the nanoapp used for cross validation functionality on chre.
+   * Loads the CHRE cross validation nanoapp.
    */
   public void loadNanoApp() throws AssertionError {
-    ContextHubTransaction<Void> transaction =
-        mContextHubManager.loadNanoApp(mContextHubInfo, mNappBinary);
-    assertTransactionSuccessSync(transaction, LOAD_NANOAPP_TIMEOUT_SECONDS);
+    ChreTestUtil.loadNanoAppAssertSuccess(mContextHubManager, mContextHubInfo, mNappBinary);
   }
 
   /**
-   * Unload the nanoapp that was loaded by loadNanoapp.
+   * Unloads the CHRE cross validation nanoapp.
    */
   public void unloadNanoApp() throws AssertionError {
-    ContextHubTransaction<Void> transaction =
-        mContextHubManager.unloadNanoApp(mContextHubInfo, mNappBinary.getNanoAppId());
-    assertTransactionSuccessSync(transaction, UNLOAD_NANOAPP_TIMEOUT_SECONDS);
+    ChreTestUtil.unloadNanoAppAssertSuccess(
+        mContextHubManager, mContextHubInfo, mNappBinary.getNanoAppId());
+  }
+
+  /**
+   * Unloads all nanoapps from device. Call before validating data to ensure no inconsistencies with
+   * data received.
+   */
+  public void unloadAllNanoApps() {
+    List<NanoAppState> nanoAppStateList =
+        ChreTestUtil.queryNanoAppsAssertSuccess(mContextHubManager, mContextHubInfo);
+
+    for (NanoAppState state : nanoAppStateList) {
+      ChreTestUtil.unloadNanoAppAssertSuccess(
+          mContextHubManager, mContextHubInfo, state.getNanoAppId());
+      Log.d(TAG, String.format("Unloaded napp: 0x%X", state.getNanoAppId()));
+    }
   }
 
   /**
@@ -135,8 +150,8 @@ abstract class ChreCrossValidatorBase {
     } catch (InterruptedException e) {
       Assert.fail("await data latch interrupted");
     }
-    if (mResetOccurred.get()) {
-      Assert.fail("Context Hub Reset occurred interrupting data collection");
+    if (mErrorStr.get() != null) {
+      Assert.fail(mErrorStr.get());
     } else {
       deinit();
     }
@@ -153,12 +168,28 @@ abstract class ChreCrossValidatorBase {
    * Clean up open connections and event listeners. Should be called in @After methods of tests.
    */
   public void deinit() throws AssertionError {
-    if (mResetOccurred.get()) {
-      Assert.fail("Context Hub Reset occurred after data collection.");
+    if (mErrorStr.get() != null) {
+      Assert.fail(mErrorStr.get());
     }
     mCollectingData.set(false);
     closeContextHubConnection();
     unregisterApDataListener();
+  }
+
+  /**
+   * Restrict other applications from accessing sensors. Should be called before validating data.
+   */
+  public void restrictSensors() {
+    ChreTestUtil.executeShellCommand(InstrumentationRegistry.getInstrumentation(),
+        "dumpsys sensorservice restrict ChreCrossValidatorSensor");
+  }
+
+  /**
+   * Unrestrict other applications from accessing sensors. Should be called after validating data.
+   */
+  public void unrestrictSensors() {
+    ChreTestUtil.executeShellCommand(
+        InstrumentationRegistry.getInstrumentation(), "dumpsys sensorservice enable");
   }
 
   // Private helpers below
@@ -171,29 +202,14 @@ abstract class ChreCrossValidatorBase {
   }
 
   /**
-   * Assert that the context hub transaction gets a successful response.
+   * Stop data collection by counting down the await data latch and providing an error that will be
+   * logged.
    *
-   * @param transaction The context hub transaction
-   * @param timeoutInSeconds The timeout while waiting for the transaction response in seconds
+   * @param errorStr The string used to describe the error.
    */
-  private static void assertTransactionSuccessSync(
-      ContextHubTransaction<?> transaction, long timeoutInSeconds) throws AssertionError {
-    if (transaction == null) {
-      Assert.fail("ContextHubTransaction cannot be null");
-    }
-
-    String type = ContextHubTransaction.typeToString(transaction.getType(), true /* upperCase */);
-    ContextHubTransaction.Response<?> response = null;
-    try {
-      response = transaction.waitForResponse(timeoutInSeconds, TimeUnit.SECONDS);
-    } catch (InterruptedException e) {
-      Assert.fail("InterruptedException while waiting for " + type + " transaction");
-    } catch (TimeoutException e) {
-      Assert.fail("TimeoutException while waiting for " + type + " transaction");
-    }
-
-    Assert.assertTrue(type + " transaction failed with error code " + response.getResult(),
-        response.getResult() == ContextHubTransaction.RESULT_SUCCESS);
+  protected void setErrorStr(String errorStr) {
+    mErrorStr.set(errorStr);
+    mAwaitDataLatch.countDown();
   }
 
   /**
