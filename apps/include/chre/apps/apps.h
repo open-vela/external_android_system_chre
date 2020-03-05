@@ -28,6 +28,7 @@ UniquePtr<Nanoapp> initializeStaticNanoappGnssWorld();
 UniquePtr<Nanoapp> initializeStaticNanoappHelloWorld();
 UniquePtr<Nanoapp> initializeStaticNanoappHostAwakeWorld();
 UniquePtr<Nanoapp> initializeStaticNanoappMessageWorld();
+UniquePtr<Nanoapp> initializeStaticNanoappPowerTest();
 UniquePtr<Nanoapp> initializeStaticNanoappSensorWorld();
 UniquePtr<Nanoapp> initializeStaticNanoappSpammer();
 UniquePtr<Nanoapp> initializeStaticNanoappTimerWorld();
@@ -35,6 +36,6 @@ UniquePtr<Nanoapp> initializeStaticNanoappUnloadTester();
 UniquePtr<Nanoapp> initializeStaticNanoappWifiWorld();
 UniquePtr<Nanoapp> initializeStaticNanoappWwanWorld();
 
-} // namespace chre
+}  // namespace chre
 
 #endif  // CHRE_APPS_APPS_H_
