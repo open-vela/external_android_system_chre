@@ -29,11 +29,15 @@
 #include <chre/re.h>
 
 #include "chre/util/log_common.h"
-#include "chre/util/toolchain.h"
 
 #ifndef NANOAPP_MINIMUM_LOG_LEVEL
 #error "NANOAPP_MINIMUM_LOG_LEVEL must be defined"
 #endif  // NANOAPP_MINIMUM_LOG_LEVEL
+
+/**
+ * Logs an out of memory error with file and line number.
+ */
+#define LOG_OOM() LOGE("OOM at %s:%d", CHRE_FILENAME, __LINE__)
 
 /*
  * Supply a stub implementation of the LOGx macros when the build is
@@ -41,12 +45,12 @@
  * Otherwise just map into the chreLog function with the appropriate level.
  */
 
-#define CHRE_LOG(level, fmt, ...) \
-    do { \
-      CHRE_LOG_PREAMBLE \
-      chreLog(level, LOG_TAG " " fmt, ##__VA_ARGS__); \
-      CHRE_LOG_EPILOGUE \
-    } while (0)
+#define CHRE_LOG(level, fmt, ...)                   \
+  do {                                              \
+    CHRE_LOG_PREAMBLE                               \
+    chreLog(level, LOG_TAG " " fmt, ##__VA_ARGS__); \
+    CHRE_LOG_EPILOGUE                               \
+  } while (0)
 
 #if NANOAPP_MINIMUM_LOG_LEVEL >= CHRE_LOG_LEVEL_ERROR
 #define LOGE(fmt, ...) CHRE_LOG(CHRE_LOG_ERROR, fmt, ##__VA_ARGS__)
@@ -71,9 +75,5 @@
 #else
 #define LOGD(fmt, ...) CHRE_LOG_NULL(fmt, ##__VA_ARGS__)
 #endif
-
-// Apply printf-style compiler warnings to chreLog calls
-CHRE_PRINTF_ATTR(2, 3)
-void chreLog(enum chreLogLevel level, const char *formatStr, ...);
 
 #endif  // CHRE_UTIL_NANOAPP_LOG_H_
