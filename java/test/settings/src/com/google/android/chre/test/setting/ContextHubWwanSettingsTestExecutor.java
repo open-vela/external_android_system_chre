@@ -16,7 +16,6 @@
 package com.google.android.chre.test.setting;
 
 import android.app.Instrumentation;
-import android.hardware.location.NanoAppBinary;
 
 import androidx.test.InstrumentationRegistry;
 
@@ -29,15 +28,11 @@ import org.junit.Assert;
  * A test to check for behavior when WWAN settings are changed.
  */
 public class ContextHubWwanSettingsTestExecutor {
-    private final ContextHubSettingsTestExecutor mExecutor;
+    private final ContextHubSettingsTestExecutor mExecutor = new ContextHubSettingsTestExecutor();
 
     private boolean mInitialAirplaneMode;
 
     private final Instrumentation mInstrumentation = InstrumentationRegistry.getInstrumentation();
-
-    public ContextHubWwanSettingsTestExecutor(NanoAppBinary binary) {
-        mExecutor = new ContextHubSettingsTestExecutor(binary);
-    }
 
     /**
      * Should be called in a @Before method.

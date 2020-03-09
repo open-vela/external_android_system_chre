@@ -16,7 +16,6 @@
 package com.google.android.chre.test.setting;
 
 import android.app.Instrumentation;
-import android.hardware.location.NanoAppBinary;
 
 import androidx.test.InstrumentationRegistry;
 
@@ -29,7 +28,7 @@ import org.junit.Assert;
  * A test to check for behavior when WiFi settings are changed.
  */
 public class ContextHubWifiSettingsTestExecutor {
-    private final ContextHubSettingsTestExecutor mExecutor;
+    private final ContextHubSettingsTestExecutor mExecutor = new ContextHubSettingsTestExecutor();
 
     private final Instrumentation mInstrumentation = InstrumentationRegistry.getInstrumentation();
 
@@ -41,10 +40,6 @@ public class ContextHubWifiSettingsTestExecutor {
     private boolean mInitialWifiScanningAlwaysEnabled;
 
     private boolean mInitialLocationEnabled;
-
-    public ContextHubWifiSettingsTestExecutor(NanoAppBinary binary) {
-        mExecutor = new ContextHubSettingsTestExecutor(binary);
-    }
 
     /**
      * Should be called in a @Before method.
