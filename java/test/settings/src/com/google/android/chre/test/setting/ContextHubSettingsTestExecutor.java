@@ -47,6 +47,8 @@ public class ContextHubSettingsTestExecutor extends ContextHubClientCallback {
 
     private static final long TEST_TIMEOUT_SECONDS = 30;
 
+    private static final String NANOAPP_FILE_NAME = "chre_settings_test.napp";
+
     private final NanoAppBinary mNanoAppBinary;
 
     private final long mNanoAppId;
@@ -68,8 +70,8 @@ public class ContextHubSettingsTestExecutor extends ContextHubClientCallback {
 
     private final AtomicBoolean mTestSetupComplete = new AtomicBoolean(false);
 
-    public ContextHubSettingsTestExecutor(NanoAppBinary binary) {
-        mNanoAppBinary = binary;
+    public ContextHubSettingsTestExecutor() {
+        mNanoAppBinary = ChreTestUtil.createNanoAppBinary(NANOAPP_FILE_NAME);
         mNanoAppId = mNanoAppBinary.getNanoAppId();
         Context context = InstrumentationRegistry.getTargetContext();
         mContextHubManager =
