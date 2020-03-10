@@ -116,6 +116,4 @@ bool triggerDebugDump(debugDumpReadyCbFunc *readyCb, void *cookie) {
 #endif  // CHRE_ENABLE_ASH_DEBUG_DUMP
 }
 
-void platformDso_chreDebugDumpVaLog(const char *formatStr, va_list args) {}
-
 }  // namespace chre
