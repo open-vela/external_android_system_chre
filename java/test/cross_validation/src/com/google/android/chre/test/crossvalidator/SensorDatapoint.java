@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 Google LLC.
+ * Copyright (C) 2019 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,18 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.android.utils.chre;
+package com.google.android.chre.test.crossvalidator;
 
-import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 
+import com.google.android.chre.nanoapp.proto.ChreCrossValidation;
 import com.google.common.primitives.Floats;
 
 import org.junit.Assert;
-
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
 
 /*
  * Class that all types of sensor datapoints inherit from which supports comparison to another
@@ -35,9 +31,6 @@ class SensorDatapoint {
     // The chreGetTimeOffset() function promises +/-10ms accuracy to actual AP time so allow this
     // much leeway for datapoint comparison.
     private static final long MAX_TIMESTAMP_DIFF_NS = 10000000L;
-    private static final Integer[] VALID_SENSOR_TYPES_ARR = {Sensor.TYPE_ACCELEROMETER};
-    private static final Set<Integer> VALID_SENSOR_TYPES =
-            new HashSet<Integer>(Arrays.asList(VALID_SENSOR_TYPES_ARR));
 
     private long mTimestamp;
     private float[] mValues;
@@ -55,7 +48,6 @@ class SensorDatapoint {
         mTimestamp = datapoint.getTimestampInNs();
         mValues = Floats.toArray(datapoint.getValuesList());
         mSensorType = sensorType;
-        Assert.assertTrue(sensorTypeIsValid(mSensorType));
     }
 
     /*
@@ -69,7 +61,6 @@ class SensorDatapoint {
         mTimestamp = sensorEvent.timestamp;
         mValues = sensorEvent.values.clone();
         mSensorType = sensorEvent.sensor.getType();
-        Assert.assertTrue(sensorTypeIsValid(mSensorType));
     }
 
     /*
@@ -120,15 +111,5 @@ class SensorDatapoint {
             }
         }
         return true;
-    }
-
-    /**
-    * Check if a sensor type is valid for a SensorDatapoint object.
-    *
-    * @param sensorType The type of sensor found as static ints in android.hardware.Sensor class.
-    * @return true if sensor type is a valid sensor found in VALID_SENSOR_TYPES.
-    */
-    private static boolean sensorTypeIsValid(int sensorType) {
-        return VALID_SENSOR_TYPES.contains(sensorType);
     }
 }
