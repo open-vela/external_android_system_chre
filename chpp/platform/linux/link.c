@@ -14,16 +14,14 @@
  * limitations under the License.
  */
 
-#include "fastrpc_daemon.h"
+#include "chpp/link.h"
+#include "chpp/macros.h"
 
-int main() {
-  android::chre::FastRpcChreDaemon daemon;
-
-  if (!daemon.init()) {
-    LOGE("failed to init the daemon");
-  } else {
-    daemon.run();
-  }
-
-  return 0;
+bool chppPlatformLinkSend(struct ChppPlatformLinkParameters *params,
+                          uint8_t *buf, size_t len) {
+  // TODO
+  UNUSED_VAR(params);
+  UNUSED_VAR(buf);
+  UNUSED_VAR(len);
+  return params->sync;
 }
