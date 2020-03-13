@@ -86,7 +86,13 @@ public class SettingsUtil {
      *   returning.
      */
     public void setLocationModeAndSleep(boolean enable, long sleepTimeMillis) {
-        mLocationManager.setLocationEnabledForUser(enable, UserHandle.CURRENT);
+        if (enable) {
+            ChreTestUtil.executeShellCommand(
+                    mInstrumentation, "settings put secure location_mode 3");
+        } else {
+            ChreTestUtil.executeShellCommand(
+                    mInstrumentation, "settings put secure location_mode 0");
+        }
 
         // Wait for the setting to propagate
         try {
