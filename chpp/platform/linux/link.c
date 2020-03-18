@@ -14,10 +14,14 @@
  * limitations under the License.
  */
 
-#include "chre/platform/shared/debug_dump.h"
+#include "chpp/link.h"
+#include "chpp/macros.h"
 
-namespace chre {
-
-void platform_chreDebugDumpVaLog(const char *formatStr, va_list args) {}
-
-}  // namespace chre
+bool chppPlatformLinkSend(struct ChppPlatformLinkParameters *params,
+                          uint8_t *buf, size_t len) {
+  // TODO
+  UNUSED_VAR(params);
+  UNUSED_VAR(buf);
+  UNUSED_VAR(len);
+  return params->sync;
+}
