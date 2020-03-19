@@ -158,6 +158,7 @@ abstract class ChreCrossValidatorBase {
         } else {
             deinit();
         }
+        mCollectingData.set(false);
     }
 
     /**
