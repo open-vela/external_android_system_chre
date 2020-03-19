@@ -61,7 +61,7 @@ public class ChreCrossValidatorSensor
 
     // The portion of datapoints that can be thrown away before while still searching for first
     // datapoints that are similar between CHRE and AP
-    private static final double ALIGNMENT_JUNK_FACTOR = 2 / 3;
+    private static final double ALIGNMENT_JUNK_FACTOR = 2.0 / 3;
 
     // TODO(b/146052784): May need to account for differences in sampling rate and latency from
     // AP side vs CHRE side
@@ -192,8 +192,8 @@ public class ChreCrossValidatorSensor
             // TODO(b/146052784): Log full list of datapoints to file on disk on assertion failure so
             // that there is more insight into the problem then just logging the one pair of datapoints
             Assert.assertTrue(datapointsAssertMsg,
-                    SensorDatapoint.datapointsAreSimilar(apDp, chreDp,
-                    mSensorTypeInfo.errorMargin));
+                    SensorDatapoint.datapointsAreSimilar(
+                    apDp, chreDp, mSensorTypeInfo.errorMargin));
             Assert.assertTrue(timestampsAssertMsg,
                     SensorDatapoint.timestampsAreSimilar(apDp, chreDp));
         }
@@ -235,10 +235,10 @@ public class ChreCrossValidatorSensor
     * after this. This is needed because AP and CHRE can start sending data and varying times to
     * this validator and can also stop sending at various times.
     */
-    private void alignApAndChreDatapoints() {
+    private void alignApAndChreDatapoints() throws AssertionError {
         int matchAp = 0, matchChre = 0;
-        boolean shouldBreak = false;
         int apIndex = 0, chreIndex = 0;
+        boolean foundMatch = false;
         int discardableSize = (int) (mApDatapoints.size() * ALIGNMENT_JUNK_FACTOR);
         // if the start point of alignment exceeds halfway down either list then this is considered
         // not enough alignment for datapoints to be valid
@@ -248,6 +248,7 @@ public class ChreCrossValidatorSensor
             if (SensorDatapoint.timestampsAreSimilar(apDp, chreDp)) {
                 matchAp = apIndex;
                 matchChre = chreIndex;
+                foundMatch = true;
                 break;
             }
             if ((apDp.getTimestamp() < chreDp.getTimestamp()) && (apIndex < discardableSize - 1)) {
@@ -255,6 +256,19 @@ public class ChreCrossValidatorSensor
             } else {
                 chreIndex++;
             }
+        }
+        Assert.assertTrue("Did not find matching timestamps to align AP and CHRE datapoints.",
+                foundMatch);
+        // Remove extraneous datapoints before matching datapoints
+        mApDatapoints.removeAll(mApDatapoints.subList(0, matchAp));
+        mChreDatapoints.removeAll(mChreDatapoints.subList(0, matchChre));
+        // Remove extraneous datapoints from of end of larger list
+        if (mApDatapoints.size() < mChreDatapoints.size()) {
+            mChreDatapoints.removeAll(mChreDatapoints.subList(mApDatapoints.size(),
+                    mChreDatapoints.size() + 1));
+        } else if (mApDatapoints.size() > mChreDatapoints.size()) {
+            mApDatapoints.removeAll(mApDatapoints.subList(mChreDatapoints.size(),
+                    mApDatapoints.size() + 1));
         }
     }
 }
