@@ -28,7 +28,6 @@ import android.hardware.location.NanoAppMessage;
 import androidx.test.InstrumentationRegistry;
 
 import com.google.android.chre.nanoapp.proto.ChreCrossValidation;
-import com.google.android.utils.chre.ChreTestUtil;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import org.junit.Assert;
@@ -212,18 +211,6 @@ public class ChreCrossValidatorSensor
         }
     }
 
-    @Override
-    public void init() throws AssertionError {
-        super.init();
-        restrictSensors();
-    }
-
-    @Override
-    public void deinit() throws AssertionError {
-        super.deinit();
-        unrestrictSensors();
-    }
-
     /*
     * @param sensorType The sensor type that was passed to the ctor that will be validated.
     * @return true if sensor type is recognized.
@@ -271,21 +258,5 @@ public class ChreCrossValidatorSensor
                 chreIndex++;
             }
         }
-    }
-
-    /**
-    * Restrict other applications from accessing sensors. Should be called before validating data.
-    */
-    private void restrictSensors() {
-        ChreTestUtil.executeShellCommand(InstrumentationRegistry.getInstrumentation(),
-                "dumpsys sensorservice restrict ChreCrossValidatorSensor");
-    }
-
-    /**
-    * Unrestrict other applications from accessing sensors. Should be called after validating data.
-    */
-    private void unrestrictSensors() {
-        ChreTestUtil.executeShellCommand(
-                InstrumentationRegistry.getInstrumentation(), "dumpsys sensorservice enable");
     }
 }
