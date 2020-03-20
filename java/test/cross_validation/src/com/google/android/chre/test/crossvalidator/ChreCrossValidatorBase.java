@@ -185,7 +185,6 @@ abstract class ChreCrossValidatorBase {
         if (mErrorStr.get() != null) {
             Assert.fail(mErrorStr.get());
         }
-        mCollectingData.set(false);
     }
 
     // Private helpers below
