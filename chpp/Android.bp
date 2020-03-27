@@ -18,7 +18,13 @@ cc_library_host_static {
     name: "chre_chpp_linux",
     srcs: [
         "transport.c",
+        "app.c",
+        "platform/linux/link.c",
         "platform/linux/memory.c",
+        "platform/linux/notifier.c",
+        "services/discovery.c",
+        "services/loopback.c",
+        "services/nonhandle.c",
     ],
     export_include_dirs: [
         "platform/linux/include",
