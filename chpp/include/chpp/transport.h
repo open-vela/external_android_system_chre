@@ -23,9 +23,12 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "chpp/app.h"
+#include "chpp/link.h"
 #include "chpp/macros.h"
 #include "chpp/memory.h"
 #include "chpp/mutex.h"
+#include "chpp/notifier.h"
 #include "chpp/platform/log.h"
 
 #ifdef __cplusplus
@@ -77,15 +80,15 @@ extern "C" {
  * Maximum payload of packets at the link layer.
  * TODO: Negotiate or advertise MTU
  */
-#define CHPP_LINK_MTU_BYTES                                              \
+#define CHPP_LINK_TX_MTU_BYTES                                           \
   (1024 + CHPP_PREAMBLE_LEN_BYTES + sizeof(struct ChppTransportHeader) + \
    sizeof(struct ChppTransportFooter))
 
 /**
  * Maximum payload of packets at the transport layer.
  */
-#define CHPP_TRANSPORT_MTU_BYTES                   \
-  (CHPP_LINK_MTU_BYTES - CHPP_PREAMBLE_LEN_BYTES - \
+#define CHPP_TRANSPORT_TX_MTU_BYTES                   \
+  (CHPP_LINK_TX_MTU_BYTES - CHPP_PREAMBLE_LEN_BYTES - \
    sizeof(struct ChppTransportHeader) - sizeof(struct ChppTransportFooter))
 
 /************************************************
@@ -183,12 +186,16 @@ struct ChppRxStatus {
 
   // Location counter in bytes within the current Rx datagram.
   size_t locInDatagram;
+
+  // Last received ACK sequence number (i.e. next expected sequence number for
+  // an outgoing payload-bearing packet)
+  uint8_t receivedAckSeq;
 };
 
 struct ChppTxStatus {
-  // Last received ACK sequence number (i.e. next expected sequence number for
-  // an outgoing payload-bearing packet)
-  uint8_t ackedSeq;
+  // Last sent ACK sequence number (i.e. next expected sequence number for
+  // an incoming payload-bearing packet)
+  uint8_t sentAckSeq;
 
   // Last sent sequence number (irrespective of whether it has been received /
   // ACKed or not)
@@ -211,14 +218,17 @@ struct ChppTxStatus {
 
   // How many bytes of the front-of-queue datagram has been acked
   size_t ackedLocInDatagram;
+
+  // Whether the link layer is still processing pendingTxPacket
+  bool linkBusy;
 };
 
-struct PacketToSend {
+struct PendingTxPacket {
   // Length of outgoing packet to the Link Layer
   size_t length;
 
   // Payload of outgoing packet to the Link Layer
-  uint8_t payload[CHPP_LINK_MTU_BYTES];
+  uint8_t payload[CHPP_LINK_TX_MTU_BYTES];
 };
 
 struct ChppDatagram {
@@ -247,6 +257,8 @@ struct ChppTxDatagramQueue {
 };
 
 struct ChppTransportState {
+  struct ChppAppState *appContext;  // Pointer to app layer context
+
   struct ChppRxStatus rxStatus;         // Rx state and location within
   struct ChppTransportHeader rxHeader;  // Rx packet header
   struct ChppTransportFooter rxFooter;  // Rx packet footer (checksum)
@@ -254,10 +266,12 @@ struct ChppTransportState {
 
   struct ChppTxStatus txStatus;                // Tx state
   struct ChppTxDatagramQueue txDatagramQueue;  // Queue of datagrams to be Tx
-  struct PacketToSend packetToSend;            // Outgoing packet to Link Layer
+  struct PendingTxPacket pendingTxPacket;      // Outgoing packet to Link Layer
 
   struct ChppMutex mutex;           // Lock for transport state (i.e. context)
-  struct ChppMutex linkLayerMutex;  // Lock for the link layer
+  struct ChppNotifier notifier;     // Notifier for main thread
+
+  struct ChppPlatformLinkParameters linkParams;  // For corresponding link layer
 };
 
 /************************************************
@@ -265,12 +279,23 @@ struct ChppTransportState {
  ***********************************************/
 
 /**
- * Initializes the CHPP transport layer state stored in the parameter context.
+ * Initializes the CHPP transport layer state stored in the parameter
+ * transportContext.
+ * It is necessary to initialize state for each transport layer instance on
+ * every platform.
+ * Each transport layer instance is associated with a single application layer
+ * instance. appContext points to the application layer status struct associated
+ * with this transport layer instance.
  *
- * @param context Is used to maintain status. Must be provided and initialized
- * through chppTransportInit for each transport layer instance. Cannot be null.
+ * Note: After calling this function, it is also necessary to initialize the
+ * platform-specific values of transportContext.linkParams.
+ *
+ * @param transportContext Maintains status for each transport layer instance.
+ * @param appContext The app layer status struct associated with this transport
+ * layer instance.
  */
-void chppTransportInit(struct ChppTransportState *context);
+void chppTransportInit(struct ChppTransportState *transportContext,
+                       struct ChppAppState *appContext);
 
 /**
  * Processes all incoming data on the serial port based on the Rx state.
@@ -282,8 +307,7 @@ void chppTransportInit(struct ChppTransportState *context);
  *
  * TODO: Add sufficient outward facing documentation
  *
- * @param context Is used to maintain status. Must be provided and initialized
- * through chppTransportInit for each transport layer instance. Cannot be null.
+ * @param context Maintains status for each transport layer instance.
  * @param buf Input data. Cannot be null.
  * @param len Length of input data in bytes.
  *
@@ -295,30 +319,84 @@ bool chppRxDataCb(struct ChppTransportState *context, const uint8_t *buf,
                   size_t len);
 
 /**
- * Callback function for the timer that detects timeouts during transmit
+ * Callback function for the timer that detects timeouts during transmit.
  *
- * @param context Is used to maintain status. Must be provided and initialized
- * through chppTransportInit for each transport layer instance. Cannot be null.
+ * @param context Maintains status for each transport layer instance.
  */
 void chppTxTimeoutTimerCb(struct ChppTransportState *context);
 
 /**
+ * Callback function for the timer that detects timeouts during receive.
+ *
+ * @param context Maintains status for each transport layer instance.
+ */
+void chppRxTimeoutTimerCb(struct ChppTransportState *context);
+
+/**
  * Enqueues an outgoing datagram of a specified length. The payload must have
  * been allocated by the caller using chppMalloc. If enqueueing is successful,
- * the payload shall be freed only by the transport layer (once it has been sent
- * out). If enqueueing is unsuccessful, it is up to the sender to decide whether
- * to free the payload and/or resend it later.
+ * the payload shall be freed by the transport layer once it has been sent out.
+ * If enqueueing is unsuccessful, it is up to the sender to decide whether to
+ * free the payload and/or resend it later.
  *
- * @param context Is used to maintain status. Must be provided and initialized
- * through chppTransportInit for each transport layer instance. Cannot be null.
- * @param len Datagram length in bytes.
+ * @param context Maintains status for each transport layer instance.
  * @param buf Datagram payload allocated through chppMalloc. Cannot be null.
+ * @param len Datagram length in bytes.
+ *
  * @return True informs the sender that the datagram was successfully enqueued.
  * False informs the sender that the queue was full.
  */
-bool chppEnqueueTxDatagram(struct ChppTransportState *context, size_t len,
-                           uint8_t *buf);
+bool chppEnqueueTxDatagram(struct ChppTransportState *context, uint8_t *buf,
+                           size_t len);
 
+/**
+ * Starts the main thread for CHPP's Transport Layer. This thread needs to be
+ * started after the Transport Layer is initialized through chppTransportInit().
+ * Note that a platform may implement this as a new thread or as part of an
+ * existing thread.
+ *
+ * If needed (e.g. for testing and debugging), this thread can be stopped by
+ * calling chppWorkThreadStop().
+ *
+ * @param context Maintains status for each transport layer instance.
+ */
+void chppWorkThreadStart(struct ChppTransportState *context);
+
+/**
+ * Stops the main thread for CHPP's Transport Layer that has been started by
+ * calling chppWorkThreadStart(). Stopping this thread may be necessary for
+ * testing and debugging purposes.
+ *
+ * @param context Maintains status for each transport layer instance.
+ */
+void chppWorkThreadStop(struct ChppTransportState *context);
+
+/*
+ * Notifies the transport layer that the link layer is done sending the previous
+ * payload (as provided to platformLinkSend() through buf and len) and can
+ * accept more data.
+ *
+ * On systems that implement the link layer Tx asynchronously, where
+ * platformLinkSend() returns False before consuming the payload provided to it
+ * (i.e. buf and len), the platform implementation must call this function after
+ * platformLinkSend() is done with the payload (i.e. buf and len).
+ *
+ * @param params Platform-specific struct with link details / parameters.
+ */
+void chppLinkSendDoneCb(struct ChppPlatformLinkParameters *params);
+
+/*
+ * Notifies the transport layer that the app layer is done with the previous
+ * payload (as provided to chppProcessRxDatagram() through buf and len), so it
+ * is freed appropriately etc.
+ *
+ * TODO: Look into automatically doing this when a response is sent back by a
+ * service.
+ *
+ * @param context Maintains status for each transport layer instance.
+ * @param buf Pointer to the buf given to chppProcessRxDatagram. Cannot be null.
+ */
+void chppAppProcessDoneCb(struct ChppTransportState *context, uint8_t *buf);
 
 #ifdef __cplusplus
 }
