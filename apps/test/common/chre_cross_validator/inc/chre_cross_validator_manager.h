@@ -96,18 +96,6 @@ class Manager {
   chre::Optional<CrossValidatorState> mCrossValidatorState;
 
   /**
-   * Make a SensorDatapoint proto message.
-   *
-   * @param sampleDataFromChre The sample data from CHRE.
-   * @param currentTimestamp The current CHRE timestamp.
-   *
-   * @return The SensorDatapoint proto message.
-   */
-  static chre_cross_validation_SensorDatapoint makeDatapoint(
-      bool (*encodeFunc)(pb_ostream_t *, const pb_field_t *, void *const *),
-      const void *sampleDataFromChre, uint64_t currentTimestamp);
-
-  /**
    * Encodes the values array of a sensor datapoint proto message. Used as the
    * encode field of the SenorDatapoint message.
    *
@@ -121,6 +109,19 @@ class Manager {
                                                    void *const *arg);
 
   /**
+   * Make a SensorDatapoint proto message.
+   *
+   * @param sampleDataFromChre The sample data from CHRE.
+   * @param currentTimestamp The current CHRE timestamp.
+   *
+   * @return The SensorDatapoint proto message.
+   */
+  static chre_cross_validation_SensorDatapoint makeDatapoint(
+      const chreSensorThreeAxisData::chreSensorThreeAxisSampleData
+          &sampleDataFromChre,
+      uint64_t currentTimestamp);
+
+  /**
    * Encodes the datapoints into a SensorData message.
    *
    * @param stream The stream to write to.
@@ -129,30 +130,6 @@ class Manager {
    * @return true if successful.
    */
   static bool encodeThreeAxisSensorDatapoints(pb_ostream_t *stream,
-                                              const pb_field_t * /*field*/,
-                                              void *const *arg);
-
-  /**
-   * Encodes the datapoints into a SensorData message.
-   *
-   * @param stream The stream to write to.
-   * @param field The field to write to (unused).
-   * @param arg The data passed in order to write to the stream.
-   * @return true if successful.
-   */
-  static bool encodeFloatSensorDatapoints(pb_ostream_t *stream,
-                                          const pb_field_t * /*field*/,
-                                          void *const *arg);
-
-  /**
-   * Encodes a single float value into values list of SensorDatapoint object.
-   *
-   * @param stream The stream to write to.
-   * @param field The field to write to (unused).
-   * @param arg The data passed in order to write to the stream.
-   * @return true if successful.
-   */
-  static bool encodeFloatSensorDatapointValue(pb_ostream_t *stream,
                                               const pb_field_t * /*field*/,
                                               void *const *arg);
 
@@ -200,16 +177,6 @@ class Manager {
       const chreSensorThreeAxisData *threeAxisDataFromChre, uint8_t sensorType);
 
   /**
-   * @param floatDataFromChre Three axis sensor data from CHRE.
-   * @param sensorType The sensor type that sent the three axis data.
-   *
-   * @return The Data proto message that is ready to be sent to host with float
-   * data.
-   */
-  chre_cross_validation_Data makeSensorFloatData(
-      const chreSensorFloatData *floatDataFromChre, uint8_t sensorType);
-
-  /**
    * Handle sensor three axis data from CHRE.
    *
    * @param threeAxisDataFromChre The data from CHRE to parse.
@@ -219,31 +186,11 @@ class Manager {
       const chreSensorThreeAxisData *threeAxisDataFromChre, uint8_t sensorType);
 
   /**
-   * Handle sensor float data from CHRE.
-   *
-   * @param floatDataFromChre The data from CHRE to parse.
-   * @param sensorType The sensor type that sent the float data.
-   */
-  void handleSensorFloatData(const chreSensorFloatData *floatDataFromChre,
-                             uint8_t sensorType);
-
-  /**
    * Encode and send data to be validated to host.
    *
    * @param data The data to encode and send.
    */
   void encodeAndSendDataToHost(const chre_cross_validation_Data &data);
-
-  /**
-   * Determine if nanoapp is ready to process new sensor data.
-   *
-   * @param header The sensor data header that was received with data.
-   * @param sensorType The sensor type of received data.
-   *
-   * @return true if state is inline with receiving this new sensor data.
-   */
-  bool processSensorData(const chreSensorDataHeader &header,
-                         uint8_t sensorType);
 
   /**
    * @param sensorType The sensor type received from a CHRE sensor data event.
