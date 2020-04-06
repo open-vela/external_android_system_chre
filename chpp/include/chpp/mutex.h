@@ -29,7 +29,7 @@ extern "C" {
 #endif
 
 /*
- * Platform-specific mutex struct.
+ * Platform-specific mutex struct, including the member "lock"
  */
 struct ChppMutex;
 
