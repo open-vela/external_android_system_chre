@@ -49,10 +49,6 @@ enum class SystemCallbackType : uint16_t {
   SensorFlushComplete,
   SensorFlushTimeout,
   SensorStatusInfoResponse,
-  DeferredMessageToNanoappFromHost,
-  SettingChangeEvent,
-  GnssLocationReportEvent,
-  GnssMeasurementReportEvent,
 };
 
 //! The function signature of a system callback mirrors the CHRE event free
