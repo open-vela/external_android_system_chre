@@ -14,24 +14,10 @@
  * limitations under the License.
  */
 
-#ifndef CHPP_TRANSPORT_TEST_H_
-#define CHPP_TRANSPORT_TEST_H_
+#include "chre/platform/shared/debug_dump.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace chre {
 
-/************************************************
- *  Functions necessary for unit testing
- ***********************************************/
+void platform_chreDebugDumpVaLog(const char *formatStr, va_list args) {}
 
-bool chppDequeueTxDatagram(struct ChppTransportState *context);
-void chppTransportDoWork(struct ChppTransportState *context);
-size_t chppAddPreamble(uint8_t *buf);
-uint32_t chppCalculateChecksum(uint8_t *buf, size_t len);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif  // CHPP_TRANSPORT_TEST_H_
+}  // namespace chre
