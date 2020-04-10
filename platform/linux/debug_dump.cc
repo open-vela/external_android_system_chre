@@ -14,16 +14,10 @@
  * limitations under the License.
  */
 
-#include "fastrpc_daemon.h"
+#include "chre/platform/shared/debug_dump.h"
 
-int main() {
-  android::chre::FastRpcChreDaemon daemon;
+namespace chre {
 
-  if (!daemon.init()) {
-    LOGE("failed to init the daemon");
-  } else {
-    daemon.run();
-  }
+void platform_chreDebugDumpVaLog(const char *formatStr, va_list args) {}
 
-  return 0;
-}
+}  // namespace chre
