@@ -14,24 +14,35 @@
  * limitations under the License.
  */
 
-#ifndef CHPP_TRANSPORT_TEST_H_
-#define CHPP_TRANSPORT_TEST_H_
+#ifndef CHPP_WWAN_H_
+#define CHPP_WWAN_H_
+
+#include <stddef.h>
+#include <stdint.h>
+
+#include "chpp/app.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /************************************************
- *  Functions necessary for unit testing
+ *  Public functions
  ***********************************************/
 
-bool chppDequeueTxDatagram(struct ChppTransportState *context);
-void chppTransportDoWork(struct ChppTransportState *context);
-size_t chppAddPreamble(uint8_t *buf);
-uint32_t chppCalculateChecksum(uint8_t *buf, size_t len);
+/**
+ * Initializes the WWAN (cellular) common service.
+ *
+ * @param context Maintains status for each app layer instance.
+ */
+void chppWwanServiceInit(struct ChppAppState *context);
+
+/************************************************
+ *  Public Definitions
+ ***********************************************/
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  // CHPP_TRANSPORT_TEST_H_
+#endif  // CHPP_WWAN_H_
