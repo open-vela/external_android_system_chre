@@ -19,7 +19,6 @@
 #include <chre.h>
 
 #include "chre/util/nanoapp/log.h"
-#include "chre/util/time.h"
 
 #define LOG_TAG "[DebugDumpWorld]"
 
@@ -32,12 +31,7 @@ namespace chre {
 namespace {
 #endif  // CHRE_NANOAPP_INTERNAL
 
-namespace {
-
 uint32_t gEventCount = 0;
-uint64_t gDwellTimeNs = 0;
-
-}  // namespace
 
 bool nanoappStart() {
   LOGI("Debug dump world start");
@@ -53,15 +47,11 @@ void nanoappEnd() {
 }
 
 void handleDebugDumpEvent() {
-  // CHRE adds the nanoapp name / ID to the debug dump automatically.
-  chreDebugDumpLog("  Debug event count: %" PRIu32 "\n", ++gEventCount);
-  chreDebugDumpLog("  Total dwell time: %" PRIu64 " us\n",
-                   gDwellTimeNs / chre::kOneMicrosecondInNanoseconds);
+  chreDebugDumpLog("DebugDump event count %" PRIu32, ++gEventCount);
 }
 
 void nanoappHandleEvent(uint32_t senderInstanceId, uint16_t eventType,
                         const void *eventData) {
-  uint64_t tic = chreGetTime();
   switch (eventType) {
     case CHRE_EVENT_DEBUG_DUMP:
       LOGI("Receiving debug dump event");
@@ -72,7 +62,6 @@ void nanoappHandleEvent(uint32_t senderInstanceId, uint16_t eventType,
            eventType, senderInstanceId);
       break;
   }
-  gDwellTimeNs += chreGetTime() - tic;
 }
 
 #ifdef CHRE_NANOAPP_INTERNAL
