@@ -271,7 +271,6 @@ public class ChreCrossValidatorSensor
         map.put(Sensor.TYPE_GYROSCOPE, new CrossValidatorSensorConfig(3, 0.01f));
         map.put(Sensor.TYPE_MAGNETIC_FIELD, new CrossValidatorSensorConfig(3, 0.01f));
         map.put(Sensor.TYPE_PRESSURE, new CrossValidatorSensorConfig(1, 0.01f));
-        map.put(Sensor.TYPE_LIGHT, new CrossValidatorSensorConfig(1, 0.01f));
         return map;
     }
 
@@ -287,7 +286,6 @@ public class ChreCrossValidatorSensor
         map.put(Sensor.TYPE_GYROSCOPE, 6 /* CHRE_SENSOR_TYPE_GYROSCOPE */);
         map.put(Sensor.TYPE_MAGNETIC_FIELD, 8 /* CHRE_SENSOR_TYPE_MAGNETIC_FIELD */);
         map.put(Sensor.TYPE_PRESSURE, 10 /* CHRE_SENSOR_TYPE_PRESSURE */);
-        map.put(Sensor.TYPE_LIGHT, 12 /* CHRE_SENSOR_TYPE_LIGHT */);
         return map;
     }
 
