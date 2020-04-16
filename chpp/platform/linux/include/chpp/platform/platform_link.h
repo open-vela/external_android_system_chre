@@ -14,24 +14,20 @@
  * limitations under the License.
  */
 
-#ifndef CHPP_TRANSPORT_TEST_H_
-#define CHPP_TRANSPORT_TEST_H_
+#ifndef CHPP_PLATFORM_LINK_H_
+#define CHPP_PLATFORM_LINK_H_
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/************************************************
- *  Functions necessary for unit testing
- ***********************************************/
-
-bool chppDequeueTxDatagram(struct ChppTransportState *context);
-void chppTransportDoWork(struct ChppTransportState *context);
-size_t chppAddPreamble(uint8_t *buf);
-uint32_t chppCalculateChecksum(uint8_t *buf, size_t len);
+struct ChppPlatformLinkParameters {
+  size_t index;
+  bool sync;
+};
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  // CHPP_TRANSPORT_TEST_H_
+#endif  // CHPP_PLATFORM_LINK_H_
