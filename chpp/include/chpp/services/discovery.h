@@ -14,24 +14,45 @@
  * limitations under the License.
  */
 
-#ifndef CHPP_TRANSPORT_TEST_H_
-#define CHPP_TRANSPORT_TEST_H_
+
+#ifndef CHPP_DISCOVERY_H_
+#define CHPP_DISCOVERY_H_
+
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
+
+#include "chpp/app.h"
+
+#include "chpp/platform/log.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+struct ChppAppState *context;
+
 /************************************************
- *  Functions necessary for unit testing
+ *  Public Definitions
  ***********************************************/
 
-bool chppDequeueTxDatagram(struct ChppTransportState *context);
-void chppTransportDoWork(struct ChppTransportState *context);
-size_t chppAddPreamble(uint8_t *buf);
-uint32_t chppCalculateChecksum(uint8_t *buf, size_t len);
+/************************************************
+ *  Public functions
+ ***********************************************/
+
+/*
+ * Dispatches an Rx Datagram from the transport layer that is determined to be
+ * for the CHPP Discovery Service.
+ *
+ * @param context Maintains status for each app layer instance.
+ * @param buf Input data. Cannot be null.
+ * @param len Length of input data in bytes.
+ */
+void chppDispatchDiscovery(struct ChppAppState *context, uint8_t *buf,
+                           size_t len);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  // CHPP_TRANSPORT_TEST_H_
+#endif  // CHPP_DISCOVERY_H_
