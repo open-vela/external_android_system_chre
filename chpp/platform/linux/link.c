@@ -14,21 +14,14 @@
  * limitations under the License.
  */
 
-#ifndef CHRE_PLATFORM_LINUX_PLATFORM_DEBUG_DUMP_MANAGER_BASE_H_
-#define CHRE_PLATFORM_LINUX_PLATFORM_DEBUG_DUMP_MANAGER_BASE_H_
+#include "chpp/link.h"
+#include "chpp/macros.h"
 
-#include <cstddef>
-
-namespace chre {
-
-/**
- * Linux-specific debug dump functionality.
- */
-class PlatformDebugDumpManagerBase {
- protected:
-  static constexpr size_t kDebugDumpStrMaxSize = CHRE_MESSAGE_TO_HOST_MAX_SIZE;
-};
-
-}  // namespace chre
-
-#endif  // CHRE_PLATFORM_LINUX_PLATFORM_DEBUG_DUMP_MANAGER_BASE_H_
+bool chppPlatformLinkSend(struct ChppPlatformLinkParameters *params,
+                          uint8_t *buf, size_t len) {
+  // TODO
+  UNUSED_VAR(params);
+  UNUSED_VAR(buf);
+  UNUSED_VAR(len);
+  return params->sync;
+}
