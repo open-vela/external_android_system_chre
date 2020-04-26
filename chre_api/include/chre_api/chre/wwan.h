@@ -470,7 +470,7 @@ struct chreWwanCellInfo {
     uint8_t reserved;
 
     //! The value in cellInfoType indicates which field in this union is valid
-    union chreWwanCellInfoPerRat {
+    union {
         struct chreWwanCellInfoGsm     gsm;
         struct chreWwanCellInfoCdma    cdma;
         struct chreWwanCellInfoLte     lte;

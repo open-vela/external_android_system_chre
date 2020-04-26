@@ -79,19 +79,15 @@ class Manager {
     // The host endpoint which is read from the start message and used when
     // sending data back to AP.
     uint16_t hostEndpoint = CHRE_HOST_ENDPOINT_BROADCAST;
-    // The sensor for this validation uses continuous reporting mode.
-    bool isContinuous;
 
     CrossValidatorState(CrossValidatorType crossValidatorTypeIn,
                         uint8_t sensorTypeIn, uint32_t sensorHandleIn,
-                        uint64_t timeStartIn, uint16_t hostEndpointIn,
-                        bool isContinuousIn)
+                        uint64_t timeStartIn, uint16_t hostEndpointIn)
         : crossValidatorType(crossValidatorTypeIn),
           sensorType(sensorTypeIn),
           sensorHandle(sensorHandleIn),
           timeStart(timeStartIn),
-          hostEndpoint(hostEndpointIn),
-          isContinuous(isContinuousIn) {}
+          hostEndpoint(hostEndpointIn) {}
   };
 
   //! The current state of the nanoapp.

@@ -25,10 +25,10 @@ import android.os.UserHandle;
 
 import androidx.test.InstrumentationRegistry;
 
-import org.junit.Assert;
-
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+
+import org.junit.Assert;
 
 /**
  * A class to get or set settings parameters.
@@ -40,10 +40,10 @@ public class SettingsUtil {
 
     private final LocationManager mLocationManager;
 
-    public class LocationUpdateListener {
+    private class LocationUpdateListener {
         public CountDownLatch mLocationLatch = new CountDownLatch(1);
 
-        public BroadcastReceiver mLocationSettingReceiver = new BroadcastReceiver() {
+        public BroadcastReceiver mGnssReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
                 if (LocationManager.MODE_CHANGED_ACTION.equals(intent.getAction())) {
@@ -101,28 +101,23 @@ public class SettingsUtil {
     /**
      * Sets the location mode on the device.
      * @param enable True to enable location, false to disable it.
-     * @param timeoutSeconds The maximum amount of time in seconds to wait.
+     * @param timeoutSeconds Maximum amount of time to wait for setting to propagate.
      */
     public void setLocationMode(boolean enable, long timeoutSeconds) {
         LocationUpdateListener listener = new LocationUpdateListener();
 
         mContext.registerReceiver(
-                listener.mLocationSettingReceiver,
-                new IntentFilter(LocationManager.MODE_CHANGED_ACTION));
+                listener.mGnssReceiver, new IntentFilter(LocationManager.MODE_CHANGED_ACTION));
         mLocationManager.setLocationEnabledForUser(enable, UserHandle.CURRENT);
 
         try {
             listener.mLocationLatch.await(timeoutSeconds, TimeUnit.SECONDS);
-
-            // Wait 1 additional second to make sure setting gets propagated to CHRE
-            Thread.sleep(1000);
         } catch (InterruptedException e) {
             Assert.fail("InterruptedException while waiting for location update");
         }
 
         Assert.assertTrue(isLocationEnabled() == enable);
-
-        mContext.unregisterReceiver(listener.mLocationSettingReceiver);
+        mContext.unregisterReceiver(listener.mGnssReceiver);
     }
 
     /**
