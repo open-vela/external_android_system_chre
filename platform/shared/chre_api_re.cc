@@ -74,26 +74,17 @@ DLL_EXPORT void chreHeapFree(void *ptr) {
       nanoapp, ptr);
 }
 
-namespace chre {
-
-DLL_EXPORT void platformDso_chreDebugDumpVaLog(const char *formatStr,
-                                               va_list args) {
-  Nanoapp *nanoapp = EventLoopManager::validateChreApiCall(__func__);
-  if (!nanoapp->isHandlingDebugDumpEvent()) {
-    LOGW("Nanoapp instance %" PRIu32
-         " calling chreDebugDumpLog while not handling "
-         " CHRE_EVENT_DEBUG_DUMP",
-         nanoapp->getInstanceId());
-  } else {
-    platform_chreDebugDumpVaLog(formatStr, args);
-  }
+DLL_EXPORT void platform_chreDebugDumpVaLog(const char *formatStr,
+                                            va_list args) {
+  chre::Nanoapp *nanoapp = EventLoopManager::validateChreApiCall(__func__);
+  chre::EventLoopManagerSingleton::get()
+      ->getDebugDumpManager()
+      .appendNanoappLog(*nanoapp, formatStr, args);
 }
-
-}  // namespace chre
 
 DLL_EXPORT void chreDebugDumpLog(const char *formatStr, ...) {
   va_list args;
   va_start(args, formatStr);
-  chre::platformDso_chreDebugDumpVaLog(formatStr, args);
+  platform_chreDebugDumpVaLog(formatStr, args);
   va_end(args);
 }

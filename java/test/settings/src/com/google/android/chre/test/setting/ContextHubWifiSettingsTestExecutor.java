@@ -118,7 +118,7 @@ public class ContextHubWifiSettingsTestExecutor {
         // Set up is needed for the nanoapp to issue an initial WiFi scan.
         mExecutor.setupTestAssertSuccess(ChreSettingsTest.TestCommand.Feature.WIFI_RTT);
 
-        mSettingsUtil.setLocationMode(mInitialLocationEnabled, 30 /* timeoutSeconds */);
+        mSettingsUtil.setLocationMode(enableFeature, 30 /* timeoutSeconds */);
 
         ChreSettingsTest.TestCommand.State state = enableFeature
                 ? ChreSettingsTest.TestCommand.State.ENABLED
