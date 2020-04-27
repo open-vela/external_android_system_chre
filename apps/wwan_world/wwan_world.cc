@@ -56,28 +56,6 @@ void handleTimerEvent(const void *eventData) {
   }
 }
 
-void logNrCellInfo(const chreWwanCellInfoNr &nr) {
-  LOGI("  NR cell detected");
-  LOGI("    mcc %" PRId32, nr.cellIdentityNr.mcc);
-  LOGI("    mnc %" PRId32, nr.cellIdentityNr.mnc);
-  LOGI("    nci %" PRId64, chreWwanUnpackNrNci(&nr.cellIdentityNr));
-  LOGI("    pci %" PRId32, nr.cellIdentityNr.pci);
-  LOGI("    tac %" PRId32, nr.cellIdentityNr.tac);
-  LOGI("    nrarfcn %" PRId32, nr.cellIdentityNr.nrarfcn);
-  LOGI("    ssRsrp %" PRId32 ", %" PRId32 " dBm", nr.signalStrengthNr.ssRsrp,
-       -1 * nr.signalStrengthNr.ssRsrp);
-  LOGI("    ssRsrq %" PRId32 ", %.1f dB", nr.signalStrengthNr.ssRsrq,
-       static_cast<float>(nr.signalStrengthNr.ssRsrp) / 2.0f);
-  LOGI("    ssSinr %" PRId32 ", %.1f dB", nr.signalStrengthNr.ssSinr,
-       static_cast<float>(nr.signalStrengthNr.ssSinr) / 2.0f);
-  LOGI("    csiRsrp %" PRId32 ", %" PRId32 " dBm", nr.signalStrengthNr.csiRsrp,
-       -1 * nr.signalStrengthNr.csiRsrp);
-  LOGI("    csiRsrq %" PRId32 ", %.1f dB", nr.signalStrengthNr.csiRsrq,
-       static_cast<float>(nr.signalStrengthNr.csiRsrp) / 2.0f);
-  LOGI("    csiSinr %" PRId32 ", %.1f dB", nr.signalStrengthNr.csiSinr,
-       static_cast<float>(nr.signalStrengthNr.csiSinr) / 2.0f);
-}
-
 /**
  * Logs a CHRE WWAN cell info result.
  *
@@ -89,18 +67,6 @@ void logChreWwanInfo(const chreWwanCellInfo *cell) {
   LOGI("  registered %" PRIu8, cell->registered);
 
   switch (cell->cellInfoType) {
-    case CHRE_WWAN_CELL_INFO_TYPE_GSM:
-      LOGI("  GSM cell detected");
-      LOGI("    mcc %" PRId32, cell->CellInfo.gsm.cellIdentityGsm.mcc);
-      LOGI("    mnc %" PRId32, cell->CellInfo.gsm.cellIdentityGsm.mnc);
-      LOGI("    lac %" PRId32, cell->CellInfo.gsm.cellIdentityGsm.lac);
-      LOGI("    cid %" PRId32, cell->CellInfo.gsm.cellIdentityGsm.cid);
-      LOGI("    arfcn %" PRId32, cell->CellInfo.gsm.cellIdentityGsm.arfcn);
-      LOGI("    bsic %" PRIu8, cell->CellInfo.gsm.cellIdentityGsm.bsic);
-      break;
-    case CHRE_WWAN_CELL_INFO_TYPE_CDMA:
-      LOGW("  CDMA unsupported");
-      break;
     case CHRE_WWAN_CELL_INFO_TYPE_LTE:
       LOGI("  LTE cell detected");
       LOGI("    mcc %" PRId32, cell->CellInfo.lte.cellIdentityLte.mcc);
@@ -109,6 +75,15 @@ void logChreWwanInfo(const chreWwanCellInfo *cell) {
       LOGI("    pci %" PRId32, cell->CellInfo.lte.cellIdentityLte.pci);
       LOGI("    tac %" PRId32, cell->CellInfo.lte.cellIdentityLte.tac);
       LOGI("    earfcn %" PRId32, cell->CellInfo.lte.cellIdentityLte.earfcn);
+      break;
+    case CHRE_WWAN_CELL_INFO_TYPE_GSM:
+      LOGI("  GSM cell detected");
+      LOGI("    mcc %" PRId32, cell->CellInfo.gsm.cellIdentityGsm.mcc);
+      LOGI("    mnc %" PRId32, cell->CellInfo.gsm.cellIdentityGsm.mnc);
+      LOGI("    lac %" PRId32, cell->CellInfo.gsm.cellIdentityGsm.lac);
+      LOGI("    cid %" PRId32, cell->CellInfo.gsm.cellIdentityGsm.cid);
+      LOGI("    arfcn %" PRId32, cell->CellInfo.gsm.cellIdentityGsm.arfcn);
+      LOGI("    bsic %" PRIu8, cell->CellInfo.gsm.cellIdentityGsm.bsic);
       break;
     case CHRE_WWAN_CELL_INFO_TYPE_WCDMA:
       LOGI("  WCDMA cell detected");
@@ -120,14 +95,9 @@ void logChreWwanInfo(const chreWwanCellInfo *cell) {
       LOGI("    uarfcn %" PRId32,
            cell->CellInfo.wcdma.cellIdentityWcdma.uarfcn);
       break;
-    case CHRE_WWAN_CELL_INFO_TYPE_TD_SCDMA:
-      LOGW("  TD-SCDMA unsupported");
-      break;
-    case CHRE_WWAN_CELL_INFO_TYPE_NR:
-      logNrCellInfo(cell->CellInfo.nr);
-      break;
     default:
-      LOGE("  invalid cell info type %" PRIu8, cell->cellInfoType);
+      // TODO: Support logging all cell types.
+      LOGI("  unsupported cell info %" PRIu8, cell->cellInfoType);
       break;
   };
 }
@@ -141,8 +111,7 @@ void handleCellInfoResult(const chreWwanCellInfoResult *result) {
   if (result->errorCode != CHRE_ERROR_NONE) {
     LOGE("Failed to request WWAN cell info with %" PRIu8, result->errorCode);
   } else {
-    LOGD("Received %" PRIu8 " cell info results with version %" PRIu8,
-         result->cellInfoCount, result->version);
+    LOGD("Received cell info result with version %" PRIu8, result->version);
 
     for (uint8_t i = 0; i < result->cellInfoCount; i++) {
       logChreWwanInfo(&result->cells[i]);
