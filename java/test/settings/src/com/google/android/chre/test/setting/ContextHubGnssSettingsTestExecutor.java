@@ -72,7 +72,7 @@ public class ContextHubGnssSettingsTestExecutor {
      * @param enableFeature True for enable.
      */
     private void runTest(ChreSettingsTest.TestCommand.Feature feature, boolean enableFeature) {
-        mSettingsUtil.setLocationMode(mInitialLocationEnabled, 30 /* timeoutSeconds */);
+        mSettingsUtil.setLocationMode(enableFeature, 30 /* timeoutSeconds */);
 
         ChreSettingsTest.TestCommand.State state = enableFeature
                 ? ChreSettingsTest.TestCommand.State.ENABLED
