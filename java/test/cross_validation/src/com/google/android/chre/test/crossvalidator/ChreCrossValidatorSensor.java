@@ -69,13 +69,11 @@ public class ChreCrossValidatorSensor
     // AP side vs CHRE side
     private static final long SAMPLING_LATENCY_IN_MS = 0;
 
-    private static final long MAX_TIMESTAMP_DIFF_NS = 10000000L;
+    private ConcurrentLinkedQueue<SensorDatapoint> mApDatapointsQueue;
+    private ConcurrentLinkedQueue<SensorDatapoint> mChreDatapointsQueue;
 
-    private ConcurrentLinkedQueue<ApSensorDatapoint> mApDatapointsQueue;
-    private ConcurrentLinkedQueue<ChreSensorDatapoint> mChreDatapointsQueue;
-
-    private ApSensorDatapoint[] mApDatapointsArray;
-    private ChreSensorDatapoint[] mChreDatapointsArray;
+    private SensorDatapoint[] mApDatapointsArray;
+    private SensorDatapoint[] mChreDatapointsArray;
 
     private SensorManager mSensorManager;
     private Sensor mSensor;
@@ -101,8 +99,8 @@ public class ChreCrossValidatorSensor
             ContextHubInfo contextHubInfo, NanoAppBinary nanoAppBinary, int apSensorType)
             throws AssertionError {
         super(contextHubManager, contextHubInfo, nanoAppBinary);
-        mApDatapointsQueue = new ConcurrentLinkedQueue<ApSensorDatapoint>();
-        mChreDatapointsQueue = new ConcurrentLinkedQueue<ChreSensorDatapoint>();
+        mApDatapointsQueue = new ConcurrentLinkedQueue<SensorDatapoint>();
+        mChreDatapointsQueue = new ConcurrentLinkedQueue<SensorDatapoint>();
         Assert.assertTrue(String.format("Sensor type %d is not recognized", apSensorType),
                 isSensorTypeValid(apSensorType));
         mSensorConfig = SENSOR_TYPE_TO_CONFIG.get(apSensorType);
@@ -169,7 +167,8 @@ public class ChreCrossValidatorSensor
                                 sensorType, valuesLength, mSensorConfig.expectedValuesLength));
                         break;
                     }
-                    mChreDatapointsQueue.add(new ChreSensorDatapoint(datapoint));
+                    SensorDatapoint newDatapoint = new SensorDatapoint(datapoint, sensorType);
+                    mChreDatapointsQueue.add(newDatapoint);
                 }
             }
         }
@@ -191,8 +190,8 @@ public class ChreCrossValidatorSensor
     protected void assertApAndChreDataSimilar() throws AssertionError {
         // Copy concurrent queues to arrays so that other threads will not mutate the data being
         // worked on
-        mApDatapointsArray = mApDatapointsQueue.toArray(new ApSensorDatapoint[0]);
-        mChreDatapointsArray = mChreDatapointsQueue.toArray(new ChreSensorDatapoint[0]);
+        mApDatapointsArray = mApDatapointsQueue.toArray(new SensorDatapoint[0]);
+        mChreDatapointsArray = mChreDatapointsQueue.toArray(new SensorDatapoint[0]);
         Assert.assertTrue("Did not find any CHRE datapoints", mChreDatapointsArray.length > 0);
         Assert.assertTrue("Did not find any AP datapoints", mApDatapointsArray.length > 0);
         alignApAndChreDatapoints();
@@ -201,8 +200,7 @@ public class ChreCrossValidatorSensor
         // comparison
         for (int i = 0; i < mApDatapointsArray.length; i++) {
             assertSensorDatapointsSimilar(
-                    (ApSensorDatapoint) mApDatapointsArray[i],
-                    (ChreSensorDatapoint) mChreDatapointsArray[i], i);
+                    mApDatapointsArray[i], mChreDatapointsArray[i], i);
         }
     }
 
@@ -226,7 +224,7 @@ public class ChreCrossValidatorSensor
                 setErrorStr(String.format("incorrect sensor type %d when expecting %d",
                                           sensorType, mSensor.getType()));
             } else {
-                mApDatapointsQueue.add(new ApSensorDatapoint(event));
+                mApDatapointsQueue.add(new SensorDatapoint(event));
             }
         }
     }
@@ -302,14 +300,14 @@ public class ChreCrossValidatorSensor
     private void alignApAndChreDatapoints() throws AssertionError {
         int matchAp = 0, matchChre = 0;
         int shorterDpLength = Math.min(mApDatapointsArray.length, mChreDatapointsArray.length);
-        if (mApDatapointsArray[0].timestamp < mChreDatapointsArray[0].timestamp) {
+        if (mApDatapointsArray[0].getTimestamp() < mChreDatapointsArray[0].getTimestamp()) {
             matchChre = 0;
-            matchAp = indexOfFirstClosestDatapoint((SensorDatapoint[]) mApDatapointsArray,
-                                                   shorterDpLength, mChreDatapointsArray[0]);
+            matchAp = indexOfFirstClosestDatapoint(mApDatapointsArray, shorterDpLength,
+                                                   mChreDatapointsArray[0]);
         } else {
             matchAp = 0;
-            matchChre = indexOfFirstClosestDatapoint((SensorDatapoint[]) mChreDatapointsArray,
-                                                     shorterDpLength, mApDatapointsArray[0]);
+            matchChre = indexOfFirstClosestDatapoint(mChreDatapointsArray, shorterDpLength,
+                                                     mApDatapointsArray[0]);
         }
         Assert.assertTrue("Did not find matching timestamps to align AP and CHRE datapoints.",
                           (matchAp != -1 && matchChre != -1));
@@ -343,8 +341,8 @@ public class ChreCrossValidatorSensor
     /**
      * Helper method for asserting a single pair of AP and CHRE datapoints are similar.
      */
-    private void assertSensorDatapointsSimilar(ApSensorDatapoint apDp,
-                                               ChreSensorDatapoint chreDp, int index) {
+    private void assertSensorDatapointsSimilar(SensorDatapoint apDp,
+                                                        SensorDatapoint chreDp, int index) {
         String datapointsAssertMsg =
                 String.format("AP and CHRE three axis datapoint values differ on index %d", index)
                 + "\nAP data -> " + apDp + "\nCHRE data -> "
@@ -358,10 +356,10 @@ public class ChreCrossValidatorSensor
         // so that there is more insight into the problem then just logging the one pair of
         // datapoints
         Assert.assertTrue(datapointsAssertMsg,
-                datapointValuesAreSimilar(
+                SensorDatapoint.datapointsAreSimilar(
                 apDp, chreDp, mSensorConfig.errorMargin));
         Assert.assertTrue(timestampsAssertMsg,
-                datapointTimestampsAreSimilar(apDp, chreDp));
+                SensorDatapoint.timestampsAreSimilar(apDp, chreDp));
     }
 
     /**
@@ -373,7 +371,7 @@ public class ChreCrossValidatorSensor
     private int indexOfFirstClosestDatapoint(SensorDatapoint[] sensorDatapoints, int shorterLength,
                                              SensorDatapoint laterDp) {
         for (int i = 0; i < shorterLength; i++) {
-            if (datapointTimestampsAreSimilar(sensorDatapoints[i], laterDp)) {
+            if (SensorDatapoint.timestampsAreSimilar(sensorDatapoints[i], laterDp)) {
                 return i;
             }
         }
@@ -398,37 +396,5 @@ public class ChreCrossValidatorSensor
 
     private boolean sensorIsContinuous() {
         return mSensor.getReportingMode() == Sensor.REPORTING_MODE_CONTINUOUS;
-    }
-
-    /*
-     * @param apDp The AP sensor datapoint object to compare.
-     * @param chreDp The CHRE sensor datapoint object to compare.
-     *
-     * @return true if timestamps are similar.
-     */
-    private static boolean datapointTimestampsAreSimilar(SensorDatapoint apDp,
-                                                         SensorDatapoint chreDp) {
-        return Math.abs(apDp.timestamp - chreDp.timestamp) < MAX_TIMESTAMP_DIFF_NS;
-    }
-
-    /*
-     * @param apDp The AP SensorDatapoint object to compare.
-     * @param chreDp The CHRE SensorDatapoint object to compare.
-     * @param errorMargin The amount that each value in values array can differ between the two
-     *     datapoints.
-     * @return true if the datapoint values are all similar.
-     */
-    private static boolean datapointValuesAreSimilar(
-            ApSensorDatapoint apDp, ChreSensorDatapoint chreDp, float errorMargin) {
-        Assert.assertEquals(apDp.values.length, chreDp.values.length);
-        for (int i = 0; i < apDp.values.length; i++) {
-            float val1 = apDp.values[i];
-            float val2 = chreDp.values[i];
-            float diff = Math.abs(val1 - val2);
-            if (diff > errorMargin) {
-                return false;
-            }
-        }
-        return true;
     }
 }
