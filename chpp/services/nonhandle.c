@@ -14,24 +14,23 @@
  * limitations under the License.
  */
 
-#ifndef CHPP_TRANSPORT_TEST_H_
-#define CHPP_TRANSPORT_TEST_H_
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "chpp/services/nonhandle.h"
 
 /************************************************
- *  Functions necessary for unit testing
+ *  Prototypes
  ***********************************************/
 
-bool chppDequeueTxDatagram(struct ChppTransportState *context);
-void chppTransportDoWork(struct ChppTransportState *context);
-size_t chppAddPreamble(uint8_t *buf);
-uint32_t chppCalculateChecksum(uint8_t *buf, size_t len);
+/************************************************
+ *  Private Functions
+ ***********************************************/
 
-#ifdef __cplusplus
+/************************************************
+ *  Public Functions
+ ***********************************************/
+
+void chppDispatchNonHandle(struct ChppAppState *context, uint8_t *buf,
+                           size_t len) {
+  UNUSED_VAR(context);
+  UNUSED_VAR(buf);
+  UNUSED_VAR(len);
 }
-#endif
-
-#endif  // CHPP_TRANSPORT_TEST_H_
