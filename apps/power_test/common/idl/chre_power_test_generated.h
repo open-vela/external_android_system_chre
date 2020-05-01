@@ -10,79 +10,56 @@ namespace chre {
 namespace power_test {
 
 struct TimerMessage;
-struct TimerMessageBuilder;
 struct TimerMessageT;
 
 struct WifiScanMessage;
-struct WifiScanMessageBuilder;
 struct WifiScanMessageT;
 
 struct GnssLocationMessage;
-struct GnssLocationMessageBuilder;
 struct GnssLocationMessageT;
 
 struct CellQueryMessage;
-struct CellQueryMessageBuilder;
 struct CellQueryMessageT;
 
 struct AudioRequestMessage;
-struct AudioRequestMessageBuilder;
 struct AudioRequestMessageT;
 
 struct SensorRequestMessage;
-struct SensorRequestMessageBuilder;
 struct SensorRequestMessageT;
 
 struct BreakItMessage;
-struct BreakItMessageBuilder;
 struct BreakItMessageT;
 
 struct NanoappResponseMessage;
-struct NanoappResponseMessageBuilder;
 struct NanoappResponseMessageT;
 
 /// Indicates which of the following messages is being sent to / from the
 /// nanoapp. Use uint as the base type to match the message type in
 /// chreMessageFromHostData.
 enum class MessageType : uint32_t {
-  UNSPECIFIED = 0,
-  /// Should be used with TimerMessage
-  TIMER_TEST = 1,
-  /// Should be used with WifiScanMessage
-  WIFI_SCAN_TEST = 2,
-  /// Should be used with GnssLocationMessage
-  GNSS_LOCATION_TEST = 3,
-  /// Should be used with CellQueryMessage
-  CELL_QUERY_TEST = 4,
-  /// Should be used with AudioRequestMessage
-  AUDIO_REQUEST_TEST = 5,
-  /// Should be used with SensorRequestMessage
-  SENSOR_REQUEST_TEST = 6,
-  /// Should be used with BreakItMessage
-  BREAK_IT_TEST = 7,
-  /// Should be used with NanoappResponseMessage
+  UNSPECIFIED = 0  /// Should be used with TimerMessage
+,
+  TIMER_TEST = 1  /// Should be used with WifiScanMessage
+,
+  WIFI_SCAN_TEST = 2  /// Should be used with GnssLocationMessage
+,
+  GNSS_LOCATION_TEST = 3  /// Should be used with CellQueryMessage
+,
+  CELL_QUERY_TEST = 4  /// Should be used with AudioRequestMessage
+,
+  AUDIO_REQUEST_TEST = 5  /// Should be used with SensorRequestMessage
+,
+  SENSOR_REQUEST_TEST = 6  /// Should be used with BreakItMessage
+,
+  BREAK_IT_TEST = 7  /// Should be used with NanoappResponseMessage
+,
   NANOAPP_RESPONSE = 8,
   MIN = UNSPECIFIED,
   MAX = NANOAPP_RESPONSE
 };
 
-inline const MessageType (&EnumValuesMessageType())[9] {
-  static const MessageType values[] = {
-    MessageType::UNSPECIFIED,
-    MessageType::TIMER_TEST,
-    MessageType::WIFI_SCAN_TEST,
-    MessageType::GNSS_LOCATION_TEST,
-    MessageType::CELL_QUERY_TEST,
-    MessageType::AUDIO_REQUEST_TEST,
-    MessageType::SENSOR_REQUEST_TEST,
-    MessageType::BREAK_IT_TEST,
-    MessageType::NANOAPP_RESPONSE
-  };
-  return values;
-}
-
-inline const char * const *EnumNamesMessageType() {
-  static const char * const names[10] = {
+inline const char **EnumNamesMessageType() {
+  static const char *names[] = {
     "UNSPECIFIED",
     "TIMER_TEST",
     "WIFI_SCAN_TEST",
@@ -98,8 +75,7 @@ inline const char * const *EnumNamesMessageType() {
 }
 
 inline const char *EnumNameMessageType(MessageType e) {
-  if (flatbuffers::IsOutRange(e, MessageType::UNSPECIFIED, MessageType::NANOAPP_RESPONSE)) return "";
-  const size_t index = static_cast<size_t>(e);
+  const size_t index = static_cast<int>(e);
   return EnumNamesMessageType()[index];
 }
 
@@ -126,30 +102,8 @@ enum class SensorType : uint8_t {
   MAX = GEOMAGNETIC_FIELD_TEMPERATURE
 };
 
-inline const SensorType (&EnumValuesSensorType())[16] {
-  static const SensorType values[] = {
-    SensorType::UNKNOWN,
-    SensorType::ACCELEROMETER,
-    SensorType::INSTANT_MOTION_DETECT,
-    SensorType::STATIONARY_DETECT,
-    SensorType::GYROSCOPE,
-    SensorType::UNCALIBRATED_GYROSCOPE,
-    SensorType::GEOMAGNETIC_FIELD,
-    SensorType::UNCALIBRATED_GEOMAGNETIC_FIELD,
-    SensorType::PRESSURE,
-    SensorType::LIGHT,
-    SensorType::PROXIMITY,
-    SensorType::STEP_DETECT,
-    SensorType::UNCALIBRATED_ACCELEROMETER,
-    SensorType::ACCELEROMETER_TEMPERATURE,
-    SensorType::GYROSCOPE_TEMPERATURE,
-    SensorType::GEOMAGNETIC_FIELD_TEMPERATURE
-  };
-  return values;
-}
-
-inline const char * const *EnumNamesSensorType() {
-  static const char * const names[60] = {
+inline const char **EnumNamesSensorType() {
+  static const char *names[] = {
     "UNKNOWN",
     "ACCELEROMETER",
     "INSTANT_MOTION_DETECT",
@@ -215,8 +169,7 @@ inline const char * const *EnumNamesSensorType() {
 }
 
 inline const char *EnumNameSensorType(SensorType e) {
-  if (flatbuffers::IsOutRange(e, SensorType::UNKNOWN, SensorType::GEOMAGNETIC_FIELD_TEMPERATURE)) return "";
-  const size_t index = static_cast<size_t>(e);
+  const size_t index = static_cast<int>(e);
   return EnumNamesSensorType()[index];
 }
 
@@ -234,8 +187,7 @@ struct TimerMessageT : public flatbuffers::NativeTable {
 /// the given interval
 struct TimerMessage FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   typedef TimerMessageT NativeTableType;
-  typedef TimerMessageBuilder Builder;
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+  enum {
     VT_ENABLE = 4,
     VT_WAKEUP_INTERVAL_NS = 6
   };
@@ -243,13 +195,13 @@ struct TimerMessage FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
     return GetField<uint8_t>(VT_ENABLE, 0) != 0;
   }
   bool mutate_enable(bool _enable) {
-    return SetField<uint8_t>(VT_ENABLE, static_cast<uint8_t>(_enable), 0);
+    return SetField(VT_ENABLE, static_cast<uint8_t>(_enable));
   }
   uint64_t wakeup_interval_ns() const {
     return GetField<uint64_t>(VT_WAKEUP_INTERVAL_NS, 0);
   }
   bool mutate_wakeup_interval_ns(uint64_t _wakeup_interval_ns) {
-    return SetField<uint64_t>(VT_WAKEUP_INTERVAL_NS, _wakeup_interval_ns, 0);
+    return SetField(VT_WAKEUP_INTERVAL_NS, _wakeup_interval_ns);
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -263,7 +215,6 @@ struct TimerMessage FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
 };
 
 struct TimerMessageBuilder {
-  typedef TimerMessage Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
   void add_enable(bool enable) {
@@ -272,13 +223,13 @@ struct TimerMessageBuilder {
   void add_wakeup_interval_ns(uint64_t wakeup_interval_ns) {
     fbb_.AddElement<uint64_t>(TimerMessage::VT_WAKEUP_INTERVAL_NS, wakeup_interval_ns, 0);
   }
-  explicit TimerMessageBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+  TimerMessageBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
   TimerMessageBuilder &operator=(const TimerMessageBuilder &);
   flatbuffers::Offset<TimerMessage> Finish() {
-    const auto end = fbb_.EndTable(start_);
+    const auto end = fbb_.EndTable(start_, 2);
     auto o = flatbuffers::Offset<TimerMessage>(end);
     return o;
   }
@@ -310,8 +261,7 @@ struct WifiScanMessageT : public flatbuffers::NativeTable {
 /// the scan interval to use if scanning is being started
 struct WifiScanMessage FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   typedef WifiScanMessageT NativeTableType;
-  typedef WifiScanMessageBuilder Builder;
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+  enum {
     VT_ENABLE = 4,
     VT_SCAN_INTERVAL_NS = 6
   };
@@ -319,13 +269,13 @@ struct WifiScanMessage FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
     return GetField<uint8_t>(VT_ENABLE, 0) != 0;
   }
   bool mutate_enable(bool _enable) {
-    return SetField<uint8_t>(VT_ENABLE, static_cast<uint8_t>(_enable), 0);
+    return SetField(VT_ENABLE, static_cast<uint8_t>(_enable));
   }
   uint64_t scan_interval_ns() const {
     return GetField<uint64_t>(VT_SCAN_INTERVAL_NS, 0);
   }
   bool mutate_scan_interval_ns(uint64_t _scan_interval_ns) {
-    return SetField<uint64_t>(VT_SCAN_INTERVAL_NS, _scan_interval_ns, 0);
+    return SetField(VT_SCAN_INTERVAL_NS, _scan_interval_ns);
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -339,7 +289,6 @@ struct WifiScanMessage FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
 };
 
 struct WifiScanMessageBuilder {
-  typedef WifiScanMessage Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
   void add_enable(bool enable) {
@@ -348,13 +297,13 @@ struct WifiScanMessageBuilder {
   void add_scan_interval_ns(uint64_t scan_interval_ns) {
     fbb_.AddElement<uint64_t>(WifiScanMessage::VT_SCAN_INTERVAL_NS, scan_interval_ns, 0);
   }
-  explicit WifiScanMessageBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+  WifiScanMessageBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
   WifiScanMessageBuilder &operator=(const WifiScanMessageBuilder &);
   flatbuffers::Offset<WifiScanMessage> Finish() {
-    const auto end = fbb_.EndTable(start_);
+    const auto end = fbb_.EndTable(start_, 2);
     auto o = flatbuffers::Offset<WifiScanMessage>(end);
     return o;
   }
@@ -388,8 +337,7 @@ struct GnssLocationMessageT : public flatbuffers::NativeTable {
 /// sampling at the requested interval
 struct GnssLocationMessage FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   typedef GnssLocationMessageT NativeTableType;
-  typedef GnssLocationMessageBuilder Builder;
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+  enum {
     VT_ENABLE = 4,
     VT_SCAN_INTERVAL_MILLIS = 6,
     VT_MIN_TIME_TO_NEXT_FIX_MILLIS = 8
@@ -398,19 +346,19 @@ struct GnssLocationMessage FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table 
     return GetField<uint8_t>(VT_ENABLE, 0) != 0;
   }
   bool mutate_enable(bool _enable) {
-    return SetField<uint8_t>(VT_ENABLE, static_cast<uint8_t>(_enable), 0);
+    return SetField(VT_ENABLE, static_cast<uint8_t>(_enable));
   }
   uint32_t scan_interval_millis() const {
     return GetField<uint32_t>(VT_SCAN_INTERVAL_MILLIS, 0);
   }
   bool mutate_scan_interval_millis(uint32_t _scan_interval_millis) {
-    return SetField<uint32_t>(VT_SCAN_INTERVAL_MILLIS, _scan_interval_millis, 0);
+    return SetField(VT_SCAN_INTERVAL_MILLIS, _scan_interval_millis);
   }
   uint32_t min_time_to_next_fix_millis() const {
     return GetField<uint32_t>(VT_MIN_TIME_TO_NEXT_FIX_MILLIS, 0);
   }
   bool mutate_min_time_to_next_fix_millis(uint32_t _min_time_to_next_fix_millis) {
-    return SetField<uint32_t>(VT_MIN_TIME_TO_NEXT_FIX_MILLIS, _min_time_to_next_fix_millis, 0);
+    return SetField(VT_MIN_TIME_TO_NEXT_FIX_MILLIS, _min_time_to_next_fix_millis);
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -425,7 +373,6 @@ struct GnssLocationMessage FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table 
 };
 
 struct GnssLocationMessageBuilder {
-  typedef GnssLocationMessage Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
   void add_enable(bool enable) {
@@ -437,13 +384,13 @@ struct GnssLocationMessageBuilder {
   void add_min_time_to_next_fix_millis(uint32_t min_time_to_next_fix_millis) {
     fbb_.AddElement<uint32_t>(GnssLocationMessage::VT_MIN_TIME_TO_NEXT_FIX_MILLIS, min_time_to_next_fix_millis, 0);
   }
-  explicit GnssLocationMessageBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+  GnssLocationMessageBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
   GnssLocationMessageBuilder &operator=(const GnssLocationMessageBuilder &);
   flatbuffers::Offset<GnssLocationMessage> Finish() {
-    const auto end = fbb_.EndTable(start_);
+    const auto end = fbb_.EndTable(start_, 3);
     auto o = flatbuffers::Offset<GnssLocationMessage>(end);
     return o;
   }
@@ -477,8 +424,7 @@ struct CellQueryMessageT : public flatbuffers::NativeTable {
 /// modem for the latest cell scan results on the given interval
 struct CellQueryMessage FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   typedef CellQueryMessageT NativeTableType;
-  typedef CellQueryMessageBuilder Builder;
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+  enum {
     VT_ENABLE = 4,
     VT_QUERY_INTERVAL_NS = 6
   };
@@ -486,13 +432,13 @@ struct CellQueryMessage FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
     return GetField<uint8_t>(VT_ENABLE, 0) != 0;
   }
   bool mutate_enable(bool _enable) {
-    return SetField<uint8_t>(VT_ENABLE, static_cast<uint8_t>(_enable), 0);
+    return SetField(VT_ENABLE, static_cast<uint8_t>(_enable));
   }
   uint64_t query_interval_ns() const {
     return GetField<uint64_t>(VT_QUERY_INTERVAL_NS, 0);
   }
   bool mutate_query_interval_ns(uint64_t _query_interval_ns) {
-    return SetField<uint64_t>(VT_QUERY_INTERVAL_NS, _query_interval_ns, 0);
+    return SetField(VT_QUERY_INTERVAL_NS, _query_interval_ns);
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -506,7 +452,6 @@ struct CellQueryMessage FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
 };
 
 struct CellQueryMessageBuilder {
-  typedef CellQueryMessage Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
   void add_enable(bool enable) {
@@ -515,13 +460,13 @@ struct CellQueryMessageBuilder {
   void add_query_interval_ns(uint64_t query_interval_ns) {
     fbb_.AddElement<uint64_t>(CellQueryMessage::VT_QUERY_INTERVAL_NS, query_interval_ns, 0);
   }
-  explicit CellQueryMessageBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+  CellQueryMessageBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
   CellQueryMessageBuilder &operator=(const CellQueryMessageBuilder &);
   flatbuffers::Offset<CellQueryMessage> Finish() {
-    const auto end = fbb_.EndTable(start_);
+    const auto end = fbb_.EndTable(start_, 2);
     auto o = flatbuffers::Offset<CellQueryMessage>(end);
     return o;
   }
@@ -554,8 +499,7 @@ struct AudioRequestMessageT : public flatbuffers::NativeTable {
 /// source, the nanoapp will only request audio from the first source.
 struct AudioRequestMessage FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   typedef AudioRequestMessageT NativeTableType;
-  typedef AudioRequestMessageBuilder Builder;
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+  enum {
     VT_ENABLE = 4,
     VT_BUFFER_DURATION_NS = 6
   };
@@ -563,7 +507,7 @@ struct AudioRequestMessage FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table 
     return GetField<uint8_t>(VT_ENABLE, 0) != 0;
   }
   bool mutate_enable(bool _enable) {
-    return SetField<uint8_t>(VT_ENABLE, static_cast<uint8_t>(_enable), 0);
+    return SetField(VT_ENABLE, static_cast<uint8_t>(_enable));
   }
   /// The buffer duration is also used as the interval for how often
   /// the buffer should be delivered to the nanoapp.
@@ -571,7 +515,7 @@ struct AudioRequestMessage FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table 
     return GetField<uint64_t>(VT_BUFFER_DURATION_NS, 0);
   }
   bool mutate_buffer_duration_ns(uint64_t _buffer_duration_ns) {
-    return SetField<uint64_t>(VT_BUFFER_DURATION_NS, _buffer_duration_ns, 0);
+    return SetField(VT_BUFFER_DURATION_NS, _buffer_duration_ns);
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -585,7 +529,6 @@ struct AudioRequestMessage FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table 
 };
 
 struct AudioRequestMessageBuilder {
-  typedef AudioRequestMessage Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
   void add_enable(bool enable) {
@@ -594,13 +537,13 @@ struct AudioRequestMessageBuilder {
   void add_buffer_duration_ns(uint64_t buffer_duration_ns) {
     fbb_.AddElement<uint64_t>(AudioRequestMessage::VT_BUFFER_DURATION_NS, buffer_duration_ns, 0);
   }
-  explicit AudioRequestMessageBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+  AudioRequestMessageBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
   AudioRequestMessageBuilder &operator=(const AudioRequestMessageBuilder &);
   flatbuffers::Offset<AudioRequestMessage> Finish() {
-    const auto end = fbb_.EndTable(start_);
+    const auto end = fbb_.EndTable(start_, 2);
     auto o = flatbuffers::Offset<AudioRequestMessage>(end);
     return o;
   }
@@ -621,12 +564,12 @@ flatbuffers::Offset<AudioRequestMessage> CreateAudioRequestMessage(flatbuffers::
 struct SensorRequestMessageT : public flatbuffers::NativeTable {
   typedef SensorRequestMessage TableType;
   bool enable;
-  chre::power_test::SensorType sensor;
+  SensorType sensor;
   uint64_t sampling_interval_ns;
   uint64_t latency_ns;
   SensorRequestMessageT()
       : enable(false),
-        sensor(chre::power_test::SensorType::UNKNOWN),
+        sensor(SensorType::UNKNOWN),
         sampling_interval_ns(0),
         latency_ns(0) {
   }
@@ -636,8 +579,7 @@ struct SensorRequestMessageT : public flatbuffers::NativeTable {
 /// a given sensor
 struct SensorRequestMessage FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   typedef SensorRequestMessageT NativeTableType;
-  typedef SensorRequestMessageBuilder Builder;
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+  enum {
     VT_ENABLE = 4,
     VT_SENSOR = 6,
     VT_SAMPLING_INTERVAL_NS = 8,
@@ -647,25 +589,25 @@ struct SensorRequestMessage FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table
     return GetField<uint8_t>(VT_ENABLE, 0) != 0;
   }
   bool mutate_enable(bool _enable) {
-    return SetField<uint8_t>(VT_ENABLE, static_cast<uint8_t>(_enable), 0);
+    return SetField(VT_ENABLE, static_cast<uint8_t>(_enable));
   }
-  chre::power_test::SensorType sensor() const {
-    return static_cast<chre::power_test::SensorType>(GetField<uint8_t>(VT_SENSOR, 0));
+  SensorType sensor() const {
+    return static_cast<SensorType>(GetField<uint8_t>(VT_SENSOR, 0));
   }
-  bool mutate_sensor(chre::power_test::SensorType _sensor) {
-    return SetField<uint8_t>(VT_SENSOR, static_cast<uint8_t>(_sensor), 0);
+  bool mutate_sensor(SensorType _sensor) {
+    return SetField(VT_SENSOR, static_cast<uint8_t>(_sensor));
   }
   uint64_t sampling_interval_ns() const {
     return GetField<uint64_t>(VT_SAMPLING_INTERVAL_NS, 0);
   }
   bool mutate_sampling_interval_ns(uint64_t _sampling_interval_ns) {
-    return SetField<uint64_t>(VT_SAMPLING_INTERVAL_NS, _sampling_interval_ns, 0);
+    return SetField(VT_SAMPLING_INTERVAL_NS, _sampling_interval_ns);
   }
   uint64_t latency_ns() const {
     return GetField<uint64_t>(VT_LATENCY_NS, 0);
   }
   bool mutate_latency_ns(uint64_t _latency_ns) {
-    return SetField<uint64_t>(VT_LATENCY_NS, _latency_ns, 0);
+    return SetField(VT_LATENCY_NS, _latency_ns);
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -681,13 +623,12 @@ struct SensorRequestMessage FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table
 };
 
 struct SensorRequestMessageBuilder {
-  typedef SensorRequestMessage Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
   void add_enable(bool enable) {
     fbb_.AddElement<uint8_t>(SensorRequestMessage::VT_ENABLE, static_cast<uint8_t>(enable), 0);
   }
-  void add_sensor(chre::power_test::SensorType sensor) {
+  void add_sensor(SensorType sensor) {
     fbb_.AddElement<uint8_t>(SensorRequestMessage::VT_SENSOR, static_cast<uint8_t>(sensor), 0);
   }
   void add_sampling_interval_ns(uint64_t sampling_interval_ns) {
@@ -696,13 +637,13 @@ struct SensorRequestMessageBuilder {
   void add_latency_ns(uint64_t latency_ns) {
     fbb_.AddElement<uint64_t>(SensorRequestMessage::VT_LATENCY_NS, latency_ns, 0);
   }
-  explicit SensorRequestMessageBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+  SensorRequestMessageBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
   SensorRequestMessageBuilder &operator=(const SensorRequestMessageBuilder &);
   flatbuffers::Offset<SensorRequestMessage> Finish() {
-    const auto end = fbb_.EndTable(start_);
+    const auto end = fbb_.EndTable(start_, 4);
     auto o = flatbuffers::Offset<SensorRequestMessage>(end);
     return o;
   }
@@ -711,7 +652,7 @@ struct SensorRequestMessageBuilder {
 inline flatbuffers::Offset<SensorRequestMessage> CreateSensorRequestMessage(
     flatbuffers::FlatBufferBuilder &_fbb,
     bool enable = false,
-    chre::power_test::SensorType sensor = chre::power_test::SensorType::UNKNOWN,
+    SensorType sensor = SensorType::UNKNOWN,
     uint64_t sampling_interval_ns = 0,
     uint64_t latency_ns = 0) {
   SensorRequestMessageBuilder builder_(_fbb);
@@ -737,15 +678,14 @@ struct BreakItMessageT : public flatbuffers::NativeTable {
 /// enables all sensors at their fastest sampling rate.
 struct BreakItMessage FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   typedef BreakItMessageT NativeTableType;
-  typedef BreakItMessageBuilder Builder;
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+  enum {
     VT_ENABLE = 4
   };
   bool enable() const {
     return GetField<uint8_t>(VT_ENABLE, 0) != 0;
   }
   bool mutate_enable(bool _enable) {
-    return SetField<uint8_t>(VT_ENABLE, static_cast<uint8_t>(_enable), 0);
+    return SetField(VT_ENABLE, static_cast<uint8_t>(_enable));
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -758,19 +698,18 @@ struct BreakItMessage FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
 };
 
 struct BreakItMessageBuilder {
-  typedef BreakItMessage Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
   void add_enable(bool enable) {
     fbb_.AddElement<uint8_t>(BreakItMessage::VT_ENABLE, static_cast<uint8_t>(enable), 0);
   }
-  explicit BreakItMessageBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+  BreakItMessageBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
   BreakItMessageBuilder &operator=(const BreakItMessageBuilder &);
   flatbuffers::Offset<BreakItMessage> Finish() {
-    const auto end = fbb_.EndTable(start_);
+    const auto end = fbb_.EndTable(start_, 1);
     auto o = flatbuffers::Offset<BreakItMessage>(end);
     return o;
   }
@@ -798,15 +737,14 @@ struct NanoappResponseMessageT : public flatbuffers::NativeTable {
 /// Any failures will be printed to the logs.
 struct NanoappResponseMessage FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   typedef NanoappResponseMessageT NativeTableType;
-  typedef NanoappResponseMessageBuilder Builder;
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+  enum {
     VT_SUCCESS = 4
   };
   bool success() const {
     return GetField<uint8_t>(VT_SUCCESS, 0) != 0;
   }
   bool mutate_success(bool _success) {
-    return SetField<uint8_t>(VT_SUCCESS, static_cast<uint8_t>(_success), 0);
+    return SetField(VT_SUCCESS, static_cast<uint8_t>(_success));
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -819,19 +757,18 @@ struct NanoappResponseMessage FLATBUFFERS_FINAL_CLASS : private flatbuffers::Tab
 };
 
 struct NanoappResponseMessageBuilder {
-  typedef NanoappResponseMessage Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
   void add_success(bool success) {
     fbb_.AddElement<uint8_t>(NanoappResponseMessage::VT_SUCCESS, static_cast<uint8_t>(success), 0);
   }
-  explicit NanoappResponseMessageBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+  NanoappResponseMessageBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
   NanoappResponseMessageBuilder &operator=(const NanoappResponseMessageBuilder &);
   flatbuffers::Offset<NanoappResponseMessage> Finish() {
-    const auto end = fbb_.EndTable(start_);
+    const auto end = fbb_.EndTable(start_, 1);
     auto o = flatbuffers::Offset<NanoappResponseMessage>(end);
     return o;
   }
@@ -848,16 +785,16 @@ inline flatbuffers::Offset<NanoappResponseMessage> CreateNanoappResponseMessage(
 flatbuffers::Offset<NanoappResponseMessage> CreateNanoappResponseMessage(flatbuffers::FlatBufferBuilder &_fbb, const NanoappResponseMessageT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
 inline TimerMessageT *TimerMessage::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<chre::power_test::TimerMessageT> _o = std::unique_ptr<chre::power_test::TimerMessageT>(new TimerMessageT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new TimerMessageT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void TimerMessage::UnPackTo(TimerMessageT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = enable(); _o->enable = _e; }
-  { auto _e = wakeup_interval_ns(); _o->wakeup_interval_ns = _e; }
+  { auto _e = enable(); _o->enable = _e; };
+  { auto _e = wakeup_interval_ns(); _o->wakeup_interval_ns = _e; };
 }
 
 inline flatbuffers::Offset<TimerMessage> TimerMessage::Pack(flatbuffers::FlatBufferBuilder &_fbb, const TimerMessageT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -867,7 +804,6 @@ inline flatbuffers::Offset<TimerMessage> TimerMessage::Pack(flatbuffers::FlatBuf
 inline flatbuffers::Offset<TimerMessage> CreateTimerMessage(flatbuffers::FlatBufferBuilder &_fbb, const TimerMessageT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
   (void)_rehasher;
   (void)_o;
-  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const TimerMessageT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _enable = _o->enable;
   auto _wakeup_interval_ns = _o->wakeup_interval_ns;
   return chre::power_test::CreateTimerMessage(
@@ -877,16 +813,16 @@ inline flatbuffers::Offset<TimerMessage> CreateTimerMessage(flatbuffers::FlatBuf
 }
 
 inline WifiScanMessageT *WifiScanMessage::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<chre::power_test::WifiScanMessageT> _o = std::unique_ptr<chre::power_test::WifiScanMessageT>(new WifiScanMessageT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new WifiScanMessageT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void WifiScanMessage::UnPackTo(WifiScanMessageT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = enable(); _o->enable = _e; }
-  { auto _e = scan_interval_ns(); _o->scan_interval_ns = _e; }
+  { auto _e = enable(); _o->enable = _e; };
+  { auto _e = scan_interval_ns(); _o->scan_interval_ns = _e; };
 }
 
 inline flatbuffers::Offset<WifiScanMessage> WifiScanMessage::Pack(flatbuffers::FlatBufferBuilder &_fbb, const WifiScanMessageT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -896,7 +832,6 @@ inline flatbuffers::Offset<WifiScanMessage> WifiScanMessage::Pack(flatbuffers::F
 inline flatbuffers::Offset<WifiScanMessage> CreateWifiScanMessage(flatbuffers::FlatBufferBuilder &_fbb, const WifiScanMessageT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
   (void)_rehasher;
   (void)_o;
-  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const WifiScanMessageT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _enable = _o->enable;
   auto _scan_interval_ns = _o->scan_interval_ns;
   return chre::power_test::CreateWifiScanMessage(
@@ -906,17 +841,17 @@ inline flatbuffers::Offset<WifiScanMessage> CreateWifiScanMessage(flatbuffers::F
 }
 
 inline GnssLocationMessageT *GnssLocationMessage::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<chre::power_test::GnssLocationMessageT> _o = std::unique_ptr<chre::power_test::GnssLocationMessageT>(new GnssLocationMessageT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new GnssLocationMessageT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void GnssLocationMessage::UnPackTo(GnssLocationMessageT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = enable(); _o->enable = _e; }
-  { auto _e = scan_interval_millis(); _o->scan_interval_millis = _e; }
-  { auto _e = min_time_to_next_fix_millis(); _o->min_time_to_next_fix_millis = _e; }
+  { auto _e = enable(); _o->enable = _e; };
+  { auto _e = scan_interval_millis(); _o->scan_interval_millis = _e; };
+  { auto _e = min_time_to_next_fix_millis(); _o->min_time_to_next_fix_millis = _e; };
 }
 
 inline flatbuffers::Offset<GnssLocationMessage> GnssLocationMessage::Pack(flatbuffers::FlatBufferBuilder &_fbb, const GnssLocationMessageT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -926,7 +861,6 @@ inline flatbuffers::Offset<GnssLocationMessage> GnssLocationMessage::Pack(flatbu
 inline flatbuffers::Offset<GnssLocationMessage> CreateGnssLocationMessage(flatbuffers::FlatBufferBuilder &_fbb, const GnssLocationMessageT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
   (void)_rehasher;
   (void)_o;
-  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const GnssLocationMessageT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _enable = _o->enable;
   auto _scan_interval_millis = _o->scan_interval_millis;
   auto _min_time_to_next_fix_millis = _o->min_time_to_next_fix_millis;
@@ -938,16 +872,16 @@ inline flatbuffers::Offset<GnssLocationMessage> CreateGnssLocationMessage(flatbu
 }
 
 inline CellQueryMessageT *CellQueryMessage::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<chre::power_test::CellQueryMessageT> _o = std::unique_ptr<chre::power_test::CellQueryMessageT>(new CellQueryMessageT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new CellQueryMessageT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void CellQueryMessage::UnPackTo(CellQueryMessageT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = enable(); _o->enable = _e; }
-  { auto _e = query_interval_ns(); _o->query_interval_ns = _e; }
+  { auto _e = enable(); _o->enable = _e; };
+  { auto _e = query_interval_ns(); _o->query_interval_ns = _e; };
 }
 
 inline flatbuffers::Offset<CellQueryMessage> CellQueryMessage::Pack(flatbuffers::FlatBufferBuilder &_fbb, const CellQueryMessageT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -957,7 +891,6 @@ inline flatbuffers::Offset<CellQueryMessage> CellQueryMessage::Pack(flatbuffers:
 inline flatbuffers::Offset<CellQueryMessage> CreateCellQueryMessage(flatbuffers::FlatBufferBuilder &_fbb, const CellQueryMessageT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
   (void)_rehasher;
   (void)_o;
-  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const CellQueryMessageT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _enable = _o->enable;
   auto _query_interval_ns = _o->query_interval_ns;
   return chre::power_test::CreateCellQueryMessage(
@@ -967,16 +900,16 @@ inline flatbuffers::Offset<CellQueryMessage> CreateCellQueryMessage(flatbuffers:
 }
 
 inline AudioRequestMessageT *AudioRequestMessage::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<chre::power_test::AudioRequestMessageT> _o = std::unique_ptr<chre::power_test::AudioRequestMessageT>(new AudioRequestMessageT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new AudioRequestMessageT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void AudioRequestMessage::UnPackTo(AudioRequestMessageT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = enable(); _o->enable = _e; }
-  { auto _e = buffer_duration_ns(); _o->buffer_duration_ns = _e; }
+  { auto _e = enable(); _o->enable = _e; };
+  { auto _e = buffer_duration_ns(); _o->buffer_duration_ns = _e; };
 }
 
 inline flatbuffers::Offset<AudioRequestMessage> AudioRequestMessage::Pack(flatbuffers::FlatBufferBuilder &_fbb, const AudioRequestMessageT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -986,7 +919,6 @@ inline flatbuffers::Offset<AudioRequestMessage> AudioRequestMessage::Pack(flatbu
 inline flatbuffers::Offset<AudioRequestMessage> CreateAudioRequestMessage(flatbuffers::FlatBufferBuilder &_fbb, const AudioRequestMessageT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
   (void)_rehasher;
   (void)_o;
-  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const AudioRequestMessageT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _enable = _o->enable;
   auto _buffer_duration_ns = _o->buffer_duration_ns;
   return chre::power_test::CreateAudioRequestMessage(
@@ -996,18 +928,18 @@ inline flatbuffers::Offset<AudioRequestMessage> CreateAudioRequestMessage(flatbu
 }
 
 inline SensorRequestMessageT *SensorRequestMessage::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<chre::power_test::SensorRequestMessageT> _o = std::unique_ptr<chre::power_test::SensorRequestMessageT>(new SensorRequestMessageT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new SensorRequestMessageT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void SensorRequestMessage::UnPackTo(SensorRequestMessageT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = enable(); _o->enable = _e; }
-  { auto _e = sensor(); _o->sensor = _e; }
-  { auto _e = sampling_interval_ns(); _o->sampling_interval_ns = _e; }
-  { auto _e = latency_ns(); _o->latency_ns = _e; }
+  { auto _e = enable(); _o->enable = _e; };
+  { auto _e = sensor(); _o->sensor = _e; };
+  { auto _e = sampling_interval_ns(); _o->sampling_interval_ns = _e; };
+  { auto _e = latency_ns(); _o->latency_ns = _e; };
 }
 
 inline flatbuffers::Offset<SensorRequestMessage> SensorRequestMessage::Pack(flatbuffers::FlatBufferBuilder &_fbb, const SensorRequestMessageT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -1017,7 +949,6 @@ inline flatbuffers::Offset<SensorRequestMessage> SensorRequestMessage::Pack(flat
 inline flatbuffers::Offset<SensorRequestMessage> CreateSensorRequestMessage(flatbuffers::FlatBufferBuilder &_fbb, const SensorRequestMessageT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
   (void)_rehasher;
   (void)_o;
-  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const SensorRequestMessageT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _enable = _o->enable;
   auto _sensor = _o->sensor;
   auto _sampling_interval_ns = _o->sampling_interval_ns;
@@ -1031,15 +962,15 @@ inline flatbuffers::Offset<SensorRequestMessage> CreateSensorRequestMessage(flat
 }
 
 inline BreakItMessageT *BreakItMessage::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<chre::power_test::BreakItMessageT> _o = std::unique_ptr<chre::power_test::BreakItMessageT>(new BreakItMessageT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new BreakItMessageT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void BreakItMessage::UnPackTo(BreakItMessageT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = enable(); _o->enable = _e; }
+  { auto _e = enable(); _o->enable = _e; };
 }
 
 inline flatbuffers::Offset<BreakItMessage> BreakItMessage::Pack(flatbuffers::FlatBufferBuilder &_fbb, const BreakItMessageT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -1049,7 +980,6 @@ inline flatbuffers::Offset<BreakItMessage> BreakItMessage::Pack(flatbuffers::Fla
 inline flatbuffers::Offset<BreakItMessage> CreateBreakItMessage(flatbuffers::FlatBufferBuilder &_fbb, const BreakItMessageT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
   (void)_rehasher;
   (void)_o;
-  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const BreakItMessageT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _enable = _o->enable;
   return chre::power_test::CreateBreakItMessage(
       _fbb,
@@ -1057,15 +987,15 @@ inline flatbuffers::Offset<BreakItMessage> CreateBreakItMessage(flatbuffers::Fla
 }
 
 inline NanoappResponseMessageT *NanoappResponseMessage::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<chre::power_test::NanoappResponseMessageT> _o = std::unique_ptr<chre::power_test::NanoappResponseMessageT>(new NanoappResponseMessageT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new NanoappResponseMessageT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void NanoappResponseMessage::UnPackTo(NanoappResponseMessageT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = success(); _o->success = _e; }
+  { auto _e = success(); _o->success = _e; };
 }
 
 inline flatbuffers::Offset<NanoappResponseMessage> NanoappResponseMessage::Pack(flatbuffers::FlatBufferBuilder &_fbb, const NanoappResponseMessageT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -1075,7 +1005,6 @@ inline flatbuffers::Offset<NanoappResponseMessage> NanoappResponseMessage::Pack(
 inline flatbuffers::Offset<NanoappResponseMessage> CreateNanoappResponseMessage(flatbuffers::FlatBufferBuilder &_fbb, const NanoappResponseMessageT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
   (void)_rehasher;
   (void)_o;
-  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const NanoappResponseMessageT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _success = _o->success;
   return chre::power_test::CreateNanoappResponseMessage(
       _fbb,
