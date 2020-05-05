@@ -27,8 +27,7 @@ extern "C" {
 #define __FILENAME__ __FILE__
 #endif
 
-// TODO: Should use PRIu8 etc. from inttypes.h instead of %d, etc. (add -Wall
-// and -Werror to cflags to catch these)
+// TODO: consider switching to a PAL interface to assist platform adaptation
 #define CHPP_LINUX_LOG(level, color, fmt, ...)                         \
   printf("\e[" color "m%s %s:%d\t" fmt "\e[0m\n", level, __FILENAME__, \
          __LINE__, ##__VA_ARGS__)
