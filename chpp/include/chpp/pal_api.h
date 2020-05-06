@@ -1,4 +1,4 @@
-/*
+/**
  * Copyright (C) 2020 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,24 +14,29 @@
  * limitations under the License.
  */
 
-#ifndef CHPP_TRANSPORT_TEST_H_
-#define CHPP_TRANSPORT_TEST_H_
+#ifndef CHPP_PAL_API_H_
+#define CHPP_PAL_API_H_
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/************************************************
- *  Functions necessary for unit testing
- ***********************************************/
+/**
+ * Called by the App layer to initialize the PAL system APIs.
+ *
+ * @param context Maintains status for each app layer instance.
+ */
+void chppPalSystemApiInit(struct ChppAppState *context);
 
-bool chppDequeueTxDatagram(struct ChppTransportState *context);
-void chppTransportDoWork(struct ChppTransportState *context);
-size_t chppAddPreamble(uint8_t *buf);
-uint32_t chppCalculateChecksum(uint8_t *buf, size_t len);
+/**
+ * Called by the App layer to deinitialize the PAL system APIs.
+ *
+ * @param context Maintains status for each app layer instance.
+ */
+void chppPalSystemApiDeinit(struct ChppAppState *context);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  // CHPP_TRANSPORT_TEST_H_
+#endif  // CHPP_LOG_H_
