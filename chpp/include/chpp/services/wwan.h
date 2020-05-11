@@ -28,19 +28,15 @@ extern "C" {
 #endif
 
 /************************************************
- *  Public Definitions
- ***********************************************/
-
-/************************************************
  *  Public functions
  ***********************************************/
 
 /**
- * Called by the App layer to initialize the WWAN (cellular) common service.
+ * Initializes the WWAN (cellular) common service.
  *
- * @param appContext Maintains status for each app layer instance.
+ * @param context Maintains status for each app layer instance.
  */
-void chppWwanServiceInit(struct ChppAppState *appContext);
+void chppWwanServiceInit(struct ChppAppState *context);
 
 #ifdef __cplusplus
 }
