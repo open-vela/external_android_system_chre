@@ -66,10 +66,22 @@ class Sensor : public PlatformSensor {
   }
 
   /**
-   * @return A const reference to the maximal request.
+   * Obtains a reference to the latest request that has been accepted by the
+   * platform.
+   *
+   * @return A const reference to the SensorRequest.
    */
-  const SensorRequest &getMaximalRequest() const {
-    return mSensorRequests.getCurrentMaximalRequest();
+  const SensorRequest &getRequest() const {
+    return mSensorRequest;
+  }
+
+  /**
+   * Sets the request of this sensor that's been accepted by the platform.
+   *
+   * @param request The new request for this sensor.
+   */
+  void setRequest(const SensorRequest &request) {
+    mSensorRequest = request;
   }
 
   /**
@@ -190,13 +202,6 @@ class Sensor : public PlatformSensor {
   void setLastEvent(ChreSensorData *event);
 
   /**
-   * Marks the last event invalid.
-   */
-  void clearLastEvent() {
-    mLastEventValid = false;
-  }
-
-  /**
    * Gets the current status of this sensor in the CHRE API format.
    *
    * @param status A non-null pointer to chreSensorSamplingStatus to populate
@@ -231,6 +236,9 @@ class Sensor : public PlatformSensor {
   //! allocated to store the sensor data for this particular sensor (a.k.a.
   //! don't attempt to use other fields in this union).
   ChreSensorData *mLastEvent = nullptr;
+
+  //! The most recent sensor request accepted by the platform.
+  SensorRequest mSensorRequest;
 
   //! The multiplexer for all requests for this sensor.
   SensorRequestMultiplexer mSensorRequests;
