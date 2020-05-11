@@ -14,18 +14,16 @@
  * limitations under the License.
  */
 
-#include <chre.h>
-#include <cinttypes>
+#include "fastrpc_daemon.h"
 
-namespace chre {
+int main() {
+  android::chre::FastRpcChreDaemon daemon;
 
-extern "C" void nanoappHandleEvent(uint32_t senderInstanceId,
-                                   uint16_t eventType, const void *eventData) {}
+  if (!daemon.init()) {
+    LOGE("failed to init the daemon");
+  } else {
+    daemon.run();
+  }
 
-extern "C" bool nanoappStart(void) {
-  return true;
+  return 0;
 }
-
-extern "C" void nanoappEnd(void) {}
-
-}  // namespace chre

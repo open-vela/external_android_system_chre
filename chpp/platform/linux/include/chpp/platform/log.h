@@ -17,6 +17,7 @@
 #ifndef CHPP_LOG_H_
 #define CHPP_LOG_H_
 
+#include <inttypes.h>
 #include <stdio.h>
 
 #ifdef __cplusplus
@@ -27,7 +28,8 @@ extern "C" {
 #define __FILENAME__ __FILE__
 #endif
 
-// TODO: consider switching to a PAL interface to assist platform adaptation
+// TODO: Should use PRIu8 etc. from inttypes.h instead of %d, etc. (add -Wall
+// and -Werror to cflags to catch these)
 #define CHPP_LINUX_LOG(level, color, fmt, ...)                         \
   printf("\e[" color "m%s %s:%d\t" fmt "\e[0m\n", level, __FILENAME__, \
          __LINE__, ##__VA_ARGS__)

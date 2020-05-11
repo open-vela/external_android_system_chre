@@ -89,6 +89,9 @@ bool PlatformSensorManager::configureSensor(Sensor &sensor,
         getConfigureModeFromSensorMode(request.getMode()),
         request.getInterval().toRawNanoseconds(),
         request.getLatency().toRawNanoseconds());
+    if (success) {
+      sensor.setRequest(request);
+    }
   }
   return success;
 }
