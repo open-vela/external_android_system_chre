@@ -60,8 +60,7 @@ void chppAppendToPendingTxPacket(struct PendingTxPacket *packet,
  */
 static void chppSetRxState(struct ChppTransportState *context,
                            enum ChppRxState newState) {
-  LOGD("Changing state from %" PRIu8 " to %" PRIu8, context->rxStatus.state,
-       newState);
+  LOGD("Changing state from %d to %d", context->rxStatus.state, newState);
   context->rxStatus.locInState = 0;
   context->rxStatus.state = newState;
 }
@@ -170,10 +169,9 @@ static size_t chppConsumeHeader(struct ChppTransportState *context,
         }
 
         if (tempPayload == NULL) {
-          LOG_OOM("packet# %" PRIu8 ", len=%" PRIu16
-                  ". Previous fragment(s) total len=%zu",
-                  context->rxHeader.seq, context->rxHeader.length,
-                  context->rxDatagram.length);
+          LOGE("OOM for packet# %d, len=%u. Previous fragment(s) total len=%zu",
+               context->rxHeader.seq, context->rxHeader.length,
+               context->rxDatagram.length);
           chppEnqueueTxPacket(context, CHPP_TRANSPORT_ERROR_OOM);
           chppSetRxState(context, CHPP_STATE_PREAMBLE);
         } else {
@@ -252,8 +250,7 @@ static size_t chppConsumeFooter(struct ChppTransportState *context,
     if (!chppRxChecksumIsOk(context)) {
       // Packet is bad. Discard bad payload data (if any) and NACK
 
-      LOGE("Discarding CHPP packet# %" PRIu8 " len=%" PRIu16
-           " because of bad checksum",
+      LOGE("Discarding CHPP packet# %d len=%u because of bad checksum",
            context->rxHeader.seq, context->rxHeader.length);
       chppRxAbortPacket(context);
       chppEnqueueTxPacket(context, CHPP_TRANSPORT_ERROR_CHECKSUM);
@@ -309,9 +306,11 @@ static void chppRxAbortPacket(struct ChppTransportState *context) {
                       context->rxDatagram.length + context->rxHeader.length);
 
       if (tempPayload == NULL) {
-        LOG_OOM("discarding continuation packet# %" PRIu8 ". total len=%zu",
-                context->rxHeader.seq,
-                context->rxDatagram.length + context->rxHeader.length);
+        LOGE(
+            "OOM discarding bad continuation packet# %d len=%u. Previous "
+            "fragment(s) total len=%zu",
+            context->rxHeader.seq, context->rxHeader.length,
+            context->rxDatagram.length);
       } else {
         context->rxDatagram.payload = tempPayload;
       }
@@ -330,17 +329,19 @@ static void chppProcessRxPayload(struct ChppTransportState *context) {
 
   if (context->rxHeader.flags & CHPP_TRANSPORT_FLAG_UNFINISHED_DATAGRAM) {
     // packet is part of a larger datagram
-    LOGD("Received continuation packet# %" PRIu8 " len=%" PRIu16
-         ". Previous fragment(s) total len=%zu",
-         context->rxHeader.seq, context->rxHeader.length,
-         context->rxDatagram.length);
+    LOGD(
+        "Received continuation packet# %d len=%u. Previous fragment(s) "
+        "total len=%zu",
+        context->rxHeader.seq, context->rxHeader.length,
+        context->rxDatagram.length);
 
   } else {
     // End of this packet is end of a datagram
-    LOGD("Received packet# %" PRIu8 " len=%" PRIu16
-         " completing a datagram. Previous fragment(s) total len=%zu",
-         context->rxHeader.seq, context->rxHeader.length,
-         context->rxDatagram.length);
+    LOGD(
+        "Received packet# %d len=%u completing a datagram. Previous "
+        "fragment(s) total len=%zu",
+        context->rxHeader.seq, context->rxHeader.length,
+        context->rxDatagram.length);
 
     uint8_t lastSentAck = context->txStatus.sentAckSeq;
 
@@ -539,11 +540,11 @@ bool chppDequeueTxDatagram(struct ChppTransportState *context) {
 void chppTransportDoWork(struct ChppTransportState *context) {
   // Note: For a future ACK window >1, there needs to be a loop outside the lock
 
-  LOGD("chppTransportDoWork start, (state = %" PRIu8
-       ", packets to send = %s, link busy = %s)",
-       context->rxStatus.state,
-       context->txStatus.hasPacketsToSend ? "true" : "false",
-       context->txStatus.linkBusy ? "true" : "false");
+  LOGD(
+      "chppTransportDoWork start, (state = %d, packets to send = %d, link busy "
+      "= %d)",
+      context->rxStatus.state, context->txStatus.hasPacketsToSend,
+      context->txStatus.linkBusy);
 
   chppMutexLock(&context->mutex);
 
@@ -683,7 +684,7 @@ bool chppRxDataCb(struct ChppTransportState *context, const uint8_t *buf,
   CHPP_NOT_NULL(buf);
   CHPP_NOT_NULL(context);
 
-  LOGD("chppRxDataCb received %zu bytes (state = %" PRIu8 ")", len,
+  LOGD("chppRxDataCb received %zu bytes (state = %d)", len,
        context->rxStatus.state);
 
   size_t consumed = 0;
@@ -713,12 +714,12 @@ bool chppRxDataCb(struct ChppTransportState *context, const uint8_t *buf,
         break;
 
       default:
-        LOGE("Invalid state %" PRIu8, context->rxStatus.state);
+        LOGE("Invalid state %d", context->rxStatus.state);
         chppSetRxState(context, CHPP_STATE_PREAMBLE);
     }
 
-    LOGD("chppRxDataCb consumed %zu of %zu bytes (state = %" PRIu8 ")",
-         consumed, len, context->rxStatus.state);
+    LOGD("chppRxDataCb consumed %zu of %zu bytes (state = %d)", consumed, len,
+         context->rxStatus.state);
 
     chppMutexUnlock(&context->mutex);
   }
@@ -740,8 +741,7 @@ void chppTxTimeoutTimerCb(struct ChppTransportState *context) {
 }
 
 void chppRxTimeoutTimerCb(struct ChppTransportState *context) {
-  LOGE("Rx timeout during state %" PRIu8 ". Aborting packet# %" PRIu8
-       " len=%" PRIu16,
+  LOGE("Rx timeout during state %d. Aborting packet# %d len=%u",
        context->rxStatus.state, context->rxHeader.seq,
        context->rxHeader.length);
 
@@ -792,8 +792,7 @@ bool chppEnqueueTxDatagramOrFail(struct ChppTransportState *context, void *buf,
       struct ChppAppHeader *header = (struct ChppAppHeader *)buf;
       LOGE(
           "Tx Queue full. Cannot enqueue Tx datagram of %zu bytes for handle = "
-          "%" PRIu8 ", type = %" PRIu8 ", transaction ID = %" PRIu8
-          ", command = %#x",
+          "%d, type = %d, transaction = %d, command = %#x",
           len, header->handle, header->type, header->transaction,
           header->command);
     }
@@ -804,25 +803,6 @@ bool chppEnqueueTxDatagramOrFail(struct ChppTransportState *context, void *buf,
   }
 
   return success;
-}
-
-void chppEnqueueTxErrorDatagram(struct ChppTransportState *context,
-                                enum ChppTransportErrorCode errorCode) {
-  switch (errorCode) {
-    case CHPP_TRANSPORT_ERROR_OOM: {
-      LOGD("Enqueueing CHPP_TRANSPORT_ERROR_OOM datagram");
-      break;
-    }
-    case CHPP_TRANSPORT_ERROR_APPLAYER: {
-      LOGD("Enqueueing CHPP_TRANSPORT_ERROR_APPLAYER datagram");
-      break;
-    }
-    default: {
-      // App layer should not invoke any other errors
-      CHPP_ASSERT();
-    }
-  }
-  chppEnqueueTxPacket(context, errorCode);
 }
 
 void chppWorkThreadStart(struct ChppTransportState *context) {

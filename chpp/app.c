@@ -63,7 +63,7 @@ void chppProcessPredefinedService(struct ChppAppState *context, uint8_t *buf,
       break;
 
     default:
-      LOGE("Invalid predefined service handle %" PRIu8, rxHeader->handle);
+      LOGE("Invalid predefined service handle %d", rxHeader->handle);
   }
 }
 
@@ -134,7 +134,7 @@ bool chppDatagramLenIsOk(struct ChppAppState *context, uint8_t handle,
         break;
 
       default:
-        LOGE("Invalid predefined service handle %" PRIu8, handle);
+        LOGE("Invalid predefined service handle %d", handle);
     }
 
   } else {
@@ -146,8 +146,7 @@ bool chppDatagramLenIsOk(struct ChppAppState *context, uint8_t handle,
   }
 
   if (len < minLen) {
-    LOGE("Received datagram too short for handle=%" PRIu8 ", len=%zu", handle,
-         len);
+    LOGE("Received datagram too short for handle=%d, len=%zu", handle, len);
   }
   return (len >= minLen);
 }
@@ -215,10 +214,10 @@ void chppProcessRxDatagram(struct ChppAppState *context, uint8_t *buf,
   if (chppDatagramLenIsOk(context, rxHeader->handle, len)) {
     if (rxHeader->handle >=
         context->registeredServiceCount + CHPP_HANDLE_NEGOTIATED_RANGE_START) {
-      LOGE("Received message for invalid handle: %" PRIu8
-           ", len = %zu, type = %#x, transaction ID = %" PRIu8,
-           rxHeader->handle, len, rxHeader->type, rxHeader->transaction);
-
+      LOGE(
+          "Received message for invalid handle: %#x, len = %zu, type = %#x, "
+          "transaction = %d",
+          rxHeader->handle, len, rxHeader->type, rxHeader->transaction);
     } else if (rxHeader->handle < CHPP_HANDLE_NEGOTIATED_RANGE_START) {
       // Predefined Services
       chppProcessPredefinedService(context, buf, len);
@@ -237,12 +236,10 @@ void chppProcessRxDatagram(struct ChppAppState *context, uint8_t *buf,
           break;
 
         default:
+          // TODO: we should reply back to the client with an error
           LOGE(
-              "Received unknown message type: %#x, len = %zu, transaction ID = "
-              "%" PRIu8,
+              "Received unknown message type: %#x, len = %zu, transaction = %d",
               rxHeader->type, len, rxHeader->transaction);
-          chppEnqueueTxErrorDatagram(context->transportContext,
-                                     CHPP_TRANSPORT_ERROR_APPLAYER);
       }
     }
   }
