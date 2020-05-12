@@ -40,10 +40,6 @@ bool PlatformSensor::reportsBiasEvents() const {
   return PlatformSensorTypeHelpersBase::reportsBias(mSensorType);
 }
 
-bool PlatformSensor::supportsPassiveMode() const {
-  return mPassiveSupported;
-}
-
 const char *PlatformSensor::getSensorName() const {
   return mSensorName;
 }
