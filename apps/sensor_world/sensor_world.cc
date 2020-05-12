@@ -290,10 +290,10 @@ bool nanoappStart() {
       bool infoStatus = chreGetSensorInfo(sensor.handle, &info);
       if (infoStatus) {
         LOGI("SensorInfo: %s, Type=%" PRIu8
-             " OnChange=%d OneShot=%d Passive=%d "
+             " OnChange=%d OneShot=%d "
              "minInterval=%" PRIu64 "nsec",
              info.sensorName, info.sensorType, info.isOnChange, info.isOneShot,
-             info.supportsPassiveMode, info.minInterval);
+             info.minInterval);
       } else {
         LOGE("chreGetSensorInfo failed");
       }
