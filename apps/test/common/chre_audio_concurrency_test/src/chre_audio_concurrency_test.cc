@@ -14,22 +14,18 @@
  * limitations under the License.
  */
 
-#ifndef CHPP_TRANSPORT_TEST_H_
-#define CHPP_TRANSPORT_TEST_H_
+#include <chre.h>
+#include <cinttypes>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace chre {
 
-/************************************************
- *  Functions necessary for unit testing
- ***********************************************/
+extern "C" void nanoappHandleEvent(uint32_t senderInstanceId,
+                                   uint16_t eventType, const void *eventData) {}
 
-bool chppDequeueTxDatagram(struct ChppTransportState *context);
-uint32_t chppCalculateChecksum(uint8_t *buf, size_t len);
-
-#ifdef __cplusplus
+extern "C" bool nanoappStart(void) {
+  return true;
 }
-#endif
 
-#endif  // CHPP_TRANSPORT_TEST_H_
+extern "C" void nanoappEnd(void) {}
+
+}  // namespace chre

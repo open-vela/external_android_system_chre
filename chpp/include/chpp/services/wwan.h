@@ -14,37 +14,36 @@
  * limitations under the License.
  */
 
-#ifndef CHPP_PLATFORM_MUTEX_H_
-#define CHPP_PLATFORM_MUTEX_H_
+#ifndef CHPP_WWAN_H_
+#define CHPP_WWAN_H_
 
-#include <pthread.h>
+#include <stddef.h>
+#include <stdint.h>
+
+#include "chpp/app.h"
+#include "chpp/services.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-struct ChppMutex {
-  pthread_mutex_t lock;
-};
+/************************************************
+ *  Public Definitions
+ ***********************************************/
 
-static inline void chppMutexInit(struct ChppMutex *mutex) {
-  pthread_mutex_init(&mutex->lock, NULL);
-}
+/************************************************
+ *  Public functions
+ ***********************************************/
 
-static inline void chppMutexDeinit(struct ChppMutex *mutex) {
-  pthread_mutex_destroy(&mutex->lock);
-}
-
-static inline void chppMutexLock(struct ChppMutex *mutex) {
-  pthread_mutex_lock(&mutex->lock);
-}
-
-static inline void chppMutexUnlock(struct ChppMutex *mutex) {
-  pthread_mutex_unlock(&mutex->lock);
-}
+/**
+ * Called by the App layer to initialize the WWAN (cellular) common service.
+ *
+ * @param appContext Maintains status for each app layer instance.
+ */
+void chppWwanServiceInit(struct ChppAppState *appContext);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  // CHPP_PLATFORM_MUTEX_H_
+#endif  // CHPP_WWAN_H_
