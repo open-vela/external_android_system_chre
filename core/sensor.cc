@@ -71,7 +71,6 @@ void Sensor::populateSensorInfo(struct chreSensorInfo *info,
   info->isOnChange = isOnChange();
   info->isOneShot = isOneShot();
   info->reportsBiasEvents = reportsBiasEvents();
-  info->supportsPassiveMode = supportsPassiveMode();
   info->unusedFlags = 0;
   info->sensorName = getSensorName();
 
