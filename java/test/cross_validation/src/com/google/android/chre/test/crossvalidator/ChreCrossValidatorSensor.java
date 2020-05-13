@@ -22,7 +22,6 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.hardware.location.ContextHubInfo;
 import android.hardware.location.ContextHubManager;
-import android.hardware.location.ContextHubTransaction;
 import android.hardware.location.NanoAppBinary;
 import android.hardware.location.NanoAppMessage;
 
@@ -125,17 +124,7 @@ public class ChreCrossValidatorSensor
     }
 
     @Override
-    public void validate() throws AssertionError {
-        collectDataFromAp();
-        collectDataFromChre();
-        waitForDataSampling();
-        assertApAndChreDataSimilar();
-    }
-
-    /**
-    * @return The nanoapp message used to start the data collection in chre
-    */
-    private NanoAppMessage makeStartNanoAppMessage() {
+    protected NanoAppMessage makeStartNanoAppMessage() {
         int messageType = ChreCrossValidation.MessageType.CHRE_CROSS_VALIDATION_START_VALUE;
         ChreCrossValidation.StartSensorCommand startSensor =
                 ChreCrossValidation.StartSensorCommand.newBuilder()
@@ -188,7 +177,20 @@ public class ChreCrossValidatorSensor
         }
     }
 
-    private void assertApAndChreDataSimilar() throws AssertionError {
+    @Override
+    protected void registerApDataListener() {
+        Assert.assertTrue(mSensorManager.registerListener(
+                this, mSensor, (int) TimeUnit.MILLISECONDS.toMicros(
+                mSamplingIntervalInMs)));
+    }
+
+    @Override
+    protected void unregisterApDataListener() {
+        mSensorManager.unregisterListener(this);
+    }
+
+    @Override
+    protected void assertApAndChreDataSimilar() throws AssertionError {
         // Copy concurrent queues to arrays so that other threads will not mutate the data being
         // worked on
         mApDatapointsArray = mApDatapointsQueue.toArray(new ApSensorDatapoint[0]);
@@ -206,7 +208,8 @@ public class ChreCrossValidatorSensor
         }
     }
 
-    private long getAwaitDataTimeoutInMs() {
+    @Override
+    protected long getAwaitDataTimeoutInMs() {
         if (mSensor.getType() == Sensor.REPORTING_MODE_CONTINUOUS) {
             return AWAIT_DATA_TIMEOUT_CONTINUOUS_IN_MS;
         } else {
@@ -294,48 +297,6 @@ public class ChreCrossValidatorSensor
         return map;
     }
 
-    /**
-    * Start collecting data from AP
-    */
-    private void collectDataFromAp() {
-        Assert.assertTrue(mSensorManager.registerListener(
-                this, mSensor, (int) TimeUnit.MILLISECONDS.toMicros(mSamplingIntervalInMs)));
-    }
-
-    /**
-    * Start collecting data from CHRE
-    */
-    private void collectDataFromChre() throws AssertionError {
-        // The info in the start message will inform the nanoapp of which type of
-        // data to collect (accel, gyro, gnss, wifi, etc).
-        int result = mContextHubClient.sendMessageToNanoApp(makeStartNanoAppMessage());
-        if (result != ContextHubTransaction.RESULT_SUCCESS) {
-            Assert.fail("Collect data from CHRE failed with result "
-                    + contextHubTransactionResultToString(result)
-                    + " while trying to send start message.");
-        }
-    }
-
-    /**
-    * Wait for AP and CHRE data to be fully collected or timeouts occur. collectDataFromAp and
-    * collectDataFromChre methods should both be called before this.
-    *
-    * @param samplingDurationInMs The amount of time to wait for AP and CHRE to collected data in
-    * ms.
-    */
-    private void waitForDataSampling() throws AssertionError {
-        mCollectingData.set(true);
-        try {
-            mAwaitDataLatch.await(getAwaitDataTimeoutInMs(), TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {
-            Assert.fail("await data latch interrupted");
-        }
-        if (mErrorStr.get() != null) {
-            Assert.fail(mErrorStr.get());
-        }
-        mCollectingData.set(false);
-    }
-
     /*
     * Align the AP and CHRE datapoints by finding the first pair that are similar comparing
     * linearly from there. Also truncate the end if one list has more datapoints than the other
@@ -381,11 +342,6 @@ public class ChreCrossValidatorSensor
     private void unrestrictSensors() {
         ChreTestUtil.executeShellCommand(
                 InstrumentationRegistry.getInstrumentation(), "dumpsys sensorservice enable");
-    }
-
-    @Override
-    protected void unregisterApDataListener() {
-        mSensorManager.unregisterListener(this);
     }
 
     /**
