@@ -14,22 +14,16 @@
  * limitations under the License.
  */
 
-#ifndef CHPP_TRANSPORT_TEST_H_
-#define CHPP_TRANSPORT_TEST_H_
+#include "fastrpc_daemon.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+int main() {
+  android::chre::FastRpcChreDaemon daemon;
 
-/************************************************
- *  Functions necessary for unit testing
- ***********************************************/
+  if (!daemon.init()) {
+    LOGE("failed to init the daemon");
+  } else {
+    daemon.run();
+  }
 
-bool chppDequeueTxDatagram(struct ChppTransportState *context);
-uint32_t chppCalculateChecksum(uint8_t *buf, size_t len);
-
-#ifdef __cplusplus
+  return 0;
 }
-#endif
-
-#endif  // CHPP_TRANSPORT_TEST_H_
