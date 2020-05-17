@@ -68,7 +68,6 @@ Manager::~Manager() {
     chreAudioConfigureSource(kAudioHandle, false /* enable */,
                              0 /* bufferDuration */, 0 /* deliveryInterval */);
   }
-  cancelTimeoutTimer();
 }
 
 bool Manager::handleTestCommandMessage(uint16_t hostEndpointId, TestStep step) {
@@ -91,10 +90,16 @@ bool Manager::handleTestCommandMessage(uint16_t hostEndpointId, TestStep step) {
         // Start a timer to ensure we receive the first audio data event
         // quickly. Since it may take some time to load the sound model, choose
         // a reasonably long timeout.
-        success = setTimeoutTimer(10 /* durationSeconds */);
+        mTimerHandle = chreTimerSet(10 * kOneSecondInNanoseconds,
+                                    nullptr /* cookie */, true /* oneShot */);
+        if (mTimerHandle == CHRE_TIMER_INVALID) {
+          LOGE("Failed to set audio enabled timer");
+        } else {
+          success = true;
+        }
       }
     } else if (step == TestStep::VERIFY_AUDIO_RESUME) {
-      success = setTimeoutTimer(10 /* durationSeconds */);
+      // TODO: Verify audio resumes
     }
 
     if (success) {
@@ -157,36 +162,17 @@ void Manager::handleDataFromChre(uint16_t eventType, const void *eventData) {
 }
 
 void Manager::handleTimer() {
-  if (mTimerHandle != CHRE_TIMER_INVALID && mTestSession.has_value()) {
-    LOGE("Timed out during test: step %" PRIu8, mTestSession->step);
-    sendTestResultToHost(mTestSession->hostEndpointId, kTestResultMessageType,
-                         false /* success */);
-    mTestSession.reset();
-  }
-}
-
-bool Manager::setTimeoutTimer(size_t durationSeconds) {
-  mTimerHandle = chreTimerSet(durationSeconds * kOneSecondInNanoseconds,
-                              nullptr /* cookie */, true /* oneShot */);
-  if (mTimerHandle == CHRE_TIMER_INVALID) {
-    LOGE("Failed to set timeout timer");
-  }
-
-  return mTimerHandle != CHRE_TIMER_INVALID;
-}
-
-void Manager::cancelTimeoutTimer() {
-  if (mTimerHandle != CHRE_TIMER_INVALID) {
-    chreTimerCancel(mTimerHandle);
-    mTimerHandle = CHRE_TIMER_INVALID;
-  }
+  // TODO: Timeout failure
 }
 
 void Manager::handleAudioDataEvent(const chreAudioDataEvent *data) {
   if (mTestSession.has_value()) {
     switch (mTestSession->step) {
       case TestStep::ENABLE_AUDIO: {
-        cancelTimeoutTimer();
+        if (mTimerHandle != CHRE_TIMER_INVALID) {
+          chreTimerCancel(mTimerHandle);
+          mTimerHandle = CHRE_TIMER_INVALID;
+        }
         sendEmptyMessageToHost(
             mTestSession->hostEndpointId,
             chre_audio_concurrency_test_MessageType_TEST_AUDIO_ENABLED);
@@ -194,17 +180,11 @@ void Manager::handleAudioDataEvent(const chreAudioDataEvent *data) {
         // Reset the test session to avoid sending multiple TEST_AUDIO_ENABLED
         // messages to the host, while we wait for the next step.
         mTestSession.reset();
-
-        // TODO: Perform sanity check on audio data
         break;
       }
 
       case TestStep::VERIFY_AUDIO_RESUME: {
-        cancelTimeoutTimer();
-        sendTestResultToHost(mTestSession->hostEndpointId,
-                             kTestResultMessageType, true /* success */);
-        mTestSession.reset();
-        break;
+        // TODO:
       }
 
       default:
