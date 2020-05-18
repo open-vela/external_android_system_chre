@@ -14,22 +14,26 @@
  * limitations under the License.
  */
 
-#ifndef CHPP_TRANSPORT_TEST_H_
-#define CHPP_TRANSPORT_TEST_H_
+#include <chre.h>
+#include <cinttypes>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "chre_audio_concurrency_test_manager.h"
 
-/************************************************
- *  Functions necessary for unit testing
- ***********************************************/
+namespace chre {
 
-bool chppDequeueTxDatagram(struct ChppTransportState *context);
-void chppTransportDoWork(struct ChppTransportState *context);
-
-#ifdef __cplusplus
+extern "C" void nanoappHandleEvent(uint32_t senderInstanceId,
+                                   uint16_t eventType, const void *eventData) {
+  audio_concurrency_test::ManagerSingleton::get()->handleEvent(
+      senderInstanceId, eventType, eventData);
 }
-#endif
 
-#endif  // CHPP_TRANSPORT_TEST_H_
+extern "C" bool nanoappStart(void) {
+  audio_concurrency_test::ManagerSingleton::init();
+  return true;
+}
+
+extern "C" void nanoappEnd(void) {
+  audio_concurrency_test::ManagerSingleton::deinit();
+}
+
+}  // namespace chre
