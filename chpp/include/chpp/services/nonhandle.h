@@ -14,22 +14,40 @@
  * limitations under the License.
  */
 
-#ifndef CHPP_TRANSPORT_TEST_H_
-#define CHPP_TRANSPORT_TEST_H_
+#ifndef CHPP_NONHANDLE_H_
+#define CHPP_NONHANDLE_H_
+
+#include <stddef.h>
+#include <stdint.h>
+
+#include "chpp/app.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /************************************************
- *  Functions necessary for unit testing
+ *  Public Definitions
  ***********************************************/
 
-bool chppDequeueTxDatagram(struct ChppTransportState *context);
-uint32_t chppCalculateChecksum(uint8_t *buf, size_t len);
+/************************************************
+ *  Public functions
+ ***********************************************/
+
+/*
+ * Dispatches an Rx Datagram from the transport layer for systems that are using
+ * the optional handleless CHPP communication service. Does not need to be
+ * implemented on systems that are not using handleless communication.
+ *
+ * @param context Maintains status for each app layer instance.
+ * @param buf Input data. Cannot be null.
+ * @param len Length of input data in bytes.
+ */
+void chppDispatchNonHandle(struct ChppAppState *context, uint8_t *buf,
+                           size_t len);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  // CHPP_TRANSPORT_TEST_H_
+#endif  // CHPP_NONHANDLE_H_

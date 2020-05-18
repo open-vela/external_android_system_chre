@@ -14,37 +14,20 @@
  * limitations under the License.
  */
 
-#ifndef CHPP_PLATFORM_MUTEX_H_
-#define CHPP_PLATFORM_MUTEX_H_
-
-#include <pthread.h>
+#ifndef CHPP_PLATFORM_LINK_H_
+#define CHPP_PLATFORM_LINK_H_
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-struct ChppMutex {
-  pthread_mutex_t lock;
+struct ChppPlatformLinkParameters {
+  size_t index;
+  bool sync;
 };
-
-static inline void chppMutexInit(struct ChppMutex *mutex) {
-  pthread_mutex_init(&mutex->lock, NULL);
-}
-
-static inline void chppMutexDeinit(struct ChppMutex *mutex) {
-  pthread_mutex_destroy(&mutex->lock);
-}
-
-static inline void chppMutexLock(struct ChppMutex *mutex) {
-  pthread_mutex_lock(&mutex->lock);
-}
-
-static inline void chppMutexUnlock(struct ChppMutex *mutex) {
-  pthread_mutex_unlock(&mutex->lock);
-}
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  // CHPP_PLATFORM_MUTEX_H_
+#endif  // CHPP_PLATFORM_LINK_H_
