@@ -14,22 +14,10 @@
  * limitations under the License.
  */
 
-#ifndef CHPP_TRANSPORT_TEST_H_
-#define CHPP_TRANSPORT_TEST_H_
+// A collection of definitions that normally come from standard library
+// headers, and are necessary for proper parsing by pyclibrary. We could direct
+// pyclibrary to system includes, but since those tend to be layered across
+// many files, and pyclibrary doesn't follow #include directives, we simply
+// redefine only the necessary things here.
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-/************************************************
- *  Functions necessary for unit testing
- ***********************************************/
-
-bool chppDequeueTxDatagram(struct ChppTransportState *context);
-uint32_t chppCalculateChecksum(uint8_t *buf, size_t len);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif  // CHPP_TRANSPORT_TEST_H_
+#define UINT8_MAX 255
