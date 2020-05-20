@@ -14,37 +14,41 @@
  * limitations under the License.
  */
 
-#ifndef CHPP_PLATFORM_MUTEX_H_
-#define CHPP_PLATFORM_MUTEX_H_
+#ifndef CHPP_COMMON_DISCOVERY_H_
+#define CHPP_COMMON_DISCOVERY_H_
 
-#include <pthread.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-struct ChppMutex {
-  pthread_mutex_t lock;
+/************************************************
+ *  Public Definitions
+ ***********************************************/
+
+/**
+ * Data structure used by the Discovery Response.
+ */
+CHPP_PACKED_START
+struct ChppDiscoveryResponse {
+  struct ChppAppHeader header;
+  struct ChppServiceDescriptor services[];
+} CHPP_PACKED_ATTR;
+CHPP_PACKED_END
+
+/**
+ * Commands used by the Discovery Service
+ */
+enum ChppDiscoveryCommands {
+  // Discover all services.
+  CHPP_DISCOVERY_COMMAND_DISCOVER_ALL = 0x0001,
 };
-
-static inline void chppMutexInit(struct ChppMutex *mutex) {
-  pthread_mutex_init(&mutex->lock, NULL);
-}
-
-static inline void chppMutexDeinit(struct ChppMutex *mutex) {
-  pthread_mutex_destroy(&mutex->lock);
-}
-
-static inline void chppMutexLock(struct ChppMutex *mutex) {
-  pthread_mutex_lock(&mutex->lock);
-}
-
-static inline void chppMutexUnlock(struct ChppMutex *mutex) {
-  pthread_mutex_unlock(&mutex->lock);
-}
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  // CHPP_PLATFORM_MUTEX_H_
+#endif  // CHPP_COMMON_DISCOVERY_H_

@@ -1,4 +1,4 @@
-/*
+/**
  * Copyright (C) 2020 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,37 +14,29 @@
  * limitations under the License.
  */
 
-#ifndef CHPP_PLATFORM_MUTEX_H_
-#define CHPP_PLATFORM_MUTEX_H_
-
-#include <pthread.h>
+#ifndef CHPP_PAL_API_H_
+#define CHPP_PAL_API_H_
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-struct ChppMutex {
-  pthread_mutex_t lock;
-};
+/**
+ * Called by the App layer to initialize the PAL system APIs.
+ *
+ * @param context Maintains status for each app layer instance.
+ */
+void chppPalSystemApiInit(struct ChppAppState *context);
 
-static inline void chppMutexInit(struct ChppMutex *mutex) {
-  pthread_mutex_init(&mutex->lock, NULL);
-}
-
-static inline void chppMutexDeinit(struct ChppMutex *mutex) {
-  pthread_mutex_destroy(&mutex->lock);
-}
-
-static inline void chppMutexLock(struct ChppMutex *mutex) {
-  pthread_mutex_lock(&mutex->lock);
-}
-
-static inline void chppMutexUnlock(struct ChppMutex *mutex) {
-  pthread_mutex_unlock(&mutex->lock);
-}
+/**
+ * Called by the App layer to deinitialize the PAL system APIs.
+ *
+ * @param context Maintains status for each app layer instance.
+ */
+void chppPalSystemApiDeinit(struct ChppAppState *context);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  // CHPP_PLATFORM_MUTEX_H_
+#endif  // CHPP_LOG_H_
