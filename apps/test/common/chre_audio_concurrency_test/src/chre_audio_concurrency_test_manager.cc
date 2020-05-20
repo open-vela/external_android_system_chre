@@ -91,10 +91,10 @@ bool Manager::handleTestCommandMessage(uint16_t hostEndpointId, TestStep step) {
         // Start a timer to ensure we receive the first audio data event
         // quickly. Since it may take some time to load the sound model, choose
         // a reasonably long timeout.
-        success = setTimeoutTimer(20 /* durationSeconds */);
+        success = setTimeoutTimer(10 /* durationSeconds */);
       }
     } else if (step == TestStep::VERIFY_AUDIO_RESUME) {
-      success = setTimeoutTimer(20 /* durationSeconds */);
+      success = setTimeoutTimer(10 /* durationSeconds */);
     }
 
     if (success) {
