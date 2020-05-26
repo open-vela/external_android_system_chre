@@ -15,7 +15,6 @@
  */
 
 #include "chpp/services/wwan.h"
-#include "chpp/common/wwan.h"
 #include "chre/pal/wwan.h"
 
 /************************************************
@@ -56,17 +55,26 @@ static const struct ChppService wwanServiceConfig = {
 };
 
 /**
+ * Data structure used by the Get Capabilities Response.
+ */
+CHPP_PACKED_START
+struct ChppWwanGetCapabilitiesResponse {
+  struct ChppServiceBasicResponse common;
+  uint32_t capabilities;
+} CHPP_PACKED_ATTR;
+CHPP_PACKED_END
+
+/**
  * Structure to maintain state for the WWAN service and its Request/Response
  * (RR) functionality.
  */
 struct ChppWwanServiceState {
-  struct ChppServiceState service;                  // WWAN service state
-  const struct chrePalWwanApi *api;                 // WWAN PAL API
-  struct ChppRequestResponseState open;             // Service init state
-  struct ChppRequestResponseState close;            // Service deinit state
-  struct ChppRequestResponseState getCapabilities;  // Get Capabilities state
-  struct ChppRequestResponseState
-      getCellInfoAsync;  // Get Cell Info Async state
+  struct ChppServiceState service;             // WWAN service state
+  const struct chrePalWwanApi *api;            // WWAN PAL API
+  struct ChppServiceRRState open;              // Service init state
+  struct ChppServiceRRState close;             // Service deinit state
+  struct ChppServiceRRState getCapabilities;   // Get Capabilities state
+  struct ChppServiceRRState getCellInfoAsync;  // Get Cell Info Async state
 };
 
 // Note: This global definition of gWwanServiceContext supports only one
@@ -80,6 +88,23 @@ struct ChppWwanServiceState {
 //   struct ChppWwanServiceState *wwanServiceContext = chppMalloc(...);
 // instead of globally here.
 struct ChppWwanServiceState gWwanServiceContext;
+
+/**
+ * Commands used by the WWAN (cellular) Service
+ */
+enum ChppWwanCommands {
+  //! Initializes the service.
+  CHPP_WWAN_OPEN = 0x0000,
+
+  //! Deinitializes the service.
+  CHPP_WWAN_CLOSE = 0x0001,
+
+  //! Retrieves a set of flags indicating supported features.
+  CHPP_WWAN_GET_CAPABILITIES = 0x2010,
+
+  //! Query information about the current serving cell and its neighbors.
+  CHPP_WWAN_GET_CELLINFO_ASYNC = 0x2020,
+};
 
 /************************************************
  *  Prototypes
@@ -123,27 +148,25 @@ static void chppDispatchWwanRequest(void *serviceContext, uint8_t *buf,
 
   switch (rxHeader->command) {
     case CHPP_WWAN_OPEN: {
-      chppServiceTimestampRequest(&wwanServiceContext->open, rxHeader);
+      chppTimestampRequest(&wwanServiceContext->open, rxHeader);
       chppWwanOpen(wwanServiceContext, rxHeader);
       break;
     }
 
     case CHPP_WWAN_CLOSE: {
-      chppServiceTimestampRequest(&wwanServiceContext->close, rxHeader);
+      chppTimestampRequest(&wwanServiceContext->close, rxHeader);
       chppWwanClose(wwanServiceContext, rxHeader);
       break;
     }
 
     case CHPP_WWAN_GET_CAPABILITIES: {
-      chppServiceTimestampRequest(&wwanServiceContext->getCapabilities,
-                                  rxHeader);
+      chppTimestampRequest(&wwanServiceContext->getCapabilities, rxHeader);
       chppWwanGetCapabilities(wwanServiceContext, rxHeader);
       break;
     }
 
     case CHPP_WWAN_GET_CELLINFO_ASYNC: {
-      chppServiceTimestampRequest(&wwanServiceContext->getCellInfoAsync,
-                                  rxHeader);
+      chppTimestampRequest(&wwanServiceContext->getCellInfoAsync, rxHeader);
       chppWwanGetCellInfoAsync(wwanServiceContext, rxHeader);
       break;
     }
@@ -261,7 +284,7 @@ static void chppWwanGetCapabilities(
  *
  * This function returns an error code synchronously. The requested cellular
  * information shall be returned asynchronously to the client via the
- * chppPlatformWwanCellInfoResultEvent() service response.
+ * chppPlatformWwanCellInfoResultEvent() server response.
  *
  * @param serviceContext Maintains status for each service instance.
  * @param requestHeader App layer header of the request.
@@ -284,8 +307,8 @@ static void chppWwanGetCellInfoAsync(
 static void chppWwanCellInfoResultCallback(
     struct chreWwanCellInfoResult *result) {
   // Recover state
-  struct ChppRequestResponseState *rRState =
-      (struct ChppRequestResponseState *)result->cookie;
+  struct ChppServiceRRState *rRState =
+      (struct ChppServiceRRState *)result->cookie;
   struct ChppWwanServiceState *wwanServiceContext =
       container_of(rRState, struct ChppWwanServiceState, getCellInfoAsync);
 

@@ -30,18 +30,18 @@
 
 static void chppProcessPredefinedClientRequest(struct ChppAppState *context,
                                                uint8_t *buf, size_t len);
-static void chppProcessPredefinedServiceResponse(struct ChppAppState *context,
-                                                 uint8_t *buf, size_t len);
+static void chppProcessPredefinedServerResponse(struct ChppAppState *context,
+                                                uint8_t *buf, size_t len);
 static void chppProcessPredefinedClientNotification(
     struct ChppAppState *context, uint8_t *buf, size_t len);
-static void chppProcessPredefinedServiceNotification(
+static void chppProcessPredefinedServerNotification(
     struct ChppAppState *context, uint8_t *buf, size_t len);
 static bool chppDatagramLenIsOk(struct ChppAppState *context, uint8_t handle,
                                 size_t len);
 ChppDispatchFunction *chppGetDispatchFunction(struct ChppAppState *context,
                                               uint8_t handle,
                                               enum ChppMessageType type);
-static inline const struct ChppService *chppServiceOfHandle(
+static inline struct ChppService *chppServiceOfHandle(
     struct ChppAppState *appContext, uint8_t handle);
 
 /************************************************
@@ -78,15 +78,15 @@ static void chppProcessPredefinedClientRequest(struct ChppAppState *context,
 }
 
 /**
- * Processes a service response that is determined to be for a predefined CHPP
+ * Processes an server response that is determined to be for a predefined CHPP
  * client.
  *
  * @param context Maintains status for each app layer instance.
  * @param buf Input data. Cannot be null.
  * @param len Length of input data in bytes.
  */
-static void chppProcessPredefinedServiceResponse(struct ChppAppState *context,
-                                                 uint8_t *buf, size_t len) {
+static void chppProcessPredefinedServerResponse(struct ChppAppState *context,
+                                                uint8_t *buf, size_t len) {
   struct ChppAppHeader *rxHeader = (struct ChppAppHeader *)buf;
 
   switch (rxHeader->handle) {
@@ -100,7 +100,7 @@ static void chppProcessPredefinedServiceResponse(struct ChppAppState *context,
 
     default:
       LOGE(
-          "Service response received for an invalid predefined service handle "
+          "Server response received for an invalid predefined service handle "
           "%" PRIu8,
           rxHeader->handle);
   }
@@ -127,20 +127,20 @@ static void chppProcessPredefinedClientNotification(
   UNUSED_VAR(len);
 }
 /**
- * Processes a service notification that is determined to be for a predefined
+ * Processes a server notification that is determined to be for a predefined
  * CHPP client.
  *
  * @param context Maintains status for each app layer instance.
  * @param buf Input data. Cannot be null.
  * @param len Length of input data in bytes.
  */
-static void chppProcessPredefinedServiceNotification(
+static void chppProcessPredefinedServerNotification(
     struct ChppAppState *context, uint8_t *buf, size_t len) {
   struct ChppAppHeader *rxHeader = (struct ChppAppHeader *)buf;
 
   // No predefined clients support these yet
   LOGE("Predefined client handle %" PRIu8
-       " does not support service notifications",
+       " does not support server notifications",
        rxHeader->handle);
 
   UNUSED_VAR(context);
@@ -212,20 +212,25 @@ ChppDispatchFunction *chppGetDispatchFunction(struct ChppAppState *context,
                                               enum ChppMessageType type) {
   switch (type) {
     case CHPP_MESSAGE_TYPE_CLIENT_REQUEST: {
-      return (chppServiceOfHandle(context, handle)->requestDispatchFunctionPtr);
+      return (
+          context
+              ->registeredServices[handle - CHPP_HANDLE_NEGOTIATED_RANGE_START]
+              ->requestDispatchFunctionPtr);
       break;
     }
-    case CHPP_MESSAGE_TYPE_SERVICE_RESPONSE: {
+    case CHPP_MESSAGE_TYPE_SERVER_RESPONSE: {
       // TODO
       return (NULL);
       break;
     }
     case CHPP_MESSAGE_TYPE_CLIENT_NOTIFICATION: {
-      return (chppServiceOfHandle(context, handle)
-                  ->notificationDispatchFunctionPtr);
+      return (
+          context
+              ->registeredServices[handle - CHPP_HANDLE_NEGOTIATED_RANGE_START]
+              ->notificationDispatchFunctionPtr);
       break;
     }
-    case CHPP_MESSAGE_TYPE_SERVICE_NOTIFICATION: {
+    case CHPP_MESSAGE_TYPE_SERVER_NOTIFICATION: {
       // TODO
       return (NULL);
       break;
@@ -248,10 +253,11 @@ ChppDispatchFunction *chppGetDispatchFunction(struct ChppAppState *context,
  *
  * @return Pointer to the ChppService struct of a particular service handle.
  */
-static inline const struct ChppService *chppServiceOfHandle(
+static inline struct ChppService *chppServiceOfHandle(
     struct ChppAppState *appContext, uint8_t handle) {
-  return (appContext->registeredServices[handle -
-                                         CHPP_HANDLE_NEGOTIATED_RANGE_START]);
+  return (appContext
+              ->registeredServiceContexts[handle -
+                                          CHPP_HANDLE_NEGOTIATED_RANGE_START]);
 }
 
 /************************************************
@@ -306,12 +312,12 @@ void chppProcessRxDatagram(struct ChppAppState *context, uint8_t *buf,
           chppProcessPredefinedClientNotification(context, buf, len);
           break;
         }
-        case CHPP_MESSAGE_TYPE_SERVICE_RESPONSE: {
-          chppProcessPredefinedServiceResponse(context, buf, len);
+        case CHPP_MESSAGE_TYPE_SERVER_RESPONSE: {
+          chppProcessPredefinedServerResponse(context, buf, len);
           break;
         }
-        case CHPP_MESSAGE_TYPE_SERVICE_NOTIFICATION: {
-          chppProcessPredefinedServiceNotification(context, buf, len);
+        case CHPP_MESSAGE_TYPE_SERVER_NOTIFICATION: {
+          chppProcessPredefinedServerNotification(context, buf, len);
           break;
         }
         default: {
@@ -341,14 +347,4 @@ void chppProcessRxDatagram(struct ChppAppState *context, uint8_t *buf,
   }
 
   chppAppProcessDoneCb(context->transportContext, buf);
-}
-
-void chppUuidToStr(const uint8_t uuid[CHPP_SERVICE_UUID_LEN],
-                   char strOut[CHPP_SERVICE_UUID_STRING_LEN]) {
-  sprintf(
-      strOut,
-      "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
-      uuid[0], uuid[1], uuid[2], uuid[3], uuid[4], uuid[5], uuid[6], uuid[7],
-      uuid[8], uuid[9], uuid[10], uuid[11], uuid[12], uuid[13], uuid[14],
-      uuid[15]);
 }
