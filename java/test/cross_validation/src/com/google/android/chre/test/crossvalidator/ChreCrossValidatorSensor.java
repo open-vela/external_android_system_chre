@@ -144,10 +144,9 @@ public class ChreCrossValidatorSensor
         int messageType = ChreCrossValidation.MessageType.CHRE_CROSS_VALIDATION_START_VALUE;
         ChreCrossValidation.StartSensorCommand startSensor =
                 ChreCrossValidation.StartSensorCommand.newBuilder()
-                .setSamplingIntervalInNs(TimeUnit.MILLISECONDS.toNanos(
-                          mSamplingIntervalInMs))
-                .setSamplingMaxLatencyInNs(TimeUnit.MILLISECONDS.toNanos(SAMPLING_LATENCY_IN_MS))
                 .setChreSensorType(getChreSensorType())
+                .setIntervalInMs(mSamplingIntervalInMs)
+                .setLatencyInMs(SAMPLING_LATENCY_IN_MS)
                 .setIsContinuous(sensorIsContinuous())
                 .build();
         ChreCrossValidation.StartCommand startCommand =
@@ -275,7 +274,7 @@ public class ChreCrossValidatorSensor
         // new CrossValidatorSensorConfig(<expectedValuesLength>, <errorMargin>)
         map.put(Sensor.TYPE_ACCELEROMETER, new CrossValidatorSensorConfig(3, 0.01f));
         map.put(Sensor.TYPE_GYROSCOPE, new CrossValidatorSensorConfig(3, 0.01f));
-        map.put(Sensor.TYPE_MAGNETIC_FIELD, new CrossValidatorSensorConfig(3, 0.05f));
+        map.put(Sensor.TYPE_MAGNETIC_FIELD, new CrossValidatorSensorConfig(3, 0.01f));
         map.put(Sensor.TYPE_PRESSURE, new CrossValidatorSensorConfig(1, 0.01f));
         map.put(Sensor.TYPE_LIGHT, new CrossValidatorSensorConfig(1, 0.01f));
         map.put(Sensor.TYPE_PROXIMITY, new CrossValidatorSensorConfig(1, 0.01f));
@@ -489,7 +488,6 @@ public class ChreCrossValidatorSensor
                 }
             } else {
                 float diff = Math.abs(apDp.values[i] - chreDp.values[i]);
-                // TODO(b/157732778): Find a better way to compare sensor values.
                 if (diff > errorMargin) {
                     return false;
                 }
