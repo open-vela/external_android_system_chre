@@ -34,12 +34,10 @@ import androidx.test.InstrumentationRegistry;
 import com.google.android.chre.nanoapp.proto.ChreCrossValidationWifi;
 import com.google.android.chre.nanoapp.proto.ChreCrossValidationWifi.Step;
 import com.google.android.chre.nanoapp.proto.ChreTestCommon;
-import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import org.junit.Assert;
 
-import java.math.BigInteger;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -62,8 +60,6 @@ public class ChreCrossValidatorWifi extends ChreCrossValidatorBase {
     private BroadcastReceiver mWifiScanReceiver;
 
     private AtomicBoolean mWifiScanResultsCompareFinalResult = new AtomicBoolean(false);
-    private AtomicReference<String> mWifiScanResultsCompareFinalErrorMessage =
-            new AtomicReference<String>(null);
 
     public ChreCrossValidatorWifi(
             ContextHubManager contextHubManager, ContextHubInfo contextHubInfo,
@@ -176,11 +172,10 @@ public class ChreCrossValidatorWifi extends ChreCrossValidatorBase {
 
     private NanoAppMessage makeWifiScanResultMessage(ScanResult result, int totalNumResults,
                                                      int resultIndex) {
-        int messageType = ChreCrossValidationWifi.MessageType.SCAN_RESULT_VALUE;
         ChreCrossValidationWifi.WifiScanResult scanResult = ChreCrossValidationWifi.WifiScanResult
-                .newBuilder().setSsid(result.SSID)
-                .setBssid(ByteString.copyFrom(bssidToBytes(result.BSSID)))
-                .setTotalNumResults(totalNumResults).setResultIndex(resultIndex).build();
+                .newBuilder().setTotalNumResults(totalNumResults).setResultIndex(resultIndex)
+                .build();
+        int messageType = ChreCrossValidationWifi.MessageType.SCAN_RESULT_VALUE;
         NanoAppMessage message = NanoAppMessage.createMessageToNanoApp(
                 mNappBinary.getNanoAppId(), messageType, scanResult.toByteArray());
         return message;
@@ -210,7 +205,7 @@ public class ChreCrossValidatorWifi extends ChreCrossValidatorBase {
                 Log.i(TAG, getCurrentStepName() + " step success");
             } else {
                 setErrorStr(getCurrentStepName() + " step failed: "
-                        + testResult.getErrorMessage().toStringUtf8());
+                        + testResult.getErrorMessage());
             }
         } else { // mStep.get() == Step.INIT
             setErrorStr("Received a step result message when no phase set yet.");
@@ -240,12 +235,6 @@ public class ChreCrossValidatorWifi extends ChreCrossValidatorBase {
             default:
                 return "UNKNOWN";
         }
-    }
-
-    private static byte[] bssidToBytes(String bssid) {
-        // the ScanResult.BSSID field comes in format ff:ff:ff:ff:ff and needs to be converted to
-        // bytes in order to be compared to CHRE bssid
-        return (new BigInteger(bssid.replace(":" , ""), 16)).toByteArray();
     }
 
     // TODO: Implement this method

@@ -44,13 +44,9 @@ message StepStartCommand {
  * //system/chre/chre_api/include/chre_api/chre/wifi.h
  */
 message WifiScanResult {
-  // The name of the access point
-  optional string ssid = 1;
-  // The mac address of the access point
-  optional bytes bssid = 2;
   // The total number of results that will be sent from AP.
-  optional uint32 totalNumResults = 3;
+  optional uint32 totalNumResults = 1;
   // The index of this result in relation to the entire set of results.
   // [0 - totalNumResults)
-  optional uint32 resultIndex = 4;
+  optional uint32 resultIndex = 2;
 }
