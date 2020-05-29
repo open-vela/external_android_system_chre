@@ -14,16 +14,14 @@
  * limitations under the License.
  */
 
-#include "fastrpc_daemon.h"
+#include "wifi_scan_result.h"
 
-int main() {
-  android::chre::FastRpcChreDaemon daemon;
+WifiScanResult::WifiScanResult(
+    const chre_cross_validation_wifi_WifiScanResult &apScanResult) {}
 
-  if (!daemon.init()) {
-    LOGE("failed to init the daemon");
-  } else {
-    daemon.run();
-  }
+WifiScanResult::WifiScanResult(const chreWifiScanResult &chreScanResult) {}
 
-  return 0;
+bool WifiScanResult::areEqual(WifiScanResult result1, WifiScanResult result2) {
+  // TODO: Implement real comparison
+  return true;
 }
