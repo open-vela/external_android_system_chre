@@ -60,7 +60,6 @@ static void wwanPalReleaseCellInfoResult(
   gSystemApi->memoryFree(result);
 }
 
-#ifdef CHPP_SERVICE_ENABLED_WWAN
 const struct chrePalWwanApi *chrePalWwanGetApi(uint32_t requestedApiVersion) {
   static const struct chrePalWwanApi api = {
       .moduleVersion = CHRE_PAL_WWAN_API_V1_4,
@@ -82,4 +81,3 @@ const struct chrePalWwanApi *chrePalWwanGetApi(uint32_t requestedApiVersion) {
     return &api;
   }
 }
-#endif
