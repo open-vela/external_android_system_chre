@@ -64,6 +64,6 @@ class RandomGenerator {
   std::uniform_int_distribution<uint64_t> uniform_distribution_;
 };
 
-}  // namespace wifi_offload_test
+}  // wifi_offload_test namespace
 
 #endif  // CHRE_WIFI_OFFLOAD_TEST_RANDOM_GENERATOR_H_
