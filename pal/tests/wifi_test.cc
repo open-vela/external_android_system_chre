@@ -18,7 +18,6 @@
 #include "chre/platform/condition_variable.h"
 #include "chre/platform/log.h"
 #include "chre/platform/mutex.h"
-#include "chre/platform/shared/pal_system_api.h"
 #include "chre/platform/system_time.h"
 #include "chre/util/dynamic_vector.h"
 #include "chre/util/lock_guard.h"
@@ -34,13 +33,9 @@ using ::chre::Nanoseconds;
 using ::chre::Seconds;
 using ::chre::SystemTime;
 
-// TODO: Move these as a part of the test fixture
 uint8_t gErrorCode = CHRE_ERROR_LAST;
-uint32_t gNumScanResultCount = 0;
+uint32_t gNumScanEvents = 0;
 bool gLastScanEventReceived = false;
-
-//! A list to store the scan results
-chre::DynamicVector<chreWifiScanEvent *> gScanEventList;
 
 //! Mutex to protect global variables
 chre::Mutex gMutex;
@@ -87,18 +82,26 @@ void chrePalScanResponseCallback(bool pending, uint8_t errorCode) {
        errorCode);
   chre::LockGuard<chre::Mutex> lock(gMutex);
   gErrorCode = errorCode;
-  gCondVar.notify_one();
+
+  // TODO: Verify async result is received within required
+  // CHRE_WIFI_SCAN_RESULT_TIMEOUT_NS timeout
 }
 
 void chrePalScanEventCallback(struct chreWifiScanEvent *event) {
   if (event == nullptr) {
     LOGE("Got null scan event");
   } else {
+    // TODO: Sanity check values, push values onto a vector
+    // so that validation can occur on the main test thread
+    for (uint8_t i = 0; i < event->resultCount; i++) {
+      const chreWifiScanResult &result = event->results[i];
+      logChreWifiResult(result);
+    }
+
     {
       chre::LockGuard<chre::Mutex> lock(gMutex);
-      gScanEventList.push_back(event);
-      gNumScanResultCount += event->resultCount;
-      gLastScanEventReceived = (gNumScanResultCount == event->resultTotal);
+      gNumScanEvents += event->resultCount;
+      gLastScanEventReceived = (gNumScanEvents == event->resultTotal);
     }
 
     gCondVar.notify_one();
@@ -109,38 +112,28 @@ void chrePalRangingEventCallback(uint8_t errorCode,
                                  struct chreWifiRangingEvent *event) {
   // TODO:
 }
-
-class PalWifiTest : public ::testing::Test {
- protected:
-  void SetUp() override {
-    api_ = chrePalWifiGetApi(CHRE_PAL_WIFI_API_CURRENT_VERSION);
-    ASSERT_NE(api_, nullptr);
-    EXPECT_EQ(api_->moduleVersion, CHRE_PAL_WIFI_API_CURRENT_VERSION);
-
-    // Open the PAL API
-    static const struct chrePalWifiCallbacks kCallbacks = {
-        .scanMonitorStatusChangeCallback =
-            chrePalScanMonitorStatusChangeCallback,
-        .scanResponseCallback = chrePalScanResponseCallback,
-        .scanEventCallback = chrePalScanEventCallback,
-        .rangingEventCallback = chrePalRangingEventCallback,
-    };
-    ASSERT_TRUE(api_->open(&chre::gChrePalSystemApi, &kCallbacks));
-  }
-
-  void TearDown() override {
-    api_->close();
-  }
-
-  const struct chrePalWifiApi *api_;
-};
-
 }  // anonymous namespace
 
-TEST_F(PalWifiTest, ScanAsyncTest) {
+TEST(PalWifiTest, ScanAsyncTest) {
+  const struct chrePalWifiApi *api =
+      chrePalWifiGetApi(CHRE_PAL_WIFI_API_CURRENT_VERSION);
+  ASSERT_NE(api, nullptr);
+  EXPECT_EQ(api->moduleVersion, CHRE_PAL_WIFI_API_CURRENT_VERSION);
+
+  // Open the PAL API
+  static const struct chrePalWifiCallbacks kCallbacks = {
+      .scanMonitorStatusChangeCallback = chrePalScanMonitorStatusChangeCallback,
+      .scanResponseCallback = chrePalScanResponseCallback,
+      .scanEventCallback = chrePalScanEventCallback,
+      .rangingEventCallback = chrePalRangingEventCallback,
+  };
+  // TODO: Supply systemApi
+  ASSERT_TRUE(api->open(nullptr /* systemApi */, &kCallbacks));
+
   // Request a WiFi scan
   chre::LockGuard<chre::Mutex> lock(gMutex);
-  gNumScanResultCount = 0;
+  gErrorCode = CHRE_ERROR_LAST;
+  gNumScanEvents = 0;
   gLastScanEventReceived = false;
 
   struct chreWifiScanParams params = {};
@@ -149,34 +142,21 @@ TEST_F(PalWifiTest, ScanAsyncTest) {
   params.frequencyListLen = 0;
   params.ssidListLen = 0;
   params.radioChainPref = CHRE_WIFI_RADIO_CHAIN_PREF_DEFAULT;
-  ASSERT_TRUE(api_->requestScan(&params));
+  // TODO: Change below to ASSERT_TRUE, and modify test so that
+  // api->close() is always called.
+  EXPECT_TRUE(api->requestScan(&params));
 
-  const Nanoseconds kTimeoutNs = Nanoseconds(CHRE_WIFI_SCAN_RESULT_TIMEOUT_NS);
+  // Since the CHRE API only poses timeout requirements on the async response,
+  // place a timeout longer than the CHRE_WIFI_SCAN_RESULT_TIMEOUT_NS.
+  const Nanoseconds kTimeoutNs = Nanoseconds(Seconds(60));
   Nanoseconds end = SystemTime::getMonotonicTime() + kTimeoutNs;
-  gErrorCode = CHRE_ERROR_LAST;
-  while (gErrorCode == CHRE_ERROR_LAST &&
-         SystemTime::getMonotonicTime() < end) {
-    gCondVar.wait_for(gMutex, kTimeoutNs);
-  }
-  ASSERT_LT(SystemTime::getMonotonicTime(), end);
-  ASSERT_EQ(gErrorCode, CHRE_ERROR_NONE);
-
-  // The CHRE API only poses timeout requirements on the async response. Use
-  // the same timeout to receive the scan results to avoid blocking forever.
-  end = SystemTime::getMonotonicTime() + kTimeoutNs;
   while (!gLastScanEventReceived && SystemTime::getMonotonicTime() < end) {
     gCondVar.wait_for(gMutex, kTimeoutNs);
   }
 
-  for (auto *event : gScanEventList) {
-    // TODO: Sanity check values
-    for (uint8_t i = 0; i < event->resultCount; i++) {
-      const chreWifiScanResult &result = event->results[i];
-      logChreWifiResult(result);
-    }
-    api_->releaseScanEvent(event);
-  }
-
+  EXPECT_EQ(gErrorCode, CHRE_ERROR_NONE);
   EXPECT_TRUE(gLastScanEventReceived);
-  EXPECT_GT(gNumScanResultCount, 0);
+  EXPECT_GT(gNumScanEvents, 0);
+
+  api->close();
 }
