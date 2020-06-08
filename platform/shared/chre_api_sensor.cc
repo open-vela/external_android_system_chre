@@ -16,8 +16,8 @@
 
 #include "chre/core/event_loop_manager.h"
 #include "chre/core/sensor_request.h"
-#include "chre/util/macros.h"
 #include "chre/util/time.h"
+#include "chre/util/macros.h"
 #include "chre_api/chre/sensor.h"
 
 using chre::EventLoopManager;
@@ -25,8 +25,10 @@ using chre::EventLoopManagerSingleton;
 using chre::Nanoseconds;
 using chre::SensorMode;
 using chre::SensorRequest;
+using chre::SensorType;
 
 using chre::getSensorModeFromEnum;
+using chre::getSensorTypeFromUnsignedInt;
 
 #if defined(CHRE_SLPI_SEE) && defined(CHRE_SLPI_UIMG_ENABLED)
 namespace {
@@ -38,15 +40,12 @@ constexpr uint8_t kBigImageUncalGyroSensorType =
     (CHRE_SENSOR_TYPE_VENDOR_START + 7);
 constexpr uint8_t kBigImageUncalMagSensorType =
     (CHRE_SENSOR_TYPE_VENDOR_START + 8);
-constexpr uint8_t kBigImageLightSensorType =
-    (CHRE_SENSOR_TYPE_VENDOR_START + 9);
 
 bool isBigImageSensorType(uint8_t sensorType) {
-  return (sensorType == kBigImageAccelSensorType ||
-          sensorType == kBigImageUncalAccelSensorType ||
-          sensorType == kBigImageUncalGyroSensorType ||
-          sensorType == kBigImageUncalMagSensorType ||
-          sensorType == kBigImageLightSensorType);
+  return (sensorType == kBigImageAccelSensorType
+          || sensorType == kBigImageUncalAccelSensorType
+          || sensorType == kBigImageUncalGyroSensorType
+          || sensorType == kBigImageUncalMagSensorType);
 }
 
 /**
@@ -63,8 +62,6 @@ void rewriteToBigImageSensorType(uint8_t *sensorType) {
     *sensorType = kBigImageUncalGyroSensorType;
   } else if (*sensorType == CHRE_SENSOR_TYPE_UNCALIBRATED_GEOMAGNETIC_FIELD) {
     *sensorType = kBigImageUncalMagSensorType;
-  } else if (*sensorType == CHRE_SENSOR_TYPE_LIGHT) {
-    *sensorType = kBigImageLightSensorType;
   }
 }
 
@@ -82,11 +79,9 @@ void rewriteToChreSensorType(uint8_t *sensorType) {
     *sensorType = CHRE_SENSOR_TYPE_UNCALIBRATED_GYROSCOPE;
   } else if (*sensorType == kBigImageUncalMagSensorType) {
     *sensorType = CHRE_SENSOR_TYPE_UNCALIBRATED_GEOMAGNETIC_FIELD;
-  } else if (*sensorType == kBigImageLightSensorType) {
-    *sensorType = CHRE_SENSOR_TYPE_LIGHT;
   }
 }
-}  //  anonymous namespace
+} //  anonymous namespace
 #endif  // defined(CHRE_SLPI_SEE) && defined(CHRE_SLPI_UIMG_ENABLED)
 
 DLL_EXPORT bool chreSensorFindDefault(uint8_t sensorType, uint32_t *handle) {
@@ -110,9 +105,10 @@ DLL_EXPORT bool chreSensorFindDefault(uint8_t sensorType, uint32_t *handle) {
   }
 #endif  // defined(CHRE_SLPI_SEE) && defined(CHRE_SLPI_UIMG_ENABLED)
 
-  return EventLoopManagerSingleton::get()
-      ->getSensorRequestManager()
-      .getSensorHandle(sensorType, handle);
+  SensorType validatedSensorType = getSensorTypeFromUnsignedInt(sensorType);
+  return (validatedSensorType != SensorType::Unknown
+      && EventLoopManagerSingleton::get()->getSensorRequestManager()
+          .getSensorHandle(validatedSensorType, handle));
 }
 
 DLL_EXPORT bool chreGetSensorInfo(uint32_t sensorHandle,
@@ -123,9 +119,8 @@ DLL_EXPORT bool chreGetSensorInfo(uint32_t sensorHandle,
 
   bool success = false;
   if (info != nullptr) {
-    success = EventLoopManagerSingleton::get()
-                  ->getSensorRequestManager()
-                  .getSensorInfo(sensorHandle, *nanoapp, info);
+    success = EventLoopManagerSingleton::get()->getSensorRequestManager().
+        getSensorInfo(sensorHandle, *nanoapp, info);
 
     // The distinction between big/uimg accel and uncal accel/gyro/mag should
     // be abstracted away from big image nanoapps, so overwrite any platform
@@ -135,6 +130,7 @@ DLL_EXPORT bool chreGetSensorInfo(uint32_t sensorHandle,
       rewriteToChreSensorType(&info->sensorType);
     }
 #endif  // defined(CHRE_SLPI_SEE) && defined(CHRE_SLPI_UIMG_ENABLED)
+
   }
   return success;
 }
@@ -145,9 +141,8 @@ DLL_EXPORT bool chreGetSensorSamplingStatus(
 
   bool success = false;
   if (status != nullptr) {
-    success = EventLoopManagerSingleton::get()
-                  ->getSensorRequestManager()
-                  .getSensorSamplingStatus(sensorHandle, status);
+    success = EventLoopManagerSingleton::get()->getSensorRequestManager().
+        getSensorSamplingStatus(sensorHandle, status);
   }
   return success;
 }
@@ -159,29 +154,26 @@ DLL_EXPORT bool chreSensorConfigure(uint32_t sensorHandle,
   SensorMode sensorMode = getSensorModeFromEnum(mode);
   SensorRequest sensorRequest(nanoapp->getInstanceId(), sensorMode,
                               Nanoseconds(interval), Nanoseconds(latency));
-  return EventLoopManagerSingleton::get()
-      ->getSensorRequestManager()
+  return EventLoopManagerSingleton::get()->getSensorRequestManager()
       .setSensorRequest(nanoapp, sensorHandle, sensorRequest);
 }
 
 DLL_EXPORT bool chreSensorConfigureBiasEvents(uint32_t sensorHandle,
                                               bool enable) {
   chre::Nanoapp *nanoapp = EventLoopManager::validateChreApiCall(__func__);
-  return EventLoopManagerSingleton::get()
-      ->getSensorRequestManager()
+  return EventLoopManagerSingleton::get()->getSensorRequestManager()
       .configureBiasEvents(nanoapp, sensorHandle, enable);
 }
 
 DLL_EXPORT bool chreSensorGetThreeAxisBias(
     uint32_t sensorHandle, struct chreSensorThreeAxisData *bias) {
-  return EventLoopManagerSingleton::get()
-      ->getSensorRequestManager()
+  return EventLoopManagerSingleton::get()->getSensorRequestManager()
       .getThreeAxisBias(sensorHandle, bias);
 }
 
 DLL_EXPORT bool chreSensorFlushAsync(uint32_t sensorHandle,
                                      const void *cookie) {
   chre::Nanoapp *nanoapp = EventLoopManager::validateChreApiCall(__func__);
-  return EventLoopManagerSingleton::get()->getSensorRequestManager().flushAsync(
-      nanoapp, sensorHandle, cookie);
+  return EventLoopManagerSingleton::get()->getSensorRequestManager()
+      .flushAsync(nanoapp, sensorHandle, cookie);
 }
