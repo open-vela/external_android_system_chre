@@ -21,8 +21,6 @@ java_library {
         "chre-test-utils",
         "androidx.test.rules",
         "chrecrossvalidation_java_proto",
-        "chrecrossvalidation_wifi_java_proto",
-        "chre_test_common_java_proto",
         "guava",
     ],
 
