@@ -16,7 +16,6 @@
 
 #include "chre_cross_validator_manager.h"
 
-#include <algorithm>
 #include <cinttypes>
 
 #include <chre.h>
@@ -248,40 +247,37 @@ bool Manager::encodeProximitySensorDatapoints(pb_ostream_t *stream,
 
 bool Manager::handleStartSensorMessage(
     const chre_cross_validation_StartSensorCommand &startSensorCommand) {
-  bool success = false;
+  bool success = true;
   uint8_t sensorType = startSensorCommand.chreSensorType;
-  uint64_t intervalFromApInNs =
-      startSensorCommand.intervalInMs * kOneMillisecondInNanoseconds;
-  uint64_t latencyInNs =
-      startSensorCommand.latencyInMs * kOneMillisecondInNanoseconds;
+  uint64_t interval = startSensorCommand.samplingIntervalInNs;
+  uint64_t latency = startSensorCommand.samplingMaxLatencyInNs;
   bool isContinuous = startSensorCommand.isContinuous;
   uint32_t handle;
   if (!chreSensorFindDefault(sensorType, &handle)) {
     LOGE("Could not find default sensor for sensorType %" PRIu8, sensorType);
+    success = false;
     // TODO(b/146052784): Test other sensor configure modes
   } else {
-    chreSensorInfo sensorInfo;
-    if (!chreGetSensorInfo(handle, &sensorInfo)) {
-      LOGE("Error getting sensor info for sensor");
+    // If the sensor is on-change or one-shot then the interval from host
+    // message will be 0 which cannot be passed to chreSensorConfigure so set
+    // the interval and latency to default in that case
+    if (!isContinuous) {
+      interval = CHRE_SENSOR_INTERVAL_DEFAULT;
+      latency = CHRE_SENSOR_LATENCY_DEFAULT;
+    }
+    // Copy hostEndpoint param from previous version of cross validator
+    // state
+    mCrossValidatorState = CrossValidatorState(
+        CrossValidatorType::SENSOR, sensorType, handle, chreGetTime(),
+        mCrossValidatorState->hostEndpoint, isContinuous);
+    if (!chreSensorConfigure(handle, CHRE_SENSOR_CONFIGURE_MODE_CONTINUOUS,
+                             interval, latency)) {
+      LOGE("Error configuring sensor with sensorType %" PRIu8
+           ", interval %" PRIu64 "ns, and latency %" PRIu64 "ns",
+           sensorType, interval, latency);
+      success = false;
     } else {
-      // TODO(b/154271547): Send minInterval to AP and have the AP decide from
-      // both CHRE and AP min and max interval.
-      uint64_t intervalInNs =
-          std::max(intervalFromApInNs, sensorInfo.minInterval);
-      // Copy hostEndpoint param from previous version of cross validator
-      // state
-      mCrossValidatorState = CrossValidatorState(
-          CrossValidatorType::SENSOR, sensorType, handle, chreGetTime(),
-          mCrossValidatorState->hostEndpoint, isContinuous);
-      if (!chreSensorConfigure(handle, CHRE_SENSOR_CONFIGURE_MODE_CONTINUOUS,
-                               intervalInNs, latencyInNs)) {
-        LOGE("Error configuring sensor with sensorType %" PRIu8
-             ", interval %" PRIu64 "ns, and latency %" PRIu64 "ns",
-             sensorType, intervalInNs, latencyInNs);
-      } else {
-        LOGD("Sensor with sensor type %" PRIu8 " configured", sensorType);
-        success = true;
-      }
+      LOGD("Sensor with sensor type %" PRIu8 " configured", sensorType);
     }
   }
   return success;
