@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 The Android Open Source Project
+ * Copyright (C) 2017 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,16 +14,21 @@
  * limitations under the License.
  */
 
-#include "fastrpc_daemon.h"
+#include "ash_api/ash.h"
 
-int main() {
-  android::chre::FastRpcChreDaemon daemon;
+bool ashSetCalibration(uint8_t sensorType, const struct ashCalInfo *calInfo) {
+  // TODO: Implement this.
+  return false;
+}
 
-  if (!daemon.init()) {
-    LOGE("failed to init the daemon");
-  } else {
-    daemon.run();
-  }
+bool ashLoadCalibrationParams(uint8_t sensorType, uint8_t storage,
+                              struct ashCalParams *params) {
+  // TODO: Implement this.
+  return false;
+}
 
-  return 0;
+bool ashSaveCalibrationParams(uint8_t sensorType,
+                              const struct ashCalParams *params) {
+  // TODO: Implement this.
+  return false;
 }
