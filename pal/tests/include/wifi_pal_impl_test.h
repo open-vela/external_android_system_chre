@@ -21,6 +21,8 @@
 #include "chre/platform/condition_variable.h"
 #include "chre/platform/mutex.h"
 #include "chre/util/dynamic_vector.h"
+#include "chre/util/optional.h"
+#include "chre/util/time.h"
 #include "gtest/gtest.h"
 
 namespace wifi_pal_impl_test {
@@ -41,6 +43,27 @@ class PalWifiTest : public ::testing::Test {
 
   void TearDown() override;
 
+  /**
+   * Validates an incoming WiFi scan event.
+   *
+   * @param event The WiFi scan event.
+   */
+  void validateWifiScanEvent(const chreWifiScanEvent &event);
+
+  /**
+   * Prepares for a subsequent PAL API call that expects an async response.
+   */
+  void prepareForAsyncResponse() {
+    errorCode_ = CHRE_ERROR_LAST;
+  }
+
+  /**
+   * Waits for an async response by the PAL implementation (e.g. via scan
+   * response/monitor status change callback), and asserts that a success
+   * error code was received.
+   */
+  void waitForAsyncResponseAssertSuccess(chre::Nanoseconds timeoutNs);
+
   //! The pointer to the CHRE PAL implementation API
   const struct chrePalWifiApi *api_;
 
@@ -55,6 +78,15 @@ class PalWifiTest : public ::testing::Test {
 
   //! A list to store the scan results
   chre::DynamicVector<chreWifiScanEvent *> scanEventList_;
+
+  //! Stores active scan params
+  chre::Optional<chreWifiScanParams> scanParams_;
+
+  //! The last scan event index received, UINT8_MAX if invalid
+  uint8_t lastEventIndex_;
+
+  //! True if scan monitoring is currently enabled
+  bool scanMonitorEnabled_ = false;
 
   //! Mutex to protect class variables
   chre::Mutex mutex_;
