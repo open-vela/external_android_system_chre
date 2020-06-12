@@ -35,7 +35,6 @@
 #include <chre/nanoapp.h>
 #include <chre/re.h>
 #include <chre/sensor.h>
-#include <chre/toolchain.h>
 #include <chre/version.h>
 #include <chre/wifi.h>
 #include <chre/wwan.h>
@@ -154,7 +153,7 @@
  * 'float' support, there is no requirement that this support is particularly
  * efficient.  So nanoapp authors should be aware this may be inefficient.
  *
- * If a CHRE implementation chooses not to support 'double' or
+ * If a CHRE implementation choses not to support 'double' or
  * 'long double', then the build toolchain setup provided needs to set
  * the preprocessor define CHRE_NO_DOUBLE_SUPPORT.
  *
