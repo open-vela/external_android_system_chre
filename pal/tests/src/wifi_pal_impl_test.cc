@@ -25,12 +25,6 @@
 
 #include <cinttypes>
 
-// Flag to require on-demand WiFi scanning to be enabled for the test to pass.
-// Set to false to allow tests to pass on disabled platforms.
-#ifndef PAL_IMPL_TEST_WIFI_ON_DEMAND_SCAN_REQUIRED
-#define PAL_IMPL_TEST_WIFI_ON_DEMAND_SCAN_REQUIRED true
-#endif
-
 namespace {
 
 using ::chre::Nanoseconds;
@@ -119,8 +113,6 @@ void PalWifiTest::SetUp() {
   numScanResultCount_ = 0;
   lastScanEventReceived_ = false;
   scanEventList_.clear();
-  scanParams_.reset();
-  lastEventIndex_ = UINT8_MAX;
 }
 
 void PalWifiTest::TearDown() {
@@ -161,28 +153,7 @@ void PalWifiTest::rangingEventCallback(uint8_t errorCode,
   // TODO:
 }
 
-void PalWifiTest::validateWifiScanEvent(const chreWifiScanEvent &event) {
-  if (scanParams_.has_value()) {
-    EXPECT_EQ(event.scanType, scanParams_->scanType);
-    EXPECT_GE(event.referenceTime,
-              chreGetTime() - (scanParams_->maxScanAgeMs *
-                               ::chre::kOneMillisecondInNanoseconds));
-    EXPECT_EQ(event.radioChainPref, scanParams_->radioChainPref);
-    EXPECT_EQ(event.eventIndex, static_cast<uint8_t>(lastEventIndex_ + 1));
-  }
-}
-
 TEST_F(PalWifiTest, ScanAsyncTest) {
-#if PAL_IMPL_TEST_WIFI_ON_DEMAND_SCAN_REQUIRED
-  ASSERT_EQ(api_->getCapabilities() & CHRE_WIFI_CAPABILITIES_ON_DEMAND_SCAN,
-            CHRE_WIFI_CAPABILITIES_ON_DEMAND_SCAN);
-#else
-  if ((api_->getCapabilities() & CHRE_WIFI_CAPABILITIES_ON_DEMAND_SCAN) !=
-      CHRE_WIFI_CAPABILITIES_ON_DEMAND_SCAN) {
-    GTEST_SKIP();
-  }
-#endif
-
   // Request a WiFi scan
   chre::LockGuard<chre::Mutex> lock(mutex_);
 
@@ -192,8 +163,7 @@ TEST_F(PalWifiTest, ScanAsyncTest) {
   params.frequencyListLen = 0;
   params.ssidListLen = 0;
   params.radioChainPref = CHRE_WIFI_RADIO_CHAIN_PREF_DEFAULT;
-  scanParams_ = params;
-  ASSERT_TRUE(api_->requestScan(&scanParams_.value()));
+  ASSERT_TRUE(api_->requestScan(&params));
 
   const Nanoseconds kTimeoutNs = Nanoseconds(CHRE_WIFI_SCAN_RESULT_TIMEOUT_NS);
   Nanoseconds end = SystemTime::getMonotonicTime() + kTimeoutNs;
@@ -213,13 +183,11 @@ TEST_F(PalWifiTest, ScanAsyncTest) {
   }
 
   for (auto *event : scanEventList_) {
+    // TODO: Sanity check values
     for (uint8_t i = 0; i < event->resultCount; i++) {
       const chreWifiScanResult &result = event->results[i];
       logChreWifiResult(result);
     }
-    validateWifiScanEvent(*event);
-
-    lastEventIndex_ = event->eventIndex;
     api_->releaseScanEvent(event);
   }
 
