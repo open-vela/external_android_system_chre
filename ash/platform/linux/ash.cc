@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 The Android Open Source Project
+ * Copyright (C) 2017 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,22 +14,21 @@
  * limitations under the License.
  */
 
-#ifndef CHPP_TRANSPORT_TEST_H_
-#define CHPP_TRANSPORT_TEST_H_
+#include "ash_api/ash.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-/************************************************
- *  Functions necessary for unit testing
- ***********************************************/
-
-bool chppDequeueTxDatagram(struct ChppTransportState *context);
-void chppTransportDoWork(struct ChppTransportState *context);
-
-#ifdef __cplusplus
+bool ashSetCalibration(uint8_t sensorType, const struct ashCalInfo *calInfo) {
+  // TODO: Implement this.
+  return false;
 }
-#endif
 
-#endif  // CHPP_TRANSPORT_TEST_H_
+bool ashLoadCalibrationParams(uint8_t sensorType, uint8_t storage,
+                              struct ashCalParams *params) {
+  // TODO: Implement this.
+  return false;
+}
+
+bool ashSaveCalibrationParams(uint8_t sensorType,
+                              const struct ashCalParams *params) {
+  // TODO: Implement this.
+  return false;
+}
