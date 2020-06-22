@@ -143,10 +143,6 @@ void PalWifiTest::scanMonitorStatusChangeCallback(bool enabled,
                                                   uint8_t errorCode) {
   LOGI("Received scan monitor response with enabled %d error %" PRIu8, enabled,
        errorCode);
-  if (errorCode == CHRE_ERROR_LAST) {
-    LOGE("Received CHRE_ERROR_LAST");
-    errorCode = CHRE_ERROR;
-  }
   chre::LockGuard<chre::Mutex> lock(mutex_);
   scanMonitorEnabled_ = enabled;
   errorCode_ = errorCode;
@@ -156,10 +152,6 @@ void PalWifiTest::scanMonitorStatusChangeCallback(bool enabled,
 void PalWifiTest::scanResponseCallback(bool pending, uint8_t errorCode) {
   LOGI("Received scan response with pending %d error %" PRIu8, pending,
        errorCode);
-  if (errorCode == CHRE_ERROR_LAST) {
-    LOGE("Received CHRE_ERROR_LAST");
-    errorCode = CHRE_ERROR;
-  }
   chre::LockGuard<chre::Mutex> lock(mutex_);
   errorCode_ = errorCode;
   condVar_.notify_one();
@@ -198,11 +190,12 @@ void PalWifiTest::validateWifiScanEvent(const chreWifiScanEvent &event) {
 
 void PalWifiTest::waitForAsyncResponseAssertSuccess(
     chre::Nanoseconds timeoutNs) {
-  bool waitSuccess = true;
-  while (errorCode_ == CHRE_ERROR_LAST && waitSuccess) {
-    waitSuccess = condVar_.wait_for(mutex_, timeoutNs);
+  Nanoseconds end = SystemTime::getMonotonicTime() + timeoutNs;
+  while (errorCode_ == CHRE_ERROR_LAST &&
+         SystemTime::getMonotonicTime() < end) {
+    condVar_.wait_for(mutex_, timeoutNs);
   }
-  ASSERT_TRUE(waitSuccess);
+  ASSERT_LT(SystemTime::getMonotonicTime(), end);
   ASSERT_EQ(errorCode_, CHRE_ERROR_NONE);
 }
 
@@ -235,9 +228,9 @@ TEST_F(PalWifiTest, ScanAsyncTest) {
 
   // The CHRE API only poses timeout requirements on the async response. Use
   // the same timeout to receive the scan results to avoid blocking forever.
-  bool waitSuccess = true;
-  while (!lastScanEventReceived_ && waitSuccess) {
-    waitSuccess = condVar_.wait_for(mutex_, kScanResultTimeoutNs);
+  Nanoseconds end = SystemTime::getMonotonicTime() + kScanResultTimeoutNs;
+  while (!lastScanEventReceived_ && SystemTime::getMonotonicTime() < end) {
+    condVar_.wait_for(mutex_, kScanResultTimeoutNs);
   }
 
   for (auto *event : scanEventList_) {
