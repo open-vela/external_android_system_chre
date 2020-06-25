@@ -47,7 +47,7 @@ static inline bool chppIsClientCompatibleWithService(
     const struct ChppClientDescriptor *client,
     struct ChppServiceDescriptor *service) {
   return (memcmp(client->uuid, service->uuid, CHPP_SERVICE_UUID_LEN) == 0 &&
-          client->version.major == service->version.major);
+          client->versionMajor == service->versionMajor);
 }
 
 /**
@@ -126,9 +126,9 @@ static void chppDiscoveryProcessDiscoverAll(struct ChppAppState *context,
                 " with name=%s, UUID=%s, version=%" PRIu8 ".%" PRIu8
                 ".%" PRIu16,
                 CHPP_SERVICE_HANDLE_OF_INDEX(i), response->services[i].name,
-                uuidText, response->services[i].version.major,
-                response->services[i].version.minor,
-                response->services[i].version.patch);
+                uuidText, response->services[i].versionMajor,
+                response->services[i].versionMinor,
+                response->services[i].versionPatch);
 
     } else {
       CHPP_LOGI(
@@ -139,32 +139,34 @@ static void chppDiscoveryProcessDiscoverAll(struct ChppAppState *context,
           context->clientIndexOfServiceIndex[i],
           CHPP_SERVICE_HANDLE_OF_INDEX(i), response->services[i].name, uuidText,
           context->registeredClients[context->clientIndexOfServiceIndex[i]]
-              ->descriptor.version.major,
+              ->descriptor.versionMajor,
           context->registeredClients[context->clientIndexOfServiceIndex[i]]
-              ->descriptor.version.minor,
+              ->descriptor.versionMinor,
           context->registeredClients[context->clientIndexOfServiceIndex[i]]
-              ->descriptor.version.patch,
-          response->services[i].version.major,
-          response->services[i].version.minor,
-          response->services[i].version.patch);
+              ->descriptor.versionPatch,
+          response->services[i].versionMajor,
+          response->services[i].versionMinor,
+          response->services[i].versionPatch);
 
       // Initialize client
       if (context->registeredClients[0]->initFunctionPtr(
               context, CHPP_SERVICE_HANDLE_OF_INDEX(i),
-              response->services[i].version) == false) {
+              response->services[i].versionMajor,
+              response->services[i].versionMinor,
+              response->services[i].versionPatch) == false) {
         CHPP_LOGE(
             "Client rejected initialization (maybe due to incompatible "
             "versions?)  client version=%" PRIu8 ".%" PRIu8 ".%" PRIu16
             ", service version=%" PRIu8 ".%" PRIu8 ".%" PRIu16,
             context->registeredClients[context->clientIndexOfServiceIndex[i]]
-                ->descriptor.version.major,
+                ->descriptor.versionMajor,
             context->registeredClients[context->clientIndexOfServiceIndex[i]]
-                ->descriptor.version.minor,
+                ->descriptor.versionMinor,
             context->registeredClients[context->clientIndexOfServiceIndex[i]]
-                ->descriptor.version.patch,
-            response->services[i].version.major,
-            response->services[i].version.minor,
-            response->services[i].version.patch);
+                ->descriptor.versionPatch,
+            response->services[i].versionMajor,
+            response->services[i].versionMinor,
+            response->services[i].versionPatch);
       } else {
         matchedClients++;
       }

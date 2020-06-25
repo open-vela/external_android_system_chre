@@ -22,6 +22,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "chpp/app.h"
 #include "chpp/link.h"
 #include "chpp/macros.h"
 #include "chpp/memory.h"
@@ -203,30 +204,20 @@ enum ChppResetState {
 };
 
 /**
- * Semantic Versioning system of CHRE.
- */
-CHPP_PACKED_START
-struct ChppVersion {
-  //! Major version of (breaking changes).
-  uint8_t major;
-
-  //! Minor version (backwards compatible changes).
-  uint8_t minor;
-
-  //! Patch version (bug fixes).
-  uint16_t patch;
-} CHPP_PACKED_ATTR;
-CHPP_PACKED_END
-
-/**
  * Payload that is sent along reset and reset-ack packets. This may be used to
  * advertise the configuration parameters of this CHPP instance, and/or set the
  * configuration parameters of the remote side (TODO).
  */
 CHPP_PACKED_START
 struct ChppTransportConfiguration {
-  //! CHPP transport version.
-  struct ChppVersion version;
+  //! Major version of CHPP (breaking changes).
+  uint8_t versionMajor;
+
+  //! Minor version of CHPP (backwards compatible changes).
+  uint8_t versionMinor;
+
+  //! Patch version of CHPP (bug fixes).
+  uint16_t versionPatch;
 
   //! Receive MTU size.
   uint16_t rxMtu;

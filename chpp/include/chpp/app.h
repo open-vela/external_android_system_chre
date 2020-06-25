@@ -166,7 +166,8 @@ typedef bool(ChppDispatchFunction)(void *context, uint8_t *buf, size_t len);
  * Function type that initializes a client and assigns it its handle number
  */
 typedef bool(ChppClientInitFunction)(void *context, uint8_t handle,
-                                     struct ChppVersion serviceVersion);
+                                     uint8_t versionMajor, uint8_t versionMinor,
+                                     uint16_t versionPatch);
 
 /**
  * Function type that deinitializes a client.
@@ -203,8 +204,14 @@ struct ChppServiceDescriptor {
   //! Human-readable name of the service for debugging.
   char name[CHPP_SERVICE_NAME_MAX_LEN];
 
-  //! Version of the service.
-  struct ChppVersion version;
+  //! Major version of the service (breaking changes).
+  uint8_t versionMajor;
+
+  //! Minor version of the service (backwards compatible changes).
+  uint8_t versionMinor;
+
+  //! Patch version of the service (bug fixes).
+  uint16_t versionPatch;
 } CHPP_PACKED_ATTR;
 CHPP_PACKED_END
 
@@ -235,8 +242,14 @@ struct ChppClientDescriptor {
   //! Must be generated according to RFC 4122, UUID version 4 (random).
   uint8_t uuid[CHPP_SERVICE_UUID_LEN];
 
-  //! Version of the client.
-  struct ChppVersion version;
+  //! Major version of the client (breaking changes).
+  uint8_t versionMajor;
+
+  //! Minor version of the client (backwards compatible changes).
+  uint8_t versionMinor;
+
+  //! Patch version of the client (bug fixes).
+  uint16_t versionPatch;
 };
 
 /**
