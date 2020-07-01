@@ -34,7 +34,7 @@ extern "C" {
  */
 CHPP_PACKED_START
 struct ChppWwanGetCapabilitiesResponse {
-  struct ChppAppHeader header;
+  struct ChppServiceBasicResponse common;
   uint32_t capabilities;
 } CHPP_PACKED_ATTR;
 CHPP_PACKED_END
