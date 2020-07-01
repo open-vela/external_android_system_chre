@@ -26,7 +26,7 @@ struct ChppTestResponse {
   char preamble0;
   char preamble1;
   struct ChppTransportHeader transportHeader;
-  struct ChppAppHeader appHeader;
+  struct ChppServiceBasicResponse basicResponse;
 } CHPP_PACKED_ATTR;
 CHPP_PACKED_END
 

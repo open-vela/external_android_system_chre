@@ -90,8 +90,6 @@ enum ChppHandleNumber {
 /**
  * Message Types as used in ChppAppHeader
  */
-#define CHPP_APP_MASK_MESSAGE_TYPE LEAST_SIGNIFICANT_NIBBLE
-#define CHPP_APP_GET_MESSAGE_TYPE(value) ((value)&CHPP_APP_MASK_MESSAGE_TYPE)
 enum ChppMessageType {
   //! Request from client. Needs response from service.
   CHPP_MESSAGE_TYPE_CLIENT_REQUEST = 0,
@@ -143,15 +141,15 @@ struct ChppAppHeader {
   //! Service Handle
   uint8_t handle;
 
-  //! MS nibble: Rserved
-  //! LS nibble: Message Type from enum ChppMessageType
+  //! Message Type (request/response/notification as detailed in
+  //! ChppMessageType)
   uint8_t type;
 
   //! Transaction ID
   uint8_t transaction;
 
-  //! Error if any, from enum ChppAppErrorCode
-  uint8_t error;
+  //! Reserved
+  uint8_t reserved;
 
   //! Command
   uint16_t command;
@@ -299,6 +297,13 @@ struct ChppAppState {
   uint8_t
       clientIndexOfServiceIndex[CHPP_MAX_DISCOVERED_SERVICES];  // Lookup table
 };
+
+CHPP_PACKED_START
+struct ChppServiceBasicResponse {
+  struct ChppAppHeader header;
+  uint8_t error;
+} CHPP_PACKED_ATTR;
+CHPP_PACKED_END
 
 #define CHPP_SERVICE_INDEX_OF_HANDLE(handle) \
   ((handle)-CHPP_HANDLE_NEGOTIATED_RANGE_START)
