@@ -17,22 +17,27 @@
 #ifndef CHPP_MACROS_H_
 #define CHPP_MACROS_H_
 
+#include <assert.h>
+#include <stddef.h>
 #include <stdlib.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#define MOST_SIGNIFICANT_NIBBLE 0xf0
+#define LEAST_SIGNIFICANT_NIBBLE 0x0f
+
 #ifndef UNUSED_VAR
 #define UNUSED_VAR(var) ((void)(var))
 #endif
 
 #ifndef MIN
-#define MIN(a, b) ((a) < (b)) ? (a) : (b)
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
 #endif
 
 #ifndef MAX
-#define MAX(a, b) ((a) > (b)) ? (a) : (b)
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
 #endif
 
 #ifndef CHPP_ASSERT
@@ -42,6 +47,42 @@ extern "C" {
 #ifndef CHPP_NOT_NULL
 #define CHPP_NOT_NULL(var) CHPP_ASSERT((var) != NULL)
 #endif
+
+#ifndef CHPP_DEBUG_ASSERT
+#define CHPP_DEBUG_ASSERT(var) CHPP_ASSERT(var)
+#endif
+
+#if defined(__GNUC__) && (__STDC_VERSION__ >= 201112L)
+#define CHPP_C11_OR_NEWER
+#endif
+
+#ifdef CHPP_C11_OR_NEWER
+#define CHPP_STATIC_ASSERT _Static_assert
+
+#else
+#define CHPP_STATIC_ASSERT4(cond, var) typedef char var[(!!(cond)) * 2 - 1]
+#define CHPP_STATIC_ASSERT3(cond, line) \
+  CHPP_STATIC_ASSERT4(cond, static_assertion_at_line_##line)
+#define CHPP_STATIC_ASSERT2(cond, line) CHPP_STATIC_ASSERT3(cond, line)
+#define CHPP_STATIC_ASSERT(cond, msg) CHPP_STATIC_ASSERT2(cond, __LINE__)
+
+#endif
+
+// TODO: Need platform-based time functionality
+#define chppGetCurrentTime() 1
+#define CHPP_TIME_NONE 0
+
+#if defined(__GNUC__) || defined(__clang__)
+#define check_types_match(t1, t2) ((__typeof__(t1) *)0 != (__typeof__(t2) *)0)
+#else
+#define check_types_match(t1, t2) 0
+#endif
+
+#define container_of(ptr, type, member)                     \
+  ((type *)(void *)((char *)(ptr)-offsetof(type, member)) + \
+   check_types_match(*(ptr), ((type *)0)->member))
+
+#define sizeof_member(type, member) (sizeof(((type *)0)->member))
 
 /**
  * Macros for defining (compiler dependent) packed structures
@@ -60,6 +101,12 @@ extern "C" {
 // Unknown compiler
 #error Unrecognized compiler
 #endif
+
+#define CHPP_FREE_AND_NULLIFY(p) \
+  do {                           \
+    chppFree(p);                 \
+    (p) = NULL;                  \
+  } while (0)
 
 #ifdef __cplusplus
 }
