@@ -42,11 +42,6 @@ ifeq ($(CHRE_GNSS_SUPPORT_ENABLED), true)
 COMMON_CFLAGS += -DCHRE_GNSS_SUPPORT_ENABLED
 endif
 
-# Optional sensors support.
-ifeq ($(CHRE_SENSORS_SUPPORT_ENABLED), true)
-COMMON_CFLAGS += -DCHRE_SENSORS_SUPPORT_ENABLED
-endif
-
 # Optional Wi-Fi support.
 ifeq ($(CHRE_WIFI_SUPPORT_ENABLED), true)
 COMMON_CFLAGS += -DCHRE_WIFI_SUPPORT_ENABLED
@@ -86,6 +81,7 @@ include $(CHRE_PREFIX)/build/common.mk
 
 # CHRE Implementation includes.
 include $(CHRE_PREFIX)/apps/apps.mk
+include $(CHRE_PREFIX)/ash/ash.mk
 include $(CHRE_PREFIX)/chre_api/chre_api.mk
 include $(CHRE_PREFIX)/core/core.mk
 include $(CHRE_PREFIX)/external/external.mk
@@ -105,8 +101,6 @@ include $(CHRE_PREFIX)/build/variant/google_hexagonv65_adsp-see.mk
 include $(CHRE_PREFIX)/build/variant/google_hexagonv65_adsp-see-uimg.mk
 include $(CHRE_PREFIX)/build/variant/google_hexagonv65_slpi-see.mk
 include $(CHRE_PREFIX)/build/variant/google_hexagonv65_slpi-see-uimg.mk
-include $(CHRE_PREFIX)/build/variant/google_hexagonv66_adsp-see.mk
-include $(CHRE_PREFIX)/build/variant/google_hexagonv66_adsp-see-uimg.mk
 include $(CHRE_PREFIX)/build/variant/google_hexagonv66_slpi-see.mk
 include $(CHRE_PREFIX)/build/variant/google_hexagonv66_slpi-see-uimg.mk
 include $(CHRE_PREFIX)/build/variant/google_x86_linux.mk

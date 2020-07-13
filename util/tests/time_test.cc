@@ -18,15 +18,15 @@
 
 #include "chre/util/time.h"
 
-using chre::kOneMicrosecondInNanoseconds;
-using chre::kOneMillisecondInMicroseconds;
-using chre::kOneMillisecondInNanoseconds;
+using chre::Seconds;
+using chre::Milliseconds;
+using chre::Microseconds;
+using chre::Nanoseconds;
 using chre::kOneSecondInMilliseconds;
 using chre::kOneSecondInNanoseconds;
-using chre::Microseconds;
-using chre::Milliseconds;
-using chre::Nanoseconds;
-using chre::Seconds;
+using chre::kOneMillisecondInMicroseconds;
+using chre::kOneMillisecondInNanoseconds;
+using chre::kOneMicrosecondInNanoseconds;
 
 // Tests for Time constants
 TEST(Time, CheckTimeConversionConstants) {
