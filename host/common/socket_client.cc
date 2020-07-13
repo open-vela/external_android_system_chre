@@ -42,12 +42,12 @@ SocketClient::~SocketClient() {
 }
 
 bool SocketClient::connect(const char *socketName,
-                           const sp<ICallbacks> &callbacks) {
+                           const sp<ICallbacks>& callbacks) {
   return doConnect(socketName, callbacks, false /* connectInBackground */);
 }
 
 bool SocketClient::connectInBackground(const char *socketName,
-                                       const sp<ICallbacks> &callbacks) {
+                                       const sp<ICallbacks>& callbacks) {
   return doConnect(socketName, callbacks, true /* connectInBackground */);
 }
 
@@ -103,7 +103,7 @@ bool SocketClient::sendMessage(const void *data, size_t length) {
 }
 
 bool SocketClient::doConnect(const char *socketName,
-                             const sp<ICallbacks> &callbacks,
+                             const sp<ICallbacks>& callbacks,
                              bool connectInBackground) {
   bool success = false;
   if (inReceiveThread()) {
@@ -114,8 +114,8 @@ bool SocketClient::doConnect(const char *socketName,
       disconnect();
     }
 
-    size_t socketNameLen =
-        strlcpy(mSocketName, socketName, sizeof(mSocketName));
+    size_t socketNameLen = strlcpy(mSocketName, socketName,
+                                   sizeof(mSocketName));
     if (socketNameLen >= sizeof(mSocketName)) {
       LOGE("Socket name length parameter is too long (%zu, max %zu)",
            socketNameLen, sizeof(mSocketName));
@@ -124,7 +124,9 @@ bool SocketClient::doConnect(const char *socketName,
     } else if (connectInBackground || tryConnect()) {
       mGracefulShutdown = false;
       mCallbacks = callbacks;
-      mRxThread = std::thread([this]() { receiveThread(); });
+      mRxThread = std::thread([this]() {
+        receiveThread();
+      });
       success = true;
     }
   }
@@ -181,7 +183,7 @@ bool SocketClient::reconnect() {
   constexpr auto kMaxDelay = std::chrono::minutes(5);
   // Try reconnecting at initial delay this many times before backing off
   constexpr unsigned int kExponentialBackoffDelay =
-      std::chrono::seconds(10) / kMinDelay;
+    std::chrono::seconds(10) / kMinDelay;
   // Give up after this many tries (~2.5 hours)
   constexpr unsigned int kRetryLimit = kExponentialBackoffDelay + 40;
   auto delay = kMinDelay;
@@ -228,35 +230,20 @@ bool SocketClient::tryConnect(bool suppressErrorLogs) {
     // Set the send buffer size to 2MB to allow plenty of room for nanoapp
     // loading
     int sndbuf = 2 * 1024 * 1024;
-    // Normally, send() should effectively return immediately, but in the event
-    // that we get blocked due to flow control, don't stay blocked for more than
-    // 3 seconds
-    struct timeval timeout = {
-        .tv_sec = 3,
-        .tv_usec = 0,
-    };
-    int ret;
-
-    if ((ret = setsockopt(sockFd, SOL_SOCKET, SO_SNDBUF, &sndbuf,
-                          sizeof(sndbuf))) != 0) {
-      if (!suppressErrorLogs) {
-        LOGE("Failed to set SO_SNDBUF to %d: %s", sndbuf, strerror(errno));
-      }
-    } else if ((ret = setsockopt(sockFd, SOL_SOCKET, SO_SNDTIMEO, &timeout,
-                                 sizeof(timeout))) != 0) {
-      if (!suppressErrorLogs) {
-        LOGE("Failed to set SO_SNDTIMEO: %s", strerror(errno));
-      }
-    } else {
-      mSockFd = socket_local_client_connect(sockFd, mSocketName,
-                                            ANDROID_SOCKET_NAMESPACE_RESERVED,
-                                            SOCK_SEQPACKET);
+    int ret = setsockopt(
+        sockFd, SOL_SOCKET, SO_SNDBUF, &sndbuf, sizeof(sndbuf));
+    if (ret == 0) {
+      mSockFd = socket_local_client_connect(
+          sockFd, mSocketName, ANDROID_SOCKET_NAMESPACE_RESERVED,
+          SOCK_SEQPACKET);
       if (mSockFd != INVALID_SOCKET) {
         success = true;
       } else if (!suppressErrorLogs) {
-        LOGE("Couldn't connect client socket to '%s': %s", mSocketName,
-             strerror(errno));
+        LOGE("Couldn't connect client socket to '%s': %s",
+             mSocketName, strerror(errno));
       }
+    } else if (!suppressErrorLogs) {
+      LOGE("Failed to set SO_SNDBUF to %d: %s", sndbuf, strerror(errno));
     }
 
     if (!success) {
