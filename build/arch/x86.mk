@@ -28,9 +28,6 @@ TARGET_CFLAGS += -g
 # Enable position independence.
 TARGET_CFLAGS += -fpic
 
-# Disable double promotion warning for logging
-TARGET_CFLAGS += -Wno-double-promotion
-
 # x86 Shared Object Linker Flags ###############################################
 
 TARGET_SO_LDFLAGS += -shared
