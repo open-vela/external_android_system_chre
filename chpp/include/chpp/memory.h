@@ -29,10 +29,7 @@ extern "C" {
 void *chppMalloc(const size_t size);
 
 /**
- * Free memory.
- * Note that is is expected that CHPP_FREE_AND_NULLIFY() is used exclusively
- * instead of calling chppFree directly. This would ensure that buf is set to
- * NULL afterwards.
+ * Free memory
  */
 void chppFree(void *ptr);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 The Android Open Source Project
+ * Copyright (C) 2020 Google LLC.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -49,12 +49,12 @@ public class ChreTestUtil {
     private static final long QUERY_NANOAPPS_TIMEOUT_SECONDS = 5;
 
     /**
-     * Read the nanoapp to an InputStream object.
-     *
-     * @param context  the Context to find the asset resources
-     * @param fileName the fileName of the nanoapp
-     * @return the InputStream of the nanoapp
-     */
+    * Read the nanoapp to an InputStream object.
+    *
+    * @param context   the Context to find the asset resources
+    * @param fileName  the fileName of the nanoapp
+    * @return the InputStream of the nanoapp
+    */
     public static InputStream getNanoAppInputStream(Context context, String fileName) {
         InputStream inputStream = null;
         try {
@@ -66,11 +66,11 @@ public class ChreTestUtil {
     }
 
     /**
-     * Creates a NanoAppBinary object from the nanoapp fileName.
-     *
-     * @param fileName the fileName of the nanoapp
-     * @return the NanoAppBinary object
-     */
+    * Creates a NanoAppBinary object from the nanoapp fileName.
+    *
+    * @param fileName the fileName of the nanoapp
+    * @return the NanoAppBinary object
+    */
     public static NanoAppBinary createNanoAppBinary(String fileName) {
         Context context = InstrumentationRegistry.getTargetContext();
 
@@ -87,14 +87,13 @@ public class ChreTestUtil {
     }
 
     /**
-     * Loads a nanoapp.
-     *
-     * @param manager       The ContextHubManager to use to load the nanoapp.
-     * @param info          The ContextHubInfo describing the Context Hub to load the nanoapp to.
-     * @param nanoAppBinary The nanoapp binary to load.
-     * @return true if the load succeeded.
-     */
-    public static boolean loadNanoApp(
+    * Loads a nanoapp and asserts success.
+    *
+    * @param manager The ContextHubManager to use to load the nanoapp.
+    * @param info The ContextHubInfo describing the Context Hub to load the nanoapp to.
+    * @param nanoAppBinary The nanoapp binary to load.
+    */
+    public static void loadNanoAppAssertSuccess(
             ContextHubManager manager, ContextHubInfo info, NanoAppBinary nanoAppBinary) {
         ContextHubTransaction<Void> txn = manager.loadNanoApp(info, nanoAppBinary);
         ContextHubTransaction.Response<Void> resp = null;
@@ -104,30 +103,18 @@ public class ChreTestUtil {
             Assert.fail(e.getMessage());
         }
 
-        return resp != null && resp.getResult() == ContextHubTransaction.RESULT_SUCCESS;
-    }
-
-    /**
-     * Loads a nanoapp and asserts success.
-     *
-     * @param manager       The ContextHubManager to use to load the nanoapp.
-     * @param info          The ContextHubInfo describing the Context Hub to load the nanoapp to.
-     * @param nanoAppBinary The nanoapp binary to load.
-     */
-    public static void loadNanoAppAssertSuccess(
-            ContextHubManager manager, ContextHubInfo info, NanoAppBinary nanoAppBinary) {
-        if (!loadNanoApp(manager, info, nanoAppBinary)) {
-            Assert.fail("Failed to load nanoapp");
+        if (resp != null && resp.getResult() != ContextHubTransaction.RESULT_SUCCESS) {
+            Assert.fail("Failed to load nanoapp: result = " + resp.getResult());
         }
     }
 
     /**
-     * Unloads a nanoapp and asserts success.
-     *
-     * @param manager   The ContextHubManager to use to unload the nanoapp.
-     * @param info      The ContextHubInfo describing the Context Hub to unload the nanoapp from.
-     * @param nanoAppId The nanoapp to unload.
-     */
+    * Unloads a nanoapp and asserts success.
+    *
+    * @param manager The ContextHubManager to use to unload the nanoapp.
+    * @param info The ContextHubInfo describing the Context Hub to unload the nanoapp from.
+    * @param nanoAppBinary The nanoapp to unload.
+    */
     public static void unloadNanoAppAssertSuccess(
             ContextHubManager manager, ContextHubInfo info, long nanoAppId) {
         ContextHubTransaction<Void> txn = manager.unloadNanoApp(info, nanoAppId);
@@ -144,12 +131,12 @@ public class ChreTestUtil {
     }
 
     /**
-     * Executes a given shell command.
-     *
-     * @param instrumentation The instrumentation to use.
-     * @param command         The shell command to execute.
-     * @return The string output.
-     */
+    * Executes a given shell command.
+    *
+    * @param instrumentation The instrumentation to use.
+    * @param command The shell command to execute.
+    * @return The string output.
+    */
     public static String executeShellCommand(Instrumentation instrumentation, String command) {
         final ParcelFileDescriptor pfd = instrumentation.getUiAutomation()
                 .executeShellCommand(command);
@@ -172,9 +159,9 @@ public class ChreTestUtil {
     }
 
     /**
-     * @param input The string input of an integer.
-     * @return The converted integer.
-     */
+    * @param input The string input of an integer.
+    * @return The converted integer.
+    */
     public static int convertToIntegerOrFail(String input) {
         try {
             return Integer.parseInt(input);
@@ -186,10 +173,10 @@ public class ChreTestUtil {
     }
 
     /**
-     * Get all the nanoapps currently loaded on device.
-     *
-     * @return The nanoapps loaded currently.
-     */
+    * Get all the nanoapps currently loaded on device.
+    *
+    * @return The nanoapps loaded currently.
+    */
     public static List<NanoAppState> queryNanoAppsAssertSuccess(
             ContextHubManager contextHubManager, ContextHubInfo contextHubInfo) {
         ContextHubTransaction<List<NanoAppState>> transaction =
@@ -208,30 +195,8 @@ public class ChreTestUtil {
     }
 
     /**
-     * Queries for the nanoapp version.
-     *
-     * @param contextHubManager The ContextHubManager to use.
-     * @param contextHubInfo    The ContextHubInfo describing the Context Hub to query.
-     * @param nanoAppId         The ID of the nanoapp to get the version for.
-     * @return The nanoapp version.
-     */
-    public static int getNanoAppVersion(ContextHubManager contextHubManager,
-            ContextHubInfo contextHubInfo, long nanoAppId) {
-        List<NanoAppState> stateList = queryNanoAppsAssertSuccess(contextHubManager,
-                contextHubInfo);
-        for (NanoAppState state : stateList) {
-            if (state.getNanoAppId() == nanoAppId) {
-                return (int) state.getNanoAppVersion();
-            }
-        }
-
-        Assert.fail("Could not query for nanoapp with ID 0x" + Long.toHexString(nanoAppId));
-        return -1;
-    }
-
-    /**
-     * @param closeable The object to close.
-     */
+    * @param closeable The object to close.
+    */
     private static void closeOrAssert(AutoCloseable closeable) {
         try {
             closeable.close();
@@ -241,11 +206,11 @@ public class ChreTestUtil {
     }
 
     /**
-     * Assert that the context hub transaction gets a successful response.
-     *
-     * @param transaction      The context hub transaction
-     * @param timeoutInSeconds The timeout while waiting for the transaction response in seconds
-     */
+    * Assert that the context hub transaction gets a successful response.
+    *
+    * @param transaction The context hub transaction
+    * @param timeoutInSeconds The timeout while waiting for the transaction response in seconds
+    */
     private static void assertTransactionSuccessSync(
             ContextHubTransaction<?> transaction, long timeoutInSeconds) throws AssertionError {
         if (transaction == null) {
