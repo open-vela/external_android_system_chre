@@ -30,24 +30,31 @@ void chppPlatformNotifierDeinit(struct ChppNotifier *notifier) {
   chppMutexDeinit(&notifier->mutex);
 }
 
-uint32_t chppPlatformNotifierWait(struct ChppNotifier *notifier) {
+bool chppPlatformNotifierWait(struct ChppNotifier *notifier) {
   chppMutexLock(&notifier->mutex);
 
-  while (notifier->signal == 0) {
+  while (notifier->signaled == false && notifier->shouldExit == false) {
     pthread_cond_wait(&notifier->cond, &notifier->mutex.lock);
   }
-  uint32_t signal = notifier->signal;
-  notifier->signal = 0;
+  notifier->signaled = false;
 
   chppMutexUnlock(&notifier->mutex);
-  return signal;
+  return !notifier->shouldExit;
 }
 
-void chppPlatformNotifierSignal(struct ChppNotifier *notifier,
-                                uint32_t signal) {
+void chppPlatformNotifierEvent(struct ChppNotifier *notifier) {
   chppMutexLock(&notifier->mutex);
 
-  notifier->signal |= signal;
+  notifier->signaled = true;
+  pthread_cond_signal(&notifier->cond);
+
+  chppMutexUnlock(&notifier->mutex);
+}
+
+void chppPlatformNotifierExit(struct ChppNotifier *notifier) {
+  chppMutexLock(&notifier->mutex);
+
+  notifier->shouldExit = true;
   pthread_cond_signal(&notifier->cond);
 
   chppMutexUnlock(&notifier->mutex);

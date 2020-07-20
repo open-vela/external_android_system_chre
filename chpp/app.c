@@ -27,9 +27,6 @@
 #include "chpp/services/loopback.h"
 #include "chpp/services/nonhandle.h"
 
-//! Signals to use in ChppNotifier in this program.
-#define CHPP_SIGNAL_CLIENT_EVENT UINT32_C(1 << 0)
-
 /************************************************
  *  Prototypes
  ***********************************************/
@@ -529,8 +526,7 @@ void chppProcessRxDatagram(struct ChppAppState *context, uint8_t *buf,
 
         if (clientContext->waitingForResponse) {
           // Dispatched a synchronous response successfully. Notify client
-          chppNotifierSignal(&clientContext->responseNotifier,
-                             CHPP_SIGNAL_CLIENT_EVENT);
+          chppNotifierEvent(&clientContext->responseNotifier);
         }
       }
     }

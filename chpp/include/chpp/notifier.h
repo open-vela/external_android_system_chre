@@ -28,8 +28,6 @@
 extern "C" {
 #endif
 
-#include <inttypes.h>
-
 /*
  * Platform-specific condition variable struct that enables the
  * platform-specific funcions defined here.
@@ -53,25 +51,30 @@ static void chppNotifierDeinit(struct ChppNotifier *notifier);
 
 /**
  * Waits on a platform-specific notifier until it is signaled through
- * chppNotifierSignal().
+ * chppNotifierEvent() or through chppNotifierExit().
  *
  * @param notifier Points to the ChppNotifier being used.
  *
- * @return The signal value indicated in chppNotifierSignal().
+ * @return True indicates that it has been signaled through chppNotifierEvent().
+ * False indicates that it has been signaled through chppNotifierEvent(),
+ * indicating an intent to exit.
  */
-static uint32_t chppNotifierWait(struct ChppNotifier *notifier);
+static bool chppNotifierWait(struct ChppNotifier *notifier);
 
 /**
- * Signals chppNotifierWait() with the specified signal value.
- *
- * The signal values can be defined by the user of this class. Note that it is
- * expected for different signals to be bitwise exclusive, i.e. each bit in the
- * uint32_t should indicate a specific type of signal event. This allows for
- * multiple events to be handled simultaneously in chppNotifierWait().
+ * Signals chppNotifierWait() with a return value of True.
  *
  * @param notifier Points to the ChppNotifier being used.
  */
-static void chppNotifierSignal(struct ChppNotifier *notifier, uint32_t signal);
+static void chppNotifierEvent(struct ChppNotifier *notifier);
+
+/**
+ * Signals chppNotifierWait() with a return value of False, i.e. indicating an
+ * intent to exit.
+ *
+ * @param notifier Points to the ChppNotifier being used.
+ */
+static void chppNotifierExit(struct ChppNotifier *notifier);
 
 #ifdef __cplusplus
 }

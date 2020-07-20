@@ -20,10 +20,6 @@
 #include "chpp/clients/discovery.h"
 #include "chpp/link.h"
 
-//! Signals to use in ChppNotifier in this program.
-#define CHPP_SIGNAL_EXIT UINT32_C(1 << 0)
-#define CHPP_SIGNAL_TRANSPORT_EVENT UINT32_C(1 << 1)
-
 /************************************************
  *  Prototypes
  ***********************************************/
@@ -519,7 +515,7 @@ static void chppEnqueueTxPacket(struct ChppTransportState *context,
             packetCode);
 
   // Notifies the main CHPP Transport Layer to run chppTransportDoWork().
-  chppNotifierSignal(&context->notifier, CHPP_SIGNAL_TRANSPORT_EVENT);
+  chppNotifierEvent(&context->notifier);
 }
 
 /**
@@ -970,22 +966,13 @@ void chppEnqueueTxErrorDatagram(struct ChppTransportState *context,
 
 void chppWorkThreadStart(struct ChppTransportState *context) {
   chppTransportSendReset(context, CHPP_TRANSPORT_ATTR_RESET);
-  chppTransportDoWork(context);
-
-  while (true) {
-    uint32_t signal = chppNotifierWait(&context->notifier);
-
-    if (signal & CHPP_SIGNAL_EXIT) {
-      break;
-    }
-    if (signal & CHPP_SIGNAL_TRANSPORT_EVENT) {
-      chppTransportDoWork(context);
-    }
-  }
+  do {
+    chppTransportDoWork(context);
+  } while (chppNotifierWait(&context->notifier));
 }
 
 void chppWorkThreadStop(struct ChppTransportState *context) {
-  chppNotifierSignal(&context->notifier, CHPP_SIGNAL_EXIT);
+  chppNotifierExit(&context->notifier);
 }
 
 void chppLinkSendDoneCb(struct ChppPlatformLinkParameters *params) {
@@ -994,7 +981,7 @@ void chppLinkSendDoneCb(struct ChppPlatformLinkParameters *params) {
 
   context->txStatus.linkBusy = false;
   if (context->txStatus.hasPacketsToSend) {
-    chppNotifierSignal(&context->notifier, CHPP_SIGNAL_TRANSPORT_EVENT);
+    chppNotifierEvent(&context->notifier);
   }
 }
 
