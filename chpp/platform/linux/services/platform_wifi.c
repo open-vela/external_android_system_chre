@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#include "chpp/common/wifi.h"
 #include "chpp/services/wifi.h"
 #include "chre/pal/wifi.h"
 
@@ -67,7 +66,7 @@ static void wifiPalReleaseRangingEvent(struct chreWifiRangingEvent *event) {
 #ifdef CHPP_SERVICE_ENABLED_WIFI
 const struct chrePalWifiApi *chrePalWifiGetApi(uint32_t requestedApiVersion) {
   static const struct chrePalWifiApi api = {
-      .moduleVersion = CHPP_PAL_WIFI_API_VERSION,
+      .moduleVersion = CHRE_PAL_WIFI_API_V1_2,
       .open = wifiPalOpen,
       .close = wifiPalClose,
       .getCapabilities = wifiPalGetCapabilities,
@@ -79,8 +78,8 @@ const struct chrePalWifiApi *chrePalWifiGetApi(uint32_t requestedApiVersion) {
   };
 
   CHPP_STATIC_ASSERT(
-      CHRE_PAL_WIFI_API_CURRENT_VERSION == CHPP_PAL_WIFI_API_VERSION,
-      "A newer CHRE PAL API version is available. Please update.");
+      CHRE_PAL_WIFI_API_CURRENT_VERSION == CHRE_PAL_WIFI_API_V1_2,
+      "A newer CHRE PAL API version is available, consider updating this file");
 
   if (!CHRE_PAL_VERSIONS_ARE_COMPATIBLE(api.moduleVersion,
                                         requestedApiVersion)) {
