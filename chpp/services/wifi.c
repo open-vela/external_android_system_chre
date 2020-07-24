@@ -76,8 +76,6 @@ struct ChppWifiServiceState {
 
 // Note: The CHRE PAL API only allows for one definition - see comment in WWAN
 // service for details.
-// Note: There is no notion of a cookie in the CHRE WiFi API so we need to use
-// the global service state (gWifiServiceContext) directly in all callbacks.
 struct ChppWifiServiceState gWifiServiceContext;
 
 /************************************************
@@ -202,9 +200,11 @@ static bool chppDispatchWifiRequest(void *serviceContext, uint8_t *buf,
  */
 static void chppWifiServiceOpen(struct ChppWifiServiceState *wifiServiceContext,
                                 struct ChppAppHeader *requestHeader) {
+  // Allocate the response
   struct ChppAppHeader *response =
       chppAllocServiceResponseFixed(requestHeader, struct ChppAppHeader);
 
+  // Initialize service
   static const struct chrePalWifiCallbacks palCallbacks = {
       .scanMonitorStatusChangeCallback =
           chppWifiServiceScanMonitorStatusChangeCallback,
@@ -215,6 +215,7 @@ static void chppWifiServiceOpen(struct ChppWifiServiceState *wifiServiceContext,
 
   if (!wifiServiceContext->api->open(
           wifiServiceContext->service.appContext->systemApi, &palCallbacks)) {
+    // initialization failed
     CHPP_LOGE("WiFi PAL API initialization failed");
     CHPP_DEBUG_ASSERT(false);
     response->error = CHPP_APP_ERROR_UNSPECIFIED;
@@ -222,6 +223,7 @@ static void chppWifiServiceOpen(struct ChppWifiServiceState *wifiServiceContext,
     response->error = CHPP_APP_ERROR_NONE;
   }
 
+  // Timestamp and send out response datagram
   chppSendTimestampedResponseOrFail(&wifiServiceContext->service,
                                     &wifiServiceContext->open, response,
                                     sizeof(*response));
@@ -236,11 +238,14 @@ static void chppWifiServiceOpen(struct ChppWifiServiceState *wifiServiceContext,
 static void chppWifiServiceClose(
     struct ChppWifiServiceState *wifiServiceContext,
     struct ChppAppHeader *requestHeader) {
+  // Allocate the response
   struct ChppAppHeader *response =
       chppAllocServiceResponseFixed(requestHeader, struct ChppAppHeader);
 
+  // Deinitialize service
   wifiServiceContext->api->close();
 
+  // Timestamp and send out response datagram
   response->error = CHPP_APP_ERROR_NONE;
   chppSendTimestampedResponseOrFail(&wifiServiceContext->service,
                                     &wifiServiceContext->close, response,
@@ -257,16 +262,19 @@ static void chppWifiServiceClose(
 static void chppWifiServiceGetCapabilities(
     struct ChppWifiServiceState *wifiServiceContext,
     struct ChppAppHeader *requestHeader) {
+  // Allocate the response
   struct ChppWifiGetCapabilitiesResponse *response =
       chppAllocServiceResponseFixed(requestHeader,
                                     struct ChppWifiGetCapabilitiesResponse);
 
+  // Populate the response
   response->capabilities = wifiServiceContext->api->getCapabilities();
   response->header.error = CHPP_APP_ERROR_NONE;
 
   CHPP_LOGD("chppWifiServiceGetCapabilities returning %" PRIx32 ", %zu bytes",
             response->capabilities, sizeof(*response));
 
+  // Timestamp and send out response datagram
   chppSendTimestampedResponseOrFail(&wifiServiceContext->service,
                                     &wifiServiceContext->getCapabilities,
                                     response, sizeof(*response));
@@ -418,6 +426,9 @@ static void chppWifiServiceRequestRangingAsync(
  */
 static void chppWifiServiceScanMonitorStatusChangeCallback(bool enabled,
                                                            uint8_t errorCode) {
+  // No notion of a cookie in the CHRE WiFi API so we need to use the global
+  // service state gWifiServiceContext
+
   // Recreate request header
   struct ChppAppHeader requestHeader = {
       .handle = gWifiServiceContext.service.handle,
@@ -425,6 +436,7 @@ static void chppWifiServiceScanMonitorStatusChangeCallback(bool enabled,
       .command = CHPP_WIFI_CONFIGURE_SCAN_MONITOR_ASYNC,
   };
 
+  // Craft response
   struct ChppWifiConfigureScanMonitorAsyncResponse *response =
       chppAllocServiceResponseFixed(
           &requestHeader, struct ChppWifiConfigureScanMonitorAsyncResponse);
@@ -434,9 +446,11 @@ static void chppWifiServiceScanMonitorStatusChangeCallback(bool enabled,
     CHPP_ASSERT(false);
 
   } else {
+    // Populate response
     response->enabled = enabled;
     response->errorCode = errorCode;
 
+    // Timestamp and send out response datagram
     chppSendTimestampedResponseOrFail(
         &gWifiServiceContext.service,
         &gWifiServiceContext.configureScanMonitorAsync, response,
@@ -452,6 +466,9 @@ static void chppWifiServiceScanMonitorStatusChangeCallback(bool enabled,
  */
 static void chppWifiServiceScanResponseCallback(bool pending,
                                                 uint8_t errorCode) {
+  // No notion of a cookie in the CHRE WiFi API so we need to use the global
+  // service state gWifiServiceContext
+
   // Recreate request header
   struct ChppAppHeader requestHeader = {
       .handle = gWifiServiceContext.service.handle,
@@ -459,6 +476,7 @@ static void chppWifiServiceScanResponseCallback(bool pending,
       .command = CHPP_WIFI_REQUEST_SCAN_ASYNC,
   };
 
+  // Craft response
   struct ChppWifiRequestScanResponse *response = chppAllocServiceResponseFixed(
       &requestHeader, struct ChppWifiRequestScanResponse);
 
@@ -467,9 +485,11 @@ static void chppWifiServiceScanResponseCallback(bool pending,
     CHPP_ASSERT(false);
 
   } else {
+    // Populate response
     response->pending = pending;
     response->errorCode = errorCode;
 
+    // Timestamp and send out response datagram
     chppSendTimestampedResponseOrFail(
         &gWifiServiceContext.service, &gWifiServiceContext.requestScanAsync,
         response, sizeof(struct ChppWifiRequestScanResponse));
@@ -482,10 +502,14 @@ static void chppWifiServiceScanResponseCallback(bool pending,
  * @param event Scan result data.
  */
 static void chppWifiServiceScanEventCallback(struct chreWifiScanEvent *event) {
+  // No notion of a cookie in the CHRE WiFi API so we need to use the global
+  // service state gWifiServiceContext
+
   // Craft response per parser script
   struct ChppWifiScanEventWithHeader *notification;
   size_t notificationLen;
   if (!chppWifiScanEventFromChre(event, &notification, &notificationLen)) {
+    // Parser failed
     CHPP_LOGE(
         "chppWifiScanEventFromChre failed (OOM?). Transaction ID = "
         "%" PRIu8,
@@ -493,6 +517,7 @@ static void chppWifiServiceScanEventCallback(struct chreWifiScanEvent *event) {
     // TODO: consider sending an error response if this fails
 
   } else {
+    // Populate response header
     notification->header.handle = gWifiServiceContext.service.handle;
     notification->header.type = CHPP_MESSAGE_TYPE_SERVICE_NOTIFICATION;
     notification->header.transaction =
@@ -500,6 +525,7 @@ static void chppWifiServiceScanEventCallback(struct chreWifiScanEvent *event) {
     notification->header.error = CHPP_APP_ERROR_NONE;
     notification->header.command = CHPP_WIFI_REQUEST_SCAN_ASYNC;
 
+    // Timestamp and send out response datagram
     chppEnqueueTxDatagramOrFail(
         gWifiServiceContext.service.appContext->transportContext, notification,
         notificationLen);
@@ -527,15 +553,15 @@ static void chppWifiServiceRangingEventCallback(
  ***********************************************/
 
 void chppRegisterWifiService(struct ChppAppState *appContext) {
+  // Initialize platform
   gWifiServiceContext.api = chrePalWifiGetApi(CHRE_PAL_WIFI_API_V1_2);
-
   if (gWifiServiceContext.api == NULL) {
     CHPP_LOGE(
         "WiFi PAL API version not compatible with CHPP. Cannot register WiFi "
         "service");
     CHPP_DEBUG_ASSERT(false);
-
   } else {
+    // Register service
     gWifiServiceContext.service.appContext = appContext;
     gWifiServiceContext.service.handle = chppRegisterService(
         appContext, (void *)&gWifiServiceContext, &kWifiServiceConfig);
