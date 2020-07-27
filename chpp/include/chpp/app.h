@@ -159,8 +159,7 @@ CHPP_PACKED_END
 /**
  * Function type that dispatches incoming datagrams for any client or service
  */
-typedef enum ChppAppErrorCode(ChppDispatchFunction)(void *context, uint8_t *buf,
-                                                    size_t len);
+typedef bool(ChppDispatchFunction)(void *context, uint8_t *buf, size_t len);
 
 /**
  * Function type that initializes a client and assigns it its handle number
