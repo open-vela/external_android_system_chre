@@ -3,10 +3,10 @@
 # FastRPC IDL
 
 if [ -z "$HEXAGON_SDK_ROOT" ]; then
-    HEXAGON_SDK_ROOT="$HOME/Qualcomm/Hexagon_SDK/3.5.2"
+    HEXAGON_SDK_ROOT="$HOME/Qualcomm/Hexagon_SDK/3.0"
 fi
 
-QAIC_DIR="$HEXAGON_SDK_ROOT/tools/qaic/Ubuntu18"
+QAIC_DIR="$HEXAGON_SDK_ROOT/tools/qaic/Linux"
 OUT_DIR="../generated"
 
 mkdir -p $OUT_DIR
