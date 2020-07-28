@@ -22,9 +22,8 @@
 #include <stdint.h>
 
 #include "chpp/app.h"
-#include "chpp/condition_variable.h"
 #include "chpp/macros.h"
-#include "chpp/mutex.h"
+#include "chpp/notifier.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -71,9 +70,8 @@ struct ChppClientState {
   uint8_t handle;                   // Handle number for this client
   uint8_t transaction;              // Next Transaction ID to be used
 
-  bool responseReady;  // For sync. request/responses
-  struct ChppMutex responseMutex;
-  struct ChppConditionVariable responseCondVar;
+  bool waitingForResponse;               // For sync. request/responses
+  struct ChppNotifier responseNotifier;  // For sync. request/responses
 };
 
 #ifdef CHPP_CLIENT_ENABLED_CHRE_WWAN
