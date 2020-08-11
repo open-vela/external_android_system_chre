@@ -152,7 +152,7 @@ endif
 # Makefile environment into something like python or even a small C program
 # is an unnecessary step.
 
-$$($$(1)_HEADER): $$(OUT)/$$$(1) $$($$$(1)_DIRS)
+$$($$(1)_HEADER):
 	printf "00000000  %.8x " `$(BE_TO_LE_SCRIPT) 0x00000001` > $$@
 	printf "%.8x " `$(BE_TO_LE_SCRIPT) 0x4f4e414e` >> $$@
 	printf "%.16x\n" `$(BE_TO_LE_SCRIPT) $(NANOAPP_ID)` >> $$@
@@ -170,25 +170,21 @@ $$($$(1)_HEADER): $$(OUT)/$$$(1) $$($$$(1)_DIRS)
 
 # Compile ######################################################################
 
-$$($$(1)_CPP_OBJS): $(OUT)/$$($$(1)_OBJS_DIR)/%.o: %.cpp $(MAKEFILE_LIST)
-	@echo " [CPP] $$<"
-	$(V)$(3) $(COMMON_CXX_CFLAGS) -DCHRE_FILENAME=\"$$(notdir $$<)\" $(2) -c \
-		$$< -o $$@
+$$($$(1)_CPP_OBJS): $(OUT)/$$($$(1)_OBJS_DIR)/%.o: %.cpp
+	$(3) $(COMMON_CXX_CFLAGS) -DCHRE_FILENAME=\"$$(notdir $$<)\" $(2) -c $$< \
+	    -o $$@
 
-$$($$(1)_CC_OBJS): $(OUT)/$$($$(1)_OBJS_DIR)/%.o: %.cc $(MAKEFILE_LIST)
-	@echo " [CC] $$<"
-	$(V)$(3) $(COMMON_CXX_CFLAGS) -DCHRE_FILENAME=\"$$(notdir $$<)\" $(2) -c \
-		$$< -o $$@
+$$($$(1)_CC_OBJS): $(OUT)/$$($$(1)_OBJS_DIR)/%.o: %.cc
+	$(3) $(COMMON_CXX_CFLAGS) -DCHRE_FILENAME=\"$$(notdir $$<)\" $(2) -c $$< \
+	    -o $$@
 
-$$($$(1)_C_OBJS): $(OUT)/$$($$(1)_OBJS_DIR)/%.o: %.c $(MAKEFILE_LIST)
-	@echo " [C] $$<"
-	$(V)$(3) $(COMMON_C_CFLAGS) -DCHRE_FILENAME=\"$$(notdir $$<)\" $(2) -c $$< \
-		-o $$@
+$$($$(1)_C_OBJS): $(OUT)/$$($$(1)_OBJS_DIR)/%.o: %.c
+	$(3) $(COMMON_C_CFLAGS) -DCHRE_FILENAME=\"$$(notdir $$<)\" $(2) -c $$< \
+	    -o $$@
 
-$$($$(1)_S_OBJS): $(OUT)/$$($$(1)_OBJS_DIR)/%.o: %.S $(MAKEFILE_LIST)
-	@echo " [AS] $$<"
-	$(V)$(3) -DCHRE_FILENAME=\"$$(notdir $$<)\" $(2) -c $$< \
-		-o $$@
+$$($$(1)_S_OBJS): $(OUT)/$$($$(1)_OBJS_DIR)/%.o: %.S
+	$(3) -DCHRE_FILENAME=\"$$(notdir $$<)\" $(2) -c $$< \
+	    -o $$@
 
 # Archive ######################################################################
 
@@ -198,7 +194,7 @@ $$$(1)_ARFLAGS = $(COMMON_ARFLAGS) \
 
 $$($$(1)_AR): $$(OUT)/$$$(1) $$($$$(1)_DIRS) $$($$(1)_CC_OBJS) \
               $$($$(1)_CPP_OBJS) $$($$(1)_C_OBJS) $$($$(1)_S_OBJS)
-	$(V)$(7) $$($$$(1)_ARFLAGS) $$@ $$(filter %.o, $$^)
+	$(7) $$($$$(1)_ARFLAGS) $$@ $$(filter %.o, $$^)
 
 # Link #########################################################################
 
@@ -206,43 +202,43 @@ $$($$(1)_SO): $$(OUT)/$$$(1) $$($$$(1)_DIRS) $$($$(1)_CC_DEPS) \
               $$($$(1)_CPP_DEPS) $$($$(1)_C_DEPS) $$($$(1)_S_DEPS) \
               $$($$(1)_CC_OBJS) $$($$(1)_CPP_OBJS) $$($$(1)_C_OBJS) \
               $$($$(1)_S_OBJS)
-	$(V)$(5) $(4) -o $$@ $(11) $$(filter %.o, $$^) $(12)
+	$(5) $(4) -o $$@ $(11) $$(filter %.o, $$^) $(12)
 
 $$($$(1)_BIN): $$(OUT)/$$$(1) $$($$$(1)_DIRS) $$($$(1)_CC_DEPS) \
                $$($$(1)_CPP_DEPS) $$($$(1)_C_DEPS) $$($$(1)_S_DEPS) \
                $$($$(1)_CC_OBJS) $$($$(1)_CPP_OBJS) $$($$(1)_C_OBJS) \
                $$($$(1)_S_OBJS)
-	$(V)$(3) -o $$@ $(11) $$(filter %.o, $$^) $(12) $(10)
+	$(3) -o $$@ $(11) $$(filter %.o, $$^) $(12) $(10)
 
 # Output Directories ###########################################################
 
 $$($$$(1)_DIRS):
-	$(V)mkdir -p $$@
+	mkdir -p $$@
 
 $$(OUT)/$$$(1):
-	$(V)mkdir -p $$@
+	mkdir -p $$@
 
 # Automatic Dependency Resolution ##############################################
 
 $$($$(1)_CC_DEPS): $(OUT)/$$($$(1)_OBJS_DIR)/%.d: %.cc
-	$(V)mkdir -p $$(dir $$@)
-	$(V)$(3) $(DEP_CFLAGS) $(COMMON_CXX_CFLAGS) \
-		-DCHRE_FILENAME=\"$$(notdir $$<)\" $(2) -c $$< -o $$@
+	mkdir -p $$(dir $$@)
+	$(3) $(DEP_CFLAGS) $(COMMON_CXX_CFLAGS) \
+	    -DCHRE_FILENAME=\"$$(notdir $$<)\" $(2) -c $$< -o $$@
 
 $$($$(1)_CPP_DEPS): $(OUT)/$$($$(1)_OBJS_DIR)/%.d: %.cpp
-	$(V)mkdir -p $$(dir $$@)
-	$(V)$(3) $(DEP_CFLAGS) $(COMMON_CXX_CFLAGS) \
-		-DCHRE_FILENAME=\"$$(notdir $$<)\" $(2) -c $$< -o $$@
+	mkdir -p $$(dir $$@)
+	$(3) $(DEP_CFLAGS) $(COMMON_CXX_CFLAGS) \
+	    -DCHRE_FILENAME=\"$$(notdir $$<)\" $(2) -c $$< -o $$@
 
 $$($$(1)_C_DEPS): $(OUT)/$$($$(1)_OBJS_DIR)/%.d: %.c
-	$(V)mkdir -p $$(dir $$@)
-	$(V)$(3) $(DEP_CFLAGS) $(COMMON_C_CFLAGS) \
-		-DCHRE_FILENAME=\"$$(notdir $$<)\" $(2) -c $$< -o $$@
+	mkdir -p $$(dir $$@)
+	$(3) $(DEP_CFLAGS) $(COMMON_C_CFLAGS) \
+	    -DCHRE_FILENAME=\"$$(notdir $$<)\" $(2) -c $$< -o $$@
 
 $$($$(1)_S_DEPS): $(OUT)/$$($$(1)_OBJS_DIR)/%.d: %.S
-	$(V)mkdir -p $$(dir $$@)
-	$(V)$(3) $(DEP_CFLAGS) \
-		-DCHRE_FILENAME=\"$$(notdir $$<)\" $(2) -c $$< -o $$@
+	mkdir -p $$(dir $$@)
+	$(3) $(DEP_CFLAGS) \
+	    -DCHRE_FILENAME=\"$$(notdir $$<)\" $(2) -c $$< -o $$@
 
 # Include generated dependency files if they are in the requested build target.
 # This avoids dependency generation from occuring for a debug target when a

@@ -19,10 +19,10 @@
 
 #include <cstdint>
 
+#include "chre_api/chre/sensor.h"
 #include "chre/core/nanoapp.h"
 #include "chre/core/sensor_type.h"
 #include "chre/util/time.h"
-#include "chre_api/chre/sensor.h"
 
 namespace chre {
 
@@ -74,16 +74,7 @@ class SensorRequest {
    * @param request The request to compare against.
    * @return Returns true if this request is equivalent to another.
    */
-  bool isEquivalentTo(const SensorRequest &request) const;
-
-  /**
-   * Indicates that the only difference between the two requests is that the
-   * bias request state has changed.
-   *
-   * @param request The request to compare against.
-   * @return true if only the bias request value is different.
-   */
-  bool onlyBiasRequestUpdated(const SensorRequest &request) const;
+  bool isEquivalentTo(const SensorRequest& request) const;
 
   /**
    * Assigns the current request to the maximal superset of the mode, rate
@@ -92,7 +83,7 @@ class SensorRequest {
    * @param request The other request to compare the attributes of.
    * @return true if any of the attributes of this request changed.
    */
-  bool mergeWith(const SensorRequest &request);
+  bool mergeWith(const SensorRequest& request);
 
   /**
    * @return Returns the interval of samples for this request.
@@ -123,23 +114,11 @@ class SensorRequest {
     return mInstanceId;
   }
 
-  /**
-   * Sets whether the request also wants bias updates.
-   *
-   * @param requested Whether bias updates should be requested.
-   */
-  void setBiasUpdatesRequested(bool requested) {
-    mBiasUpdatesRequested = requested;
-  }
-
-  /**
-   * @return Whether bias updates are requested
-   */
-  bool getBiasUpdatesRequested() const {
-    return mBiasUpdatesRequested;
-  }
-
  private:
+  //! The nanoapp that made this request or zero when unset. This will be
+  //! kInvalidInstanceId when returned by the generateIntersectionOf method.
+  uint32_t mInstanceId = kInvalidInstanceId;
+
   //! The interval between samples for this request.
   Nanoseconds mInterval;
 
@@ -147,15 +126,8 @@ class SensorRequest {
   //! the client
   Nanoseconds mLatency;
 
-  //! The nanoapp that made this request or zero when unset. This will be
-  //! kInvalidInstanceId when returned by the generateIntersectionOf method.
-  uint32_t mInstanceId = kInvalidInstanceId;
-
   //! The mode of this request.
   SensorMode mMode;
-
-  //! Whether the nanoapp is requesting bias updates.
-  bool mBiasUpdatesRequested = false;
 };
 
 }  // namespace chre
