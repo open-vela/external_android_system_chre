@@ -46,18 +46,11 @@ ifeq ($(CHRE_DAEMON_LOAD_INTO_SENSORSPD),true)
 LOCAL_CFLAGS += -DCHRE_DAEMON_LOAD_INTO_SENSORSPD
 endif
 
-# Disable Tokenized Logging
-CHRE_USE_TOKENIZED_LOGGING := false
-
 LOCAL_SRC_FILES := \
-    host/common/daemon_base.cc \
     host/common/fragmented_load_transaction.cc \
     host/common/host_protocol_host.cc \
-    host/common/log_message_parser_base.cc \
     host/common/socket_server.cc \
-    host/common/st_hal_lpma_handler.cc \
-    host/msm/daemon/fastrpc_daemon.cc \
-    host/msm/daemon/main.cc \
+    host/msm/daemon/chre_daemon.cc \
     host/msm/daemon/generated/chre_slpi_stub.c \
     platform/shared/host_protocol_common.cc
 
@@ -79,27 +72,11 @@ LOCAL_SHARED_LIBRARIES := \
     libutils \
     libcutils \
     liblog \
-    libhidlbase \
-    libbase \
-    android.hardware.soundtrigger@2.0 \
-    libpower
+    libhidlbase
 
-# Enable tokenized logging
-ifeq ($(CHRE_USE_TOKENIZED_LOGGING),true)
-LOCAL_CFLAGS += -DCHRE_USE_TOKENIZED_LOGGING
-PIGWEED_TOKENIZER_DIR = vendor/google_contexthub/chre/external/pigweed
-PIGWEED_TOKENIZER_DIR_RELPATH = ../../$(PIGWEED_TOKENIZER_DIR)
-LOCAL_CFLAGS += -I$(PIGWEED_TOKENIZER_DIR)/pw_polyfill/public
-LOCAL_CFLAGS += -I$(PIGWEED_TOKENIZER_DIR)/pw_polyfill/public_overrides
-LOCAL_CFLAGS += -I$(PIGWEED_TOKENIZER_DIR)/pw_polyfill/standard_library_public
-LOCAL_CFLAGS += -I$(PIGWEED_TOKENIZER_DIR)/pw_preprocessor/public
-LOCAL_CFLAGS += -I$(PIGWEED_TOKENIZER_DIR)/pw_tokenizer/public
-LOCAL_CFLAGS += -I$(PIGWEED_TOKENIZER_DIR)/pw_varint/public
-LOCAL_CFLAGS += -I$(PIGWEED_TOKENIZER_DIR)/pw_span/public
-
-LOCAL_SRC_FILES += $(PIGWEED_TOKENIZER_DIR_RELPATH)/pw_tokenizer/detokenize.cc
-LOCAL_SRC_FILES += $(PIGWEED_TOKENIZER_DIR_RELPATH)/pw_tokenizer/decode.cc
-LOCAL_SRC_FILES += $(PIGWEED_TOKENIZER_DIR_RELPATH)/pw_varint/varint.cc
+ifeq ($(CHRE_DAEMON_LPMA_ENABLED),true)
+LOCAL_SHARED_LIBRARIES += android.hardware.soundtrigger@2.0
+LOCAL_SHARED_LIBRARIES += libpower
 endif
 
 ifeq ($(CHRE_DAEMON_USE_SDSPRPC),true)
