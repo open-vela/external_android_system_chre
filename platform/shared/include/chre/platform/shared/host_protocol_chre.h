@@ -19,8 +19,10 @@
 
 #include <stdint.h>
 
-#include "chre/platform/shared/host_messages_generated.h"
+#include "chre/platform/shared/generated/host_messages_generated.h"
 #include "chre/platform/shared/host_protocol_common.h"
+#include "chre/util/dynamic_vector.h"
+#include "chre/util/flatbuffers/helpers.h"
 #include "flatbuffers/flatbuffers.h"
 
 namespace chre {
@@ -46,9 +48,10 @@ const char *getStringFromByteVector(const flatbuffers::Vector<int8_t> *vec);
  */
 class HostMessageHandlers {
  public:
-  static void handleNanoappMessage(
-    uint64_t appId, uint32_t messageType, uint16_t hostEndpoint,
-    const void *messageData, size_t messageDataLen);
+  static void handleNanoappMessage(uint64_t appId, uint32_t messageType,
+                                   uint16_t hostEndpoint,
+                                   const void *messageData,
+                                   size_t messageDataLen);
 
   static void handleHubInfoRequest(uint16_t hostClientId);
 
@@ -60,13 +63,16 @@ class HostMessageHandlers {
       size_t bufferLen, const char *appFileName, uint32_t fragmentId,
       size_t appBinaryLen);
 
-  static void handleUnloadNanoappRequest(
-      uint16_t hostClientId, uint32_t transactionId, uint64_t appId,
-      bool allowSystemNanoappUnload);
+  static void handleUnloadNanoappRequest(uint16_t hostClientId,
+                                         uint32_t transactionId, uint64_t appId,
+                                         bool allowSystemNanoappUnload);
 
   static void handleTimeSyncMessage(int64_t offset);
 
   static void handleDebugDumpRequest(uint16_t hostClientId);
+
+  static void handleSettingChangeMessage(fbs::Setting setting,
+                                         fbs::SettingState state);
 };
 
 /**
@@ -90,12 +96,12 @@ class HostProtocolChre : public HostProtocolCommon {
   /**
    * Refer to the context hub HAL definition for a details of these parameters.
    *
-   * @param builder A newly constructed FlatBufferBuilder that will be used to
-   *        encode the message
+   * @param builder A newly constructed ChreFlatBufferBuilder that will be used
+   * to encode the message
    */
   static void encodeHubInfoResponse(
-      flatbuffers::FlatBufferBuilder& builder, const char *name,
-      const char *vendor, const char *toolchain, uint32_t legacyPlatformVersion,
+      ChreFlatBufferBuilder &builder, const char *name, const char *vendor,
+      const char *toolchain, uint32_t legacyPlatformVersion,
       uint32_t legacyToolchainVersion, float peakMips, float stoppedPower,
       float sleepPower, float peakPower, uint32_t maxMessageLen,
       uint64_t platformId, uint32_t version, uint16_t hostClientId);
@@ -106,60 +112,60 @@ class HostProtocolChre : public HostProtocolCommon {
    * maintained in the given vector until finishNanoappListResponse() is called.
    * Example usage:
    *
-   *   FlatBufferBuilder builder;
+   *   ChreFlatBufferBuilder builder;
    *   DynamicVector<NanoappListEntryOffset> vector;
    *   for (auto app : appList) {
    *     HostProtocolChre::addNanoppListEntry(builder, vector, ...);
    *   }
    *   HostProtocolChre::finishNanoappListResponse(builder, vector);
    *
-   * @param builder A FlatBufferBuilder to use for encoding the message
+   * @param builder A ChreFlatBufferBuilder to use for encoding the message
    * @param offsetVector A vector to track the offset to the newly added
    *        NanoappListEntry, which be passed to finishNanoappListResponse()
    *        once all entries are added
    */
   static void addNanoappListEntry(
-      flatbuffers::FlatBufferBuilder& builder,
-      DynamicVector<NanoappListEntryOffset>& offsetVector,
-      uint64_t appId, uint32_t appVersion, bool enabled, bool isSystemNanoapp);
+      ChreFlatBufferBuilder &builder,
+      DynamicVector<NanoappListEntryOffset> &offsetVector, uint64_t appId,
+      uint32_t appVersion, bool enabled, bool isSystemNanoapp);
 
   /**
    * Finishes encoding a NanoappListResponse message after all NanoappListEntry
    * elements have already been added to the builder.
    *
-   * @param builder The FlatBufferBuilder used with addNanoappListEntry()
+   * @param builder The ChreFlatBufferBuilder used with addNanoappListEntry()
    * @param offsetVector The vector used with addNanoappListEntry()
    * @param hostClientId
    *
    * @see addNanoappListEntry()
    */
   static void finishNanoappListResponse(
-      flatbuffers::FlatBufferBuilder& builder,
-      DynamicVector<NanoappListEntryOffset>& offsetVector,
+      ChreFlatBufferBuilder &builder,
+      DynamicVector<NanoappListEntryOffset> &offsetVector,
       uint16_t hostClientId);
 
   /**
    * Encodes a response to the host communicating the result of dynamically
    * loading a nanoapp.
    */
-  static void encodeLoadNanoappResponse(
-      flatbuffers::FlatBufferBuilder& builder, uint16_t hostClientId,
-      uint32_t transactionId, bool success, uint32_t fragmentId);
+  static void encodeLoadNanoappResponse(ChreFlatBufferBuilder &builder,
+                                        uint16_t hostClientId,
+                                        uint32_t transactionId, bool success,
+                                        uint32_t fragmentId);
 
   /**
    * Encodes a response to the host communicating the result of dynamically
    * unloading a nanoapp.
    */
-  static void encodeUnloadNanoappResponse(
-      flatbuffers::FlatBufferBuilder& builder, uint16_t hostClientId,
-      uint32_t transactionId, bool success);
+  static void encodeUnloadNanoappResponse(ChreFlatBufferBuilder &builder,
+                                          uint16_t hostClientId,
+                                          uint32_t transactionId, bool success);
 
   /**
    * Encodes a buffer of log messages to the host.
    */
-  static void encodeLogMessages(
-      flatbuffers::FlatBufferBuilder& builder, const char *logBuffer,
-      size_t bufferSize);
+  static void encodeLogMessages(ChreFlatBufferBuilder &builder,
+                                const char *logBuffer, size_t bufferSize);
 
   /**
    * Encodes a string into a DebugDumpData message.
@@ -167,35 +173,33 @@ class HostProtocolChre : public HostProtocolCommon {
    * @param debugStr Null-terminated ASCII string containing debug information
    * @param debugStrSize Size of the debugStr buffer, including null termination
    */
-  static void encodeDebugDumpData(
-      flatbuffers::FlatBufferBuilder& builder, uint16_t hostClientId,
-      const char *debugStr, size_t debugStrSize);
+  static void encodeDebugDumpData(ChreFlatBufferBuilder &builder,
+                                  uint16_t hostClientId, const char *debugStr,
+                                  size_t debugStrSize);
 
   /**
    * Encodes the final response to a debug dump request.
    */
-  static void encodeDebugDumpResponse(
-      flatbuffers::FlatBufferBuilder& builder, uint16_t hostClientId,
-      bool success, uint32_t dataCount);
+  static void encodeDebugDumpResponse(ChreFlatBufferBuilder &builder,
+                                      uint16_t hostClientId, bool success,
+                                      uint32_t dataCount);
 
   /**
    * Encodes a message requesting time sync from host.
    */
-  static void encodeTimeSyncRequest(flatbuffers::FlatBufferBuilder& builder);
+  static void encodeTimeSyncRequest(ChreFlatBufferBuilder &builder);
 
   /**
    * Encodes a message notifying the host that audio has been requested by a
    * nanoapp, so the low-power microphone needs to be powered on.
    */
-  static void encodeLowPowerMicAccessRequest(
-      flatbuffers::FlatBufferBuilder& builder);
+  static void encodeLowPowerMicAccessRequest(ChreFlatBufferBuilder &builder);
 
   /**
    * Encodes a message notifying the host that no nanoapps are requesting audio
    * anymore, so the low-power microphone may be powered off.
    */
-  static void encodeLowPowerMicAccessRelease(
-      flatbuffers::FlatBufferBuilder& builder);
+  static void encodeLowPowerMicAccessRelease(ChreFlatBufferBuilder &builder);
 };
 
 }  // namespace chre
