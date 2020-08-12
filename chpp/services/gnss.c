@@ -316,11 +316,10 @@ static enum ChppAppErrorCode chppGnssServiceGetCapabilities(
     CHPP_LOG_OOM();
     error = CHPP_APP_ERROR_OOM;
   } else {
-    response->params.capabilities = gnssServiceContext->api->getCapabilities();
+    response->capabilities = gnssServiceContext->api->getCapabilities();
 
-    CHPP_LOGD("chppGnssServiceGetCapabilities returning 0x%" PRIx32
-              ", %zu bytes",
-              response->params.capabilities, sizeof(*response));
+    CHPP_LOGD("chppGnssServiceGetCapabilities returning %" PRIx32 ", %zu bytes",
+              response->capabilities, sizeof(*response));
     chppSendTimestampedResponseOrFail(&gnssServiceContext->service,
                                       &gnssServiceContext->getCapabilities,
                                       response, sizeof(*response));
@@ -563,7 +562,7 @@ static void chppGnssServiceMeasurementEventCallback(
   size_t notificationLen;
   if (!chppGnssDataEventFromChre(event, &notification, &notificationLen)) {
     CHPP_LOGE(
-        "chppGnssDataEventFromChre failed (OOM?). Transaction ID = "
+        "chppGnssMeasurementEventFromChre failed (OOM?). Transaction ID = "
         "%" PRIu8,
         gGnssServiceContext.controlMeasurementSession.transaction);
     // TODO: consider sending an error response if this fails

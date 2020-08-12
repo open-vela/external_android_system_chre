@@ -33,18 +33,12 @@ extern "C" {
 #define CHPP_PAL_WWAN_API_VERSION CHRE_PAL_WWAN_API_V1_4
 
 /**
- * Data structures used by the Get Capabilities Response.
+ * Data structure used by the Get Capabilities Response.
  */
-CHPP_PACKED_START
-struct ChppWwanGetCapabilitiesParameters {
-  uint32_t capabilities;
-} CHPP_PACKED_ATTR;
-CHPP_PACKED_END
-
 CHPP_PACKED_START
 struct ChppWwanGetCapabilitiesResponse {
   struct ChppAppHeader header;
-  struct ChppWwanGetCapabilitiesParameters params;
+  uint32_t capabilities;
 } CHPP_PACKED_ATTR;
 CHPP_PACKED_END
 
