@@ -76,16 +76,16 @@ enum ChppWifiCommands {
   CHPP_WIFI_CLOSE = 0x0001,
 
   //! Retrieves a set of flags indicating supported features.
-  CHPP_WIFI_GET_CAPABILITIES = 0x0002,
+  CHPP_WIFI_GET_CAPABILITIES = 0x3010,
 
   //! Configures whether scanEventCallback receives unsolicited scan results.
-  CHPP_WIFI_CONFIGURE_SCAN_MONITOR_ASYNC = 0x0003,
+  CHPP_WIFI_CONFIGURE_SCAN_MONITOR_ASYNC = 0x3020,
 
   //!  Request that the WiFi chipset perform a scan, or deliver cached results.
-  CHPP_WIFI_REQUEST_SCAN_ASYNC = 0x0004,
+  CHPP_WIFI_REQUEST_SCAN_ASYNC = 0x3030,
 
   //! Request that the WiFi chipset perform RTT ranging.
-  CHPP_WIFI_REQUEST_RANGING_ASYNC = 0x0005,
+  CHPP_WIFI_REQUEST_RANGING_ASYNC = 0x3040,
 };
 
 #ifdef __cplusplus
