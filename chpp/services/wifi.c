@@ -308,11 +308,10 @@ static enum ChppAppErrorCode chppWifiServiceGetCapabilities(
     CHPP_LOG_OOM();
     error = CHPP_APP_ERROR_OOM;
   } else {
-    response->params.capabilities = wifiServiceContext->api->getCapabilities();
+    response->capabilities = wifiServiceContext->api->getCapabilities();
 
-    CHPP_LOGD("chppWifiServiceGetCapabilities returning 0x%" PRIx32
-              ", %zu bytes",
-              response->params.capabilities, sizeof(*response));
+    CHPP_LOGD("chppWifiServiceGetCapabilities returning %" PRIx32 ", %zu bytes",
+              response->capabilities, sizeof(*response));
     chppSendTimestampedResponseOrFail(&wifiServiceContext->service,
                                       &wifiServiceContext->getCapabilities,
                                       response, sizeof(*response));
@@ -492,8 +491,8 @@ static void chppWifiServiceScanMonitorStatusChangeCallback(bool enabled,
     CHPP_ASSERT(false);
 
   } else {
-    response->params.enabled = enabled;
-    response->params.errorCode = errorCode;
+    response->enabled = enabled;
+    response->errorCode = errorCode;
 
     chppSendTimestampedResponseOrFail(
         &gWifiServiceContext.service,

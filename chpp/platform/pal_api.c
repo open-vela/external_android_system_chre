@@ -23,7 +23,6 @@
 #include "chpp/macros.h"
 #include "chpp/memory.h"
 #include "chpp/platform/log.h"
-#include "chpp/time.h"
 #include "chre/pal/system.h"
 #include "chre_api/chre/re.h"
 
@@ -33,7 +32,7 @@
 #define PAL_LOG_FORMAT_STR "PAL: %s"
 
 uint64_t palSystemApiGetCurrentTime() {
-  return chppGetCurrentTimeNs();
+  return chppGetCurrentTime();
 }
 
 void palSystemApiLog(enum chreLogLevel level, const char *formatStr, ...) {

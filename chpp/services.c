@@ -27,7 +27,6 @@
 #include "chpp/services/gnss.h"
 #include "chpp/services/wifi.h"
 #include "chpp/services/wwan.h"
-#include "chpp/time.h"
 #include "chpp/transport.h"
 
 /************************************************
@@ -128,14 +127,14 @@ void chppServiceTimestampRequest(struct ChppRequestResponseState *rRState,
         "= %" PRIu64,
         rRState->requestTime);
   }
-  rRState->requestTime = chppGetCurrentTimeNs();
+  rRState->requestTime = chppGetCurrentTime();
   rRState->responseTime = CHPP_TIME_NONE;
   rRState->transaction = requestHeader->transaction;
 }
 
 void chppServiceTimestampResponse(struct ChppRequestResponseState *rRState) {
   uint64_t previousResponseTime = rRState->responseTime;
-  rRState->responseTime = chppGetCurrentTimeNs();
+  rRState->responseTime = chppGetCurrentTime();
 
   if (rRState->requestTime == CHPP_TIME_NONE) {
     CHPP_LOGE("Sending response at t = %" PRIu64
