@@ -109,9 +109,6 @@ void nanoappHandleEvent(uint32_t senderInstanceId, uint16_t eventType,
     case CHRE_EVENT_GNSS_LOCATION:
       LOGD("GNSS location received");
       break;
-    case CHRE_EVENT_GNSS_DATA:
-      LOGD("GNSS measurement received");
-      break;
     case CHRE_EVENT_WWAN_CELL_INFO_RESULT:
       LOGD("Cell info received");
       break;
@@ -140,7 +137,7 @@ void nanoappHandleEvent(uint32_t senderInstanceId, uint16_t eventType,
     default:
       // TODO: Make this log less as sensor events will spam the logcat if debug
       // logging is enabled.
-      LOGV("Received event type %" PRIu16, eventType);
+      LOGD("Received event type %" PRIu16, eventType);
   }
 }
 
