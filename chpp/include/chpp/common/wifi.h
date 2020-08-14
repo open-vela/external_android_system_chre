@@ -34,52 +34,23 @@ extern "C" {
 #define CHPP_PAL_WIFI_API_VERSION CHRE_PAL_WIFI_API_V1_2
 
 /**
- * Data structures used by the Configure Scan Monitor request.
+ * Data structure used by the Get Capabilities Response.
  */
 CHPP_PACKED_START
-struct ChppWifiConfigureScanMonitorAsyncRequestParameters {
-  bool enable;
-  const void *cookie;
-} CHPP_PACKED_ATTR;
-CHPP_PACKED_END
-
-CHPP_PACKED_START
-struct ChppWifiConfigureScanMonitorAsyncRequest {
+struct ChppWifiGetCapabilitiesResponse {
   struct ChppAppHeader header;
-  struct ChppWifiConfigureScanMonitorAsyncRequestParameters params;
-} CHPP_PACKED_ATTR;
-CHPP_PACKED_END
-
-/**
- * Data structures used by the Get Capabilities Response.
- */
-CHPP_PACKED_START
-struct ChppWifiGetCapabilitiesParameters {
   uint32_t capabilities;
 } CHPP_PACKED_ATTR;
 CHPP_PACKED_END
 
-CHPP_PACKED_START
-struct ChppWifiGetCapabilitiesResponse {
-  struct ChppAppHeader header;
-  struct ChppWifiGetCapabilitiesParameters params;
-} CHPP_PACKED_ATTR;
-CHPP_PACKED_END
-
 /**
- * Data structures used by the Configure Scan Monitor Async Response.
+ * Data structure used by the Configure Scan Monitor Async Response.
  */
-CHPP_PACKED_START
-struct ChppWifiConfigureScanMonitorAsyncResponseParameters {
-  bool enabled;
-  uint8_t errorCode;
-} CHPP_PACKED_ATTR;
-CHPP_PACKED_END
-
 CHPP_PACKED_START
 struct ChppWifiConfigureScanMonitorAsyncResponse {
   struct ChppAppHeader header;
-  struct ChppWifiConfigureScanMonitorAsyncResponseParameters params;
+  bool enabled;
+  uint8_t errorCode;
 } CHPP_PACKED_ATTR;
 CHPP_PACKED_END
 
