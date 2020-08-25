@@ -29,6 +29,7 @@ SLPI_CFLAGS += -I$(SLPI_PREFIX)/core/api/mproc
 SLPI_CFLAGS += -I$(SLPI_PREFIX)/core/api/systemdrivers
 SLPI_CFLAGS += -I$(SLPI_PREFIX)/platform/inc
 SLPI_CFLAGS += -I$(SLPI_PREFIX)/platform/inc/HAP
+SLPI_CFLAGS += -I$(SLPI_PREFIX)/platform/inc/a1std
 SLPI_CFLAGS += -I$(SLPI_PREFIX)/platform/inc/stddef
 SLPI_CFLAGS += -I$(SLPI_PREFIX)/platform/rtld/inc
 
@@ -285,8 +286,8 @@ GOOGLETEST_CFLAGS += -Iplatform/slpi/include
 
 # GoogleTest Source Files ######################################################
 
-GOOGLETEST_SRCS += platform/linux/assert.cc
-GOOGLETEST_SRCS += platform/linux/audio_source.cc
-GOOGLETEST_SRCS += platform/linux/platform_audio.cc
+GOOGLETEST_COMMON_SRCS += platform/linux/assert.cc
+GOOGLETEST_COMMON_SRCS += platform/linux/audio_source.cc
+GOOGLETEST_COMMON_SRCS += platform/linux/platform_audio.cc
 GOOGLETEST_SRCS += platform/slpi/smgr/platform_sensor_util.cc
 GOOGLETEST_SRCS += platform/slpi/smgr/tests/platform_sensor_util_test.cc
