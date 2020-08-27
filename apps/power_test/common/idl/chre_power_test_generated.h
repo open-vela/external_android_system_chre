@@ -41,10 +41,6 @@ struct NanoappResponseMessage;
 struct NanoappResponseMessageBuilder;
 struct NanoappResponseMessageT;
 
-struct GnssMeasurementMessage;
-struct GnssMeasurementMessageBuilder;
-struct GnssMeasurementMessageT;
-
 /// Indicates which of the following messages is being sent to / from the
 /// nanoapp. Use uint as the base type to match the message type in
 /// chreMessageFromHostData.
@@ -66,13 +62,11 @@ enum class MessageType : uint32_t {
   BREAK_IT_TEST = 7,
   /// Should be used with NanoappResponseMessage
   NANOAPP_RESPONSE = 8,
-  /// Should be used with GnssMeasurementMessage
-  GNSS_MEASUREMENT_TEST = 9,
   MIN = UNSPECIFIED,
-  MAX = GNSS_MEASUREMENT_TEST
+  MAX = NANOAPP_RESPONSE
 };
 
-inline const MessageType (&EnumValuesMessageType())[10] {
+inline const MessageType (&EnumValuesMessageType())[9] {
   static const MessageType values[] = {
     MessageType::UNSPECIFIED,
     MessageType::TIMER_TEST,
@@ -82,14 +76,13 @@ inline const MessageType (&EnumValuesMessageType())[10] {
     MessageType::AUDIO_REQUEST_TEST,
     MessageType::SENSOR_REQUEST_TEST,
     MessageType::BREAK_IT_TEST,
-    MessageType::NANOAPP_RESPONSE,
-    MessageType::GNSS_MEASUREMENT_TEST
+    MessageType::NANOAPP_RESPONSE
   };
   return values;
 }
 
 inline const char * const *EnumNamesMessageType() {
-  static const char * const names[11] = {
+  static const char * const names[10] = {
     "UNSPECIFIED",
     "TIMER_TEST",
     "WIFI_SCAN_TEST",
@@ -99,14 +92,13 @@ inline const char * const *EnumNamesMessageType() {
     "SENSOR_REQUEST_TEST",
     "BREAK_IT_TEST",
     "NANOAPP_RESPONSE",
-    "GNSS_MEASUREMENT_TEST",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameMessageType(MessageType e) {
-  if (flatbuffers::IsOutRange(e, MessageType::UNSPECIFIED, MessageType::GNSS_MEASUREMENT_TEST)) return "";
+  if (flatbuffers::IsOutRange(e, MessageType::UNSPECIFIED, MessageType::NANOAPP_RESPONSE)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesMessageType()[index];
 }
@@ -284,6 +276,7 @@ struct TimerMessageBuilder {
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
+  TimerMessageBuilder &operator=(const TimerMessageBuilder &);
   flatbuffers::Offset<TimerMessage> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = flatbuffers::Offset<TimerMessage>(end);
@@ -359,6 +352,7 @@ struct WifiScanMessageBuilder {
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
+  WifiScanMessageBuilder &operator=(const WifiScanMessageBuilder &);
   flatbuffers::Offset<WifiScanMessage> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = flatbuffers::Offset<WifiScanMessage>(end);
@@ -447,6 +441,7 @@ struct GnssLocationMessageBuilder {
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
+  GnssLocationMessageBuilder &operator=(const GnssLocationMessageBuilder &);
   flatbuffers::Offset<GnssLocationMessage> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = flatbuffers::Offset<GnssLocationMessage>(end);
@@ -524,6 +519,7 @@ struct CellQueryMessageBuilder {
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
+  CellQueryMessageBuilder &operator=(const CellQueryMessageBuilder &);
   flatbuffers::Offset<CellQueryMessage> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = flatbuffers::Offset<CellQueryMessage>(end);
@@ -602,6 +598,7 @@ struct AudioRequestMessageBuilder {
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
+  AudioRequestMessageBuilder &operator=(const AudioRequestMessageBuilder &);
   flatbuffers::Offset<AudioRequestMessage> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = flatbuffers::Offset<AudioRequestMessage>(end);
@@ -703,6 +700,7 @@ struct SensorRequestMessageBuilder {
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
+  SensorRequestMessageBuilder &operator=(const SensorRequestMessageBuilder &);
   flatbuffers::Offset<SensorRequestMessage> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = flatbuffers::Offset<SensorRequestMessage>(end);
@@ -770,6 +768,7 @@ struct BreakItMessageBuilder {
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
+  BreakItMessageBuilder &operator=(const BreakItMessageBuilder &);
   flatbuffers::Offset<BreakItMessage> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = flatbuffers::Offset<BreakItMessage>(end);
@@ -830,6 +829,7 @@ struct NanoappResponseMessageBuilder {
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
+  NanoappResponseMessageBuilder &operator=(const NanoappResponseMessageBuilder &);
   flatbuffers::Offset<NanoappResponseMessage> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = flatbuffers::Offset<NanoappResponseMessage>(end);
@@ -846,81 +846,6 @@ inline flatbuffers::Offset<NanoappResponseMessage> CreateNanoappResponseMessage(
 }
 
 flatbuffers::Offset<NanoappResponseMessage> CreateNanoappResponseMessage(flatbuffers::FlatBufferBuilder &_fbb, const NanoappResponseMessageT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-struct GnssMeasurementMessageT : public flatbuffers::NativeTable {
-  typedef GnssMeasurementMessage TableType;
-  bool enable;
-  uint32_t min_interval_millis;
-  GnssMeasurementMessageT()
-      : enable(false),
-        min_interval_millis(0) {
-  }
-};
-
-/// Represents a message to ask the nanoapp to start or stop Gnss measurement
-/// sampling at the requested interval
-struct GnssMeasurementMessage FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  typedef GnssMeasurementMessageT NativeTableType;
-  typedef GnssMeasurementMessageBuilder Builder;
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_ENABLE = 4,
-    VT_MIN_INTERVAL_MILLIS = 6
-  };
-  bool enable() const {
-    return GetField<uint8_t>(VT_ENABLE, 0) != 0;
-  }
-  bool mutate_enable(bool _enable) {
-    return SetField<uint8_t>(VT_ENABLE, static_cast<uint8_t>(_enable), 0);
-  }
-  uint32_t min_interval_millis() const {
-    return GetField<uint32_t>(VT_MIN_INTERVAL_MILLIS, 0);
-  }
-  bool mutate_min_interval_millis(uint32_t _min_interval_millis) {
-    return SetField<uint32_t>(VT_MIN_INTERVAL_MILLIS, _min_interval_millis, 0);
-  }
-  bool Verify(flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           VerifyField<uint8_t>(verifier, VT_ENABLE) &&
-           VerifyField<uint32_t>(verifier, VT_MIN_INTERVAL_MILLIS) &&
-           verifier.EndTable();
-  }
-  GnssMeasurementMessageT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(GnssMeasurementMessageT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static flatbuffers::Offset<GnssMeasurementMessage> Pack(flatbuffers::FlatBufferBuilder &_fbb, const GnssMeasurementMessageT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-};
-
-struct GnssMeasurementMessageBuilder {
-  typedef GnssMeasurementMessage Table;
-  flatbuffers::FlatBufferBuilder &fbb_;
-  flatbuffers::uoffset_t start_;
-  void add_enable(bool enable) {
-    fbb_.AddElement<uint8_t>(GnssMeasurementMessage::VT_ENABLE, static_cast<uint8_t>(enable), 0);
-  }
-  void add_min_interval_millis(uint32_t min_interval_millis) {
-    fbb_.AddElement<uint32_t>(GnssMeasurementMessage::VT_MIN_INTERVAL_MILLIS, min_interval_millis, 0);
-  }
-  explicit GnssMeasurementMessageBuilder(flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
-  }
-  flatbuffers::Offset<GnssMeasurementMessage> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = flatbuffers::Offset<GnssMeasurementMessage>(end);
-    return o;
-  }
-};
-
-inline flatbuffers::Offset<GnssMeasurementMessage> CreateGnssMeasurementMessage(
-    flatbuffers::FlatBufferBuilder &_fbb,
-    bool enable = false,
-    uint32_t min_interval_millis = 0) {
-  GnssMeasurementMessageBuilder builder_(_fbb);
-  builder_.add_min_interval_millis(min_interval_millis);
-  builder_.add_enable(enable);
-  return builder_.Finish();
-}
-
-flatbuffers::Offset<GnssMeasurementMessage> CreateGnssMeasurementMessage(flatbuffers::FlatBufferBuilder &_fbb, const GnssMeasurementMessageT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
 inline TimerMessageT *TimerMessage::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
   std::unique_ptr<chre::power_test::TimerMessageT> _o = std::unique_ptr<chre::power_test::TimerMessageT>(new TimerMessageT());
@@ -1155,35 +1080,6 @@ inline flatbuffers::Offset<NanoappResponseMessage> CreateNanoappResponseMessage(
   return chre::power_test::CreateNanoappResponseMessage(
       _fbb,
       _success);
-}
-
-inline GnssMeasurementMessageT *GnssMeasurementMessage::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<chre::power_test::GnssMeasurementMessageT> _o = std::unique_ptr<chre::power_test::GnssMeasurementMessageT>(new GnssMeasurementMessageT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
-}
-
-inline void GnssMeasurementMessage::UnPackTo(GnssMeasurementMessageT *_o, const flatbuffers::resolver_function_t *_resolver) const {
-  (void)_o;
-  (void)_resolver;
-  { auto _e = enable(); _o->enable = _e; }
-  { auto _e = min_interval_millis(); _o->min_interval_millis = _e; }
-}
-
-inline flatbuffers::Offset<GnssMeasurementMessage> GnssMeasurementMessage::Pack(flatbuffers::FlatBufferBuilder &_fbb, const GnssMeasurementMessageT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
-  return CreateGnssMeasurementMessage(_fbb, _o, _rehasher);
-}
-
-inline flatbuffers::Offset<GnssMeasurementMessage> CreateGnssMeasurementMessage(flatbuffers::FlatBufferBuilder &_fbb, const GnssMeasurementMessageT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
-  (void)_rehasher;
-  (void)_o;
-  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const GnssMeasurementMessageT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _enable = _o->enable;
-  auto _min_interval_millis = _o->min_interval_millis;
-  return chre::power_test::CreateGnssMeasurementMessage(
-      _fbb,
-      _enable,
-      _min_interval_millis);
 }
 
 }  // namespace power_test
