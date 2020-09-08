@@ -136,9 +136,7 @@ void PalWifiTest::SetUp() {
 
 void PalWifiTest::TearDown() {
   gTest = nullptr;
-  if (api_ != nullptr) {
-    api_->close();
-  }
+  api_->close();
 }
 
 void PalWifiTest::scanMonitorStatusChangeCallback(bool enabled,
