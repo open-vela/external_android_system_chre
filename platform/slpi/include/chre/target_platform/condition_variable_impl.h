@@ -51,14 +51,20 @@ inline bool ConditionVariable::wait_for(Mutex &mutex, Nanoseconds timeout) {
     }
   }
 
-  mTimedOut = false;
+  struct TimeoutCallbackData {
+    ConditionVariable *cvPtr;
+    bool timedOut;
+  };
   auto callback = [](void *data) {
-    auto cbData = static_cast<ConditionVariable *>(data);
-    cbData->mTimedOut = true;
-    cbData->notify_one();
+    auto cbData = static_cast<TimeoutCallbackData *>(data);
+    cbData->timedOut = true;
+    cbData->cvPtr->notify_one();
   };
 
-  if (!mTimeoutTimer.set(callback, this, timeout)) {
+  TimeoutCallbackData callbackData;
+  callbackData.cvPtr = this;
+  callbackData.timedOut = false;
+  if (!mTimeoutTimer.set(callback, &callbackData, timeout)) {
     LOGE("Failed to set condition variable timer");
   }
 
@@ -68,7 +74,7 @@ inline bool ConditionVariable::wait_for(Mutex &mutex, Nanoseconds timeout) {
       LOGD("Failed to cancel condition variable timer");
     }
   }
-  return !mTimedOut;
+  return !callbackData.timedOut;
 }
 
 }  // namespace chre

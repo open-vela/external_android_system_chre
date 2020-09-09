@@ -33,8 +33,7 @@
 #include <string.h>
 
 namespace chre {
-#if defined(CHRE_SLPI_SEE) && defined(CHRE_SLPI_UIMG_ENABLED) && \
-    defined(CHRE_SENSORS_SUPPORT_ENABLED)
+#if defined(CHRE_SLPI_SEE) && defined(CHRE_SLPI_UIMG_ENABLED)
 namespace {
 void rewriteToChreEventType(uint16_t *eventType) {
   CHRE_ASSERT(eventType);
@@ -129,8 +128,7 @@ bool isBiasEventType(uint16_t eventType) {
 }
 
 }  //  anonymous namespace
-#endif  // defined(CHRE_SLPI_SEE) && defined(CHRE_SLPI_UIMG_ENABLED) &&
-        // defined(CHRE_SENSORS_SUPPORT_ENABLED)
+#endif  // defined(CHRE_SLPI_SEE) && defined(CHRE_SLPI_UIMG_ENABLED)
 
 PlatformNanoapp::~PlatformNanoapp() {
   closeNanoapp();
@@ -153,15 +151,12 @@ void PlatformNanoapp::handleEvent(uint32_t senderInstanceId, uint16_t eventType,
   if (!isUimgApp()) {
     slpiForceBigImage();
 
-#if defined(CHRE_SLPI_SEE) && defined(CHRE_SLPI_UIMG_ENABLED) && \
-    defined(CHRE_SENSORS_SUPPORT_ENABLED)
+#if defined(CHRE_SLPI_SEE) && defined(CHRE_SLPI_UIMG_ENABLED)
     rewriteToChreEventType(&eventType);
-#endif  // defined(CHRE_SLPI_SEE) && defined(CHRE_SLPI_UIMG_ENABLED) &&
-        // defined(CHRE_SENSORS_SUPPORT_ENABLED)
+#endif  // defined(CHRE_SLPI_SEE) && defined(CHRE_SLPI_UIMG_ENABLED)
   }
 
-#if defined(CHRE_SLPI_SEE) && defined(CHRE_SLPI_UIMG_ENABLED) && \
-    defined(CHRE_SENSORS_SUPPORT_ENABLED)
+#if defined(CHRE_SLPI_SEE) && defined(CHRE_SLPI_UIMG_ENABLED)
   // NOTE: Since SeeCalHelper does not internally differentiate calibration
   //       between big/micro image, convert the sensor handle to the appropriate
   //       one when delivering a bias info event to the nanoapp.
@@ -172,8 +167,7 @@ void PlatformNanoapp::handleEvent(uint32_t senderInstanceId, uint16_t eventType,
         getBigImageSensorHandle(bias.header.sensorHandle);
     eventData = &bias;
   }
-#endif  // defined(CHRE_SLPI_SEE) && defined(CHRE_SLPI_UIMG_ENABLED) &&
-        // defined(CHRE_SENSORS_SUPPORT_ENABLED)
+#endif  // defined(CHRE_SLPI_SEE) && defined(CHRE_SLPI_UIMG_ENABLED)
 
   mAppInfo->entryPoints.handleEvent(senderInstanceId, eventType, eventData);
 }
