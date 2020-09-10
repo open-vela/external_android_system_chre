@@ -32,11 +32,6 @@
 namespace chpp {
 namespace {
 
-// Arbitrary wait time before starting test.
-// Note that this value can be configured to test the functionality
-// of the physical link after initialization.
-constexpr std::chrono::seconds kLoopbackWaitTime(1);
-
 TEST_F(AppTestBase, SimpleStartStop) {
   // Simple test to make sure start/stop work threads work,
   // without crashes.
@@ -44,7 +39,8 @@ TEST_F(AppTestBase, SimpleStartStop) {
 }
 
 TEST_F(AppTestBase, SimpleLoopback) {
-  std::this_thread::sleep_for(kLoopbackWaitTime);
+  // Wait for the reset to finish.
+  std::this_thread::sleep_for(std::chrono::seconds(1));
 
   CHPP_LOGI("Starting loopback test ...");
 
