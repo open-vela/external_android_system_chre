@@ -20,7 +20,11 @@
 #include "chre/core/debug_dump_manager.h"
 #include "chre/core/event_loop.h"
 #include "chre/core/event_loop_common.h"
+#include "chre/core/gnss_manager.h"
 #include "chre/core/host_comms_manager.h"
+#include "chre/core/sensor_request_manager.h"
+#include "chre/core/wifi_request_manager.h"
+#include "chre/core/wwan_request_manager.h"
 #include "chre/platform/memory_manager.h"
 #include "chre/platform/mutex.h"
 #include "chre/util/fixed_size_vector.h"
@@ -32,22 +36,6 @@
 #ifdef CHRE_AUDIO_SUPPORT_ENABLED
 #include "chre/core/audio_request_manager.h"
 #endif  // CHRE_AUDIO_SUPPORT_ENABLED
-
-#ifdef CHRE_GNSS_SUPPORT_ENABLED
-#include "chre/core/gnss_manager.h"
-#endif  // CHRE_GNSS_SUPPORT_ENABLED
-
-#ifdef CHRE_SENSORS_SUPPORT_ENABLED
-#include "chre/core/sensor_request_manager.h"
-#endif  // CHRE_SENSORS_SUPPORT_ENABLED
-
-#ifdef CHRE_WIFI_SUPPORT_ENABLED
-#include "chre/core/wifi_request_manager.h"
-#endif  // CHRE_WIFI_SUPPORT_ENABLED
-
-#ifdef CHRE_WWAN_SUPPORT_ENABLED
-#include "chre/core/wwan_request_manager.h"
-#endif  // CHRE_WWAN_SUPPORT_ENABLED
 
 namespace chre {
 
@@ -175,7 +163,6 @@ class EventLoopManager : public NonCopyable {
     return mHostCommsManager;
   }
 
-#ifdef CHRE_SENSORS_SUPPORT_ENABLED
   /**
    * @return Returns a reference to the sensor request manager. This allows
    *         interacting with the platform sensors and managing requests from
@@ -184,7 +171,6 @@ class EventLoopManager : public NonCopyable {
   SensorRequestManager &getSensorRequestManager() {
     return mSensorRequestManager;
   }
-#endif  // CHRE_SENSORS_SUPPORT_ENABLED
 
 #ifdef CHRE_WIFI_SUPPORT_ENABLED
   /**
@@ -253,11 +239,9 @@ class EventLoopManager : public NonCopyable {
   //! Handles communications with the host processor.
   HostCommsManager mHostCommsManager;
 
-#ifdef CHRE_SENSORS_SUPPORT_ENABLED
   //! The SensorRequestManager that handles requests for all nanoapps. This
   //! manages the state of all sensors that runtime subscribes to.
   SensorRequestManager mSensorRequestManager;
-#endif  // CHRE_SENSORS_SUPPORT_ENABLED
 
 #ifdef CHRE_WIFI_SUPPORT_ENABLED
   //! The WifiRequestManager that handles requests for nanoapps. This manages
@@ -286,11 +270,9 @@ typedef Singleton<EventLoopManager> EventLoopManagerSingleton;
 //! calls. This reduces codesize considerably.
 extern template class Singleton<EventLoopManager>;
 
-#ifdef CHRE_SENSORS_SUPPORT_ENABLED
 inline SensorRequestManager &getSensorRequestManager() {
   return EventLoopManagerSingleton::get()->getSensorRequestManager();
 }
-#endif  // CHRE_SENSORS_SUPPORT_ENABLED
 
 }  // namespace chre
 
