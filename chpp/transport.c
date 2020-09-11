@@ -282,7 +282,9 @@ static size_t chppConsumeFooter(struct ChppTransportState *context,
 
       chppMutexUnlock(&context->mutex);
       chppTransportSendReset(context, CHPP_TRANSPORT_ATTR_RESET_ACK);
+#ifdef CHPP_CLIENT_ENABLED_DISCOVERY
       chppInitiateDiscovery(context->appContext);
+#endif
       chppMutexLock(&context->mutex);
 
     } else if (CHPP_TRANSPORT_GET_ATTR(context->rxHeader.packetCode) ==
@@ -291,9 +293,13 @@ static size_t chppConsumeFooter(struct ChppTransportState *context,
 
       chppProcessResetAck(context);
 
+#ifdef CHPP_CLIENT_ENABLED_DISCOVERY
       chppMutexUnlock(&context->mutex);
       chppInitiateDiscovery(context->appContext);
       chppMutexLock(&context->mutex);
+#else
+      chppEnqueueTxPacket(context, CHPP_TRANSPORT_ERROR_NONE);
+#endif
 
     } else if (context->resetState == CHPP_RESET_STATE_RESETTING) {
       CHPP_LOGE("Discarding RX packet because CHPP is resetting. seq=%" PRIu8
@@ -1177,10 +1183,12 @@ void chppLinkSendDoneCb(struct ChppPlatformLinkParameters *params,
   struct ChppTransportState *context =
       container_of(params, struct ChppTransportState, linkParams);
 
+  chppMutexLock(&context->mutex);
   context->txStatus.linkBusy = false;
   if (context->txStatus.hasPacketsToSend) {
     chppNotifierSignal(&context->notifier, CHPP_TRANSPORT_SIGNAL_EVENT);
   }
+  chppMutexUnlock(&context->mutex);
 }
 
 void chppAppProcessDoneCb(struct ChppTransportState *context, uint8_t *buf) {
