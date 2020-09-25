@@ -16,10 +16,6 @@
 
 #include "gtest/gtest.h"
 
-#ifdef GTEST
-#include "chre/platform/linux/expect_assert.h"
-#endif
-
 #include "chre/util/dynamic_vector.h"
 #include "chre/util/macros.h"
 
@@ -31,9 +27,9 @@ namespace {
 constexpr int kMaxTestCapacity = 10;
 int gDestructorCount[kMaxTestCapacity];
 
-class DestructorCounter {
+class Dummy {
  public:
-  ~DestructorCounter() {
+  ~Dummy() {
     if (mValue >= 0) {
       gDestructorCount[mValue]++;
     }
@@ -428,7 +424,7 @@ TEST(DynamicVector, FindWithElements) {
 TEST(DynamicVector, EraseDestructorCalled) {
   resetDestructorCounts();
 
-  DynamicVector<DestructorCounter> vector;
+  DynamicVector<Dummy> vector;
   vector.reserve(4);
   for (size_t i = 0; i < 4; ++i) {
     vector.emplace_back();
@@ -460,7 +456,7 @@ TEST(DynamicVector, EraseDestructorCalled) {
 TEST(DynamicVector, Clear) {
   resetDestructorCounts();
 
-  DynamicVector<DestructorCounter> vector;
+  DynamicVector<Dummy> vector;
   vector.reserve(4);
   for (size_t i = 0; i < 4; ++i) {
     vector.emplace_back();
