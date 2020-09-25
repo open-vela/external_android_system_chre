@@ -1707,21 +1707,11 @@ bool SeeHelper::init(SeeHelperCallbackInterface *cbIf, Microseconds timeout,
   sns_client *client;
 
   // Initialize cal/remote_proc_state sensors before making sensor data request.
-  bool success = waitForService(&client, timeout) &&
-                 mSeeClients.push_back(client) && initResamplerSensor();
-  if (success && !skipDefaultSensorInit) {
-    if (!mCalHelper->findCalibrationSensors(*this)) {
-#ifdef CHRE_LOG_ONLY_NO_CAL_SENSOR
-      LOGW("Bypassing failure to find calibrated sensor");
-#else   // CHRE_LOG_ONLY_NO_CAL_SENSOR
-      success = false;
-#endif  // CHRE_LOG_ONLY_NO_CAL_SENSOR
-    }
-    if (success) {
-      success = initRemoteProcSensor();
-    }
-  }
-  return success;
+  return (waitForService(&client, timeout) && mSeeClients.push_back(client) &&
+          initResamplerSensor() &&
+          (skipDefaultSensorInit ||
+           (mCalHelper->registerForCalibrationUpdates(*this) &&
+            initRemoteProcSensor())));
 }
 
 bool SeeHelper::makeRequest(const SeeSensorRequest &request) {
