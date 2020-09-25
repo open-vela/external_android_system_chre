@@ -71,7 +71,6 @@ endif
 
 # SLPI-specific Source Files ###################################################
 
-SLPI_SRCS += platform/shared/assert.cc
 SLPI_SRCS += platform/shared/chre_api_audio.cc
 SLPI_SRCS += platform/shared/chre_api_core.cc
 SLPI_SRCS += platform/shared/chre_api_gnss.cc
@@ -83,10 +82,8 @@ SLPI_SRCS += platform/shared/chre_api_wwan.cc
 SLPI_SRCS += platform/shared/host_protocol_chre.cc
 SLPI_SRCS += platform/shared/host_protocol_common.cc
 SLPI_SRCS += platform/shared/memory_manager.cc
-SLPI_SRCS += platform/shared/nanoapp_load_manager.cc
 SLPI_SRCS += platform/shared/nanoapp/nanoapp_dso_util.cc
 SLPI_SRCS += platform/shared/pal_system_api.cc
-SLPI_SRCS += platform/shared/pw_tokenized_log.cc
 SLPI_SRCS += platform/shared/system_time.cc
 SLPI_SRCS += platform/slpi/chre_api_re.cc
 SLPI_SRCS += platform/slpi/fatal_error.cc
@@ -94,6 +91,7 @@ SLPI_SRCS += platform/slpi/host_link.cc
 SLPI_SRCS += platform/slpi/init.cc
 SLPI_SRCS += platform/slpi/memory.cc
 SLPI_SRCS += platform/slpi/memory_manager.cc
+SLPI_SRCS += platform/slpi/nanoapp_load_manager.cc
 SLPI_SRCS += platform/slpi/platform_debug_dump_manager.cc
 SLPI_SRCS += platform/slpi/platform_nanoapp.cc
 SLPI_SRCS += platform/slpi/platform_pal.cc
@@ -124,11 +122,12 @@ endif
 
 # SLPI/SEE-specific Source Files ###############################################
 
-# Optional sensors support.
-ifeq ($(CHRE_SENSORS_SUPPORT_ENABLED), true)
 SLPI_SEE_SRCS += platform/slpi/see/platform_sensor.cc
 SLPI_SEE_SRCS += platform/slpi/see/platform_sensor_manager.cc
+SLPI_SEE_SRCS += platform/slpi/see/power_control_manager.cc
+
 ifneq ($(IMPORT_CHRE_UTILS), true)
+SLPI_SEE_SRCS += platform/slpi/see/island_vote_client.cc
 SLPI_SEE_SRCS += platform/slpi/see/see_cal_helper.cc
 SLPI_SEE_SRCS += platform/slpi/see/see_helper.cc
 endif
@@ -146,13 +145,6 @@ SLPI_SEE_SRCS += $(SLPI_PREFIX)/ssc_api/pb/sns_std_type.pb.c
 
 SLPI_SEE_QSK_SRCS += $(SLPI_PREFIX)/chre/chre/src/system/chre/platform/slpi/sns_qmi_client_alt.c
 SLPI_SEE_QMI_SRCS += $(SLPI_PREFIX)/chre/chre/src/system/chre/platform/slpi/sns_qmi_client.c
-endif
-
-SLPI_SEE_SRCS += platform/slpi/see/power_control_manager.cc
-
-ifneq ($(IMPORT_CHRE_UTILS), true)
-SLPI_SEE_SRCS += platform/slpi/see/island_vote_client.cc
-endif
 
 # Simulator-specific Compiler Flags ############################################
 
@@ -176,7 +168,6 @@ SIM_SRCS += platform/linux/system_timer.cc
 SIM_SRCS += platform/linux/platform_nanoapp.cc
 SIM_SRCS += platform/linux/platform_sensor.cc
 SIM_SRCS += platform/linux/platform_sensor_type_helpers.cc
-SIM_SRCS += platform/shared/assert.cc
 SIM_SRCS += platform/shared/chre_api_audio.cc
 SIM_SRCS += platform/shared/chre_api_core.cc
 SIM_SRCS += platform/shared/chre_api_gnss.cc
@@ -194,19 +185,19 @@ SIM_SRCS += platform/shared/system_time.cc
 
 # Optional GNSS support.
 ifeq ($(CHRE_GNSS_SUPPORT_ENABLED), true)
-SIM_SRCS += platform/linux/pal_gnss.cc
+SIM_SRCS += platform/shared/pal_gnss_stub.cc
 SIM_SRCS += platform/shared/platform_gnss.cc
 endif
 
 # Optional Wi-Fi support.
 ifeq ($(CHRE_WIFI_SUPPORT_ENABLED), true)
-SIM_SRCS += platform/linux/pal_wifi.cc
+SIM_SRCS += platform/shared/pal_wifi_stub.cc
 SIM_SRCS += platform/shared/platform_wifi.cc
 endif
 
 # Optional WWAN support.
 ifeq ($(CHRE_WWAN_SUPPORT_ENABLED), true)
-SIM_SRCS += platform/linux/pal_wwan.cc
+SIM_SRCS += platform/shared/pal_wwan_stub.cc
 SIM_SRCS += platform/shared/platform_wwan.cc
 endif
 
@@ -217,7 +208,6 @@ GOOGLE_X86_LINUX_CFLAGS += -Iplatform/linux/include
 # Linux-specific Source Files ##################################################
 
 GOOGLE_X86_LINUX_SRCS += platform/linux/init.cc
-GOOGLE_X86_LINUX_SRCS += platform/linux/assert.cc
 
 # Optional audio support.
 ifeq ($(CHRE_AUDIO_SUPPORT_ENABLED), true)
@@ -276,6 +266,6 @@ GOOGLETEST_CFLAGS += -Iplatform/slpi/include
 
 # GoogleTest Source Files ######################################################
 
-GOOGLETEST_COMMON_SRCS += platform/linux/assert.cc
-GOOGLETEST_COMMON_SRCS += platform/linux/audio_source.cc
-GOOGLETEST_COMMON_SRCS += platform/linux/platform_audio.cc
+GOOGLETEST_SRCS += platform/linux/assert.cc
+GOOGLETEST_SRCS += platform/linux/audio_source.cc
+GOOGLETEST_SRCS += platform/linux/platform_audio.cc
