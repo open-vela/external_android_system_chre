@@ -220,6 +220,9 @@ class HostCommsManager : public NonCopyable {
    *
    * @param craftedMessage Message from host to be delivered to the destination
    * nanoapp
+   *
+   * @return true if the message was delivered to the event queue (i.e.
+   *         destination app ID exists in the system)
    */
   bool deliverNanoappMessageFromHost(MessageFromHost *craftedMessage);
 
