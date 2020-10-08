@@ -169,9 +169,7 @@ void PalGnssTest::SetUp() {
 
 void PalGnssTest::TearDown() {
   gTest = nullptr;
-  if (api_ != nullptr) {
-    api_->close();
-  }
+  api_->close();
 }
 
 void PalGnssTest::requestStateResync() {
@@ -238,7 +236,7 @@ void PalGnssTest::waitForAsyncResponseAssertSuccess(
   ASSERT_EQ(errorCode_, CHRE_ERROR_NONE);
 }
 
-TEST_P(PalGnssTest, LocationSessionTest) {
+TEST_F(PalGnssTest, LocationSessionTest) {
   bool hasLocationCapability =
       ((api_->getCapabilities() & CHRE_GNSS_CAPABILITIES_LOCATION) ==
        CHRE_GNSS_CAPABILITIES_LOCATION);
@@ -253,9 +251,8 @@ TEST_P(PalGnssTest, LocationSessionTest) {
   chre::LockGuard<chre::Mutex> lock(mutex_);
 
   prepareForAsyncResponse();
-  ASSERT_TRUE(api_->controlLocationSession(true /* enable */,
-                                           GetParam() /* minIntervalMs */,
-                                           0 /* minTimeToNextFixMs */));
+  ASSERT_TRUE(api_->controlLocationSession(
+      true /* enable */, 1000 /* minIntervalMs */, 0 /* minTimeToNextFixMs */));
   waitForAsyncResponseAssertSuccess(kGnssAsyncResultTimeoutNs);
   ASSERT_TRUE(locationSessionEnabled_);
 
@@ -278,7 +275,7 @@ TEST_P(PalGnssTest, LocationSessionTest) {
   ASSERT_FALSE(locationSessionEnabled_);
 }
 
-TEST_P(PalGnssTest, MeasurementSessionTest) {
+TEST_F(PalGnssTest, MeasurementSessionTest) {
   bool hasMeasurementCapability =
       ((api_->getCapabilities() & CHRE_GNSS_CAPABILITIES_MEASUREMENTS) ==
        CHRE_GNSS_CAPABILITIES_MEASUREMENTS);
@@ -294,7 +291,7 @@ TEST_P(PalGnssTest, MeasurementSessionTest) {
 
   prepareForAsyncResponse();
   ASSERT_TRUE(api_->controlMeasurementSession(true /* enable */,
-                                              GetParam() /* minIntervalMs */));
+                                              1000 /* minIntervalMs */));
   waitForAsyncResponseAssertSuccess(kGnssAsyncResultTimeoutNs);
   ASSERT_TRUE(measurementSessionEnabled_);
 
@@ -316,9 +313,5 @@ TEST_P(PalGnssTest, MeasurementSessionTest) {
   waitForAsyncResponseAssertSuccess(kGnssAsyncResultTimeoutNs);
   ASSERT_FALSE(measurementSessionEnabled_);
 }
-
-INSTANTIATE_TEST_SUITE_P(PalGnssTestRange, PalGnssTest,
-                         // Parameter: minIntervalMs argument
-                         testing::Values(1000, 8000));
 
 }  // namespace gnss_pal_impl_test
