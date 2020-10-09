@@ -86,7 +86,8 @@ void postSettingChange(Setting setting, SettingState state) {
   NestedDataPtr<SettingChange> nestedPtr(SettingChange(setting, state));
 
   auto callback = [](uint16_t /* type */, void *data) {
-    NestedDataPtr<SettingChange> setting(data);
+    NestedDataPtr<SettingChange> setting;
+    setting.dataPtr = data;
     setSettingState(setting.data.setting, setting.data.state);
 #ifdef CHRE_GNSS_SUPPORT_ENABLED
     EventLoopManagerSingleton::get()->getGnssManager().onSettingChanged(
