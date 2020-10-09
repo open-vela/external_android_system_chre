@@ -38,16 +38,10 @@ constexpr uint32_t kInvalidInstanceId = kBroadcastInstanceId;
 
 class Event : public NonCopyable {
  public:
-  Event(uint16_t eventType_, void *eventData_,
+  Event(uint16_t eventType_, uint16_t receivedTimeMillis_, void *eventData_,
         chreEventCompleteFunction *freeCallback_,
-        uint32_t senderInstanceId_ = kSystemInstanceId,
-        uint32_t targetInstanceId_ = kBroadcastInstanceId)
-      : eventType(eventType_),
-        receivedTimeMillis(getTimeMillis()),
-        eventData(eventData_),
-        freeCallback(freeCallback_),
-        senderInstanceId(senderInstanceId_),
-        targetInstanceId(targetInstanceId_) {}
+        uint32_t senderInstanceId = kSystemInstanceId,
+        uint32_t targetInstanceId = kBroadcastInstanceId);
 
   void incrementRefCount() {
     mRefCount++;
@@ -74,9 +68,6 @@ class Event : public NonCopyable {
 
  private:
   size_t mRefCount = 0;
-
-  //! @return Monotonic time reference for initializing receivedTimeMillis
-  static uint16_t getTimeMillis();
 };
 
 }  // namespace chre
