@@ -16,7 +16,7 @@ endif
 
 # Nanoapp Configuration ########################################################
 
-NANOAPP_VERSION = 0x00000001
+NANOAPP_VERSION = 0x00010000
 
 # Common Compiler Flags ########################################################
 
@@ -26,7 +26,12 @@ COMMON_CFLAGS += -I$(CHRE_PREFIX)/external/flatbuffers/include
 COMMON_CFLAGS += -I$(CHRE_PREFIX)/util/include
 
 # Defines
-COMMON_CFLAGS += -DNANOAPP_MINIMUM_LOG_LEVEL=CHRE_LOG_LEVEL_INFO
+COMMON_CFLAGS += -DNANOAPP_MINIMUM_LOG_LEVEL=CHRE_LOG_LEVEL_DEBUG
+# COMMON_CFLAGS += -DCHRE_POWER_TEST_ENABLE_LOGV
+
+# Flatbuffers configuration
+include $(CHRE_PREFIX)/external/flatbuffers/flatbuffers.mk
+COMMON_CFLAGS += $(FLATBUFFERS_CFLAGS)
 
 # Common Source Files ##########################################################
 
@@ -39,4 +44,3 @@ COMMON_SRCS += $(CHRE_PREFIX)/util/nanoapp/callbacks.cc
 # Makefile Includes ############################################################
 
 include $(CHRE_PREFIX)/build/nanoapp/app.mk
-include $(CHRE_PREFIX)/external/external.mk
