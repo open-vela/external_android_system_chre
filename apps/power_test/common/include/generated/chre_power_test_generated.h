@@ -33,9 +33,6 @@ struct BreakItMessageBuilder;
 struct NanoappResponseMessage;
 struct NanoappResponseMessageBuilder;
 
-struct GnssMeasurementMessage;
-struct GnssMeasurementMessageBuilder;
-
 /// Indicates which of the following messages is being sent to / from the
 /// nanoapp. Use uint as the base type to match the message type in
 /// chreMessageFromHostData.
@@ -57,13 +54,11 @@ enum class MessageType : uint32_t {
   BREAK_IT_TEST = 7,
   /// Should be used with NanoappResponseMessage
   NANOAPP_RESPONSE = 8,
-  /// Should be used with GnssMeasurementMessage
-  GNSS_MEASUREMENT_TEST = 9,
   MIN = UNSPECIFIED,
-  MAX = GNSS_MEASUREMENT_TEST
+  MAX = NANOAPP_RESPONSE
 };
 
-inline const MessageType (&EnumValuesMessageType())[10] {
+inline const MessageType (&EnumValuesMessageType())[9] {
   static const MessageType values[] = {
     MessageType::UNSPECIFIED,
     MessageType::TIMER_TEST,
@@ -73,14 +68,13 @@ inline const MessageType (&EnumValuesMessageType())[10] {
     MessageType::AUDIO_REQUEST_TEST,
     MessageType::SENSOR_REQUEST_TEST,
     MessageType::BREAK_IT_TEST,
-    MessageType::NANOAPP_RESPONSE,
-    MessageType::GNSS_MEASUREMENT_TEST
+    MessageType::NANOAPP_RESPONSE
   };
   return values;
 }
 
 inline const char * const *EnumNamesMessageType() {
-  static const char * const names[11] = {
+  static const char * const names[10] = {
     "UNSPECIFIED",
     "TIMER_TEST",
     "WIFI_SCAN_TEST",
@@ -90,14 +84,13 @@ inline const char * const *EnumNamesMessageType() {
     "SENSOR_REQUEST_TEST",
     "BREAK_IT_TEST",
     "NANOAPP_RESPONSE",
-    "GNSS_MEASUREMENT_TEST",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameMessageType(MessageType e) {
-  if (flatbuffers::IsOutRange(e, MessageType::UNSPECIFIED, MessageType::GNSS_MEASUREMENT_TEST)) return "";
+  if (flatbuffers::IsOutRange(e, MessageType::UNSPECIFIED, MessageType::NANOAPP_RESPONSE)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesMessageType()[index];
 }
@@ -117,7 +110,6 @@ enum class SensorType : uint8_t {
   LIGHT = 12,
   PROXIMITY = 13,
   STEP_DETECT = 23,
-  STEP_COUNTER = 24,
   UNCALIBRATED_ACCELEROMETER = 55,
   ACCELEROMETER_TEMPERATURE = 56,
   GYROSCOPE_TEMPERATURE = 57,
@@ -126,7 +118,7 @@ enum class SensorType : uint8_t {
   MAX = GEOMAGNETIC_FIELD_TEMPERATURE
 };
 
-inline const SensorType (&EnumValuesSensorType())[17] {
+inline const SensorType (&EnumValuesSensorType())[16] {
   static const SensorType values[] = {
     SensorType::UNKNOWN,
     SensorType::ACCELEROMETER,
@@ -140,7 +132,6 @@ inline const SensorType (&EnumValuesSensorType())[17] {
     SensorType::LIGHT,
     SensorType::PROXIMITY,
     SensorType::STEP_DETECT,
-    SensorType::STEP_COUNTER,
     SensorType::UNCALIBRATED_ACCELEROMETER,
     SensorType::ACCELEROMETER_TEMPERATURE,
     SensorType::GYROSCOPE_TEMPERATURE,
@@ -175,7 +166,7 @@ inline const char * const *EnumNamesSensorType() {
     "",
     "",
     "STEP_DETECT",
-    "STEP_COUNTER",
+    "",
     "",
     "",
     "",
@@ -664,60 +655,6 @@ inline flatbuffers::Offset<NanoappResponseMessage> CreateNanoappResponseMessage(
     bool success = false) {
   NanoappResponseMessageBuilder builder_(_fbb);
   builder_.add_success(success);
-  return builder_.Finish();
-}
-
-/// Represents a message to ask the nanoapp to start or stop Gnss measurement
-/// sampling at the requested interval
-struct GnssMeasurementMessage FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  typedef GnssMeasurementMessageBuilder Builder;
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_ENABLE = 4,
-    VT_MIN_INTERVAL_MILLIS = 6
-  };
-  bool enable() const {
-    return GetField<uint8_t>(VT_ENABLE, 0) != 0;
-  }
-  uint32_t min_interval_millis() const {
-    return GetField<uint32_t>(VT_MIN_INTERVAL_MILLIS, 0);
-  }
-  bool Verify(flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           VerifyField<uint8_t>(verifier, VT_ENABLE) &&
-           VerifyField<uint32_t>(verifier, VT_MIN_INTERVAL_MILLIS) &&
-           verifier.EndTable();
-  }
-};
-
-struct GnssMeasurementMessageBuilder {
-  typedef GnssMeasurementMessage Table;
-  flatbuffers::FlatBufferBuilder &fbb_;
-  flatbuffers::uoffset_t start_;
-  void add_enable(bool enable) {
-    fbb_.AddElement<uint8_t>(GnssMeasurementMessage::VT_ENABLE, static_cast<uint8_t>(enable), 0);
-  }
-  void add_min_interval_millis(uint32_t min_interval_millis) {
-    fbb_.AddElement<uint32_t>(GnssMeasurementMessage::VT_MIN_INTERVAL_MILLIS, min_interval_millis, 0);
-  }
-  explicit GnssMeasurementMessageBuilder(flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
-  }
-  GnssMeasurementMessageBuilder &operator=(const GnssMeasurementMessageBuilder &);
-  flatbuffers::Offset<GnssMeasurementMessage> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = flatbuffers::Offset<GnssMeasurementMessage>(end);
-    return o;
-  }
-};
-
-inline flatbuffers::Offset<GnssMeasurementMessage> CreateGnssMeasurementMessage(
-    flatbuffers::FlatBufferBuilder &_fbb,
-    bool enable = false,
-    uint32_t min_interval_millis = 0) {
-  GnssMeasurementMessageBuilder builder_(_fbb);
-  builder_.add_min_interval_millis(min_interval_millis);
-  builder_.add_enable(enable);
   return builder_.Finish();
 }
 
