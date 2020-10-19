@@ -4,14 +4,14 @@
 using chre::PriorityQueue;
 
 namespace {
-class FakeElement {
+class DummyElement {
  public:
-  FakeElement(){};
-  FakeElement(int index, int value) {
+  DummyElement(){};
+  DummyElement(int index, int value) {
     mValue = value;
     mIndex = index;
   };
-  ~FakeElement(){};
+  ~DummyElement(){};
   void setValue(int value) {
     mValue = value;
   }
@@ -27,13 +27,13 @@ class FakeElement {
   int mValue = -1;
 };
 
-bool compareFunction(const FakeElement &left, const FakeElement &right) {
+bool compareFunction(const DummyElement &left, const DummyElement &right) {
   return left.getValue() > right.getValue();
 };
 
 class CompareClass {
  public:
-  bool operator()(const FakeElement &left, const FakeElement &right) const {
+  bool operator()(const DummyElement &left, const DummyElement &right) const {
     return left.getValue() > right.getValue();
   }
 };
@@ -167,10 +167,10 @@ TEST(PriorityQueueTest, CompareGreater) {
 }
 
 TEST(PriorityQueueTest, EmplaceCompareLambda) {
-  auto cmp = [](const FakeElement &left, const FakeElement &right) {
+  auto cmp = [](const DummyElement &left, const DummyElement &right) {
     return left.getValue() > right.getValue();
   };
-  PriorityQueue<FakeElement, decltype(cmp)> q(cmp);
+  PriorityQueue<DummyElement, decltype(cmp)> q(cmp);
 
   EXPECT_TRUE(q.emplace(0, 0));
   EXPECT_TRUE(q.emplace(1, 2));
@@ -190,8 +190,8 @@ TEST(PriorityQueueTest, EmplaceCompareLambda) {
 }
 
 TEST(PriorityQueueTest, EmplaceCompareFunction) {
-  PriorityQueue<FakeElement,
-                std::function<bool(const FakeElement &, const FakeElement &)>>
+  PriorityQueue<DummyElement,
+                std::function<bool(const DummyElement &, const DummyElement &)>>
       q(compareFunction);
 
   EXPECT_TRUE(q.emplace(0, 0));
@@ -212,7 +212,7 @@ TEST(PriorityQueueTest, EmplaceCompareFunction) {
 }
 
 TEST(PriorityQueueTest, EmplaceCompareClass) {
-  PriorityQueue<FakeElement, CompareClass> q;
+  PriorityQueue<DummyElement, CompareClass> q;
 
   EXPECT_TRUE(q.emplace(0, 0));
   EXPECT_TRUE(q.emplace(1, 2));
