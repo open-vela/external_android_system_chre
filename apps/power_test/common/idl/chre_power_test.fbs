@@ -35,6 +35,8 @@ enum MessageType : uint {
   BREAK_IT_TEST,
   /// Should be used with NanoappResponseMessage
   NANOAPP_RESPONSE,
+  /// Should be used with GnssMeasurementMessage
+  GNSS_MEASUREMENT_TEST,
 }
 
 /// Represents a message to ask the nanoapp to create a timer that wakes up at
@@ -91,6 +93,7 @@ enum SensorType : ubyte {
   LIGHT = 12,
   PROXIMITY = 13,
   STEP_DETECT = 23,
+  STEP_COUNTER = 24,
   UNCALIBRATED_ACCELEROMETER = 55,
   ACCELEROMETER_TEMPERATURE = 56,
   GYROSCOPE_TEMPERATURE = 57,
@@ -117,4 +120,11 @@ table BreakItMessage {
 /// Any failures will be printed to the logs.
 table NanoappResponseMessage {
   success:bool;
+}
+
+/// Represents a message to ask the nanoapp to start or stop Gnss measurement
+/// sampling at the requested interval
+table GnssMeasurementMessage {
+  enable:bool;
+  min_interval_millis:uint;
 }
