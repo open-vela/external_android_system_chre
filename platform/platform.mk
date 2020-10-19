@@ -72,7 +72,6 @@ endif
 # SLPI/QSH-specific Compiler Flags #############################################
 
 # Include paths.
-SLPI_QSH_CFLAGS += -I$(SLPI_PREFIX)/qsh/qsh_nanoapp/inc
 SLPI_QSH_CFLAGS += -Iplatform/slpi/see/include
 
 # Define CHRE_SLPI_SEE for the few components that are still shared between QSH
@@ -132,11 +131,12 @@ endif
 
 # SLPI/SEE-specific Source Files ###############################################
 
-# Optional sensors support.
-ifeq ($(CHRE_SENSORS_SUPPORT_ENABLED), true)
 SLPI_SEE_SRCS += platform/slpi/see/platform_sensor.cc
 SLPI_SEE_SRCS += platform/slpi/see/platform_sensor_manager.cc
+SLPI_SEE_SRCS += platform/slpi/see/power_control_manager.cc
+
 ifneq ($(IMPORT_CHRE_UTILS), true)
+SLPI_SEE_SRCS += platform/slpi/see/island_vote_client.cc
 SLPI_SEE_SRCS += platform/slpi/see/see_cal_helper.cc
 SLPI_SEE_SRCS += platform/slpi/see/see_helper.cc
 endif
@@ -154,13 +154,6 @@ SLPI_SEE_SRCS += $(SLPI_PREFIX)/ssc_api/pb/sns_std_type.pb.c
 
 SLPI_SEE_QSK_SRCS += $(SLPI_PREFIX)/chre/chre/src/system/chre/platform/slpi/sns_qmi_client_alt.c
 SLPI_SEE_QMI_SRCS += $(SLPI_PREFIX)/chre/chre/src/system/chre/platform/slpi/sns_qmi_client.c
-endif
-
-SLPI_SEE_SRCS += platform/slpi/see/power_control_manager.cc
-
-ifneq ($(IMPORT_CHRE_UTILS), true)
-SLPI_SEE_SRCS += platform/slpi/see/island_vote_client.cc
-endif
 
 # SLPI/QSH-specific Source Files ###############################################
 
@@ -288,6 +281,6 @@ GOOGLETEST_CFLAGS += -Iplatform/slpi/include
 
 # GoogleTest Source Files ######################################################
 
-GOOGLETEST_SRCS += platform/linux/assert.cc
-GOOGLETEST_SRCS += platform/linux/audio_source.cc
-GOOGLETEST_SRCS += platform/linux/platform_audio.cc
+GOOGLETEST_COMMON_SRCS += platform/linux/assert.cc
+GOOGLETEST_COMMON_SRCS += platform/linux/audio_source.cc
+GOOGLETEST_COMMON_SRCS += platform/linux/platform_audio.cc
