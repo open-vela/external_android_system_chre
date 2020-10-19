@@ -231,8 +231,6 @@ table LowPowerMicAccessRelease {}
 /// An enum describing the setting type.
 enum Setting : byte {
   LOCATION = 0,
-  WIFI_AVAILABLE,
-  AIRPLANE_MODE,
 }
 
 /// An enum describing the state of a setting.
