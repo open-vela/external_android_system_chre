@@ -175,6 +175,14 @@ bool SensorRequestManager::setSensorRequest(
   } else {
     Sensor &sensor = mSensors[sensorHandle];
     if (isSensorRequestValid(sensor, sensorRequest)) {
+      // Copy the request so it can be modified below.
+      SensorRequest request = sensorRequest;
+      if (sensor.isOneShot()) {
+        // Always use a latency value of ASAP for one-shot sensors since
+        // one-shot data is always expected to be delivered immediately.
+        request.setLatency(Nanoseconds(CHRE_SENSOR_LATENCY_ASAP));
+      }
+
       size_t requestIndex;
       uint8_t sensorType = sensor.getSensorType();
       uint16_t eventType = getSampleEventTypeForSensorType(sensorType);
@@ -182,7 +190,7 @@ bool SensorRequestManager::setSensorRequest(
           sensor.getRequestMultiplexer().findRequest(nanoapp->getInstanceId(),
                                                      &requestIndex) != nullptr;
 
-      if (sensorRequest.getMode() == SensorMode::Off) {
+      if (request.getMode() == SensorMode::Off) {
         if (nanoappHasRequest) {
           // The request changes the mode to off and there was an existing
           // request. The existing request is removed from the multiplexer. The
@@ -212,15 +220,18 @@ bool SensorRequestManager::setSensorRequest(
         // existing request. The request is newly created and added to the
         // multiplexer. The nanoapp is registered for events if this request was
         // successful.
-        success = addRequest(sensor, sensorRequest, &requestChanged);
+        uint16_t biasEventType;
+        if (sensor.getBiasEventType(&biasEventType) && sensor.isCalibrated()) {
+          // Per API requirements, turn on bias reporting for calibrated sensors
+          // by default when subscribed.
+          request.setBiasUpdatesRequested(true);
+        }
+
+        success = addRequest(sensor, request, &requestChanged);
         if (success) {
           nanoapp->registerForBroadcastEvent(eventType);
 
-          // Per API requirements, turn on bias reporting for calibrated sensors
-          // by default when subscribed.
-          uint16_t biasEventType;
-          if (sensor.getBiasEventType(&biasEventType) &&
-              sensor.isCalibrated()) {
+          if (request.getBiasUpdatesRequested()) {
             nanoapp->registerForBroadcastEvent(biasEventType);
           }
 
@@ -234,8 +245,7 @@ bool SensorRequestManager::setSensorRequest(
       } else {
         // The request changes the mode to the enabled state and there was an
         // existing request. The existing request is updated.
-        success =
-            updateRequest(sensor, requestIndex, sensorRequest, &requestChanged);
+        success = updateRequest(sensor, requestIndex, request, &requestChanged);
       }
 
       // TODO: Allow translating the sensor request
@@ -245,8 +255,7 @@ bool SensorRequestManager::setSensorRequest(
       }
 
       if (success) {
-        addSensorRequestLog(nanoapp->getInstanceId(), sensorType,
-                            sensorRequest);
+        addSensorRequestLog(nanoapp->getInstanceId(), sensorType, request);
       }
     }
   }
@@ -330,22 +339,33 @@ bool SensorRequestManager::configureBiasEvents(Nanoapp *nanoapp,
                                                uint32_t sensorHandle,
                                                bool enable) {
   bool success = false;
+  uint16_t eventType;
   if (sensorHandle >= mSensors.size()) {
     LOG_INVALID_HANDLE(sensorHandle);
   } else if (enable && !mSensors[sensorHandle].isSensorEnabled()) {
     LOGE("Bias events can't be configured for a disabled sensor!");
-  } else {
-    uint16_t eventType;
+  } else if (mSensors[sensorHandle].getBiasEventType(&eventType)) {
     Sensor &sensor = mSensors[sensorHandle];
-    if (sensor.getBiasEventType(&eventType)) {
-      uint64_t currentLatency = 0;
-      if (enable) {
-        currentLatency =
-            sensor.getMaximalRequest().getLatency().toRawNanoseconds();
-      }
-      success = mPlatformSensorManager.configureBiasEvents(sensor, enable,
-                                                           currentLatency);
-
+    size_t requestIndex;
+    bool nanoappHasRequest =
+        sensor.getRequestMultiplexer().findRequest(nanoapp->getInstanceId(),
+                                                   &requestIndex) != nullptr;
+    if (enable && !nanoappHasRequest) {
+      LOGE("0x%" PRIx64
+           " configuring bias events without an existing sensor request",
+           nanoapp->getAppId());
+    } else if (!enable && !nanoappHasRequest) {
+      // Treat configuration request as a success since the nanoapp's request
+      // already has been removed which would result in disabling bias event
+      // updates
+      success = true;
+    } else {
+      SensorRequest previousRequest =
+          sensor.getRequestMultiplexer().getRequests()[requestIndex];
+      previousRequest.setBiasUpdatesRequested(enable);
+      bool requestChanged;
+      success =
+          updateRequest(sensor, requestIndex, previousRequest, &requestChanged);
       if (success) {
         if (enable) {
           nanoapp->registerForBroadcastEvent(eventType);
@@ -539,7 +559,7 @@ void SensorRequestManager::logStateToBuffer(DebugDumpWrapper &debugDump) const {
       // below
       debugDump.print(
           " %s: mode=%d int=%" PRIu64 " lat=%" PRIu64 " nappId=%" PRIu32 "\n",
-          mSensors[i].getSensorTypeName(), request.getMode(),
+          mSensors[i].getSensorTypeName(), static_cast<int>(request.getMode()),
           request.getInterval().toRawNanoseconds(),
           request.getLatency().toRawNanoseconds(), request.getInstanceId());
     }
@@ -667,12 +687,13 @@ bool SensorRequestManager::addRequest(Sensor &sensor,
   size_t addIndex;
   bool success = true;
   SensorRequestMultiplexer &multiplexer = sensor.getRequestMultiplexer();
+  SensorRequest prevRequest = sensor.getMaximalRequest();
   if (!multiplexer.addRequest(request, &addIndex, requestChanged)) {
     *requestChanged = false;
     success = false;
     LOG_OOM();
   } else if (*requestChanged) {
-    success = configurePlatformSensor(sensor);
+    success = configurePlatformSensor(sensor, prevRequest);
     if (!success) {
       // Remove the newly added request since the platform failed to handle
       // it. The sensor is expected to maintain the existing request so there is
@@ -699,7 +720,7 @@ bool SensorRequestManager::updateRequest(Sensor &sensor, size_t updateIndex,
   SensorRequest previousRequest = multiplexer.getRequests()[updateIndex];
   multiplexer.updateRequest(updateIndex, request, requestChanged);
   if (*requestChanged) {
-    success = configurePlatformSensor(sensor);
+    success = configurePlatformSensor(sensor, previousRequest);
     if (!success) {
       // Roll back the request since sending it to the sensor failed. The
       // request will roll back to the previous maximal. The sensor is
@@ -721,9 +742,10 @@ bool SensorRequestManager::removeRequest(Sensor &sensor, size_t removeIndex,
   CHRE_ASSERT(requestChanged != nullptr);
 
   bool success = true;
+  const SensorRequest prevRequest = sensor.getMaximalRequest();
   sensor.getRequestMultiplexer().removeRequest(removeIndex, requestChanged);
   if (*requestChanged) {
-    success = configurePlatformSensor(sensor);
+    success = configurePlatformSensor(sensor, prevRequest);
     if (!success) {
       LOGE("SensorRequestManager failed to remove a request");
 
@@ -743,14 +765,15 @@ bool SensorRequestManager::removeRequest(Sensor &sensor, size_t removeIndex,
 
 bool SensorRequestManager::removeAllRequests(Sensor &sensor) {
   bool requestChanged;
+  SensorRequest prevRequest = sensor.getMaximalRequest();
   sensor.getRequestMultiplexer().removeAllRequests(&requestChanged);
 
   bool success = true;
   if (requestChanged) {
-    success = configurePlatformSensor(sensor);
+    success = configurePlatformSensor(sensor, prevRequest);
 
     if (!success) {
-      LOGE("SensorRequestManager failed to remove all request");
+      LOGE("SensorRequestManager failed to remove all requests");
 
       // If the platform fails to handle this request in a debug build there
       // is likely an error in the platform. This is not strictly a programming
@@ -781,15 +804,12 @@ uint8_t SensorRequestManager::makeFlushRequest(FlushRequest &request) {
       Nanoseconds delay = deadline - now;
       request.isActive = true;
 
-      NestedDataPtr<uint32_t> index(request.sensorHandle);
-
       auto callback = [](uint16_t /* eventType */, void *eventData) {
-        LOGE("Flush request timed out.");
-        NestedDataPtr<uint32_t> nestedIndex;
-        nestedIndex.dataPtr = eventData;
+        LOGE("Flush request timed out");
+        NestedDataPtr<uint32_t> sensorHandle(eventData);
         EventLoopManagerSingleton::get()
             ->getSensorRequestManager()
-            .onFlushTimeout(nestedIndex.data);
+            .onFlushTimeout(sensorHandle);
 
         // Send a complete event, thus closing out this flush request. If the
         // request that has just timed out receives a response later, this may
@@ -799,13 +819,13 @@ uint8_t SensorRequestManager::makeFlushRequest(FlushRequest &request) {
         // responses can be properly dropped.
         EventLoopManagerSingleton::get()
             ->getSensorRequestManager()
-            .handleFlushCompleteEventSync(CHRE_ERROR_TIMEOUT, nestedIndex.data);
+            .handleFlushCompleteEventSync(CHRE_ERROR_TIMEOUT, sensorHandle);
       };
 
       sensor.setFlushRequestTimerHandle(
           EventLoopManagerSingleton::get()->setDelayedCallback(
-              SystemCallbackType::SensorFlushTimeout, index.dataPtr, callback,
-              delay));
+              SystemCallbackType::SensorFlushTimeout,
+              NestedDataPtr<uint32_t>(request.sensorHandle), callback, delay));
     }
   } else {
     // Flush request will be made once the pending request is completed.
@@ -829,11 +849,35 @@ bool SensorRequestManager::doMakeFlushRequest(Sensor &sensor) {
   return success;
 }
 
-bool SensorRequestManager::configurePlatformSensor(Sensor &sensor) {
+bool SensorRequestManager::configurePlatformSensor(
+    Sensor &sensor, const SensorRequest &prevSensorRequest) {
   bool success = false;
   const SensorRequest &request = sensor.getMaximalRequest();
-  if (!mPlatformSensorManager.configureSensor(sensor, request)) {
-    LOGE("Failed to make platform sensor request");
+
+  // Ensures that only configureBiasEvents is invoked if that's the only value
+  // that has changed since the previous request since CHRE shouldn't configure
+  // the platform for data events if the sensor data request hasn't changed.
+  bool biasChanged = (request.getBiasUpdatesRequested() !=
+                      prevSensorRequest.getBiasUpdatesRequested());
+  bool onlyBiasChanged = request.onlyBiasRequestUpdated(prevSensorRequest);
+  uint64_t currentLatency = 0;
+  bool enable = (request.getMode() != SensorMode::Off);
+  if (enable) {
+    currentLatency = request.getLatency().toRawNanoseconds();
+  }
+
+  // Per platform API requirements, an active sensor subscription must exist
+  // before any bias configuration can be done.
+  if (!onlyBiasChanged &&
+      !mPlatformSensorManager.configureSensor(sensor, request)) {
+    LOGE("Failed to make platform sensor data request");
+  } else if (biasChanged &&
+             !mPlatformSensorManager.configureBiasEvents(
+                 sensor, request.getBiasUpdatesRequested(), currentLatency)) {
+    LOGE("Failed to make platform sensor bias request");
+    if (!onlyBiasChanged) {
+      mPlatformSensorManager.configureSensor(sensor, prevSensorRequest);
+    }
   } else {
     success = true;
 
