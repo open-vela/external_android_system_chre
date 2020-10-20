@@ -28,20 +28,21 @@
 #include "chre/platform/log.h"
 #include "chre/platform/memory.h"
 #include "chre/platform/shared/host_protocol_chre.h"
-#include "chre/platform/shared/nanoapp_load_manager.h"
 #include "chre/platform/slpi/fastrpc.h"
+#include "chre/platform/slpi/nanoapp_load_manager.h"
 #include "chre/platform/slpi/power_control_util.h"
 #include "chre/platform/slpi/system_time.h"
 #include "chre/platform/system_time.h"
 #include "chre/platform/system_timer.h"
 #include "chre/util/fixed_size_blocking_queue.h"
-#include "chre/util/flatbuffers/helpers.h"
 #include "chre/util/macros.h"
 #include "chre/util/unique_ptr.h"
 #include "chre_api/chre/version.h"
 
 #include <inttypes.h>
 #include <limits.h>
+
+using flatbuffers::FlatBufferBuilder;
 
 namespace chre {
 
@@ -70,7 +71,7 @@ struct LoadNanoappCallbackData {
 };
 
 struct NanoappListData {
-  ChreFlatBufferBuilder *builder;
+  FlatBufferBuilder *builder;
   DynamicVector<NanoappListEntryOffset> nanoappEntries;
   uint16_t hostClientId;
 };
@@ -102,7 +103,7 @@ struct PendingMessage {
     data.msgToHost = msgToHost;
   }
 
-  PendingMessage(PendingMessageType msgType, ChreFlatBufferBuilder *builder) {
+  PendingMessage(PendingMessageType msgType, FlatBufferBuilder *builder) {
     type = msgType;
     data.builder = builder;
   }
@@ -111,7 +112,7 @@ struct PendingMessage {
   union {
     const MessageToHost *msgToHost;
     uint16_t hostClientId;
-    ChreFlatBufferBuilder *builder;
+    FlatBufferBuilder *builder;
   } data;
 };
 
@@ -125,14 +126,12 @@ struct UnloadNanoappCallbackData {
 /**
  * @see buildAndEnqueueMessage()
  */
-typedef void(MessageBuilderFunction)(ChreFlatBufferBuilder &builder,
-                                     void *cookie);
+typedef void(MessageBuilderFunction)(FlatBufferBuilder &builder, void *cookie);
 
 FixedSizeBlockingQueue<PendingMessage, kOutboundQueueSize> gOutboundQueue;
 
-int copyToHostBuffer(const ChreFlatBufferBuilder &builder,
-                     unsigned char *buffer, size_t bufferSize,
-                     unsigned int *messageLen) {
+int copyToHostBuffer(const FlatBufferBuilder &builder, unsigned char *buffer,
+                     size_t bufferSize, unsigned int *messageLen) {
   uint8_t *data = builder.GetBufferPointer();
   size_t size = builder.GetSize();
   int result;
@@ -174,12 +173,11 @@ bool enqueueMessage(PendingMessage message) {
 
 /**
  * Helper function that takes care of the boilerplate for allocating a
- * ChreFlatBufferBuilder on the heap and adding it to the outbound message
- * queue.
+ * FlatBufferBuilder on the heap and adding it to the outbound message queue.
  *
  * @param msgType Identifies the message while in the outboud queue
  * @param initialBufferSize Number of bytes to reserve when first allocating the
- *        ChreFlatBufferBuilder
+ *        FlatBufferBuilder
  * @param buildMsgFunc Synchronous callback used to encode the FlatBuffer
  *        message. Will not be invoked if allocation fails.
  * @param cookie Opaque pointer that will be passed through to buildMsgFunc
@@ -191,7 +189,7 @@ bool buildAndEnqueueMessage(PendingMessageType msgType,
                             MessageBuilderFunction *msgBuilder, void *cookie) {
   bool pushed = false;
 
-  auto builder = MakeUnique<ChreFlatBufferBuilder>(initialBufferSize);
+  auto builder = MakeUnique<FlatBufferBuilder>(initialBufferSize);
   if (builder.isNull()) {
     LOGE("Couldn't allocate memory for message type %d",
          static_cast<int>(msgType));
@@ -215,7 +213,7 @@ bool buildAndEnqueueMessage(PendingMessageType msgType,
 /**
  * FlatBuffer message builder callback used with constructNanoappListCallback()
  */
-void buildNanoappListResponse(ChreFlatBufferBuilder &builder, void *cookie) {
+void buildNanoappListResponse(FlatBufferBuilder &builder, void *cookie) {
   auto nanoappAdderCallback = [](const Nanoapp *nanoapp, void *data) {
     auto *cbData = static_cast<NanoappListData *>(data);
     HostProtocolChre::addNanoappListEntry(
@@ -256,7 +254,7 @@ void constructNanoappListCallback(uint16_t /*eventType*/, void *deferCbData) {
 }
 
 void finishLoadingNanoappCallback(uint16_t /*eventType*/, void *data) {
-  auto msgBuilder = [](ChreFlatBufferBuilder &builder, void *cookie) {
+  auto msgBuilder = [](FlatBufferBuilder &builder, void *cookie) {
     auto *cbData = static_cast<LoadNanoappCallbackData *>(cookie);
 
     EventLoop &eventLoop = EventLoopManagerSingleton::get()->getEventLoop();
@@ -278,7 +276,7 @@ void finishLoadingNanoappCallback(uint16_t /*eventType*/, void *data) {
 }
 
 void handleUnloadNanoappCallback(uint16_t /*eventType*/, void *data) {
-  auto msgBuilder = [](ChreFlatBufferBuilder &builder, void *cookie) {
+  auto msgBuilder = [](FlatBufferBuilder &builder, void *cookie) {
     auto *cbData = static_cast<UnloadNanoappCallbackData *>(cookie);
 
     bool success = false;
@@ -306,7 +304,7 @@ int generateMessageToHost(const MessageToHost *msgToHost, unsigned char *buffer,
   // TODO: ideally we'd construct our flatbuffer directly in the
   // host-supplied buffer
   constexpr size_t kFixedSizePortion = 80;
-  ChreFlatBufferBuilder builder(msgToHost->message.size() + kFixedSizePortion);
+  FlatBufferBuilder builder(msgToHost->message.size() + kFixedSizePortion);
   HostProtocolChre::encodeNanoappMessage(
       builder, msgToHost->appId, msgToHost->toHostData.messageType,
       msgToHost->toHostData.hostEndpoint, msgToHost->message.data(),
@@ -340,7 +338,7 @@ int generateHubInfoResponse(uint16_t hostClientId, unsigned char *buffer,
   constexpr float kPeakPower = 15;
 
   // Note that this may execute prior to EventLoopManager::lateInit() completing
-  ChreFlatBufferBuilder builder(kInitialBufferSize);
+  FlatBufferBuilder builder(kInitialBufferSize);
   HostProtocolChre::encodeHubInfoResponse(
       builder, kHubName, kVendor, kToolchain, kLegacyPlatformVersion,
       kLegacyToolchainVersion, kPeakMips, kStoppedPower, kSleepPower,
@@ -350,12 +348,12 @@ int generateHubInfoResponse(uint16_t hostClientId, unsigned char *buffer,
   return copyToHostBuffer(builder, buffer, bufferSize, messageLen);
 }
 
-int generateMessageFromBuilder(ChreFlatBufferBuilder *builder,
+int generateMessageFromBuilder(FlatBufferBuilder *builder,
                                unsigned char *buffer, size_t bufferSize,
                                unsigned int *messageLen) {
   CHRE_ASSERT(builder != nullptr);
   int result = copyToHostBuffer(*builder, buffer, bufferSize, messageLen);
-  builder->~ChreFlatBufferBuilder();
+  builder->~FlatBufferBuilder();
   memoryFree(builder);
   return result;
 }
@@ -368,7 +366,7 @@ void sendDebugDumpData(uint16_t hostClientId, const char *debugStr,
     size_t debugStrSize;
   };
 
-  auto msgBuilder = [](ChreFlatBufferBuilder &builder, void *cookie) {
+  auto msgBuilder = [](FlatBufferBuilder &builder, void *cookie) {
     const auto *data = static_cast<const DebugDumpMessageData *>(cookie);
     HostProtocolChre::encodeDebugDumpData(builder, data->hostClientId,
                                           data->debugStr, data->debugStrSize);
@@ -391,7 +389,7 @@ void sendDebugDumpResponse(uint16_t hostClientId, bool success,
     uint32_t dataCount;
   };
 
-  auto msgBuilder = [](ChreFlatBufferBuilder &builder, void *cookie) {
+  auto msgBuilder = [](FlatBufferBuilder &builder, void *cookie) {
     const auto *data = static_cast<const DebugDumpResponseData *>(cookie);
     HostProtocolChre::encodeDebugDumpResponse(builder, data->hostClientId,
                                               data->success, data->dataCount);
@@ -415,7 +413,7 @@ void sendFragmentResponse(uint16_t hostClientId, uint32_t transactionId,
     bool success;
   };
 
-  auto msgBuilder = [](ChreFlatBufferBuilder &builder, void *cookie) {
+  auto msgBuilder = [](FlatBufferBuilder &builder, void *cookie) {
     auto *cbData = static_cast<FragmentedLoadInfoResponse *>(cookie);
     HostProtocolChre::encodeLoadNanoappResponse(
         builder, cbData->hostClientId, cbData->transactionId, cbData->success,
@@ -437,7 +435,7 @@ void sendFragmentResponse(uint16_t hostClientId, uint32_t transactionId,
  * Sends a request to the host for a time sync message.
  */
 void sendTimeSyncRequest() {
-  auto msgBuilder = [](ChreFlatBufferBuilder &builder, void *cookie) {
+  auto msgBuilder = [](FlatBufferBuilder &builder, void *cookie) {
     HostProtocolChre::encodeTimeSyncRequest(builder);
   };
 
@@ -560,6 +558,38 @@ UniquePtr<Nanoapp> handleLoadNanoappData(
     nanoapp = sLoadManager.releaseNanoapp();
   }
   return nanoapp;
+}
+
+bool getSettingFromFbs(fbs::Setting setting, Setting *chreSetting) {
+  bool success = true;
+  switch (setting) {
+    case fbs::Setting::LOCATION:
+      *chreSetting = Setting::LOCATION;
+      break;
+    default:
+      LOGE("Unknown setting %" PRIu8, setting);
+      success = false;
+  }
+
+  return success;
+}
+
+bool getSettingStateFromFbs(fbs::SettingState state,
+                            SettingState *chreSettingState) {
+  bool success = true;
+  switch (state) {
+    case fbs::SettingState::DISABLED:
+      *chreSettingState = SettingState::DISABLED;
+      break;
+    case fbs::SettingState::ENABLED:
+      *chreSettingState = SettingState::ENABLED;
+      break;
+    default:
+      LOGE("Unknown state %" PRIu8, state);
+      success = false;
+  }
+
+  return success;
 }
 
 /**
@@ -706,29 +736,6 @@ bool HostLinkBase::flushOutboundQueue() {
   return (waitCount >= 0);
 }
 
-void HostLinkBase::sendLogMessage(const uint8_t *logMessage,
-                                  size_t logMessageSize) {
-  struct LogMessageData {
-    const uint8_t *logMsg;
-    size_t logMsgSize;
-  };
-
-  LogMessageData logMessageData;
-
-  logMessageData.logMsg = logMessage;
-  logMessageData.logMsgSize = logMessageSize;
-
-  auto msgBuilder = [](ChreFlatBufferBuilder &builder, void *cookie) {
-    const auto *data = static_cast<const LogMessageData *>(cookie);
-    HostProtocolChre::encodeLogMessages(builder, data->logMsg,
-                                        data->logMsgSize);
-  };
-
-  constexpr size_t kInitialSize = 128;
-  buildAndEnqueueMessage(PendingMessageType::EncodedLogMessage, kInitialSize,
-                         msgBuilder, &logMessageData);
-}
-
 void HostLinkBase::shutdown() {
   // Push a null message so the blocking call in chre_slpi_get_message_to_host()
   // returns and the host can exit cleanly. If the queue is full, try again to
@@ -759,7 +766,7 @@ void HostLinkBase::shutdown() {
 }
 
 void sendAudioRequest() {
-  auto msgBuilder = [](ChreFlatBufferBuilder &builder, void *cookie) {
+  auto msgBuilder = [](FlatBufferBuilder &builder, void *cookie) {
     HostProtocolChre::encodeLowPowerMicAccessRequest(builder);
   };
 
@@ -769,7 +776,7 @@ void sendAudioRequest() {
 }
 
 void sendAudioRelease() {
-  auto msgBuilder = [](ChreFlatBufferBuilder &builder, void *cookie) {
+  auto msgBuilder = [](FlatBufferBuilder &builder, void *cookie) {
     HostProtocolChre::encodeLowPowerMicAccessRelease(builder);
   };
 
@@ -885,12 +892,34 @@ void HostMessageHandlers::handleDebugDumpRequest(uint16_t hostClientId) {
   }
 }
 
+void HostLink::sendLogMessage(const char *logMessage, size_t logMessageSize) {
+  struct LogMessageData {
+    const char *logMsg;
+    size_t logMsgSize;
+  };
+
+  LogMessageData logMessageData;
+
+  logMessageData.logMsg = logMessage;
+  logMessageData.logMsgSize = logMessageSize;
+
+  auto msgBuilder = [](FlatBufferBuilder &builder, void *cookie) {
+    const auto *data = static_cast<const LogMessageData *>(cookie);
+    HostProtocolChre::encodeLogMessages(builder, data->logMsg,
+                                        data->logMsgSize);
+  };
+
+  constexpr size_t kInitialSize = 128;
+  buildAndEnqueueMessage(PendingMessageType::EncodedLogMessage, kInitialSize,
+                         msgBuilder, &logMessageData);
+}
+
 void HostMessageHandlers::handleSettingChangeMessage(fbs::Setting setting,
                                                      fbs::SettingState state) {
   Setting chreSetting;
   SettingState chreSettingState;
-  if (HostProtocolChre::getSettingFromFbs(setting, &chreSetting) &&
-      HostProtocolChre::getSettingStateFromFbs(state, &chreSettingState)) {
+  if (getSettingFromFbs(setting, &chreSetting) &&
+      getSettingStateFromFbs(state, &chreSettingState)) {
     postSettingChange(chreSetting, chreSettingState);
   }
 }
