@@ -189,26 +189,23 @@ void GnssSession::onSettingChanged(Setting setting, SettingState state) {
   }
 }
 
-bool GnssSession::handleLocationSettingChange(SettingState state) {
+void GnssSession::handleLocationSettingChange(SettingState state) {
   bool chreDisable = ((state == SettingState::DISABLED) && mPlatformEnabled);
   bool chreEnable = ((state == SettingState::ENABLED) && !mPlatformEnabled &&
                      !mRequests.empty());
 
-  bool requestPending = false;
   if (chreEnable || chreDisable) {
     if (controlPlatform(chreEnable, mCurrentInterval,
                         Milliseconds(0) /* minTimeToNext */)) {
       LOGD("Configured GNSS %s: setting state %" PRIu8, mName,
            static_cast<uint8_t>(state));
       addSessionRequestLog(CHRE_INSTANCE_ID, mCurrentInterval, chreEnable);
-      requestPending = true;
+      mInternalRequestPending = true;
     } else {
       LOGE("Failed to configure GNSS %s: setting state %" PRIu8, mName,
            static_cast<uint8_t>(state));
     }
   }
-
-  return requestPending;
 }
 
 void GnssSession::logStateToBuffer(DebugDumpWrapper &debugDump) const {
@@ -418,10 +415,14 @@ bool GnssSession::postAsyncResultEvent(uint32_t instanceId, bool success,
       event->reserved = 0;
       event->cookie = cookie;
 
-      EventLoopManagerSingleton::get()->getEventLoop().postEventOrDie(
-          CHRE_EVENT_GNSS_ASYNC_RESULT, event, freeEventDataCallback,
-          instanceId);
-      eventPosted = true;
+      eventPosted =
+          EventLoopManagerSingleton::get()->getEventLoop().postEventOrDie(
+              CHRE_EVENT_GNSS_ASYNC_RESULT, event, freeEventDataCallback,
+              instanceId);
+
+      if (!eventPosted) {
+        memoryFree(event);
+      }
     }
   }
 
@@ -464,15 +465,10 @@ void GnssSession::handleStatusChangeSync(bool enabled, uint8_t errorCode) {
 
   // If a previous setting change event is pending process, do that first.
   if (mSettingChangePending) {
+    handleLocationSettingChange(getSettingState(Setting::LOCATION));
     mSettingChangePending = false;
-    mInternalRequestPending =
-        handleLocationSettingChange(getSettingState(Setting::LOCATION));
-  }
-
-  // If we didn't issue an internally-generated update via
-  // handleLocationSettingChange(), process pending nanoapp requests (otherwise,
-  // wait for it to finish, then process any pending requests)
-  if (!mInternalRequestPending) {
+  } else {
+    // Dispatch pending state transition until first one succeeds
     dispatchQueuedStateTransitions();
   }
 }
