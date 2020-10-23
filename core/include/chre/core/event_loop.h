@@ -152,21 +152,19 @@ class EventLoop : public NonCopyable {
    * Posts an event to a nanoapp that is currently running (or all nanoapps if
    * the target instance ID is kBroadcastInstanceId). A senderInstanceId cannot
    * be provided to this method because it should only be used to post events
-   * sent by the system. If the event fails to post and the event loop thread is
-   * running, this is considered a fatal error. If the thread is not running
-   * (e.g. CHRE is shutting down), the event is silently dropped and the free
-   * callback is invoked prior to returning (if not null).
+   * sent by the system. If the event fails to post, this is considered a fatal
+   * error.
    *
    * @see postLowPriorityEventOrFree
    */
-  void postEventOrDie(uint16_t eventType, void *eventData,
+  bool postEventOrDie(uint16_t eventType, void *eventData,
                       chreEventCompleteFunction *freeCallback,
                       uint32_t targetInstanceId = kBroadcastInstanceId);
 
   /**
    * Posts an event to a nanoapp that is currently running (or all nanoapps if
    * the target instance ID is kBroadcastInstanceId). If the event fails to
-   * post, freeCallback is invoked prior to returning (if not null).
+   * post, it is freed with freeCallback.
    *
    * This function is safe to call from any thread.
    *
