@@ -56,6 +56,7 @@
  *  chre_power_test_client sensor <optional: tcm> <enable> <sensor_type>
  *                                <interval_ns> <optional: latency_ns>
  *  chre_power_test_client breakit <optional: tcm> <enable>
+ *  chre_power_test_client gnss_meas <optional: tcm> <enable> <interval_ms>
  *
  * Command:
  *  load: load power test nanoapp to CHRE
@@ -68,6 +69,7 @@
  *  audio: start/stop periodic audio capture
  *  sensor: start/stop periodic sensor sampling
  *  breakit: start/stop all action for stress tests
+ *  gnss_meas: start/stop periodic GNSS measurement
  *
  * <optional: tcm>: tcm for micro image, default for big image
  * <enable>: enable/disable
@@ -84,6 +86,7 @@
  *  light
  *  proximity
  *  step
+ *  step_counter
  *  uncalibrated_accelerometer
  *  accelerometer_temperature
  *  gyroscope_temperature
@@ -137,7 +140,8 @@ enum class Command : uint32_t {
   kCell,
   kAudio,
   kSensor,
-  kBreakIt
+  kBreakIt,
+  kGnssMeas
 };
 
 std::unordered_map<string, Command> commandMap{
@@ -145,7 +149,8 @@ std::unordered_map<string, Command> commandMap{
     {"unload", Command::kUnload},       {"timer", Command::kTimer},
     {"wifi", Command::kWifi},           {"gnss", Command::kGnss},
     {"cell", Command::kCell},           {"audio", Command::kAudio},
-    {"sensor", Command::kSensor},       {"breakit", Command::kBreakIt}};
+    {"sensor", Command::kSensor},       {"breakit", Command::kBreakIt},
+    {"gnss_meas", Command::kGnssMeas}};
 
 std::unordered_map<string, MessageType> messageTypeMap{
     {"timer", MessageType::TIMER_TEST},
@@ -154,7 +159,8 @@ std::unordered_map<string, MessageType> messageTypeMap{
     {"cell", MessageType::CELL_QUERY_TEST},
     {"audio", MessageType::AUDIO_REQUEST_TEST},
     {"sensor", MessageType::SENSOR_REQUEST_TEST},
-    {"breakit", MessageType::BREAK_IT_TEST}};
+    {"breakit", MessageType::BREAK_IT_TEST},
+    {"gnss_meas", MessageType::GNSS_MEASUREMENT_TEST}};
 
 std::unordered_map<string, SensorType> sensorTypeMap{
     {"accelerometer", SensorType::ACCELEROMETER},
@@ -168,6 +174,7 @@ std::unordered_map<string, SensorType> sensorTypeMap{
     {"light", SensorType::LIGHT},
     {"proximity", SensorType::PROXIMITY},
     {"step", SensorType::STEP_DETECT},
+    {"step_counter", SensorType::STEP_COUNTER},
     {"uncalibrated_accelerometer", SensorType::UNCALIBRATED_ACCELEROMETER},
     {"accelerometer_temperature", SensorType::ACCELEROMETER_TEMPERATURE},
     {"gyroscope_temperature", SensorType::GYROSCOPE_TEMPERATURE},
@@ -571,6 +578,15 @@ void createBreakItMessage(FlatBufferBuilder &fbb, std::vector<string> &args) {
   LOGI("Created BreakItMessage, enable %d", enable);
 }
 
+void createGnssMeasMessage(FlatBufferBuilder &fbb, std::vector<string> &args) {
+  bool enable = (args[1] == "enable");
+  uint32_t intervalMilliseconds = getMilliseconds(args, 2);
+  fbb.Finish(
+      ptest::CreateGnssMeasurementMessage(fbb, enable, intervalMilliseconds));
+  LOGI("Created GnssMeasurementMessage, enable %d, interval ms %" PRIu32,
+       enable, intervalMilliseconds);
+}
+
 bool sendMessageToNanoapp(SocketClient &client, sp<SocketCallbacks> callbacks,
                           FlatBufferBuilder &fbb, uint64_t appId,
                           MessageType messageType) {
@@ -613,7 +629,8 @@ static void usage() {
       " chre_power_test_client audio <optional: tcm> <enable> <duration_ns>\n"
       " chre_power_test_client sensor <optional: tcm> <enable> <sensor_type>"
       " <interval_ns> <optional: latency_ns>\n"
-      " chre_power_test_client <optional: tcm> <enable>\n"
+      " chre_power_test_client breakit <optional: tcm> <enable>\n"
+      " chre_power_test_client gnss_meas <optional: tcm> <enable> <interval_ms>"
       "\n"
       "Command:\n"
       "load: load power test nanoapp to CHRE\n"
@@ -626,6 +643,7 @@ static void usage() {
       "audio: start/stop periodic audio capture\n"
       "sensor: start/stop periodic sensor sampling\n"
       "breakit: start/stop all action for stress tests\n"
+      "gnss_meas: start/stop periodic GNSS measurement\n"
       "\n"
       "<optional: tcm>: tcm for micro image, default for big image\n"
       "<enable>: enable/disable\n"
@@ -680,6 +698,10 @@ void createRequestMessage(Command commandEnum, FlatBufferBuilder &fbb,
     }
     case Command::kBreakIt: {
       createBreakItMessage(fbb, args);
+      break;
+    }
+    case Command::kGnssMeas: {
+      createGnssMeasMessage(fbb, args);
       break;
     }
     default: {

@@ -54,7 +54,7 @@ void setSettingState(Setting setting, SettingState state) {
 }
 
 const char *getSettingStateString(Setting setting) {
-  switch (getSettingState(Setting::LOCATION)) {
+  switch (getSettingState(setting)) {
     case SettingState::ENABLED:
       return "enabled";
       break;
@@ -86,8 +86,7 @@ void postSettingChange(Setting setting, SettingState state) {
   NestedDataPtr<SettingChange> nestedPtr(SettingChange(setting, state));
 
   auto callback = [](uint16_t /* type */, void *data) {
-    NestedDataPtr<SettingChange> setting;
-    setting.dataPtr = data;
+    NestedDataPtr<SettingChange> setting(data);
     setSettingState(setting.data.setting, setting.data.state);
 #ifdef CHRE_GNSS_SUPPORT_ENABLED
     EventLoopManagerSingleton::get()->getGnssManager().onSettingChanged(
@@ -112,6 +111,10 @@ SettingState getSettingState(Setting setting) {
 void logSettingStateToBuffer(DebugDumpWrapper &debugDump) {
   debugDump.print("\nSettings:");
   debugDump.print("\n Location %s", getSettingStateString(Setting::LOCATION));
+  debugDump.print("\n WiFi available %s",
+                  getSettingStateString(Setting::WIFI_AVAILABLE));
+  debugDump.print("\n Airplane mode %s",
+                  getSettingStateString(Setting::AIRPLANE_MODE));
 }
 
 }  // namespace chre
