@@ -97,8 +97,11 @@ class GnssSession {
    * necessary according to the new state.
    *
    * @param state The new setting state.
+   *
+   * @return true if the location setting change resulted in dispatching an
+   *         internal request to control the platform layer
    */
-  void handleLocationSettingChange(SettingState state);
+  bool handleLocationSettingChange(SettingState state);
 
   /**
    * Prints state in a string buffer. Must only be called from the context of
@@ -174,7 +177,7 @@ class GnssSession {
   ArrayQueue<StateTransition, kMaxGnssStateTransitions> mStateTransitions;
 
   //! The list of most recent session request logs
-  static constexpr size_t kNumSessionRequestLogs = 8;
+  static constexpr size_t kNumSessionRequestLogs = 10;
   ArrayQueue<SessionRequestLog, kNumSessionRequestLogs> mSessionRequestLogs;
 
   //! The request multiplexer for GNSS session requests.
