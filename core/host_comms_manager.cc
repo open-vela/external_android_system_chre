@@ -26,6 +26,15 @@ namespace chre {
 
 constexpr uint32_t kMessageToHostReservedFieldValue = UINT32_MAX;
 
+void HostCommsManager::flushMessagesSentByNanoapp(uint64_t appId) {
+  mHostLink.flushMessagesSentByNanoapp(appId);
+}
+
+void HostCommsManager::sendLogMessage(const char *logMessage,
+                                      size_t logMessageSize) {
+  mHostLink.sendLogMessage(logMessage, logMessageSize);
+}
+
 bool HostCommsManager::sendMessageToHostFromNanoapp(
     Nanoapp *nanoapp, void *messageData, size_t messageSize,
     uint32_t messageType, uint16_t hostEndpoint,
@@ -60,7 +69,7 @@ bool HostCommsManager::sendMessageToHostFromNanoapp(
                               .getPowerControlManager()
                               .hostIsAwake();
 
-      success = HostLink::sendMessage(msgToHost);
+      success = mHostLink.sendMessage(msgToHost);
       if (!success) {
         mMessagePool.deallocate(msgToHost);
       } else if (!hostWasAwake && !mIsNanoappBlamedForWakeup) {
@@ -106,20 +115,22 @@ bool HostCommsManager::deliverNanoappMessageFromHost(
     MessageFromHost *craftedMessage) {
   const EventLoop &eventLoop = EventLoopManagerSingleton::get()->getEventLoop();
   uint32_t targetInstanceId;
-  bool nanoappFound = false;
+  bool success = false;
 
   CHRE_ASSERT_LOG(craftedMessage != nullptr,
                   "Cannot deliver NULL pointer nanoapp message from host");
 
   if (eventLoop.findNanoappInstanceIdByAppId(craftedMessage->appId,
                                              &targetInstanceId)) {
-    nanoappFound = true;
-    EventLoopManagerSingleton::get()->getEventLoop().postEventOrDie(
-        CHRE_EVENT_MESSAGE_FROM_HOST, &craftedMessage->fromHostData,
-        freeMessageFromHostCallback, targetInstanceId);
+    success = true;
+    if (!EventLoopManagerSingleton::get()->getEventLoop().postEventOrDie(
+            CHRE_EVENT_MESSAGE_FROM_HOST, &craftedMessage->fromHostData,
+            freeMessageFromHostCallback, targetInstanceId)) {
+      mMessagePool.deallocate(craftedMessage);
+    }
   }
 
-  return nanoappFound;
+  return success;
 }
 
 void HostCommsManager::sendMessageToNanoappFromHost(uint64_t appId,

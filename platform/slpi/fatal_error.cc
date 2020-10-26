@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "chre/platform/fatal_error.h"
+#include "chre/target_platform/assert.h"
 
 namespace chre {
 
