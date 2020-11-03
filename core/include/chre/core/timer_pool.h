@@ -60,30 +60,30 @@ class TimerPool : public NonCopyable {
   TimerHandle setNanoappTimer(const Nanoapp *nanoapp, Nanoseconds duration,
                               const void *cookie, bool isOneShot) {
     CHRE_ASSERT(nanoapp != nullptr);
-    return setTimer(nanoapp->getInstanceId(), duration, cookie,
-                    nullptr /* systemCallback */,
-                    SystemCallbackType::FirstCallbackType, isOneShot);
+    return setTimer(nanoapp->getInstanceId(), duration, nullptr /* callback */,
+                    CHRE_EVENT_TIMER, cookie, isOneShot);
   }
 
   /**
    * Requests a timer for a system callback. When the timer expires, the
    * specified SystemCallbackFunction will be processed in the context of the
    * main CHRE event loop. Note that it is not immediately invoked when the
-   * timer expires. If no system timers are available, this method will trigger
-   * a fatal error.
+   * timer expires. If no system timers are available, this method will fatally
+   * error.
    *
-   * Safe to invoke from any thread.
+   * TODO: Consider adding a way to directly invoke a callback after the delay
+   *       rather than posting an event.
    *
    * @param duration The duration to set the timer for.
    * @param callback The callback to invoke when the timer expires.
    * @param callbackType The type of this callback.
-   * @param data Arbitrary data to pass to the callback. Note that extraData is
-   *        always given to the callback as nullptr.
+   * @param cookie A cookie to pass to this callback.
    * @return TimerHandle of the requested timer.
    */
   TimerHandle setSystemTimer(Nanoseconds duration,
-                             SystemEventCallbackFunction *callback,
-                             SystemCallbackType callbackType, void *data);
+                             SystemCallbackFunction *callback,
+                             SystemCallbackType callbackType,
+                             const void *cookie);
 
   /**
    * Cancels a timer given a handle.
@@ -112,22 +112,26 @@ class TimerPool : public NonCopyable {
    * Tracks metadata associated with a request for a timed event.
    */
   struct TimerRequest {
-    //! The instance ID from which this request was made
+    //! The instance ID from which this request was made.
     uint32_t instanceId;
+
+    //! The TimerHandle assigned to this request.
     TimerHandle timerHandle;
+
+    //! The time when the request was made.
     Nanoseconds expirationTime;
+
+    //! The requested duration of the timer.
     Nanoseconds duration;
 
-    //! The cookie pointer to be passed as an event to the requesting nanoapp,
-    //! or data pointer for system callbacks.
+    //! The callback to invoked after the timer event is posted to CHRE.
+    SystemCallbackFunction *callback;
+
+    //! The cookie pointer to be passed as an event to the requesting nanoapp.
     const void *cookie;
 
-    //! If a system timer (instanceId == kSystemInstanceId), callback to invoke
-    //! after the timer expires, otherwise nullptr
-    SystemEventCallbackFunction *systemCallback;
-
-    //! Only relevant if this is a system timer
-    SystemCallbackType callbackType;
+    //! The event type to post when the timer expires.
+    uint16_t eventType;
 
     //! Whether or not the request is a one shot or should be rescheduled.
     bool isOneShot;
@@ -182,16 +186,13 @@ class TimerPool : public NonCopyable {
    * @param instanceId The instance ID of the caller.
    * @param duration The duration of the timer.
    * @param cookie A cookie to pass to the app when the timer elapses.
-   * @param systemCallback Callback to invoke (only for system-started timers).
-   * @param callbackType Identifier to pass to the callback.
    * @param isOneShot false if the timer is expected to auto-reload.
    * @return TimerHandle of the requested timer. Returns CHRE_TIMER_INVALID if
    *         not successful.
    */
   TimerHandle setTimer(uint32_t instanceId, Nanoseconds duration,
-                       const void *cookie,
-                       SystemEventCallbackFunction *systemCallback,
-                       SystemCallbackType callbackType, bool isOneShot);
+                       SystemCallbackFunction *callback, uint16_t eventType,
+                       const void *cookie, bool isOneShot);
 
   /**
    * Cancels a timer given a handle.
@@ -271,7 +272,7 @@ class TimerPool : public NonCopyable {
    * Sets the underlying system timer to the next timer in the timer list if
    * available.
    *
-   * @return true if at least one timer had expired
+   * @return true if any timer events were posted
    */
   bool handleExpiredTimersAndScheduleNext();
 
@@ -279,7 +280,7 @@ class TimerPool : public NonCopyable {
    * Same as handleExpiredTimersAndScheduleNext(), except mMutex must be
    * acquired prior to calling this function.
    *
-   * @return true if at least one timer had expired
+   * @return true if any timer events were posted
    */
   bool handleExpiredTimersAndScheduleNextLocked();
 

@@ -239,7 +239,7 @@ class GenericContextHubBase : public IContexthubT {
       uint32_t targetApiVersion = (appBinary.targetChreApiMajorVersion << 24) |
                                   (appBinary.targetChreApiMinorVersion << 16);
       mPendingLoadTransaction = FragmentedLoadTransaction(
-          transactionId, appBinary.appId, appBinary.appVersion, appBinary.flags,
+          transactionId, appBinary.appId, appBinary.appVersion,
           targetApiVersion, appBinary.customBinary, kLoadFragmentSizeBytes);
 
       result =
