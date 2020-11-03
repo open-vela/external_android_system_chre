@@ -31,8 +31,7 @@ enum MessageType {
 enum Step {
   // The initial step where no action is performed.
   INIT = 0;
-  // The step where the nanoapp is configured to monitor for wifi scans and the
-  // scan results threshold message is sent.
+  // The step where the nanoapp is configured to monitor for wifi scans.
   SETUP = 1;
   // The validate step where the data is gathered and compared.
   VALIDATE = 2;
@@ -68,8 +67,4 @@ message WifiScanResult {
  */
 message WifiCapabilities {
   optional uint32 wifiCapabilities = 1;
-}
-
-message UseScanResultsSizeThreshold {
-  optional bool useThreshold = 1;
 }

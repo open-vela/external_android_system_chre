@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#include "send_message.h"
-
 #include <chre.h>
 #include <pb_encode.h>
 #include <cinttypes>
@@ -28,25 +26,11 @@
 #define LOG_TAG "[TestShared]"
 
 namespace chre {
+
 namespace test_shared {
-namespace {
 
-bool encodeErrorMessage(pb_ostream_t *stream, const pb_field_t * /*field*/,
-                        void *const *arg) {
-  const char *str = static_cast<const char *>(const_cast<const void *>(*arg));
-  size_t len = strlen(str);
-  return pb_encode_tag_for_field(
-             stream, &chre_test_common_TestResult_fields
-                         [chre_test_common_TestResult_errorMessage_tag - 1]) &&
-         pb_encode_string(stream, reinterpret_cast<const pb_byte_t *>(str),
-                          len);
-}
-
-}  // namespace
-
-void sendTestResultWithMsgToHost(uint16_t hostEndpointId, uint32_t messageType,
-                                 bool success, const char *errMessage,
-                                 bool abortOnFailure) {
+void sendTestResultToHost(uint16_t hostEndpointId, uint32_t messageType,
+                          bool success) {
   // Unspecified endpoint is not allowed in chreSendMessageToHostEndpoint.
   if (hostEndpointId == CHRE_HOST_ENDPOINT_UNSPECIFIED) {
     hostEndpointId = CHRE_HOST_ENDPOINT_BROADCAST;
@@ -58,11 +42,6 @@ void sendTestResultWithMsgToHost(uint16_t hostEndpointId, uint32_t messageType,
   result.has_code = true;
   result.code = success ? chre_test_common_TestResult_Code_PASSED
                         : chre_test_common_TestResult_Code_FAILED;
-  if (!success && errMessage != nullptr) {
-    result.errorMessage = {.funcs = {.encode = encodeErrorMessage},
-                           .arg = const_cast<char *>(errMessage)};
-    LOGE("%s", errMessage);
-  }
   size_t size;
   if (!pb_get_encoded_size(&size, chre_test_common_TestResult_fields,
                            &result)) {
@@ -83,15 +62,10 @@ void sendTestResultWithMsgToHost(uint16_t hostEndpointId, uint32_t messageType,
     }
   }
 
-  if (!success && abortOnFailure) {
+  // Abort to ensure test does not continue
+  if (!success) {
     chreAbort(0);
   }
-}
-
-void sendTestResultToHost(uint16_t hostEndpointId, uint32_t messageType,
-                          bool success) {
-  sendTestResultWithMsgToHost(hostEndpointId, messageType, success,
-                              nullptr /* errMessage */);
 }
 
 void sendEmptyMessageToHost(uint16_t hostEndpointId, uint32_t messageType) {

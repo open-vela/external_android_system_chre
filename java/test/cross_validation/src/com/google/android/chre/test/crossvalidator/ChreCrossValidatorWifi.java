@@ -40,7 +40,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import org.junit.Assert;
 import org.junit.Assume;
 
-import java.util.Collections;
+import java.math.BigInteger;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -48,8 +48,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class ChreCrossValidatorWifi extends ChreCrossValidatorBase {
-    private static final long AWAIT_STEP_RESULT_MESSAGE_TIMEOUT_SEC = 7;
-    private static final long AWAIT_WIFI_SCAN_RESULT_TIMEOUT_SEC = 30;
+    private static final long AWAIT_STEP_RESULT_MESSAGE_TIMEOUT_MS = 1000; // 1 sec
+    private static final long AWAIT_WIFI_SCAN_RESULT_TIMEOUT_MS = 3000; // 3 sec
 
     private static final long NANO_APP_ID = 0x476f6f6754000005L;
 
@@ -59,8 +59,6 @@ public class ChreCrossValidatorWifi extends ChreCrossValidatorBase {
      */
     private static final int WIFI_CAPABILITIES_SCAN_MONITORING = 1;
     private static final int WIFI_CAPABILITIES_ON_DEMAND_SCAN = 2;
-
-    private static final int NUM_BYTES_IN_SCAN_RESULT_BSSID = 6;
 
     AtomicReference<Step> mStep = new AtomicReference<Step>(Step.INIT);
     AtomicBoolean mDidReceiveNanoAppMessage = new AtomicBoolean(false);
@@ -112,7 +110,6 @@ public class ChreCrossValidatorWifi extends ChreCrossValidatorBase {
 
         mCollectingData.set(true);
         sendStepStartMessage(Step.SETUP);
-
         waitForMessageFromNanoapp();
         mCollectingData.set(false);
 
@@ -166,7 +163,7 @@ public class ChreCrossValidatorWifi extends ChreCrossValidatorBase {
      */
     private void waitForMessageFromNanoapp() {
         try {
-            mAwaitDataLatch.await(AWAIT_STEP_RESULT_MESSAGE_TIMEOUT_SEC, TimeUnit.SECONDS);
+            mAwaitDataLatch.await(AWAIT_STEP_RESULT_MESSAGE_TIMEOUT_MS, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
             Assert.fail("Interrupted while awaiting " + getCurrentStepName() + " step");
         }
@@ -190,7 +187,7 @@ public class ChreCrossValidatorWifi extends ChreCrossValidatorBase {
 
     private void waitForApScanResults() {
         try {
-            mAwaitApWifiSetupScan.await(AWAIT_WIFI_SCAN_RESULT_TIMEOUT_SEC, TimeUnit.SECONDS);
+            mAwaitApWifiSetupScan.await(AWAIT_WIFI_SCAN_RESULT_TIMEOUT_MS, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
             Assert.fail("Interrupted while awaiting ap wifi scan result");
         }
@@ -288,42 +285,9 @@ public class ChreCrossValidatorWifi extends ChreCrossValidatorBase {
     }
 
     private static byte[] bssidToBytes(String bssid) {
-        String expectedBssidFormat =
-                String.join(":", Collections.nCopies(NUM_BYTES_IN_SCAN_RESULT_BSSID, "ff"));
-        Assert.assertTrue(
-                String.format("Bssid did not match expected format %s bssid = %s",
-                expectedBssidFormat, bssid), verifyBssid(bssid));
-        // the ScanResult.BSSID field comes in format ff:ff:ff:ff:ff:ff and needs to be converted to
+        // the ScanResult.BSSID field comes in format ff:ff:ff:ff:ff and needs to be converted to
         // bytes in order to be compared to CHRE bssid
-        String hexStringNoColon = bssid.replace(":" , "");
-        byte[] bytes = new byte[NUM_BYTES_IN_SCAN_RESULT_BSSID];
-        for (int i = 0; i < 6; i++) {
-            // Shift first byte digit left bitwise to raise value than add second digit of byte.
-            bytes[i] =
-                    (byte) ((Character.digit(hexStringNoColon.charAt(i * 2), 16) << 4)
-                    + Character.digit(hexStringNoColon.charAt(i * 2 + 1), 16));
-        }
-        return bytes;
-    }
-
-    /**
-     * Verify that the BSSID field from AP Wifi scan results is of the format:
-     * ff:ff:ff:.. where the number of bytes should equal to NUM_BYTES_IN_SCAN_RESULTS_BSSID
-     * and there should be a ':' between each byte.
-     *
-     * @param bssid The bssid field to verify.
-     */
-    private static boolean verifyBssid(String bssid) {
-        boolean passedVerification = (bssid.length() == NUM_BYTES_IN_SCAN_RESULT_BSSID * 3 - 1);
-        for (int i = 0; passedVerification && i < bssid.length(); i += 3) {
-            if ((Character.digit(bssid.charAt(i), 16) == -1)
-                    || (Character.digit(bssid.charAt(i + 1), 16) == -1)
-                    || ((i + 2 < bssid.length()) && (bssid.charAt(i + 2) != ':'))) {
-                passedVerification = false;
-                break;
-            }
-        }
-        return passedVerification;
+        return (new BigInteger(bssid.replace(":" , ""), 16)).toByteArray();
     }
 
     // TODO: Implement this method

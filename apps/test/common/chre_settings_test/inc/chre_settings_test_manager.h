@@ -40,7 +40,6 @@ class Manager {
     GNSS_LOCATION,
     GNSS_MEASUREMENT,
     WWAN_CELL_INFO,
-    AUDIO,
   };
 
   enum class FeatureState : uint8_t {
@@ -66,12 +65,12 @@ class Manager {
     FeatureState featureState;
     TestStep step;
 
-    TestSession(uint16_t id, Feature currentFeature, FeatureState state,
-                TestStep currentStep) {
+    TestSession(uint16_t id, Feature feature, FeatureState state,
+                TestStep step) {
       this->hostEndpointId = id;
-      this->feature = currentFeature;
+      this->feature = feature;
       this->featureState = state;
-      this->step = currentStep;
+      this->step = step;
     }
   };
 
@@ -143,19 +142,6 @@ class Manager {
    * @param result The WiFi scan event result.
    */
   void handleWifiScanResult(const chreWifiScanEvent *result);
-
-  /**
-   * @param event CHRE Audio Source Status Event
-   */
-  void handleAudioSourceStatusEvent(
-      const struct chreAudioSourceStatusEvent *event);
-
-  /**
-   * @param event CHRE Audio Data Event
-   */
-  void handleAudioDataEvent(const struct chreAudioDataEvent *event);
-
-  void handleTimeout();
 
   /**
    * End the current test session and sends result to host.
