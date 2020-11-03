@@ -29,28 +29,11 @@
 #include "chre/util/time.h"
 #include "chre_cross_validation_sensor.nanopb.h"
 
-#define LOG_TAG "[ChreCrossValidator]"
+#define LOG_TAG "ChreCrossValidator"
 
 namespace chre {
 
 namespace cross_validator_sensor {
-
-namespace {
-
-bool decodeSensorName(pb_istream_t *stream, const pb_field_s *field,
-                      void **arg) {
-  unsigned char *name = static_cast<unsigned char *>(*arg);
-
-  if (stream->bytes_left > kMaxSensorNameSize - 1) return false;
-
-  size_t bytesToCopy = stream->bytes_left;
-  if (!pb_read(stream, name, stream->bytes_left)) return false;
-  name[bytesToCopy] = '\0';
-
-  return true;
-}
-
-}  // namespace
 
 Manager::~Manager() {
   cleanup();
@@ -110,13 +93,6 @@ void Manager::handleEvent(uint32_t senderInstanceId, uint16_t eventType,
       break;
     case CHRE_EVENT_SENSOR_PROXIMITY_DATA:
       handleProximityData(static_cast<const chreSensorByteData *>(eventData));
-      break;
-    case CHRE_EVENT_SENSOR_STEP_COUNTER_DATA:
-      handleStepCounterData(
-          static_cast<const chreSensorUint64Data *>(eventData));
-      break;
-    case CHRE_EVENT_SENSOR_SAMPLING_CHANGE:
-      // Ignore sampling state changes
       break;
     default:
       LOGE("Got unknown event type from senderInstanceId %" PRIu32
@@ -186,27 +162,6 @@ bool Manager::encodeProximitySensorDatapointValue(pb_ostream_t *stream,
   }
   float isNearFloat = sensorFloatDataSample->isNear ? 0.0 : 1.0;
   if (!pb_encode_fixed32(stream, &isNearFloat)) {
-    return false;
-  }
-  return true;
-}
-
-bool Manager::encodeStepCounterSensorDatapointValue(pb_ostream_t *stream,
-                                                    const pb_field_t *field,
-                                                    void *const *arg) {
-  const auto *sensorUint64DataSample =
-      static_cast<const chreSensorUint64Data::chreSensorUint64SampleData *>(
-          *arg);
-  if (!pb_encode_tag_for_field(
-          stream,
-          &chre_cross_validation_sensor_SensorDatapoint_fields
-              [chre_cross_validation_sensor_SensorDatapoint_values_tag - 1])) {
-    return false;
-  }
-  // This value is casted to a float for the Java sensors framework so do it
-  // here to make it easier to encode into the existing proto message.
-  float stepValue = float(sensorUint64DataSample->value);
-  if (!pb_encode_fixed32(stream, &stepValue)) {
     return false;
   }
   return true;
@@ -295,34 +250,6 @@ bool Manager::encodeProximitySensorDatapoints(pb_ostream_t *stream,
   return true;
 }
 
-bool Manager::encodeStepCounterSensorDatapoints(pb_ostream_t *stream,
-                                                const pb_field_t *field,
-                                                void *const *arg) {
-  const auto *sensorStepCounterData =
-      static_cast<const chreSensorUint64Data *>(*arg);
-  uint64_t currentTimestamp = sensorStepCounterData->header.baseTimestamp +
-                              chreGetEstimatedHostTimeOffset();
-  for (size_t i = 0; i < sensorStepCounterData->header.readingCount; i++) {
-    const chreSensorUint64Data::chreSensorUint64SampleData &sampleData =
-        sensorStepCounterData->readings[i];
-    currentTimestamp += sampleData.timestampDelta;
-    if (!pb_encode_tag_for_field(
-            stream,
-            &chre_cross_validation_sensor_SensorData_fields
-                [chre_cross_validation_sensor_SensorData_datapoints_tag - 1])) {
-      return false;
-    }
-    chre_cross_validation_sensor_SensorDatapoint datapoint = makeDatapoint(
-        encodeStepCounterSensorDatapointValue, &sampleData, currentTimestamp);
-    if (!pb_encode_submessage(
-            stream, chre_cross_validation_sensor_SensorDatapoint_fields,
-            &datapoint)) {
-      return false;
-    }
-  }
-  return true;
-}
-
 bool Manager::handleStartSensorMessage(
     const chre_cross_validation_sensor_StartSensorCommand &startSensorCommand) {
   bool success = false;
@@ -332,17 +259,11 @@ bool Manager::handleStartSensorMessage(
   uint64_t latencyInNs =
       startSensorCommand.latencyInMs * kOneMillisecondInNanoseconds;
   bool isContinuous = startSensorCommand.isContinuous;
-  uint32_t sensorIndex = startSensorCommand.sensorIndex;
-
   uint32_t handle;
-  if (!getSensor(sensorType, sensorIndex, &handle)) {
-    LOGE("Could not find default sensor for sensorType %" PRIu8
-         " index %" PRIu32,
-         sensorType, sensorIndex);
+  if (!chreSensorFindDefault(sensorType, &handle)) {
+    LOGE("Could not find default sensor for sensorType %" PRIu8, sensorType);
     // TODO(b/146052784): Test other sensor configure modes
   } else {
-    LOGI("Starting x-validation for sensor type %" PRIu8 " index %" PRIu32,
-         sensorType, sensorIndex);
     chreSensorInfo sensorInfo;
     if (!chreGetSensorInfo(handle, &sensorInfo)) {
       LOGE("Error getting sensor info for sensor");
@@ -417,10 +338,6 @@ void Manager::handleInfoMessage(uint16_t hostEndpoint,
       static_cast<const pb_byte_t *>(hostData->message), hostData->messageSize);
   chre_cross_validation_sensor_SensorInfoCommand infoCommand =
       chre_cross_validation_sensor_SensorInfoCommand_init_default;
-
-  infoCommand.sensorName.funcs.decode = decodeSensorName;
-  infoCommand.sensorName.arg = mSensorNameArray;
-
   if (!pb_decode(&istream,
                  chre_cross_validation_sensor_SensorInfoCommand_fields,
                  &infoCommand)) {
@@ -430,31 +347,8 @@ void Manager::handleInfoMessage(uint16_t hostEndpoint,
     infoResponse.has_chreSensorType = true;
     infoResponse.chreSensorType = infoCommand.chreSensorType;
     infoResponse.has_isAvailable = true;
-    infoResponse.isAvailable = false;
-    infoResponse.has_sensorIndex = false;
-
-    bool supportsMultiSensors =
-        chreSensorFind(infoCommand.chreSensorType, 1, &handle);
-    for (uint8_t i = 0; chreSensorFind(infoCommand.chreSensorType, i, &handle);
-         i++) {
-      struct chreSensorInfo info;
-      if (!chreGetSensorInfo(handle, &info)) {
-        LOGE("Failed to get sensor info");
-      } else {
-        bool equal = true;
-        if (supportsMultiSensors) {
-          equal = (strcmp(info.sensorName, mSensorNameArray) == 0);
-          LOGI("Got sensor name %s in-name %s, equal %d", info.sensorName,
-               mSensorNameArray, equal);
-        }
-        if (equal) {
-          infoResponse.isAvailable = true;
-          infoResponse.has_sensorIndex = true;
-          infoResponse.sensorIndex = i;
-          break;
-        }
-      }
-    }
+    infoResponse.isAvailable =
+        chreSensorFindDefault(infoResponse.chreSensorType, &handle);
   }
 
   sendInfoResponse(hostEndpoint, infoResponse);
@@ -546,26 +440,6 @@ chre_cross_validation_sensor_Data Manager::makeSensorProximityData(
   return newData;
 }
 
-chre_cross_validation_sensor_Data Manager::makeSensorStepCounterData(
-    const chreSensorUint64Data *stepCounterDataFromChre) {
-  chre_cross_validation_sensor_SensorData newStepCounterData = {
-      .has_chreSensorType = true,
-      .chreSensorType = CHRE_SENSOR_TYPE_STEP_COUNTER,
-      .has_accuracy = true,
-      .accuracy = stepCounterDataFromChre->header.accuracy,
-      .datapoints = {
-          .funcs = {.encode = encodeStepCounterSensorDatapoints},
-          .arg = const_cast<chreSensorUint64Data *>(stepCounterDataFromChre)}};
-  chre_cross_validation_sensor_Data newData = {
-      .which_data = chre_cross_validation_sensor_Data_sensorData_tag,
-      .data =
-          {
-              .sensorData = newStepCounterData,
-          },
-  };
-  return newData;
-}
-
 void Manager::handleSensorThreeAxisData(
     const chreSensorThreeAxisData *threeAxisDataFromChre, uint8_t sensorType) {
   if (processSensorData(threeAxisDataFromChre->header, sensorType)) {
@@ -590,16 +464,6 @@ void Manager::handleProximityData(
                         CHRE_SENSOR_TYPE_PROXIMITY)) {
     chre_cross_validation_sensor_Data newData =
         makeSensorProximityData(proximityDataFromChre);
-    sendDataToHost(newData);
-  }
-}
-
-void Manager::handleStepCounterData(
-    const chreSensorUint64Data *stepCounterDataFromChre) {
-  if (processSensorData(stepCounterDataFromChre->header,
-                        CHRE_SENSOR_TYPE_STEP_COUNTER)) {
-    chre_cross_validation_sensor_Data newData =
-        makeSensorStepCounterData(stepCounterDataFromChre);
     sendDataToHost(newData);
   }
 }
@@ -660,22 +524,6 @@ bool Manager::processSensorData(const chreSensorDataHeader &header,
 
 bool Manager::sensorTypeIsValid(uint8_t sensorType) {
   return sensorType == mCrossValidatorState->sensorType;
-}
-
-bool Manager::getSensor(uint32_t sensorType, uint32_t sensorIndex,
-                        uint32_t *handle) {
-  bool success = false;
-
-  bool supportsMultiSensor = (chreGetApiVersion() >= CHRE_API_VERSION_1_5);
-  if (sensorIndex > UINT8_MAX) {
-    LOGE("CHRE only supports max of 255 sensor indices");
-  } else if (!supportsMultiSensor && sensorIndex != 0) {
-    LOGW("CHRE API does not support multi-sensors");
-  } else {
-    success = chreSensorFind(sensorType, sensorIndex, handle);
-  }
-
-  return success;
 }
 
 }  // namespace cross_validator_sensor

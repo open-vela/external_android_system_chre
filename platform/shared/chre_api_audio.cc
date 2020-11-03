@@ -18,7 +18,6 @@
 
 #include "chre/core/event_loop_manager.h"
 #include "chre/util/macros.h"
-#include "chre/util/system/napp_permissions.h"
 
 #ifdef CHRE_AUDIO_SUPPORT_ENABLED
 #include "chre/platform/platform_audio.h"
@@ -27,7 +26,6 @@
 using chre::EventLoopManager;
 using chre::EventLoopManagerSingleton;
 using chre::Nanoapp;
-using chre::NanoappPermissions;
 
 DLL_EXPORT bool chreAudioGetSource(uint32_t handle,
                                    struct chreAudioSource *audioSource) {
@@ -41,8 +39,6 @@ DLL_EXPORT bool chreAudioGetSource(uint32_t handle,
 
   return success;
 #else
-  UNUSED_VAR(handle);
-  UNUSED_VAR(audioSource);
   return false;
 #endif  // CHRE_AUDIO_SUPPORT_ENABLED
 }
@@ -52,16 +48,11 @@ DLL_EXPORT bool chreAudioConfigureSource(uint32_t handle, bool enable,
                                          uint64_t deliveryInterval) {
 #ifdef CHRE_AUDIO_SUPPORT_ENABLED
   Nanoapp *nanoapp = EventLoopManager::validateChreApiCall(__func__);
-  return nanoapp->permitPermissionUse(NanoappPermissions::CHRE_PERMS_AUDIO) &&
-         EventLoopManagerSingleton::get()
-             ->getAudioRequestManager()
-             .configureSource(nanoapp, handle, enable, bufferDuration,
-                              deliveryInterval);
+  return EventLoopManagerSingleton::get()
+      ->getAudioRequestManager()
+      .configureSource(nanoapp, handle, enable, bufferDuration,
+                       deliveryInterval);
 #else
-  UNUSED_VAR(handle);
-  UNUSED_VAR(enable);
-  UNUSED_VAR(bufferDuration);
-  UNUSED_VAR(deliveryInterval);
   return false;
 #endif  // CHRE_AUDIO_SUPPORT_ENABLED
 }
