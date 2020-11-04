@@ -45,16 +45,6 @@ class HostLinkBase {
   static bool flushOutboundQueue();
 
   /**
-   * Enqueues a log message to be sent to the host.
-   *
-   * @param logMessage Pointer to a buffer that has the log message. Note that
-   * the message might be encoded
-   *
-   * @param logMessageSize length of the log message buffer
-   */
-  void sendLogMessage(const uint8_t *logMessage, size_t logMessageSize);
-
-  /**
    * Attempts to flush the outbound queue and gracefully inform the host that we
    * are exiting.
    */

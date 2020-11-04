@@ -51,10 +51,10 @@ PlatformAudio::PlatformAudio() {}
 
 PlatformAudio::~PlatformAudio() {
   if (mAudioApi != nullptr) {
-    LOGV("Platform audio closing");
+    LOGD("Platform audio closing");
     prePalApiCall();
     mAudioApi->close();
-    LOGV("Platform audio closed");
+    LOGD("Platform audio closed");
   }
 }
 
