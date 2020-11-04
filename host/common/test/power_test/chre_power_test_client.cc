@@ -32,6 +32,7 @@
 #include <vector>
 
 #include "chre/util/nanoapp/app_id.h"
+#include "chre/util/system/napp_header_utils.h"
 #include "chre/version.h"
 #include "chre_host/host_protocol_host.h"
 #include "chre_host/log.h"
@@ -56,6 +57,7 @@
  *  chre_power_test_client sensor <optional: tcm> <enable> <sensor_type>
  *                                <interval_ns> <optional: latency_ns>
  *  chre_power_test_client breakit <optional: tcm> <enable>
+ *  chre_power_test_client gnss_meas <optional: tcm> <enable> <interval_ms>
  *
  * Command:
  *  load: load power test nanoapp to CHRE
@@ -68,6 +70,7 @@
  *  audio: start/stop periodic audio capture
  *  sensor: start/stop periodic sensor sampling
  *  breakit: start/stop all action for stress tests
+ *  gnss_meas: start/stop periodic GNSS measurement
  *
  * <optional: tcm>: tcm for micro image, default for big image
  * <enable>: enable/disable
@@ -84,6 +87,7 @@
  *  light
  *  proximity
  *  step
+ *  step_counter
  *  uncalibrated_accelerometer
  *  accelerometer_temperature
  *  gyroscope_temperature
@@ -137,7 +141,8 @@ enum class Command : uint32_t {
   kCell,
   kAudio,
   kSensor,
-  kBreakIt
+  kBreakIt,
+  kGnssMeas
 };
 
 std::unordered_map<string, Command> commandMap{
@@ -145,7 +150,8 @@ std::unordered_map<string, Command> commandMap{
     {"unload", Command::kUnload},       {"timer", Command::kTimer},
     {"wifi", Command::kWifi},           {"gnss", Command::kGnss},
     {"cell", Command::kCell},           {"audio", Command::kAudio},
-    {"sensor", Command::kSensor},       {"breakit", Command::kBreakIt}};
+    {"sensor", Command::kSensor},       {"breakit", Command::kBreakIt},
+    {"gnss_meas", Command::kGnssMeas}};
 
 std::unordered_map<string, MessageType> messageTypeMap{
     {"timer", MessageType::TIMER_TEST},
@@ -154,7 +160,8 @@ std::unordered_map<string, MessageType> messageTypeMap{
     {"cell", MessageType::CELL_QUERY_TEST},
     {"audio", MessageType::AUDIO_REQUEST_TEST},
     {"sensor", MessageType::SENSOR_REQUEST_TEST},
-    {"breakit", MessageType::BREAK_IT_TEST}};
+    {"breakit", MessageType::BREAK_IT_TEST},
+    {"gnss_meas", MessageType::GNSS_MEASUREMENT_TEST}};
 
 std::unordered_map<string, SensorType> sensorTypeMap{
     {"accelerometer", SensorType::ACCELEROMETER},
@@ -168,6 +175,7 @@ std::unordered_map<string, SensorType> sensorTypeMap{
     {"light", SensorType::LIGHT},
     {"proximity", SensorType::PROXIMITY},
     {"step", SensorType::STEP_DETECT},
+    {"step_counter", SensorType::STEP_COUNTER},
     {"uncalibrated_accelerometer", SensorType::UNCALIBRATED_ACCELEROMETER},
     {"accelerometer_temperature", SensorType::ACCELEROMETER_TEMPERATURE},
     {"gyroscope_temperature", SensorType::GYROSCOPE_TEMPERATURE},
@@ -274,7 +282,7 @@ bool requestNanoappList(SocketClient &client) {
 
 bool sendLoadNanoappRequest(SocketClient &client, const char *filename,
                             uint64_t appId, uint32_t appVersion,
-                            uint32_t apiVersion) {
+                            uint32_t apiVersion, bool tcmApp) {
   std::ifstream file(filename, std::ios::binary | std::ios::ate);
   if (!file) {
     LOGE("Couldn't open file '%s': %s", filename, strerror(errno));
@@ -290,10 +298,16 @@ bool sendLoadNanoappRequest(SocketClient &client, const char *filename,
     return false;
   }
 
+  // All loaded nanoapps must be signed currently.
+  uint32_t appFlags = CHRE_NAPP_HEADER_SIGNED;
+  if (tcmApp) {
+    appFlags |= CHRE_NAPP_HEADER_TCM_CAPABLE;
+  }
+
   // Perform loading with 1 fragment for simplicity
   FlatBufferBuilder builder(size + 128);
   FragmentedLoadTransaction transaction = FragmentedLoadTransaction(
-      1 /* transactionId */, appId, appVersion, apiVersion, buffer,
+      1 /* transactionId */, appId, appVersion, appFlags, apiVersion, buffer,
       buffer.size() /* fragmentSize */);
   HostProtocolHost::encodeFragmentedLoadNanoappRequest(
       builder, transaction.getNextRequest());
@@ -311,9 +325,9 @@ bool sendLoadNanoappRequest(SocketClient &client, const char *filename,
 
 bool loadNanoapp(SocketClient &client, sp<SocketCallbacks> callbacks,
                  const char *filename, uint64_t appId, uint32_t appVersion,
-                 uint32_t apiVersion) {
-  if (!sendLoadNanoappRequest(client, filename, appId, appVersion,
-                              apiVersion)) {
+                 uint32_t apiVersion, bool tcmApp) {
+  if (!sendLoadNanoappRequest(client, filename, appId, appVersion, apiVersion,
+                              tcmApp)) {
     return false;
   }
   auto status = kReadyCond.wait_for(kReadyCondLock, kTimeout);
@@ -377,11 +391,12 @@ bool unloadAllNanoapps(SocketClient &client, sp<SocketCallbacks> callbacks) {
   return true;
 }
 
+bool isTcmArgSpecified(std::vector<string> &args) {
+  return !args.empty() && args[0] == "tcm";
+}
+
 inline uint64_t getId(std::vector<string> &args) {
-  if (!args.empty() && args[0] == "tcm") {
-    return kPowerTestTcmAppId;
-  }
-  return kPowerTestAppId;
+  return isTcmArgSpecified(args) ? kPowerTestTcmAppId : kPowerTestAppId;
 }
 
 /**
@@ -571,6 +586,15 @@ void createBreakItMessage(FlatBufferBuilder &fbb, std::vector<string> &args) {
   LOGI("Created BreakItMessage, enable %d", enable);
 }
 
+void createGnssMeasMessage(FlatBufferBuilder &fbb, std::vector<string> &args) {
+  bool enable = (args[1] == "enable");
+  uint32_t intervalMilliseconds = getMilliseconds(args, 2);
+  fbb.Finish(
+      ptest::CreateGnssMeasurementMessage(fbb, enable, intervalMilliseconds));
+  LOGI("Created GnssMeasurementMessage, enable %d, interval ms %" PRIu32,
+       enable, intervalMilliseconds);
+}
+
 bool sendMessageToNanoapp(SocketClient &client, sp<SocketCallbacks> callbacks,
                           FlatBufferBuilder &fbb, uint64_t appId,
                           MessageType messageType) {
@@ -613,7 +637,8 @@ static void usage() {
       " chre_power_test_client audio <optional: tcm> <enable> <duration_ns>\n"
       " chre_power_test_client sensor <optional: tcm> <enable> <sensor_type>"
       " <interval_ns> <optional: latency_ns>\n"
-      " chre_power_test_client <optional: tcm> <enable>\n"
+      " chre_power_test_client breakit <optional: tcm> <enable>\n"
+      " chre_power_test_client gnss_meas <optional: tcm> <enable> <interval_ms>"
       "\n"
       "Command:\n"
       "load: load power test nanoapp to CHRE\n"
@@ -626,6 +651,7 @@ static void usage() {
       "audio: start/stop periodic audio capture\n"
       "sensor: start/stop periodic sensor sampling\n"
       "breakit: start/stop all action for stress tests\n"
+      "gnss_meas: start/stop periodic GNSS measurement\n"
       "\n"
       "<optional: tcm>: tcm for micro image, default for big image\n"
       "<enable>: enable/disable\n"
@@ -680,6 +706,10 @@ void createRequestMessage(Command commandEnum, FlatBufferBuilder &fbb,
     }
     case Command::kBreakIt: {
       createBreakItMessage(fbb, args);
+      break;
+    }
+    case Command::kGnssMeas: {
+      createGnssMeasMessage(fbb, args);
       break;
     }
     default: {
@@ -739,7 +769,7 @@ int main(int argc, char *argv[]) {
     }
     case Command::kLoad: {
       success = loadNanoapp(client, callbacks, getPath(args), getId(args),
-                            kAppVersion, kApiVersion);
+                            kAppVersion, kApiVersion, isTcmArgSpecified(args));
       break;
     }
     default: {
