@@ -35,7 +35,6 @@ constexpr uint8_t kAllSensorTypes[] = {
     CHRE_SENSOR_TYPE_LIGHT,
     CHRE_SENSOR_TYPE_PROXIMITY,
     CHRE_SENSOR_TYPE_STEP_DETECT,
-    CHRE_SENSOR_TYPE_STEP_COUNTER,
     CHRE_SENSOR_TYPE_UNCALIBRATED_ACCELEROMETER,
     CHRE_SENSOR_TYPE_ACCELEROMETER_TEMPERATURE,
     CHRE_SENSOR_TYPE_GYROSCOPE_TEMPERATURE,
@@ -62,7 +61,6 @@ chreSensorConfigureMode getModeForSensorType(uint8_t sensorType) {
     case CHRE_SENSOR_TYPE_LIGHT:
     case CHRE_SENSOR_TYPE_PROXIMITY:
     case CHRE_SENSOR_TYPE_STEP_DETECT:
-    case CHRE_SENSOR_TYPE_STEP_COUNTER:
     case CHRE_SENSOR_TYPE_UNCALIBRATED_ACCELEROMETER:
     case CHRE_SENSOR_TYPE_ACCELEROMETER_TEMPERATURE:
     case CHRE_SENSOR_TYPE_GYROSCOPE_TEMPERATURE:
@@ -113,7 +111,6 @@ using power_test::AudioRequestMessage;
 using power_test::BreakItMessage;
 using power_test::CellQueryMessage;
 using power_test::GnssLocationMessage;
-using power_test::GnssMeasurementMessage;
 using power_test::MessageType;
 using power_test::NanoappResponseMessage;
 using power_test::SensorRequestMessage;
@@ -125,8 +122,8 @@ bool RequestManager::requestTimer(bool enable, TimerType type,
   bool success = false;
   if (enable) {
     NestedDataPtr<TimerType> timerType(type);
-    uint32_t timerId =
-        chreTimerSet(delay.toRawNanoseconds(), timerType, false /* oneShot */);
+    uint32_t timerId = chreTimerSet(delay.toRawNanoseconds(), timerType.dataPtr,
+                                    false /* oneShot */);
     if (timerId != CHRE_TIMER_INVALID) {
       success = true;
     }
@@ -140,12 +137,8 @@ bool RequestManager::requestTimer(bool enable, TimerType type,
 }
 
 void RequestManager::wifiTimerCallback() const {
-  struct chreWifiScanParams params = {};
-  params.scanType = mWifiScanType;
-  params.radioChainPref = mWifiRadioChain;
-  bool success = chreWifiRequestScanAsync(&params, nullptr /*cookie*/);
-  LOGI("Requested WiFi - success %d, scanType %" PRIu8 " radioChain %" PRIu8,
-       success, mWifiScanType, mWifiRadioChain);
+  bool success = chreWifiRequestScanAsyncDefault(nullptr /* cookie */);
+  LOGI("Requested WiFi - success %d", success);
 }
 
 bool RequestManager::requestGnssLocation(
@@ -161,20 +154,6 @@ bool RequestManager::requestGnssLocation(
   LOGI("RequestGnss success %d, enable %d, scanIntervalMillis %" PRIu32
        " minTimeToNextFixMillis %" PRIu32,
        success, enable, scanIntervalMillis, minTimeToNextFixMillis);
-  return success;
-}
-
-bool RequestManager::requestGnssMeasurement(bool enable,
-                                            uint32_t intervalMillis) const {
-  bool success;
-  if (enable) {
-    success = chreGnssMeasurementSessionStartAsync(intervalMillis,
-                                                   nullptr /* cookie */);
-  } else {
-    success = chreGnssMeasurementSessionStopAsync(nullptr /* cookie */);
-  }
-  LOGI("RequestGnssMeasurement success %d, enable %d, intervalMillis %" PRIu32,
-       success, enable, intervalMillis);
   return success;
 }
 
@@ -270,7 +249,8 @@ bool RequestManager::requestBreakIt(bool enable) {
 
 void RequestManager::handleTimerEvent(const void *cookie) const {
   if (cookie != nullptr) {
-    NestedDataPtr<TimerType> timerType(const_cast<void *>(cookie));
+    NestedDataPtr<TimerType> timerType;
+    timerType.dataPtr = const_cast<void *>(cookie);
     switch (timerType.data) {
       case TimerType::WAKEUP:
         LOGI("Received a wakeup timer event");
@@ -306,8 +286,6 @@ bool RequestManager::handleMessageFromHost(
       case MessageType::WIFI_SCAN_TEST: {
         const WifiScanMessage *msg;
         if (verifyMessage<WifiScanMessage>(hostMessage, &msg)) {
-          mWifiScanType = static_cast<uint8_t>(msg->scan_type());
-          mWifiRadioChain = static_cast<uint8_t>(msg->radio_chain());
           success = requestTimer(msg->enable(), TimerType::WIFI,
                                  Nanoseconds(msg->scan_interval_ns()));
         }
@@ -350,14 +328,6 @@ bool RequestManager::handleMessageFromHost(
         const BreakItMessage *msg;
         if (verifyMessage<BreakItMessage>(hostMessage, &msg)) {
           success = requestBreakIt(msg->enable());
-        }
-        break;
-      }
-      case MessageType::GNSS_MEASUREMENT_TEST: {
-        const GnssMeasurementMessage *msg;
-        if (verifyMessage<GnssMeasurementMessage>(hostMessage, &msg)) {
-          success =
-              requestGnssMeasurement(msg->enable(), msg->min_interval_millis());
         }
         break;
       }

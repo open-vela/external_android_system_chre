@@ -16,10 +16,6 @@
 package com.google.android.chre.test.setting;
 
 import android.app.Instrumentation;
-import android.content.BroadcastReceiver;
-import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
 import android.hardware.location.NanoAppBinary;
 
 import androidx.test.InstrumentationRegistry;
@@ -28,9 +24,6 @@ import com.google.android.chre.nanoapp.proto.ChreSettingsTest;
 import com.google.android.utils.chre.ChreTestUtil;
 
 import org.junit.Assert;
-
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 /**
  * A test to check for behavior when WWAN settings are changed.
@@ -42,25 +35,8 @@ public class ContextHubWwanSettingsTestExecutor {
 
     private final Instrumentation mInstrumentation = InstrumentationRegistry.getInstrumentation();
 
-    private CountDownLatch mCountDownLatch = null;
-
     public ContextHubWwanSettingsTestExecutor(NanoAppBinary binary) {
         mExecutor = new ContextHubSettingsTestExecutor(binary);
-
-        Context context = InstrumentationRegistry.getTargetContext();
-        IntentFilter intentFilter = new
-                IntentFilter("android.intent.action.AIRPLANE_MODE_CHANGED");
-
-        BroadcastReceiver receiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                if (mCountDownLatch != null) {
-                    mCountDownLatch.countDown();
-                }
-            }
-        };
-
-        context.registerReceiver(receiver, intentFilter);
     }
 
     /**
@@ -96,6 +72,7 @@ public class ContextHubWwanSettingsTestExecutor {
             ChreTestUtil.executeShellCommand(
                     mInstrumentation, "cmd connectivity airplane-mode disable");
         }
+        Assert.assertTrue(isAirplaneModeOn() == enable);
     }
 
     /**
@@ -103,21 +80,11 @@ public class ContextHubWwanSettingsTestExecutor {
      * @param enableFeature True for enable.
      */
     private void runTest(boolean enableFeature) {
-        mCountDownLatch = new CountDownLatch(1);
-        boolean airplaneModeExpected = !enableFeature;
-        setAirplaneMode(airplaneModeExpected);
+        setAirplaneMode(!enableFeature);
 
-        if (isAirplaneModeOn() != airplaneModeExpected) {
-            try {
-                mCountDownLatch.await(5, TimeUnit.SECONDS);
-            } catch (InterruptedException e) {
-                Assert.fail(e.getMessage());
-            }
-        }
-        Assert.assertTrue(isAirplaneModeOn() == airplaneModeExpected);
-
+        // Wait for the setting to propagate
         try {
-            Thread.sleep(1000);  // wait for setting to propagate
+            Thread.sleep(10000);
         } catch (InterruptedException e) {
             Assert.fail(e.getMessage());
         }
