@@ -133,24 +133,6 @@ SensorState sensors[] = {
         .info = {},
     },
     {
-        .type = CHRE_SENSOR_TYPE_STEP_DETECT,
-        .handle = 0,
-        .isInitialized = false,
-        .enable = kEnableDefault,
-        .interval = CHRE_SENSOR_INTERVAL_DEFAULT,
-        .latency = CHRE_SENSOR_LATENCY_ASAP,
-        .info = {},
-    },
-    {
-        .type = CHRE_SENSOR_TYPE_STEP_COUNTER,
-        .handle = 0,
-        .isInitialized = false,
-        .enable = kEnableDefault,
-        .interval = CHRE_SENSOR_INTERVAL_DEFAULT,
-        .latency = CHRE_SENSOR_LATENCY_ASAP,
-        .info = {},
-    },
-    {
         .type = CHRE_SENSOR_TYPE_ACCELEROMETER_TEMPERATURE,
         .handle = 0,
         .isInitialized = false,
@@ -352,7 +334,6 @@ void nanoappHandleEvent(uint32_t senderInstanceId, uint16_t eventType,
       const auto *ev = static_cast<const chreSensorThreeAxisData *>(eventData);
       const auto header = ev->header;
       const auto *data = ev->readings;
-      const auto accuracy = header.accuracy;
       sampleTime = header.baseTimestamp;
 
       float x = 0, y = 0, z = 0;
@@ -366,9 +347,9 @@ void nanoappHandleEvent(uint32_t senderInstanceId, uint16_t eventType,
       y /= header.readingCount;
       z /= header.readingCount;
 
-      CLOGI("%s, %d samples: %f %f %f, accuracy: %u, t=%" PRIu64 " ms",
+      CLOGI("%s, %d samples: %f %f %f, t=%" PRIu64 " ms",
             getSensorName(header.sensorHandle), header.readingCount, x, y, z,
-            accuracy, header.baseTimestamp / kOneMillisecondInNanoseconds);
+            header.baseTimestamp / kOneMillisecondInNanoseconds);
 
       if (eventType == CHRE_EVENT_SENSOR_UNCALIBRATED_GYROSCOPE_DATA) {
         CLOGI("UncalGyro time: first %" PRIu64 " last %" PRIu64 " chre %" PRIu64
@@ -396,9 +377,8 @@ void nanoappHandleEvent(uint32_t senderInstanceId, uint16_t eventType,
       }
       v /= header.readingCount;
 
-      CLOGI("%s, %d samples: %f, accuracy = %u, t=%" PRIu64 " ms",
+      CLOGI("%s, %d samples: %f, t=%" PRIu64 " ms",
             getSensorName(header.sensorHandle), header.readingCount, v,
-            header.accuracy,
             header.baseTimestamp / kOneMillisecondInNanoseconds);
       break;
     }
@@ -409,9 +389,9 @@ void nanoappHandleEvent(uint32_t senderInstanceId, uint16_t eventType,
       const auto reading = ev->readings[0];
       sampleTime = header.baseTimestamp;
 
-      CLOGI("%s, %d samples: isNear %d, invalid %d, accuracy: %u",
+      CLOGI("%s, %d samples: isNear %d, invalid %d",
             getSensorName(header.sensorHandle), header.readingCount,
-            reading.isNear, reading.invalid, header.accuracy);
+            reading.isNear, reading.invalid);
 
       CLOGI("Prox time: sample %" PRIu64 " chre %" PRIu64 " delta %" PRId64
             "ms",
@@ -443,23 +423,12 @@ void nanoappHandleEvent(uint32_t senderInstanceId, uint16_t eventType,
     }
 
     case CHRE_EVENT_SENSOR_INSTANT_MOTION_DETECT_DATA:
-    case CHRE_EVENT_SENSOR_STATIONARY_DETECT_DATA:
-    case CHRE_EVENT_SENSOR_STEP_DETECT_DATA: {
+    case CHRE_EVENT_SENSOR_STATIONARY_DETECT_DATA: {
       const auto *ev = static_cast<const chreSensorOccurrenceData *>(eventData);
       const auto header = ev->header;
 
-      CLOGI("%s, %d samples, accuracy: %u", getSensorName(header.sensorHandle),
-            header.readingCount, header.accuracy);
-      break;
-    }
-
-    case CHRE_EVENT_SENSOR_STEP_COUNTER_DATA: {
-      const auto *ev = static_cast<const chreSensorUint64Data *>(eventData);
-      const auto header = ev->header;
-      const uint64_t reading = ev->readings[header.readingCount - 1].value;
-
-      CLOGI("%s, %" PRIu16 " samples: latest %" PRIu64,
-            getSensorName(header.sensorHandle), header.readingCount, reading);
+      CLOGI("%s, %d samples", getSensorName(header.sensorHandle),
+            header.readingCount);
       break;
     }
 
