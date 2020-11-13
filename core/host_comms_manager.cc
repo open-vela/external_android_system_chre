@@ -26,15 +26,6 @@ namespace chre {
 
 constexpr uint32_t kMessageToHostReservedFieldValue = UINT32_MAX;
 
-void HostCommsManager::flushMessagesSentByNanoapp(uint64_t appId) {
-  mHostLink.flushMessagesSentByNanoapp(appId);
-}
-
-void HostCommsManager::sendLogMessage(const char *logMessage,
-                                      size_t logMessageSize) {
-  mHostLink.sendLogMessage(logMessage, logMessageSize);
-}
-
 bool HostCommsManager::sendMessageToHostFromNanoapp(
     Nanoapp *nanoapp, void *messageData, size_t messageSize,
     uint32_t messageType, uint16_t hostEndpoint,
@@ -69,7 +60,7 @@ bool HostCommsManager::sendMessageToHostFromNanoapp(
                               .getPowerControlManager()
                               .hostIsAwake();
 
-      success = mHostLink.sendMessage(msgToHost);
+      success = HostLink::sendMessage(msgToHost);
       if (!success) {
         mMessagePool.deallocate(msgToHost);
       } else if (!hostWasAwake && !mIsNanoappBlamedForWakeup) {
@@ -115,22 +106,20 @@ bool HostCommsManager::deliverNanoappMessageFromHost(
     MessageFromHost *craftedMessage) {
   const EventLoop &eventLoop = EventLoopManagerSingleton::get()->getEventLoop();
   uint32_t targetInstanceId;
-  bool success = false;
+  bool nanoappFound = false;
 
   CHRE_ASSERT_LOG(craftedMessage != nullptr,
                   "Cannot deliver NULL pointer nanoapp message from host");
 
   if (eventLoop.findNanoappInstanceIdByAppId(craftedMessage->appId,
                                              &targetInstanceId)) {
-    success = true;
-    if (!EventLoopManagerSingleton::get()->getEventLoop().postEventOrDie(
-            CHRE_EVENT_MESSAGE_FROM_HOST, &craftedMessage->fromHostData,
-            freeMessageFromHostCallback, targetInstanceId)) {
-      mMessagePool.deallocate(craftedMessage);
-    }
+    nanoappFound = true;
+    EventLoopManagerSingleton::get()->getEventLoop().postEventOrDie(
+        CHRE_EVENT_MESSAGE_FROM_HOST, &craftedMessage->fromHostData,
+        freeMessageFromHostCallback, targetInstanceId);
   }
 
-  return success;
+  return nanoappFound;
 }
 
 void HostCommsManager::sendMessageToNanoappFromHost(uint64_t appId,
@@ -154,11 +143,11 @@ void HostCommsManager::sendMessageToNanoappFromHost(uint64_t appId,
            "(size %zu)",
            appId, messageSize);
     } else if (!deliverNanoappMessageFromHost(craftedMessage)) {
-      LOGD("Deferring message; destination app ID 0x%016" PRIx64
+      LOGV("Deferring message; destination app ID 0x%016" PRIx64
            " not found at this time",
            appId);
 
-      auto deferredMessageCallback = [](uint16_t /*type*/, void *data) {
+      auto callback = [](uint16_t /*type*/, void *data, void * /*extraData*/) {
         EventLoopManagerSingleton::get()
             ->getHostCommsManager()
             .sendDeferredMessageToNanoappFromHost(
@@ -166,7 +155,7 @@ void HostCommsManager::sendMessageToNanoappFromHost(uint64_t appId,
       };
       EventLoopManagerSingleton::get()->deferCallback(
           SystemCallbackType::DeferredMessageToNanoappFromHost, craftedMessage,
-          deferredMessageCallback);
+          callback);
     }
   }
 }
@@ -202,7 +191,8 @@ void HostCommsManager::onMessageToHostComplete(const MessageToHost *message) {
   if (msgToHost->toHostData.nanoappFreeFunction == nullptr) {
     mMessagePool.deallocate(msgToHost);
   } else {
-    auto freeMsgCallback = [](uint16_t /*type*/, void *data) {
+    auto freeMsgCallback = [](uint16_t /*type*/, void *data,
+                              void * /*extraData*/) {
       EventLoopManagerSingleton::get()->getHostCommsManager().freeMessageToHost(
           static_cast<MessageToHost *>(data));
     };
