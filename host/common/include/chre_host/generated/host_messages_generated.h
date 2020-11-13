@@ -94,27 +94,33 @@ struct MessageContainerT;
 /// An enum describing the setting type.
 enum class Setting : int8_t {
   LOCATION = 0,
+  WIFI_AVAILABLE = 1,
+  AIRPLANE_MODE = 2,
   MIN = LOCATION,
-  MAX = LOCATION
+  MAX = AIRPLANE_MODE
 };
 
-inline const Setting (&EnumValuesSetting())[1] {
+inline const Setting (&EnumValuesSetting())[3] {
   static const Setting values[] = {
-    Setting::LOCATION
+    Setting::LOCATION,
+    Setting::WIFI_AVAILABLE,
+    Setting::AIRPLANE_MODE
   };
   return values;
 }
 
 inline const char * const *EnumNamesSetting() {
-  static const char * const names[2] = {
+  static const char * const names[4] = {
     "LOCATION",
+    "WIFI_AVAILABLE",
+    "AIRPLANE_MODE",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameSetting(Setting e) {
-  if (flatbuffers::IsOutRange(e, Setting::LOCATION, Setting::LOCATION)) return "";
+  if (flatbuffers::IsOutRange(e, Setting::LOCATION, Setting::AIRPLANE_MODE)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesSetting()[index];
 }
@@ -1174,13 +1180,15 @@ struct LoadNanoappRequestT : public flatbuffers::NativeTable {
   uint32_t fragment_id;
   uint32_t total_app_size;
   std::vector<int8_t> app_binary_file_name;
+  uint32_t app_flags;
   LoadNanoappRequestT()
       : transaction_id(0),
         app_id(0),
         app_version(0),
         target_api_version(0),
         fragment_id(0),
-        total_app_size(0) {
+        total_app_size(0),
+        app_flags(0) {
   }
 };
 
@@ -1233,7 +1241,8 @@ struct LoadNanoappRequest FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
     VT_APP_BINARY = 12,
     VT_FRAGMENT_ID = 14,
     VT_TOTAL_APP_SIZE = 16,
-    VT_APP_BINARY_FILE_NAME = 18
+    VT_APP_BINARY_FILE_NAME = 18,
+    VT_APP_FLAGS = 20
   };
   uint32_t transaction_id() const {
     return GetField<uint32_t>(VT_TRANSACTION_ID, 0);
@@ -1289,6 +1298,14 @@ struct LoadNanoappRequest FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   flatbuffers::Vector<int8_t> *mutable_app_binary_file_name() {
     return GetPointer<flatbuffers::Vector<int8_t> *>(VT_APP_BINARY_FILE_NAME);
   }
+  /// The nanoapp flag values from the nanoapp header defined in
+  /// build/build_template.mk. Refer to that file for more details.
+  uint32_t app_flags() const {
+    return GetField<uint32_t>(VT_APP_FLAGS, 0);
+  }
+  bool mutate_app_flags(uint32_t _app_flags) {
+    return SetField<uint32_t>(VT_APP_FLAGS, _app_flags, 0);
+  }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<uint32_t>(verifier, VT_TRANSACTION_ID) &&
@@ -1301,6 +1318,7 @@ struct LoadNanoappRequest FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
            VerifyField<uint32_t>(verifier, VT_TOTAL_APP_SIZE) &&
            VerifyOffset(verifier, VT_APP_BINARY_FILE_NAME) &&
            verifier.VerifyVector(app_binary_file_name()) &&
+           VerifyField<uint32_t>(verifier, VT_APP_FLAGS) &&
            verifier.EndTable();
   }
   LoadNanoappRequestT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -1336,6 +1354,9 @@ struct LoadNanoappRequestBuilder {
   void add_app_binary_file_name(flatbuffers::Offset<flatbuffers::Vector<int8_t>> app_binary_file_name) {
     fbb_.AddOffset(LoadNanoappRequest::VT_APP_BINARY_FILE_NAME, app_binary_file_name);
   }
+  void add_app_flags(uint32_t app_flags) {
+    fbb_.AddElement<uint32_t>(LoadNanoappRequest::VT_APP_FLAGS, app_flags, 0);
+  }
   explicit LoadNanoappRequestBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -1358,9 +1379,11 @@ inline flatbuffers::Offset<LoadNanoappRequest> CreateLoadNanoappRequest(
     flatbuffers::Offset<flatbuffers::Vector<uint8_t>> app_binary = 0,
     uint32_t fragment_id = 0,
     uint32_t total_app_size = 0,
-    flatbuffers::Offset<flatbuffers::Vector<int8_t>> app_binary_file_name = 0) {
+    flatbuffers::Offset<flatbuffers::Vector<int8_t>> app_binary_file_name = 0,
+    uint32_t app_flags = 0) {
   LoadNanoappRequestBuilder builder_(_fbb);
   builder_.add_app_id(app_id);
+  builder_.add_app_flags(app_flags);
   builder_.add_app_binary_file_name(app_binary_file_name);
   builder_.add_total_app_size(total_app_size);
   builder_.add_fragment_id(fragment_id);
@@ -1380,7 +1403,8 @@ inline flatbuffers::Offset<LoadNanoappRequest> CreateLoadNanoappRequestDirect(
     const std::vector<uint8_t> *app_binary = nullptr,
     uint32_t fragment_id = 0,
     uint32_t total_app_size = 0,
-    const std::vector<int8_t> *app_binary_file_name = nullptr) {
+    const std::vector<int8_t> *app_binary_file_name = nullptr,
+    uint32_t app_flags = 0) {
   auto app_binary__ = app_binary ? _fbb.CreateVector<uint8_t>(*app_binary) : 0;
   auto app_binary_file_name__ = app_binary_file_name ? _fbb.CreateVector<int8_t>(*app_binary_file_name) : 0;
   return chre::fbs::CreateLoadNanoappRequest(
@@ -1392,7 +1416,8 @@ inline flatbuffers::Offset<LoadNanoappRequest> CreateLoadNanoappRequestDirect(
       app_binary__,
       fragment_id,
       total_app_size,
-      app_binary_file_name__);
+      app_binary_file_name__,
+      app_flags);
 }
 
 flatbuffers::Offset<LoadNanoappRequest> CreateLoadNanoappRequest(flatbuffers::FlatBufferBuilder &_fbb, const LoadNanoappRequestT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -2640,6 +2665,7 @@ inline void LoadNanoappRequest::UnPackTo(LoadNanoappRequestT *_o, const flatbuff
   { auto _e = fragment_id(); _o->fragment_id = _e; }
   { auto _e = total_app_size(); _o->total_app_size = _e; }
   { auto _e = app_binary_file_name(); if (_e) { _o->app_binary_file_name.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->app_binary_file_name[_i] = _e->Get(_i); } } }
+  { auto _e = app_flags(); _o->app_flags = _e; }
 }
 
 inline flatbuffers::Offset<LoadNanoappRequest> LoadNanoappRequest::Pack(flatbuffers::FlatBufferBuilder &_fbb, const LoadNanoappRequestT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -2658,6 +2684,7 @@ inline flatbuffers::Offset<LoadNanoappRequest> CreateLoadNanoappRequest(flatbuff
   auto _fragment_id = _o->fragment_id;
   auto _total_app_size = _o->total_app_size;
   auto _app_binary_file_name = _o->app_binary_file_name.size() ? _fbb.CreateVector(_o->app_binary_file_name) : 0;
+  auto _app_flags = _o->app_flags;
   return chre::fbs::CreateLoadNanoappRequest(
       _fbb,
       _transaction_id,
@@ -2667,7 +2694,8 @@ inline flatbuffers::Offset<LoadNanoappRequest> CreateLoadNanoappRequest(flatbuff
       _app_binary,
       _fragment_id,
       _total_app_size,
-      _app_binary_file_name);
+      _app_binary_file_name,
+      _app_flags);
 }
 
 inline LoadNanoappResponseT *LoadNanoappResponse::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
