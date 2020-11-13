@@ -139,6 +139,10 @@ table LoadNanoappRequest {
   /// Null-terminated ASCII string containing the file name that contains the
   /// app binary to be loaded.
   app_binary_file_name:[byte];
+
+  /// The nanoapp flag values from the nanoapp header defined in
+  /// build/build_template.mk. Refer to that file for more details.
+  app_flags:uint;
 }
 
 table LoadNanoappResponse {
@@ -231,6 +235,8 @@ table LowPowerMicAccessRelease {}
 /// An enum describing the setting type.
 enum Setting : byte {
   LOCATION = 0,
+  WIFI_AVAILABLE,
+  AIRPLANE_MODE,
 }
 
 /// An enum describing the state of a setting.
@@ -246,6 +252,25 @@ table SettingChangeMessage {
 
   /// The new setting value
   state:SettingState = DISABLED;
+}
+
+/// Represents V2 log messages from CHRE.
+table LogMessageV2 {
+  /// A buffer containing formatted log data. A flat array is used here to avoid
+  /// overhead in serializing and deserializing. The format is as follows:
+  ///
+  /// uint8_t                 - LogBuffer log level (1 = error, 2 = warn,
+  ///                                                3 = info,  4 = debug,
+  ///                                                5 = verbose)
+  /// uint32_t, little-endian - timestamp in milliseconds
+  /// char[]                  - message to log
+  /// char, \0                - null-terminator
+  ///
+  /// This pattern repeats until the end of the buffer for multiple log
+  /// messages. The last byte will always be a null-terminator. There are no
+  /// padding bytes between these fields. Treat this like a packed struct and be
+  /// cautious with unaligned access when reading/writing this buffer.
+  buffer:[byte];
 }
 
 /// A union that joins together all possible messages. Note that in FlatBuffers,
@@ -279,6 +304,8 @@ union ChreMessage {
   LowPowerMicAccessRelease,
 
   SettingChangeMessage,
+
+  LogMessageV2,
 }
 
 struct HostAddress {

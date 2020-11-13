@@ -59,6 +59,10 @@ class RequestManager {
   //! Holds the timer ID for each of the timer types.
   uint32_t mTimerIds[TimerType::NUM_TYPES] = {CHRE_TIMER_INVALID};
 
+  //! WiFi scan request parameters from host.
+  uint8_t mWifiScanType = CHRE_WIFI_SCAN_TYPE_ACTIVE;
+  uint8_t mWifiRadioChain = CHRE_WIFI_RADIO_CHAIN_PREF_DEFAULT;
+
   /**
    * Enables or disables break-it mode. When enabled, requests WiFi / GNSS /
    * Cell data at one second intervals, buffers audio at the fastest possible
@@ -106,6 +110,16 @@ class RequestManager {
    */
   bool requestGnssLocation(bool enable, uint32_t scanIntervalMillis,
                            uint32_t minTimeToNextFixMillis) const;
+
+  /**
+   * Enables / disables GNSS measurement sampling.
+   *
+   * @param enable whether to enable GNSS measurement sampling
+   * @param intervalMillis amount of time, in milliseconds, between each
+   *     GNSS measurement sample
+   * @return whether the request was successful
+   */
+  bool requestGnssMeasurement(bool enable, uint32_t intervalMillis) const;
 
   /**
    * Requests cell info. Should be invoked when a timer of TimerType::CELL
