@@ -30,13 +30,12 @@ TimerPool::TimerPool() {
 }
 
 TimerHandle TimerPool::setSystemTimer(Nanoseconds duration,
-                                      SystemEventCallbackFunction *callback,
+                                      SystemCallbackFunction *callback,
                                       SystemCallbackType callbackType,
-                                      void *data) {
-  CHRE_ASSERT(callback != nullptr);
-  TimerHandle timerHandle =
-      setTimer(kSystemInstanceId, duration, data, callback, callbackType,
-               true /* isOneShot */);
+                                      const void *cookie) {
+  TimerHandle timerHandle = setTimer(kSystemInstanceId, duration, callback,
+                                     static_cast<uint16_t>(callbackType),
+                                     cookie, true /* isOneShot */);
 
   if (timerHandle == CHRE_TIMER_INVALID) {
     FATAL_ERROR("Failed to set system timer");
@@ -46,9 +45,8 @@ TimerHandle TimerPool::setSystemTimer(Nanoseconds duration,
 }
 
 TimerHandle TimerPool::setTimer(uint32_t instanceId, Nanoseconds duration,
-                                const void *cookie,
-                                SystemEventCallbackFunction *systemCallback,
-                                SystemCallbackType callbackType,
+                                SystemCallbackFunction *callback,
+                                uint16_t eventType, const void *cookie,
                                 bool isOneShot) {
   LockGuard<Mutex> lock(mMutex);
 
@@ -57,10 +55,10 @@ TimerHandle TimerPool::setTimer(uint32_t instanceId, Nanoseconds duration,
   timerRequest.timerHandle = generateTimerHandleLocked();
   timerRequest.expirationTime = SystemTime::getMonotonicTime() + duration;
   timerRequest.duration = duration;
-  timerRequest.cookie = cookie;
-  timerRequest.systemCallback = systemCallback;
-  timerRequest.callbackType = callbackType;
   timerRequest.isOneShot = isOneShot;
+  timerRequest.callback = callback;
+  timerRequest.eventType = eventType;
+  timerRequest.cookie = cookie;
 
   bool newTimerExpiresEarliest =
       (!mTimerRequests.empty() && mTimerRequests.top() > timerRequest);
@@ -219,25 +217,16 @@ bool TimerPool::handleExpiredTimersAndScheduleNext() {
 }
 
 bool TimerPool::handleExpiredTimersAndScheduleNextLocked() {
-  bool handledExpiredTimer = false;
-
+  bool success = false;
   while (!mTimerRequests.empty()) {
     Nanoseconds currentTime = SystemTime::getMonotonicTime();
     TimerRequest &currentTimerRequest = mTimerRequests.top();
     if (currentTime >= currentTimerRequest.expirationTime) {
-      // This timer has expired, so post an event if it is a nanoapp timer, or
-      // submit a deferred callback if it's a system timer.
-      if (currentTimerRequest.instanceId == kSystemInstanceId) {
-        EventLoopManagerSingleton::get()->deferCallback(
-            currentTimerRequest.callbackType,
-            const_cast<void *>(currentTimerRequest.cookie),
-            currentTimerRequest.systemCallback);
-      } else {
-        EventLoopManagerSingleton::get()->getEventLoop().postEventOrDie(
-            CHRE_EVENT_TIMER, const_cast<void *>(currentTimerRequest.cookie),
-            nullptr /*freeCallback*/, currentTimerRequest.instanceId);
-      }
-      handledExpiredTimer = true;
+      // Post an event for an expired timer.
+      success = EventLoopManagerSingleton::get()->getEventLoop().postEventOrDie(
+          currentTimerRequest.eventType,
+          const_cast<void *>(currentTimerRequest.cookie),
+          currentTimerRequest.callback, currentTimerRequest.instanceId);
 
       // Reschedule the timer if needed, and release the current request.
       if (!currentTimerRequest.isOneShot) {
@@ -253,27 +242,26 @@ bool TimerPool::handleExpiredTimersAndScheduleNextLocked() {
         popTimerRequestLocked();
       }
     } else {
-      // Update the system timer to reflect the duration until the closest
-      // expiry (mTimerRequests is sorted by expiry, so we just do this for the
-      // first timer found which has not expired yet)
       Nanoseconds duration = currentTimerRequest.expirationTime - currentTime;
       mSystemTimer.set(handleSystemTimerCallback, this, duration);
+
+      // Assign success to true here to handle timers that tick before their
+      // expiration time. This should be rarely required, but for systems where
+      // a timer may tick earlier than requested the request is rescheduled with
+      // the remaining time as computed above.
+      success = true;
       break;
     }
   }
 
-  return handledExpiredTimer;
+  return success;
 }
 
 void TimerPool::handleSystemTimerCallback(void *timerPoolPtr) {
-  auto callback = [](uint16_t /*type*/, void *data, void * /*extraData*/) {
-    auto *timerPool = static_cast<TimerPool *>(data);
+  auto callback = [](uint16_t /* eventType */, void *eventData) {
+    auto *timerPool = static_cast<TimerPool *>(eventData);
     if (!timerPool->handleExpiredTimersAndScheduleNext()) {
-      // Means that the system timer invoked our callback before the next timer
-      // expired. Possible in rare race conditions with time removal, but could
-      // indicate a faulty SystemTimer implementation if this happens often. Not
-      // a major problem - we'll just reset the timer to the next expiration.
-      LOGW("Timer callback invoked prior to expiry");
+      LOGE("Timer callback invoked with no outstanding timers");
     }
   };
 
