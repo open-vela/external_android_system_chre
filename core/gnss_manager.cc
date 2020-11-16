@@ -20,7 +20,6 @@
 #include "chre/core/settings.h"
 #include "chre/platform/assert.h"
 #include "chre/platform/fatal_error.h"
-#include "chre/util/nested_data_ptr.h"
 #include "chre/util/system/debug_dump.h"
 
 namespace chre {
@@ -94,8 +93,8 @@ void GnssManager::logStateToBuffer(DebugDumpWrapper &debugDump) const {
 }
 
 GnssSession::GnssSession(uint16_t reportEventType)
-    : kReportEventType(reportEventType) {
-  switch (kReportEventType) {
+    : mReportEventType(reportEventType) {
+  switch (mReportEventType) {
     case CHRE_EVENT_GNSS_LOCATION:
       mStartRequestType = CHRE_GNSS_REQUEST_TYPE_LOCATION_SESSION_START;
       mStopRequestType = CHRE_GNSS_REQUEST_TYPE_LOCATION_SESSION_STOP;
@@ -134,38 +133,44 @@ void GnssSession::handleStatusChange(bool enabled, uint8_t errorCode) {
   struct CallbackState {
     bool enabled;
     uint8_t errorCode;
+    GnssSession *session;
   };
 
-  auto callback = [](uint16_t /*type*/, void *data, void *extraData) {
-    auto *session = static_cast<GnssSession *>(data);
-    CallbackState cbState = NestedDataPtr<CallbackState>(extraData);
-    session->handleStatusChangeSync(cbState.enabled, cbState.errorCode);
-  };
+  auto *cbState = memoryAlloc<CallbackState>();
+  if (cbState == nullptr) {
+    LOG_OOM();
+  } else {
+    cbState->enabled = enabled;
+    cbState->errorCode = errorCode;
+    cbState->session = this;
 
-  CallbackState cbState = {};
-  cbState.enabled = enabled;
-  cbState.errorCode = errorCode;
-  EventLoopManagerSingleton::get()->deferCallback(
-      SystemCallbackType::GnssSessionStatusChange, /*data=*/this, callback,
-      NestedDataPtr<CallbackState>(cbState));
+    auto callback = [](uint16_t /* eventType */, void *eventData) {
+      auto *state = static_cast<CallbackState *>(eventData);
+      state->session->handleStatusChangeSync(state->enabled, state->errorCode);
+      memoryFree(state);
+    };
+
+    EventLoopManagerSingleton::get()->deferCallback(
+        SystemCallbackType::GnssSessionStatusChange, cbState, callback);
+  }
 }
 
 void GnssSession::handleReportEvent(void *event) {
-  auto callback = [](uint16_t type, void *data, void * /*extraData*/) {
+  auto callback = [](uint16_t type, void *eventData) {
     uint16_t reportEventType;
     if (!getReportEventType(static_cast<SystemCallbackType>(type),
                             &reportEventType) ||
         (getSettingState(Setting::LOCATION) == SettingState::DISABLED)) {
-      freeReportEventCallback(reportEventType, data);
+      freeReportEventCallback(reportEventType, eventData);
     } else {
       EventLoopManagerSingleton::get()->getEventLoop().postEventOrDie(
-          reportEventType, data, freeReportEventCallback);
+          reportEventType, eventData, freeReportEventCallback);
     }
   };
 
   SystemCallbackType type;
-  if (!getCallbackType(kReportEventType, &type)) {
-    freeReportEventCallback(kReportEventType, event);
+  if (!getCallbackType(mReportEventType, &type)) {
+    freeReportEventCallback(mReportEventType, event);
   } else {
     EventLoopManagerSingleton::get()->deferCallback(type, event, callback);
   }
@@ -184,26 +189,23 @@ void GnssSession::onSettingChanged(Setting setting, SettingState state) {
   }
 }
 
-bool GnssSession::handleLocationSettingChange(SettingState state) {
+void GnssSession::handleLocationSettingChange(SettingState state) {
   bool chreDisable = ((state == SettingState::DISABLED) && mPlatformEnabled);
   bool chreEnable = ((state == SettingState::ENABLED) && !mPlatformEnabled &&
                      !mRequests.empty());
 
-  bool requestPending = false;
   if (chreEnable || chreDisable) {
     if (controlPlatform(chreEnable, mCurrentInterval,
                         Milliseconds(0) /* minTimeToNext */)) {
       LOGD("Configured GNSS %s: setting state %" PRIu8, mName,
            static_cast<uint8_t>(state));
       addSessionRequestLog(CHRE_INSTANCE_ID, mCurrentInterval, chreEnable);
-      requestPending = true;
+      mInternalRequestPending = true;
     } else {
       LOGE("Failed to configure GNSS %s: setting state %" PRIu8, mName,
            static_cast<uint8_t>(state));
     }
   }
-
-  return requestPending;
 }
 
 void GnssSession::logStateToBuffer(DebugDumpWrapper &debugDump) const {
@@ -384,14 +386,14 @@ bool GnssSession::updateRequests(bool enable, Milliseconds minInterval,
         if (!success) {
           LOG_OOM();
         } else {
-          nanoapp->registerForBroadcastEvent(kReportEventType);
+          nanoapp->registerForBroadcastEvent(mReportEventType);
         }
       }
     } else if (hasExistingRequest) {
       // The session was successfully disabled for a previously enabled
       // nanoapp. Remove it from the list of requests.
       mRequests.erase(requestIndex);
-      nanoapp->unregisterForBroadcastEvent(kReportEventType);
+      nanoapp->unregisterForBroadcastEvent(mReportEventType);
     }  // else disabling an inactive request, treat as success per CHRE API
   }
 
@@ -413,10 +415,14 @@ bool GnssSession::postAsyncResultEvent(uint32_t instanceId, bool success,
       event->reserved = 0;
       event->cookie = cookie;
 
-      EventLoopManagerSingleton::get()->getEventLoop().postEventOrDie(
-          CHRE_EVENT_GNSS_ASYNC_RESULT, event, freeEventDataCallback,
-          instanceId);
-      eventPosted = true;
+      eventPosted =
+          EventLoopManagerSingleton::get()->getEventLoop().postEventOrDie(
+              CHRE_EVENT_GNSS_ASYNC_RESULT, event, freeEventDataCallback,
+              instanceId);
+
+      if (!eventPosted) {
+        memoryFree(event);
+      }
     }
   }
 
@@ -459,15 +465,10 @@ void GnssSession::handleStatusChangeSync(bool enabled, uint8_t errorCode) {
 
   // If a previous setting change event is pending process, do that first.
   if (mSettingChangePending) {
+    handleLocationSettingChange(getSettingState(Setting::LOCATION));
     mSettingChangePending = false;
-    mInternalRequestPending =
-        handleLocationSettingChange(getSettingState(Setting::LOCATION));
-  }
-
-  // If we didn't issue an internally-generated update via
-  // handleLocationSettingChange(), process pending nanoapp requests (otherwise,
-  // wait for it to finish, then process any pending requests)
-  if (!mInternalRequestPending) {
+  } else {
+    // Dispatch pending state transition until first one succeeds
     dispatchQueuedStateTransitions();
   }
 }
@@ -497,7 +498,7 @@ bool GnssSession::controlPlatform(bool enable, Milliseconds minInterval,
                                   Milliseconds /* minTimeToNext */) {
   bool success = false;
 
-  switch (kReportEventType) {
+  switch (mReportEventType) {
     case CHRE_EVENT_GNSS_LOCATION:
       // TODO: Provide support for min time to next report. It is currently sent
       // to the platform as zero.
@@ -515,7 +516,7 @@ bool GnssSession::controlPlatform(bool enable, Milliseconds minInterval,
       break;
 
     default:
-      CHRE_ASSERT_LOG(false, "Unhandled event type %" PRIu16, kReportEventType);
+      CHRE_ASSERT_LOG(false, "Unhandled event type %" PRIu16, mReportEventType);
   }
 
   if (success) {
