@@ -119,6 +119,9 @@ QCOM_HEXAGONV60_NANOHUB-UIMG_SRCS += $(APP_SUPPORT_PATH)/qcom_nanohub/app_suppor
 
 # Makefile Includes ############################################################
 
+# Standard library overrides include
+include $(CHRE_PREFIX)/std_overrides/std_overrides.mk
+
 # Common includes
 include $(CHRE_PREFIX)/build/defs.mk
 include $(CHRE_PREFIX)/build/common.mk
@@ -127,6 +130,9 @@ include $(CHRE_PREFIX)/build/common.mk
 include $(CHRE_PREFIX)/chre_api/chre_api_version.mk
 
 # Supported variants includes
+ifneq ($(CHRE_TARGET_EXTENSION),)
+include $(CHRE_TARGET_EXTENSION)
+endif
 include $(CHRE_PREFIX)/build/variant/google_arm64_android.mk
 include $(CHRE_PREFIX)/build/variant/google_cm4_nanohub.mk
 include $(CHRE_PREFIX)/build/variant/google_hexagonv55_slpi-see.mk

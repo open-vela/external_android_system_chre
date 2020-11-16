@@ -387,7 +387,7 @@ bool getSuidAndAttrs(SeeHelper &seeHelper, const char *dataType,
   if (!success) {
     LOGE("Failed to find sensor '%s'", dataType);
   } else {
-    LOGD("Num of SUIDs found for '%s': %zu", dataType, suids.size());
+    LOGV("Num of SUIDs found for '%s': %zu", dataType, suids.size());
 
     for (const auto &suid : suids) {
       SeeAttributes attr;
@@ -396,7 +396,7 @@ bool getSuidAndAttrs(SeeHelper &seeHelper, const char *dataType,
         LOGE("Failed to get attributes of SUID 0x%" PRIx64 " %" PRIx64,
              suid.suid_high, suid.suid_low);
       } else {
-        LOGI("%s %s, hw id %" PRId64 ", max ODR %f Hz, stream type %" PRIu8
+        LOGV("%s %s, hw id %" PRId64 ", max ODR %f Hz, stream type %" PRIu8
              " passive %d",
              attr.vendor, attr.name, attr.hwId, attr.maxSampleRate,
              attr.streamType, attr.passiveRequest);
@@ -487,7 +487,7 @@ void findAndAddSensorsForType(SeeHelper &seeHelper,
 #else
             if (sensorHwMatch(attr, tempAttr)) {
 #endif
-              LOGD("Found matching temperature sensor type");
+              LOGV("Found matching temperature sensor type");
               tempFound = true;
               addSensor(seeHelper, temperatureType, tempSuid, tempAttr,
                         sensors);
@@ -641,37 +641,7 @@ bool PlatformSensorManager::configureSensor(Sensor &sensor,
   SeeHelper &seeHelper = getSeeHelperForSensorType(sensor.getSensorType());
   bool wasInUImage = slpiInUImage();
 
-  bool success = true;
-
-  // TODO(b/150144912): Merge the two implementations to avoid having separate
-  // code paths.
-#ifdef CHRE_SLPI_DEFAULT_BUILD
-  // Calibration updates are not enabled automatically in the default build.
-  SeeCalHelper *calHelper = seeHelper.getCalHelper();
-
-  const sns_std_suid *suid =
-      calHelper->getCalSuidFromSensorType(sensor.getSensorType());
-  bool wereCalUpdatesEnabled = false;
-  if (suid != nullptr) {
-    wereCalUpdatesEnabled = calHelper->areCalUpdatesEnabled(*suid);
-    success = calHelper->configureCalUpdates(*suid, req.enable, seeHelper);
-  }
-#endif
-
-  if (success) {
-    success = seeHelper.makeRequest(req);
-  }
-
-#ifdef CHRE_SLPI_DEFAULT_BUILD
-  // If any part of the configuration process failed, reset our subscription
-  // for calibration updates to its previous value to attempt to restore state.
-  if (suid != nullptr && !success) {
-    bool areCalUpdatesEnabled = calHelper->areCalUpdatesEnabled(*suid);
-    if (areCalUpdatesEnabled != wereCalUpdatesEnabled) {
-      calHelper->configureCalUpdates(*suid, wereCalUpdatesEnabled, seeHelper);
-    }
-  }
-#endif
+  bool success = seeHelper.makeRequest(req);
 
   // If we dropped into micro-image during that blocking call to SEE, go back
   // to big image. This won't happen if the calling nanoapp is a big image one,
@@ -702,12 +672,35 @@ bool PlatformSensorManager::configureSensor(Sensor &sensor,
   return success;
 }
 
-bool PlatformSensorManager::configureBiasEvents(const Sensor & /* sensor */,
-                                                bool /* enable */,
+bool PlatformSensorManager::configureBiasEvents(const Sensor &sensor,
+                                                bool enable,
                                                 uint64_t /* latencyNs */) {
-  // TODO: Allow enabling / disabling bias events rather than enabling all
-  // bias sensors at init.
-  return true;
+  // Big-image sensor types will be mapped into micro-image sensors so assume
+  // using mSeeHelper is OK.
+  SeeCalHelper *calHelper = mSeeHelper.getCalHelper();
+
+  // Map the current sensor type into a micro-image type first if it's not one
+  // already and then make sure it's the calibrated sensor type since
+  // SeeCalHelper only knows about calibration types.
+  uint8_t mappedSensorType = sensor.getSensorType();
+  PlatformSensorTypeHelpers::rewriteToChreSensorType(&mappedSensorType);
+  mappedSensorType =
+      PlatformSensorTypeHelpers::toCalibratedSensorType(mappedSensorType);
+
+  const sns_std_suid *suid =
+      calHelper->getCalSuidFromSensorType(mappedSensorType);
+  bool success = false;
+  if (suid != nullptr) {
+    if (enable != calHelper->areCalUpdatesEnabled(*suid)) {
+      success = calHelper->configureCalUpdates(*suid, enable, mSeeHelper);
+    } else {
+      // Return true since updates are already configured to the right state.
+      // This can happen when configuring big-image sensors since they currently
+      // map to the micro-image sensor type which may already be enabled.
+      success = true;
+    }
+  }
+  return success;
 }
 
 bool PlatformSensorManager::getThreeAxisBias(
@@ -787,27 +780,25 @@ void PlatformSensorManagerBase::onSamplingStatusUpdate(
                             *status.get())) {
       sensor->mLastReceivedSamplingStatus = *status.get();
 
-      auto callback = [](uint16_t /* type */, void *data) {
-        auto cbData = UniquePtr<SeeHelperCallbackInterface::SamplingStatusData>(
-            static_cast<SeeHelperCallbackInterface::SamplingStatusData *>(
-                data));
+      auto callback =
+          [](SystemCallbackType /* type */,
+             UniquePtr<SeeHelperCallbackInterface::SamplingStatusData> &&data) {
+            uint32_t sensorHandle;
+            getSensorRequestManager().getSensorHandle(data->sensorType,
+                                                      &sensorHandle);
 
-        uint32_t sensorHandle;
-        getSensorRequestManager().getSensorHandle(cbData->sensorType,
-                                                  &sensorHandle);
+            // This memory will be freed via releaseSamplingStatusUpdate()
+            struct chreSensorSamplingStatus *status =
+                memoryAlloc<struct chreSensorSamplingStatus>();
+            mergeUpdatedStatus(sensorHandle, *data.get(), status);
 
-        // Memory will be freed after core framework performs its updates.
-        struct chreSensorSamplingStatus *status =
-            memoryAlloc<struct chreSensorSamplingStatus>();
-        mergeUpdatedStatus(sensorHandle, *cbData.get(), status);
-
-        getSensorRequestManager().handleSamplingStatusUpdate(sensorHandle,
-                                                             status);
-      };
+            getSensorRequestManager().handleSamplingStatusUpdate(sensorHandle,
+                                                                 status);
+          };
       // Schedule a deferred callback to handle sensor status change in the main
       // thread.
       EventLoopManagerSingleton::get()->deferCallback(
-          SystemCallbackType::SensorStatusUpdate, status.release(), callback);
+          SystemCallbackType::SensorStatusUpdate, std::move(status), callback);
     }
   }
 }
@@ -847,8 +838,7 @@ void PlatformSensorManagerBase::onSensorBiasEvent(
     } else {
       // Posts newly allocated event for the uncalibrated type
       postSensorBiasEvent(
-          PlatformSensorTypeHelpers::toUncalibratedSensorType(sensorType),
-          *biasData);
+          SensorTypeHelpers::toUncalibratedSensorType(sensorType), *biasData);
 
       getSensorRequestManager().handleBiasEvent(sensorHandle,
                                                 biasData.release());
