@@ -207,20 +207,9 @@ class Manager {
   /**
    * Handle a start message from CHRE with the given data from host.
    *
-   * @param hostEndpoint The host endpoint the data was sent from.
    * @param hostData The data from host that has a start message.
    */
-  void handleStartMessage(uint16_t hostEndpoint,
-                          const chreMessageFromHostData *hostData);
-
-  /**
-   * Handle an info message from CHRE with the given data from host.
-   *
-   * @param hostEndpoint The host endpoint the data was sent from.
-   * @param hostData The data from host that has a start message.
-   */
-  void handleInfoMessage(uint16_t hostEndpoint,
-                         const chreMessageFromHostData *hostData);
+  void handleStartMessage(const chreMessageFromHostData *hostData);
 
   /**
    * Handle a message from the host.
@@ -287,33 +276,11 @@ class Manager {
   void handleProximityData(const chreSensorByteData *proximityDataFromChre);
 
   /**
-   * Send data to be validated to the host.
+   * Encode and send data to be validated to host.
    *
-   * @param data The data to send.
+   * @param data The data to encode and send.
    */
-  void sendDataToHost(const chre_cross_validation_sensor_Data &data);
-
-  /**
-   * Encode and send the info response to the host.
-   *
-   * @param hostEndpoint The endpoint to send the response to.
-   * @param infoResponse The info response to be encoded and sent.
-   */
-  void sendInfoResponse(
-      uint16_t hostEndpoint,
-      const chre_cross_validation_sensor_SensorInfoResponse &infoResponse);
-
-  /**
-   * Sends the provided message to the host.
-   *
-   * @param hostEndpoint The endpoint to send the message to.
-   * @param messageType The type of message being sent to the host.
-   * @param fields The fields of the provided struct that should be encoded.
-   * @param srcStruct The struct that should be encoded prior to sending to the
-   *     host.
-   */
-  void sendMessageToHost(uint16_t hostEndpoint, uint16_t messageType,
-                         const pb_field_t fields[], const void *srcStruct);
+  void encodeAndSendDataToHost(const chre_cross_validation_sensor_Data &data);
 
   /**
    * Determine if nanoapp is ready to process new sensor data.
