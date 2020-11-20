@@ -170,20 +170,6 @@ extern "C" {
 #define CHRE_SENSOR_TYPE_STEP_DETECT  UINT8_C(23)
 
 /**
- * Step counter.
- *
- * Generates: CHRE_EVENT_SENSOR_STEP_COUNTER_DATA
- *
- * This is an on-change sensor. Note that the data returned by this sensor must
- * match the value that can be obtained via the Android sensors framework at the
- * same point in time. This means, if CHRE reboots from the rest of the system,
- * the counter must not reset to 0.
- *
- * @since v1.5
- */
-#define CHRE_SENSOR_TYPE_STEP_COUNTER UINT8_C(24)
-
-/**
  * Uncalibrated accelerometer.
  *
  * Generates: CHRE_EVENT_SENSOR_UNCALIBRATED_ACCELEROMETER_DATA
@@ -294,8 +280,7 @@ extern "C" {
  */
 struct chreSensorDataHeader {
     /**
-     * The base timestamp, in nanoseconds; must be in the same time base as
-     * chreGetTime().
+     * The base timestamp, in nanoseconds.
      */
     uint64_t baseTimestamp;
 
@@ -430,18 +415,6 @@ struct chreSensorByteData {
     } readings[1];
 };
 
-/**
- * Data for a sensor which reports a single uint64 value.
- *
- * This is used by CHRE_EVENT_SENSOR_STEP_COUNTER_DATA.
- */
-struct chreSensorUint64Data {
-    struct chreSensorDataHeader header;
-    struct chreSensorUint64SampleData {
-        uint32_t timestampDelta;
-        uint64_t value;
-    } readings[1];
-};
 
 #ifdef __cplusplus
 }
