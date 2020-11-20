@@ -63,14 +63,7 @@ SensorRequest::SensorRequest(uint32_t instanceId, SensorMode mode,
 
 bool SensorRequest::isEquivalentTo(const SensorRequest &request) const {
   return (mMode == request.mMode && mInterval == request.mInterval &&
-          mLatency == request.mLatency &&
-          mBiasUpdatesRequested == request.mBiasUpdatesRequested);
-}
-
-bool SensorRequest::onlyBiasRequestUpdated(const SensorRequest &request) const {
-  return (mMode == request.mMode && mInterval == request.mInterval &&
-          mLatency == request.mLatency &&
-          mBiasUpdatesRequested != request.mBiasUpdatesRequested);
+          mLatency == request.mLatency);
 }
 
 bool SensorRequest::mergeWith(const SensorRequest &request) {
@@ -126,11 +119,6 @@ bool SensorRequest::mergeWith(const SensorRequest &request) {
 
     if (mMode != maximalSensorMode) {
       mMode = maximalSensorMode;
-      attributesChanged = true;
-    }
-
-    if (!mBiasUpdatesRequested && request.mBiasUpdatesRequested) {
-      mBiasUpdatesRequested = true;
       attributesChanged = true;
     }
   }
