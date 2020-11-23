@@ -64,8 +64,7 @@ bool PlatformNanoapp::isSystemNanoapp() const {
   return (mAppInfo != nullptr && mAppInfo->isSystemNanoapp);
 }
 
-void PlatformNanoapp::logStateToBuffer(
-    DebugDumpWrapper & /* debugDump */) const {}
+void PlatformNanoapp::logStateToBuffer(DebugDumpWrapper &debugDump) const {}
 
 void PlatformNanoappBase::loadFromFile(const std::string &filename) {
   CHRE_ASSERT(!isLoaded());
