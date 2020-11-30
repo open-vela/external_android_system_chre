@@ -40,14 +40,6 @@ extern "C" {
 #include "chre/platform/slpi/see/island_vote_client.h"
 #endif
 
-#ifdef CHRE_QSH_ENABLED
-#include "chre/platform/slpi/qsh/qsh_shim.h"
-#endif
-
-#ifdef CHRE_USE_BUFFERED_LOGGING
-#include "chre/platform/shared/platform_log.h"
-#endif
-
 using chre::EventLoop;
 using chre::EventLoopManagerSingleton;
 using chre::LockGuard;
@@ -107,20 +99,11 @@ bool gTlsKeyValid;
  * @param data Argument passed to qurt_thread_create()
  */
 void chreThreadEntry(void * /*data*/) {
-#ifdef CHRE_QSH_ENABLED
-  chre::openQsh();
-#endif  // CHRE_QSH_ENABLED
-
   EventLoopManagerSingleton::get()->lateInit();
   chre::loadStaticNanoapps();
   EventLoopManagerSingleton::get()->getEventLoop().run();
 
   chre::deinit();
-
-#ifdef CHRE_QSH_ENABLED
-  chre::closeQsh();
-#endif  // CHRE_QSH_ENABLED
-
 #if defined(CHRE_SLPI_SEE) && !defined(IMPORT_CHRE_UTILS)
   chre::IslandVoteClientSingleton::deinit();
 #endif
@@ -159,10 +142,6 @@ extern "C" int chre_slpi_start_thread(void) {
   // This lock ensures that we only start the thread once
   LockGuard<Mutex> lock(gThreadMutex);
   int fastRpcResult = CHRE_FASTRPC_ERROR;
-
-#ifdef CHRE_USE_BUFFERED_LOGGING
-  chre::PlatformLogSingleton::init();
-#endif
 
   if (gThreadRunning) {
     LOGE("CHRE thread already running");
