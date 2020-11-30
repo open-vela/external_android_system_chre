@@ -93,12 +93,20 @@ class GnssSession {
   void onSettingChanged(Setting setting, SettingState state);
 
   /**
-   * Handles a change in the Location setting, making a GNSS request if
-   * necessary according to the new state.
+   * Updates the platform GNSS request according to the current state.
    *
-   * @param state The new setting state.
+   * @param forceUpdate If true, force the platform GNSS request to be made.
+   *
+   * @return true if the invocation resulted in dispatching an internal
+   *         request to control the platform layer
    */
-  void handleLocationSettingChange(SettingState state);
+  bool updatePlatformRequest(bool forceUpdate = false);
+
+  /**
+   * Invoked as a result of a requestStateResync() callback from the GNSS PAL.
+   * Runs in the context of the CHRE thread.
+   */
+  void handleRequestStateResyncCallbackSync();
 
   /**
    * Prints state in a string buffer. Must only be called from the context of
@@ -156,7 +164,7 @@ class GnssSession {
   };
 
   //! The event type of the session's report data.
-  uint16_t mReportEventType;
+  const uint16_t kReportEventType;
 
   //! The request type to start and stop a session.
   uint8_t mStartRequestType;
@@ -174,7 +182,7 @@ class GnssSession {
   ArrayQueue<StateTransition, kMaxGnssStateTransitions> mStateTransitions;
 
   //! The list of most recent session request logs
-  static constexpr size_t kNumSessionRequestLogs = 8;
+  static constexpr size_t kNumSessionRequestLogs = 10;
   ArrayQueue<SessionRequestLog, kNumSessionRequestLogs> mSessionRequestLogs;
 
   //! The request multiplexer for GNSS session requests.
@@ -192,6 +200,9 @@ class GnssSession {
 
   //! True if a setting change event is pending to be processed.
   bool mSettingChangePending = false;
+
+  //! True if a state resync callback is pending to be processed.
+  bool mResyncPending = false;
 
   // Allows GnssManager to access constructor.
   friend class GnssManager;
@@ -391,6 +402,18 @@ class GnssManager : public NonCopyable {
    * @param state The new setting state.
    */
   void onSettingChanged(Setting setting, SettingState state);
+
+  /**
+   * Invoked as a result of a requestStateResync() callback from the GNSS PAL.
+   * Runs asynchronously in the context of the callback immediately.
+   */
+  void handleRequestStateResyncCallback();
+
+  /**
+   * Invoked as a result of a requestStateResync() callback from the GNSS PAL.
+   * Runs in the context of the CHRE thread.
+   */
+  void handleRequestStateResyncCallbackSync();
 
   /**
    * Prints state in a string buffer. Must only be called from the context of
