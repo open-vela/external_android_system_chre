@@ -50,10 +50,14 @@ endif
 CHRE_USE_TOKENIZED_LOGGING := false
 
 LOCAL_SRC_FILES := \
+    host/common/daemon_base.cc \
     host/common/fragmented_load_transaction.cc \
     host/common/host_protocol_host.cc \
+    host/common/log_message_parser_base.cc \
     host/common/socket_server.cc \
-    host/msm/daemon/chre_daemon.cc \
+    host/common/st_hal_lpma_handler.cc \
+    host/msm/daemon/fastrpc_daemon.cc \
+    host/msm/daemon/main.cc \
     host/msm/daemon/generated/chre_slpi_stub.c \
     platform/shared/host_protocol_common.cc
 
@@ -65,9 +69,9 @@ LOCAL_C_INCLUDES := \
     system/chre/platform/shared/include \
     system/chre/platform/slpi/include \
     system/chre/util/include \
-    system/core/base/include \
+    system/libbase/include \
     system/core/libcutils/include \
-    system/core/liblog/include \
+    system/logging/liblog/include \
     system/core/libutils/include \
 
 LOCAL_SHARED_LIBRARIES := \
@@ -76,7 +80,9 @@ LOCAL_SHARED_LIBRARIES := \
     libcutils \
     liblog \
     libhidlbase \
-    libbase
+    libbase \
+    android.hardware.soundtrigger@2.0 \
+    libpower
 
 # Enable tokenized logging
 ifeq ($(CHRE_USE_TOKENIZED_LOGGING),true)
@@ -94,11 +100,6 @@ LOCAL_CFLAGS += -I$(PIGWEED_TOKENIZER_DIR)/pw_span/public
 LOCAL_SRC_FILES += $(PIGWEED_TOKENIZER_DIR_RELPATH)/pw_tokenizer/detokenize.cc
 LOCAL_SRC_FILES += $(PIGWEED_TOKENIZER_DIR_RELPATH)/pw_tokenizer/decode.cc
 LOCAL_SRC_FILES += $(PIGWEED_TOKENIZER_DIR_RELPATH)/pw_varint/varint.cc
-endif
-
-ifeq ($(CHRE_DAEMON_LPMA_ENABLED),true)
-LOCAL_SHARED_LIBRARIES += android.hardware.soundtrigger@2.0
-LOCAL_SHARED_LIBRARIES += libpower
 endif
 
 ifeq ($(CHRE_DAEMON_USE_SDSPRPC),true)
