@@ -66,9 +66,6 @@ struct LowPowerMicAccessReleaseBuilder;
 struct SettingChangeMessage;
 struct SettingChangeMessageBuilder;
 
-struct LogMessageV2;
-struct LogMessageV2Builder;
-
 struct HostAddress;
 
 struct MessageContainer;
@@ -77,33 +74,27 @@ struct MessageContainerBuilder;
 /// An enum describing the setting type.
 enum class Setting : int8_t {
   LOCATION = 0,
-  WIFI_AVAILABLE = 1,
-  AIRPLANE_MODE = 2,
   MIN = LOCATION,
-  MAX = AIRPLANE_MODE
+  MAX = LOCATION
 };
 
-inline const Setting (&EnumValuesSetting())[3] {
+inline const Setting (&EnumValuesSetting())[1] {
   static const Setting values[] = {
-    Setting::LOCATION,
-    Setting::WIFI_AVAILABLE,
-    Setting::AIRPLANE_MODE
+    Setting::LOCATION
   };
   return values;
 }
 
 inline const char * const *EnumNamesSetting() {
-  static const char * const names[4] = {
+  static const char * const names[2] = {
     "LOCATION",
-    "WIFI_AVAILABLE",
-    "AIRPLANE_MODE",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameSetting(Setting e) {
-  if (flatbuffers::IsOutRange(e, Setting::LOCATION, Setting::AIRPLANE_MODE)) return "";
+  if (flatbuffers::IsOutRange(e, Setting::LOCATION, Setting::LOCATION)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesSetting()[index];
 }
@@ -161,12 +152,11 @@ enum class ChreMessage : uint8_t {
   LowPowerMicAccessRequest = 16,
   LowPowerMicAccessRelease = 17,
   SettingChangeMessage = 18,
-  LogMessageV2 = 19,
   MIN = NONE,
-  MAX = LogMessageV2
+  MAX = SettingChangeMessage
 };
 
-inline const ChreMessage (&EnumValuesChreMessage())[20] {
+inline const ChreMessage (&EnumValuesChreMessage())[19] {
   static const ChreMessage values[] = {
     ChreMessage::NONE,
     ChreMessage::NanoappMessage,
@@ -186,14 +176,13 @@ inline const ChreMessage (&EnumValuesChreMessage())[20] {
     ChreMessage::TimeSyncRequest,
     ChreMessage::LowPowerMicAccessRequest,
     ChreMessage::LowPowerMicAccessRelease,
-    ChreMessage::SettingChangeMessage,
-    ChreMessage::LogMessageV2
+    ChreMessage::SettingChangeMessage
   };
   return values;
 }
 
 inline const char * const *EnumNamesChreMessage() {
-  static const char * const names[21] = {
+  static const char * const names[20] = {
     "NONE",
     "NanoappMessage",
     "HubInfoRequest",
@@ -213,14 +202,13 @@ inline const char * const *EnumNamesChreMessage() {
     "LowPowerMicAccessRequest",
     "LowPowerMicAccessRelease",
     "SettingChangeMessage",
-    "LogMessageV2",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameChreMessage(ChreMessage e) {
-  if (flatbuffers::IsOutRange(e, ChreMessage::NONE, ChreMessage::LogMessageV2)) return "";
+  if (flatbuffers::IsOutRange(e, ChreMessage::NONE, ChreMessage::SettingChangeMessage)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesChreMessage()[index];
 }
@@ -299,10 +287,6 @@ template<> struct ChreMessageTraits<chre::fbs::LowPowerMicAccessRelease> {
 
 template<> struct ChreMessageTraits<chre::fbs::SettingChangeMessage> {
   static const ChreMessage enum_value = ChreMessage::SettingChangeMessage;
-};
-
-template<> struct ChreMessageTraits<chre::fbs::LogMessageV2> {
-  static const ChreMessage enum_value = ChreMessage::LogMessageV2;
 };
 
 bool VerifyChreMessage(flatbuffers::Verifier &verifier, const void *obj, ChreMessage type);
@@ -855,8 +839,7 @@ struct LoadNanoappRequest FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
     VT_APP_BINARY = 12,
     VT_FRAGMENT_ID = 14,
     VT_TOTAL_APP_SIZE = 16,
-    VT_APP_BINARY_FILE_NAME = 18,
-    VT_APP_FLAGS = 20
+    VT_APP_BINARY_FILE_NAME = 18
   };
   uint32_t transaction_id() const {
     return GetField<uint32_t>(VT_TRANSACTION_ID, 0);
@@ -888,11 +871,6 @@ struct LoadNanoappRequest FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   const flatbuffers::Vector<int8_t> *app_binary_file_name() const {
     return GetPointer<const flatbuffers::Vector<int8_t> *>(VT_APP_BINARY_FILE_NAME);
   }
-  /// The nanoapp flag values from the nanoapp header defined in
-  /// build/build_template.mk. Refer to that file for more details.
-  uint32_t app_flags() const {
-    return GetField<uint32_t>(VT_APP_FLAGS, 0);
-  }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<uint32_t>(verifier, VT_TRANSACTION_ID) &&
@@ -905,7 +883,6 @@ struct LoadNanoappRequest FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
            VerifyField<uint32_t>(verifier, VT_TOTAL_APP_SIZE) &&
            VerifyOffset(verifier, VT_APP_BINARY_FILE_NAME) &&
            verifier.VerifyVector(app_binary_file_name()) &&
-           VerifyField<uint32_t>(verifier, VT_APP_FLAGS) &&
            verifier.EndTable();
   }
 };
@@ -938,9 +915,6 @@ struct LoadNanoappRequestBuilder {
   void add_app_binary_file_name(flatbuffers::Offset<flatbuffers::Vector<int8_t>> app_binary_file_name) {
     fbb_.AddOffset(LoadNanoappRequest::VT_APP_BINARY_FILE_NAME, app_binary_file_name);
   }
-  void add_app_flags(uint32_t app_flags) {
-    fbb_.AddElement<uint32_t>(LoadNanoappRequest::VT_APP_FLAGS, app_flags, 0);
-  }
   explicit LoadNanoappRequestBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -963,11 +937,9 @@ inline flatbuffers::Offset<LoadNanoappRequest> CreateLoadNanoappRequest(
     flatbuffers::Offset<flatbuffers::Vector<uint8_t>> app_binary = 0,
     uint32_t fragment_id = 0,
     uint32_t total_app_size = 0,
-    flatbuffers::Offset<flatbuffers::Vector<int8_t>> app_binary_file_name = 0,
-    uint32_t app_flags = 0) {
+    flatbuffers::Offset<flatbuffers::Vector<int8_t>> app_binary_file_name = 0) {
   LoadNanoappRequestBuilder builder_(_fbb);
   builder_.add_app_id(app_id);
-  builder_.add_app_flags(app_flags);
   builder_.add_app_binary_file_name(app_binary_file_name);
   builder_.add_total_app_size(total_app_size);
   builder_.add_fragment_id(fragment_id);
@@ -987,8 +959,7 @@ inline flatbuffers::Offset<LoadNanoappRequest> CreateLoadNanoappRequestDirect(
     const std::vector<uint8_t> *app_binary = nullptr,
     uint32_t fragment_id = 0,
     uint32_t total_app_size = 0,
-    const std::vector<int8_t> *app_binary_file_name = nullptr,
-    uint32_t app_flags = 0) {
+    const std::vector<int8_t> *app_binary_file_name = nullptr) {
   auto app_binary__ = app_binary ? _fbb.CreateVector<uint8_t>(*app_binary) : 0;
   auto app_binary_file_name__ = app_binary_file_name ? _fbb.CreateVector<int8_t>(*app_binary_file_name) : 0;
   return chre::fbs::CreateLoadNanoappRequest(
@@ -1000,8 +971,7 @@ inline flatbuffers::Offset<LoadNanoappRequest> CreateLoadNanoappRequestDirect(
       app_binary__,
       fragment_id,
       total_app_size,
-      app_binary_file_name__,
-      app_flags);
+      app_binary_file_name__);
 }
 
 struct LoadNanoappResponse FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
@@ -1591,73 +1561,6 @@ inline flatbuffers::Offset<SettingChangeMessage> CreateSettingChangeMessage(
   return builder_.Finish();
 }
 
-/// Represents V2 log messages from CHRE.
-struct LogMessageV2 FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  typedef LogMessageV2Builder Builder;
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_BUFFER = 4
-  };
-  /// A buffer containing formatted log data. A flat array is used here to avoid
-  /// overhead in serializing and deserializing. The format is as follows:
-  ///
-  /// uint8_t                 - LogBuffer log level (1 = error, 2 = warn,
-  ///                                                3 = info,  4 = debug,
-  ///                                                5 = verbose)
-  /// uint32_t, little-endian - timestamp in milliseconds
-  /// char[]                  - message to log
-  /// char, \0                - null-terminator
-  ///
-  /// This pattern repeats until the end of the buffer for multiple log
-  /// messages. The last byte will always be a null-terminator. There are no
-  /// padding bytes between these fields. Treat this like a packed struct and be
-  /// cautious with unaligned access when reading/writing this buffer.
-  const flatbuffers::Vector<int8_t> *buffer() const {
-    return GetPointer<const flatbuffers::Vector<int8_t> *>(VT_BUFFER);
-  }
-  bool Verify(flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           VerifyOffset(verifier, VT_BUFFER) &&
-           verifier.VerifyVector(buffer()) &&
-           verifier.EndTable();
-  }
-};
-
-struct LogMessageV2Builder {
-  typedef LogMessageV2 Table;
-  flatbuffers::FlatBufferBuilder &fbb_;
-  flatbuffers::uoffset_t start_;
-  void add_buffer(flatbuffers::Offset<flatbuffers::Vector<int8_t>> buffer) {
-    fbb_.AddOffset(LogMessageV2::VT_BUFFER, buffer);
-  }
-  explicit LogMessageV2Builder(flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
-  }
-  LogMessageV2Builder &operator=(const LogMessageV2Builder &);
-  flatbuffers::Offset<LogMessageV2> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = flatbuffers::Offset<LogMessageV2>(end);
-    return o;
-  }
-};
-
-inline flatbuffers::Offset<LogMessageV2> CreateLogMessageV2(
-    flatbuffers::FlatBufferBuilder &_fbb,
-    flatbuffers::Offset<flatbuffers::Vector<int8_t>> buffer = 0) {
-  LogMessageV2Builder builder_(_fbb);
-  builder_.add_buffer(buffer);
-  return builder_.Finish();
-}
-
-inline flatbuffers::Offset<LogMessageV2> CreateLogMessageV2Direct(
-    flatbuffers::FlatBufferBuilder &_fbb,
-    const std::vector<int8_t> *buffer = nullptr) {
-  auto buffer__ = buffer ? _fbb.CreateVector<int8_t>(*buffer) : 0;
-  return chre::fbs::CreateLogMessageV2(
-      _fbb,
-      buffer__);
-}
-
 /// The top-level container that encapsulates all possible messages. Note that
 /// per FlatBuffers requirements, we can't use a union as the top-level
 /// structure (root type), so we must wrap it in a table.
@@ -1728,9 +1631,6 @@ struct MessageContainer FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   }
   const chre::fbs::SettingChangeMessage *message_as_SettingChangeMessage() const {
     return message_type() == chre::fbs::ChreMessage::SettingChangeMessage ? static_cast<const chre::fbs::SettingChangeMessage *>(message()) : nullptr;
-  }
-  const chre::fbs::LogMessageV2 *message_as_LogMessageV2() const {
-    return message_type() == chre::fbs::ChreMessage::LogMessageV2 ? static_cast<const chre::fbs::LogMessageV2 *>(message()) : nullptr;
   }
   /// The originating or destination client ID on the host side, used to direct
   /// responses only to the client that sent the request. Although initially
@@ -1821,10 +1721,6 @@ template<> inline const chre::fbs::LowPowerMicAccessRelease *MessageContainer::m
 
 template<> inline const chre::fbs::SettingChangeMessage *MessageContainer::message_as<chre::fbs::SettingChangeMessage>() const {
   return message_as_SettingChangeMessage();
-}
-
-template<> inline const chre::fbs::LogMessageV2 *MessageContainer::message_as<chre::fbs::LogMessageV2>() const {
-  return message_as_LogMessageV2();
 }
 
 struct MessageContainerBuilder {
@@ -1941,10 +1837,6 @@ inline bool VerifyChreMessage(flatbuffers::Verifier &verifier, const void *obj, 
     }
     case ChreMessage::SettingChangeMessage: {
       auto ptr = reinterpret_cast<const chre::fbs::SettingChangeMessage *>(obj);
-      return verifier.VerifyTable(ptr);
-    }
-    case ChreMessage::LogMessageV2: {
-      auto ptr = reinterpret_cast<const chre::fbs::LogMessageV2 *>(obj);
       return verifier.VerifyTable(ptr);
     }
     default: return true;

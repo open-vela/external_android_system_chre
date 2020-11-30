@@ -67,10 +67,12 @@ PlatformLog::~PlatformLog() {
   mLoggerThread.join();
 }
 
-void PlatformLog::logVa(chreLogLevel /*logLevel*/, const char *formatStr,
-                        va_list args) {
+void PlatformLog::log(const char *formatStr, ...) {
   char *formattedStr;
-  int result = vasprintf(&formattedStr, formatStr, args);
+  va_list argList;
+  va_start(argList, formatStr);
+  int result = vasprintf(&formattedStr, formatStr, argList);
+  va_end(argList);
 
   if (result >= 0) {
     std::unique_lock<std::mutex> lock(mMutex);

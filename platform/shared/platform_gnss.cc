@@ -86,9 +86,7 @@ void PlatformGnss::releaseLocationEvent(chreGnssLocationEvent *event) {
 }
 
 void PlatformGnssBase::requestStateResyncCallback() {
-  EventLoopManagerSingleton::get()
-      ->getGnssManager()
-      .handleRequestStateResyncCallback();
+  // TODO: Implement this.
 }
 
 void PlatformGnssBase::locationStatusChangeCallback(bool enabled,
