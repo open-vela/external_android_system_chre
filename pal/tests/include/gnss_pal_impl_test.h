@@ -26,7 +26,7 @@
 
 namespace gnss_pal_impl_test {
 
-class PalGnssTest : public ::testing::TestWithParam<uint64_t> {
+class PalGnssTest : public ::testing::Test {
  public:
   /**
    * Implements CHRE PAL API callbacks
