@@ -86,6 +86,7 @@ include $(CHRE_PREFIX)/build/common.mk
 
 # CHRE Implementation includes.
 include $(CHRE_PREFIX)/apps/apps.mk
+include $(CHRE_PREFIX)/ash/ash.mk
 include $(CHRE_PREFIX)/chre_api/chre_api.mk
 include $(CHRE_PREFIX)/core/core.mk
 include $(CHRE_PREFIX)/external/external.mk
@@ -96,9 +97,6 @@ include $(CHRE_PREFIX)/util/util.mk
 # Supported Variants Includes. Not all CHRE variants are supported by this
 # implementation of CHRE. Example: this CHRE implementation is never built for
 # google_cm4_nanohub as Nanohub itself is a CHRE implementation.
-ifneq ($(CHRE_TARGET_EXTENSION),)
-include $(CHRE_TARGET_EXTENSION)
-endif
 include $(CHRE_PREFIX)/build/variant/google_arm64_android.mk
 include $(CHRE_PREFIX)/build/variant/google_hexagonv55_slpi-see.mk
 include $(CHRE_PREFIX)/build/variant/google_hexagonv60_slpi.mk
