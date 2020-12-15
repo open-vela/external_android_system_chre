@@ -55,8 +55,7 @@ void PowerControlManagerBase::onHostWakeSuspendEvent(bool awake) {
 
 #ifdef CHRE_AUDIO_SUPPORT_ENABLED
     if (awake) {
-      auto callback = [](uint16_t /*type*/, void * /*data*/,
-                         void * /*extraData*/) {
+      auto callback = [](uint16_t /* eventType */, void * /* eventData*/) {
         EventLoopManagerSingleton::get()
             ->getAudioRequestManager()
             .getPlatformAudio()
