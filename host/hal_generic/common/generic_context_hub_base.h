@@ -239,8 +239,8 @@ class GenericContextHubBase : public IContexthubT {
       uint32_t targetApiVersion = (appBinary.targetChreApiMajorVersion << 24) |
                                   (appBinary.targetChreApiMinorVersion << 16);
       mPendingLoadTransaction = FragmentedLoadTransaction(
-          transactionId, appBinary.appId, appBinary.appVersion, appBinary.flags,
-          targetApiVersion, appBinary.customBinary);
+          transactionId, appBinary.appId, appBinary.appVersion,
+          targetApiVersion, appBinary.customBinary, kLoadFragmentSizeBytes);
 
       result =
           sendFragmentedLoadNanoAppRequest(mPendingLoadTransaction.value());
@@ -568,6 +568,9 @@ class GenericContextHubBase : public IContexthubT {
   uint32_t mCurrentFragmentId = 0;
   std::optional<FragmentedLoadTransaction> mPendingLoadTransaction;
   std::mutex mPendingLoadTransactionMutex;
+
+  // Use 30KB fragment size to fit within 32KB memory fragments at the kernel
+  static constexpr size_t kLoadFragmentSizeBytes = 30 * 1024;
 
   // Write a string to mDebugFd
   void writeToDebugFile(const char *str) {
