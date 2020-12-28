@@ -20,7 +20,6 @@
 
 #include "chre/platform/shared/debug_dump.h"
 #include "chre/util/macros.h"
-#include "chre/util/system/wifi_util.h"
 
 /**
  * @file
@@ -32,7 +31,7 @@
 
 namespace {
 
-#if defined(CHRE_SLPI_UIMG_ENABLED) || defined(CHRE_TCM_ENABLED)
+#ifdef CHRE_SLPI_UIMG_ENABLED
 constexpr int kIsTcmNanoapp = 1;
 #else
 constexpr int kIsTcmNanoapp = 0;
@@ -75,19 +74,6 @@ void nanoappHandleEventCompat(uint32_t senderInstanceId, uint16_t eventType,
 #endif
 
 }  // anonymous namespace
-
-//! Additional symbol used to determine the given unstable ID that was provided
-//! when building this nanoapp, if any. The symbol is placed in its own section
-//! so it be stripped to determine if the nanoapp changed compared to a previous
-//! version. We also align the variable to match the minimum alignment of the
-//! surrounding sections, since for compilers with a default size-1 alignment,
-//! there might be a spill-over from the previous segment if not zero-padded,
-//! when we attempt to read the string.
-#ifdef NANOAPP_UNSTABLE_ID
-DLL_EXPORT extern "C" const char _chreNanoappUnstableId[]
-    __attribute__((section(".unstable_id"))) __attribute__((aligned(8))) =
-        NANOAPP_UNSTABLE_ID;
-#endif  // NANOAPP_UNSTABLE_ID
 
 DLL_EXPORT extern "C" const struct chreNslNanoappInfo _chreNslDsoNanoappInfo = {
     /* magic */ CHRE_NSL_NANOAPP_INFO_MAGIC,
@@ -184,26 +170,9 @@ bool chreIsHostAwake(void) {
 }
 
 WEAK_SYMBOL
-bool chreGnssConfigurePassiveLocationListener(bool enable) {
-  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreGnssConfigurePassiveLocationListener);
+bool chreGnssConfigureLocationMonitor(bool enable) {
+  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreGnssConfigureLocationMonitor);
   return (fptr != nullptr) ? fptr(enable) : false;
-}
-
-WEAK_SYMBOL
-bool chreWifiRequestScanAsync(const struct chreWifiScanParams *params,
-                              const void *cookie) {
-  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreWifiRequestScanAsync);
-
-  if (fptr == nullptr) {
-    // Should never happen
-    return false;
-  } else if (chreGetApiVersion() < CHRE_API_VERSION_1_5) {
-    const struct chreWifiScanParams legacyParams =
-        chre::translateToLegacyWifiScanParams(params);
-    return fptr(&legacyParams, cookie);
-  } else {
-    return fptr(params, cookie);
-  }
 }
 
 WEAK_SYMBOL
