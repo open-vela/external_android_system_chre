@@ -159,7 +159,7 @@ bool Manager::isFeatureSupported(Feature feature) {
       break;
     }
     default:
-      LOGE("Unknown feature %" PRIu8, static_cast<uint8_t>(feature));
+      LOGE("Unknown feature %" PRIu8, feature);
   }
 
   return supported;
@@ -210,8 +210,7 @@ void Manager::handleStartTestMessage(uint16_t hostEndpointId, Feature feature,
     bool success = false;
     if (step == TestStep::SETUP) {
       if (feature != Feature::WIFI_RTT) {
-        LOGE("Unexpected feature %" PRIu8 " for test step",
-             static_cast<uint8_t>(feature));
+        LOGE("Unexpected feature %" PRIu8 " for test step", feature);
       } else {
         success = chreWifiRequestScanAsyncDefault(&kWifiScanningCookie);
       }
@@ -288,15 +287,14 @@ bool Manager::startTestForFeature(Feature feature) {
       break;
     }
     default:
-      LOGE("Unknown feature %" PRIu8, static_cast<uint8_t>(feature));
+      LOGE("Unknown feature %" PRIu8, feature);
       return false;
   }
 
   if (!success) {
-    LOGE("Failed to make request for test feature %" PRIu8,
-         static_cast<uint8_t>(feature));
+    LOGE("Failed to make request for test feature %" PRIu8, feature);
   } else {
-    LOGI("Starting test for feature %" PRIu8, static_cast<uint8_t>(feature));
+    LOGI("Starting test for feature %" PRIu8, feature);
   }
 
   return success;
@@ -336,7 +334,7 @@ void Manager::handleWifiAsyncResult(const chreAsyncResult *result) {
       }
       if (mTestSession->feature != Feature::WIFI_SCANNING) {
         LOGE("Unexpected WiFi scan async result: test feature %" PRIu8,
-             static_cast<uint8_t>(mTestSession->feature));
+             mTestSession->feature);
       } else {
         success = validateAsyncResult(
             result, static_cast<const void *>(&kWifiScanningCookie));
@@ -346,7 +344,7 @@ void Manager::handleWifiAsyncResult(const chreAsyncResult *result) {
     case CHRE_WIFI_REQUEST_TYPE_RANGING: {
       if (mTestSession->feature != Feature::WIFI_RTT) {
         LOGE("Unexpected WiFi ranging async result: test feature %" PRIu8,
-             static_cast<uint8_t>(mTestSession->feature));
+             mTestSession->feature);
       } else {
         success = validateAsyncResult(
             result, static_cast<const void *>(&kWifiRttCookie));
@@ -396,7 +394,7 @@ void Manager::handleGnssAsyncResult(const chreAsyncResult *result) {
     case CHRE_GNSS_REQUEST_TYPE_LOCATION_SESSION_START: {
       if (mTestSession->feature != Feature::GNSS_LOCATION) {
         LOGE("Unexpected GNSS location async result: test feature %" PRIu8,
-             static_cast<uint8_t>(mTestSession->feature));
+             mTestSession->feature);
       } else {
         success = validateAsyncResult(
             result, static_cast<const void *>(&kGnssLocationCookie));
@@ -407,7 +405,7 @@ void Manager::handleGnssAsyncResult(const chreAsyncResult *result) {
     case CHRE_GNSS_REQUEST_TYPE_MEASUREMENT_SESSION_START: {
       if (mTestSession->feature != Feature::GNSS_MEASUREMENT) {
         LOGE("Unexpected GNSS measurement async result: test feature %" PRIu8,
-             static_cast<uint8_t>(mTestSession->feature));
+             mTestSession->feature);
       } else {
         success = validateAsyncResult(
             result, static_cast<const void *>(&kGnssMeasurementCookie));
@@ -428,7 +426,7 @@ void Manager::handleWwanCellInfoResult(const chreWwanCellInfoResult *result) {
   // CHRE API requirements.
   if (mTestSession->feature != Feature::WWAN_CELL_INFO) {
     LOGE("Unexpected WWAN cell info result: test feature %" PRIu8,
-         static_cast<uint8_t>(mTestSession->feature));
+         mTestSession->feature);
   } else if (result->cookie != &kWwanCellInfoCookie) {
     LOGE("Unexpected cookie on WWAN cell info result");
   } else if (result->errorCode != CHRE_ERROR_NONE) {

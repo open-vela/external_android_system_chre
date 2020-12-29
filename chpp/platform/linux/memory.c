@@ -15,10 +15,6 @@
  */
 
 #include "chpp/memory.h"
-
-#include <stddef.h>
-#include <stdlib.h>
-
 #include "chpp/macros.h"
 
 void *chppMalloc(const size_t size) {
