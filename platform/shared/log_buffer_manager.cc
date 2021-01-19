@@ -81,13 +81,12 @@ void LogBufferManager::sendLogsToHost() {
     LogBuffer *logBuffer = platformLog->getLogBuffer();
     uint8_t *tempLogBufferData =
         reinterpret_cast<uint8_t *>(platformLog->getTempLogBufferData());
-    size_t numDroppedLogs;
-    size_t bytesCopied = logBuffer->copyLogs(
-        tempLogBufferData, sizeof(mLogBufferData), &numDroppedLogs);
+    size_t bytesCopied =
+        logBuffer->copyLogs(tempLogBufferData, sizeof(mLogBufferData));
     auto &hostCommsMgr =
         EventLoopManagerSingleton::get()->getHostCommsManager();
-    hostCommsMgr.sendLogMessageV2(tempLogBufferData, bytesCopied,
-                                  static_cast<uint32_t>(numDroppedLogs));
+    // TODO(b/178033433): Keep track of and passs the number of logs dropped
+    hostCommsMgr.sendLogMessageV2(tempLogBufferData, bytesCopied, 0);
   }
 }
 

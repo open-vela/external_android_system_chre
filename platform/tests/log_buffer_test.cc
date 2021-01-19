@@ -55,9 +55,7 @@ TEST(LogBuffer, HandleOneLogAndCopy) {
 
   LogBuffer logBuffer(&callback, buffer, kDefaultBufferSize);
   logBuffer.handleLog(LogBufferLogLevel::INFO, 0, testLogStr);
-  size_t numLogsDropped;
-  size_t bytesCopied =
-      logBuffer.copyLogs(outBuffer, kOutBufferSize, &numLogsDropped);
+  size_t bytesCopied = logBuffer.copyLogs(outBuffer, kOutBufferSize);
 
   EXPECT_EQ(bytesCopied, strlen(testLogStr) +
                              kBytesBeforeLogData /*loglevel, timestamp*/ + 1);
@@ -77,9 +75,7 @@ TEST(LogBuffer, HandleTwoLogsAndCopy) {
   LogBuffer logBuffer(&callback, buffer, kDefaultBufferSize);
   logBuffer.handleLog(LogBufferLogLevel::INFO, 0, testLogStr);
   logBuffer.handleLog(LogBufferLogLevel::INFO, 0, testLogStr2);
-  size_t numLogsDropped;
-  size_t bytesCopied =
-      logBuffer.copyLogs(outBuffer, kOutBufferSize, &numLogsDropped);
+  size_t bytesCopied = logBuffer.copyLogs(outBuffer, kOutBufferSize);
 
   EXPECT_EQ(bytesCopied, strlen(testLogStr) + strlen(testLogStr2) +
                              2 * kBytesBeforeLogData /*loglevel, timestamp*/ +
@@ -100,10 +96,8 @@ TEST(LogBuffer, FailOnMoreCopyThanHandle) {
 
   LogBuffer logBuffer(&callback, buffer, kDefaultBufferSize);
   logBuffer.handleLog(LogBufferLogLevel::INFO, 0, testLogStr);
-  size_t numLogsDropped;
-  logBuffer.copyLogs(outBuffer, kOutBufferSize, &numLogsDropped);
-  size_t bytesCopied =
-      logBuffer.copyLogs(outBuffer, kOutBufferSize, &numLogsDropped);
+  logBuffer.copyLogs(outBuffer, kOutBufferSize);
+  size_t bytesCopied = logBuffer.copyLogs(outBuffer, kOutBufferSize);
 
   EXPECT_EQ(bytesCopied, 0);
 }
@@ -119,9 +113,7 @@ TEST(LogBuffer, FailOnHandleLargerLogThanBufferSize) {
 
   LogBuffer logBuffer(&callback, buffer, kDefaultBufferSize);
   logBuffer.handleLog(LogBufferLogLevel::INFO, 0, testLogStrStr.c_str());
-  size_t numLogsDropped;
-  size_t bytesCopied =
-      logBuffer.copyLogs(outBuffer, kOutBufferSize, &numLogsDropped);
+  size_t bytesCopied = logBuffer.copyLogs(outBuffer, kOutBufferSize);
 
   // Should not be able to read this log out because there should be no log in
   // the first place
@@ -143,17 +135,13 @@ TEST(LogBuffer, LogOverwritten) {
     const char *testLogStr = testLogStrStr.c_str();
     logBuffer.handleLog(LogBufferLogLevel::INFO, 0, testLogStr);
   }
-  size_t numLogsDropped;
-  size_t bytesCopied =
-      logBuffer.copyLogs(outBuffer, kOutBufferSize, &numLogsDropped);
+  size_t bytesCopied = logBuffer.copyLogs(outBuffer, kBytesBeforeLogData + 101);
   memcpy(testedBuffer, outBuffer + kBytesBeforeLogData, 101);
 
   // Should have read out the second from front test log string which is 'a' + 1
   // = 'b'
   EXPECT_TRUE(strcmp(testedBuffer, std::string(100, 'b').c_str()) == 0);
   EXPECT_EQ(bytesCopied, kBytesBeforeLogData + 100 + 1);
-  // Should have dropped the first log
-  EXPECT_EQ(numLogsDropped, 1);
 }
 
 TEST(LogBuffer, CopyIntoEmptyBuffer) {
@@ -164,9 +152,7 @@ TEST(LogBuffer, CopyIntoEmptyBuffer) {
   LogBuffer logBuffer(&callback, buffer, kDefaultBufferSize);
 
   logBuffer.handleLog(LogBufferLogLevel::INFO, 0, "test");
-  size_t numLogsDropped;
-  size_t bytesCopied =
-      logBuffer.copyLogs(outBuffer, kOutBufferSize, &numLogsDropped);
+  size_t bytesCopied = logBuffer.copyLogs(outBuffer, kOutBufferSize);
 
   EXPECT_EQ(bytesCopied, 0);
 }
@@ -179,9 +165,7 @@ TEST(LogBuffer, NoCopyInfoBufferAfterHandleEmptyLog) {
   LogBuffer logBuffer(&callback, buffer, kDefaultBufferSize);
 
   logBuffer.handleLog(LogBufferLogLevel::INFO, 0, "");
-  size_t numLogsDropped;
-  size_t bytesCopied =
-      logBuffer.copyLogs(outBuffer, kOutBufferSize, &numLogsDropped);
+  size_t bytesCopied = logBuffer.copyLogs(outBuffer, kOutBufferSize);
 
   EXPECT_EQ(bytesCopied, 0);
 }
@@ -194,9 +178,7 @@ TEST(LogBuffer, HandleLogOfNullBytes) {
   LogBuffer logBuffer(&callback, buffer, kDefaultBufferSize);
 
   logBuffer.handleLog(LogBufferLogLevel::INFO, 0, "\0\0\0");
-  size_t numLogsDropped;
-  size_t bytesCopied =
-      logBuffer.copyLogs(outBuffer, kOutBufferSize, &numLogsDropped);
+  size_t bytesCopied = logBuffer.copyLogs(outBuffer, kOutBufferSize);
 
   EXPECT_EQ(bytesCopied, 0);
 }
@@ -210,9 +192,7 @@ TEST(LogBuffer, TruncateLongLog) {
   std::string testStr(256, 'a');
 
   logBuffer.handleLog(LogBufferLogLevel::INFO, 0, testStr.c_str());
-  size_t numLogsDropped;
-  size_t bytesCopied =
-      logBuffer.copyLogs(outBuffer, kOutBufferSize, &numLogsDropped);
+  size_t bytesCopied = logBuffer.copyLogs(outBuffer, kOutBufferSize);
 
   // Should truncate the logs down to the kLogMaxSize value of 255 by the time
   // it is copied out.
