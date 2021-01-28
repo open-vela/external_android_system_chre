@@ -159,10 +159,9 @@ void FastRpcChreDaemon::onMessageReceived(const unsigned char *messageBuffer,
         fbs::UnPackMessageContainer(messageBuffer);
     const auto *logMessage = container->message.AsLogMessageV2();
     const std::vector<int8_t> &logData = logMessage->buffer;
-    uint32_t numLogsDropped = logMessage->num_logs_dropped;
 
     mLogger.logV2(reinterpret_cast<const uint8_t *>(logData.data()),
-                  logData.size(), numLogsDropped);
+                  logData.size());
   } else if (messageType == fbs::ChreMessage::TimeSyncRequest) {
     sendTimeSync(true /* logOnError */);
   } else if (messageType == fbs::ChreMessage::LowPowerMicAccessRequest) {
