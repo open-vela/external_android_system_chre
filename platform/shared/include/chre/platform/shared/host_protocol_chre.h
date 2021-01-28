@@ -169,11 +169,10 @@ class HostProtocolChre : public HostProtocolCommon {
                                 const uint8_t *logBuffer, size_t bufferSize);
 
   /**
-   * Encodes a buffer of V2 log messages to the host.
+   * Encodes a buffer of log messages to the host.
    */
   static void encodeLogMessagesV2(ChreFlatBufferBuilder &builder,
-                                  const uint8_t *logBuffer, size_t bufferSize,
-                                  uint32_t numLogsDropped);
+                                  const uint8_t *logBuffer, size_t bufferSize);
 
   /**
    * Encodes a string into a DebugDumpData message.
