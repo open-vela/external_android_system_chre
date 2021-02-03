@@ -148,10 +148,9 @@ void HostProtocolChre::encodeHubInfoResponse(
 void HostProtocolChre::addNanoappListEntry(
     ChreFlatBufferBuilder &builder,
     DynamicVector<Offset<fbs::NanoappListEntry>> &offsetVector, uint64_t appId,
-    uint32_t appVersion, bool enabled, bool isSystemNanoapp,
-    uint32_t appPermissions) {
+    uint32_t appVersion, bool enabled, bool isSystemNanoapp) {
   auto offset = fbs::CreateNanoappListEntry(builder, appId, appVersion, enabled,
-                                            isSystemNanoapp, appPermissions);
+                                            isSystemNanoapp);
   if (!offsetVector.push_back(offset)) {
     LOGE("Couldn't push nanoapp list entry offset!");
   }
