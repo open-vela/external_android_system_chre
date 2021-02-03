@@ -281,7 +281,8 @@ static size_t chppConsumeFooter(struct ChppTransportState *context,
 #endif
 
     } else if (!chppRxChecksumIsOk(context)) {
-      CHPP_LOGE("Bad checksum. seq=%" PRIu8 " len=%" PRIu16,
+      CHPP_LOGE("Discarding RX packet because of bad checksum. seq=%" PRIu8
+                " len=%" PRIu16,
                 context->rxHeader.seq, context->rxHeader.length);
       chppRxAbortPacket(context);
       chppEnqueueTxPacket(context, CHPP_TRANSPORT_ERROR_CHECKSUM);  // NACK
@@ -307,7 +308,8 @@ static size_t chppConsumeFooter(struct ChppTransportState *context,
 #endif
 
     } else if (context->resetState == CHPP_RESET_STATE_RESETTING) {
-      CHPP_LOGE("RX packet discarded seq=%" PRIu8 " len=%" PRIu16,
+      CHPP_LOGE("Discarding RX packet because CHPP is resetting. seq=%" PRIu8
+                ", len=%" PRIu16,
                 context->rxHeader.seq, context->rxHeader.length);
 
     } else {
@@ -381,7 +383,8 @@ static void chppRxAbortPacket(struct ChppTransportState *context) {
 static void chppProcessTransportLoopbackRequest(
     struct ChppTransportState *context) {
   if (context->txStatus.linkBusy) {
-    CHPP_LOGE("Link busy; transport-loopback dropped");
+    CHPP_LOGE(
+        "Could not process transport-loopback request because link is busy");
 
   } else {
     context->txStatus.linkBusy = true;
@@ -431,24 +434,28 @@ static void chppProcessTransportLoopbackRequest(
 static void chppProcessTransportLoopbackResponse(
     struct ChppTransportState *context) {
   if (context->transportLoopbackData.length != context->rxDatagram.length) {
-    CHPP_LOGE("rx len=%" PRIuSIZE " != tx len=%" PRIuSIZE,
-              context->rxDatagram.length,
-              context->transportLoopbackData.length - CHPP_PREAMBLE_LEN_BYTES -
-                  sizeof(struct ChppTransportHeader) -
-                  sizeof(struct ChppTransportFooter));
+    CHPP_LOGE(
+        "Rx transport-loopback payload length does not match Tx (Rx "
+        "len=%" PRIuSIZE ", Tx len=%" PRIuSIZE ")",
+        context->rxDatagram.length,
+        context->transportLoopbackData.length - CHPP_PREAMBLE_LEN_BYTES -
+            sizeof(struct ChppTransportHeader) -
+            sizeof(struct ChppTransportFooter));
     context->loopbackResult = CHPP_APP_ERROR_INVALID_LENGTH;
 
   } else if (memcmp(context->rxDatagram.payload,
                     context->transportLoopbackData.payload,
                     context->rxDatagram.length) != 0) {
-    CHPP_LOGE("rx & tx data don't match: len=%" PRIuSIZE,
-              context->rxDatagram.length);
+    CHPP_LOGE(
+        "Rx transport-loopback payload does not match Tx data (len=%" PRIuSIZE
+        ")",
+        context->rxDatagram.length);
     context->loopbackResult = CHPP_APP_ERROR_INVALID_ARG;
 
   } else {
     context->loopbackResult = CHPP_APP_ERROR_NONE;
 
-    CHPP_LOGD("Rx successful transport-loopback (payload len=%" PRIuSIZE ")",
+    CHPP_LOGI("Rx successful transport-loopback (payload len=%" PRIuSIZE ")",
               context->rxDatagram.length);
   }
 
@@ -600,7 +607,8 @@ static enum ChppTransportErrorCode chppRxHeaderCheck(
     // instead of flooding with out of order NACK errors
     result = CHPP_TRANSPORT_ERROR_ORDER;
 
-    CHPP_LOGE("Invalid header. seq=%" PRIu8 " expected=%" PRIu8 " len=%" PRIu16,
+    CHPP_LOGE("Invalid RX packet header. Unexpected seq=%" PRIu8
+              " (expected=%" PRIu8 "), len=%" PRIu16,
               context->rxHeader.seq, context->rxStatus.expectedSeq,
               context->rxHeader.length);
   }
@@ -623,7 +631,8 @@ static void chppRegisterRxAck(struct ChppTransportState *context) {
     // A previously sent packet was actually ACKed
     // Note: For a future ACK window >1, we should loop by # of ACKed packets
     if ((uint8_t)(context->rxStatus.receivedAckSeq + 1) != rxAckSeq) {
-      CHPP_LOGE("Out of order ACK: last=%" PRIu8 " rx=%" PRIu8,
+      CHPP_LOGE("Out of order ACK received (last registered=%" PRIu8
+                ", received=%" PRIu8 ")",
                 context->rxStatus.receivedAckSeq, rxAckSeq);
     } else {
       CHPP_LOGD(
@@ -833,7 +842,8 @@ static void chppTransportDoWork(struct ChppTransportState *context) {
 
       if (context->txStatus.retxCount > CHPP_TRANSPORT_MAX_RETX &&
           context->resetState != CHPP_RESET_STATE_RESETTING) {
-        CHPP_LOGE("Resetting after %d retries", CHPP_TRANSPORT_MAX_RETX);
+        CHPP_LOGE("ReTx packet failed after %d tries. Attempting to reset CHPP",
+                  CHPP_TRANSPORT_MAX_RETX);
 
         chppMutexUnlock(&context->mutex);
         chppReset(context, CHPP_TRANSPORT_ATTR_RESET);
@@ -881,9 +891,11 @@ static void chppTransportDoWork(struct ChppTransportState *context) {
 
     chppMutexUnlock(&context->mutex);
 
-    CHPP_LOGI("TX->Link: len=%" PRIuSIZE " flags=0x%" PRIx8 " code=0x%" PRIx8
-              " ackSeq=%" PRIu8 " seq=%" PRIu8 " payloadLen=%" PRIu16
-              " pending=%" PRIu8,
+    // Send out the packet
+    CHPP_LOGI("Handing TX packet to link layer. (len=%" PRIuSIZE
+              ", flags=0x%" PRIx8 ", packetCode=0x%" PRIx8 ", ackSeq=%" PRIu8
+              ", seq=%" PRIu8 ", payload len=%" PRIu16 ", queue depth=%" PRIu8
+              ")",
               context->pendingTxPacket.length, txHeader->flags,
               txHeader->packetCode, txHeader->ackSeq, txHeader->seq,
               txHeader->length, context->txDatagramQueue.pending);
@@ -949,30 +961,35 @@ static bool chppEnqueueTxDatagram(struct ChppTransportState *context,
   bool success = false;
 
   if (len == 0) {
-    CHPP_LOGE("Enqueue tx with len 0");
+    CHPP_LOGE("chppEnqueueTxDatagram called with payload length of 0");
     CHPP_DEBUG_ASSERT(false);
 
   } else {
     uint8_t *handle = buf;
 
     if (len < sizeof(struct ChppAppHeader)) {
-      CHPP_LOGI("Enqueue TX: code=0x%" PRIx8 " len=%" PRIuSIZE " H#%" PRIu8
-                " pending=%" PRIu8,
-                packetCode, len, *handle, context->txDatagramQueue.pending + 1);
+      CHPP_LOGI("Enqueueing TX datagram (packet code=0x%" PRIx8
+                ", len=%" PRIuSIZE ") for handle=%" PRIu8
+                ". Queue depth: %" PRIu8 "->%d",
+                packetCode, len, *handle, context->txDatagramQueue.pending,
+                context->txDatagramQueue.pending + 1);
     } else {
       struct ChppAppHeader *header = buf;
-      CHPP_LOGI("Enqueue TX: code=0x%" PRIx8 " len=%" PRIuSIZE " H#%" PRIu8
-                " type=0x%" PRIx8 " ID=%" PRIu8 " err=%" PRIu8 " cmd=0x%" PRIx16
-                " pending=%" PRIu8,
+      CHPP_LOGI("Enqueueing TX datagram (packet code=0x%" PRIx8
+                ", len=%" PRIuSIZE ") for handle=%" PRIu8 ", type=0x%" PRIx8
+                ", transaction ID=%" PRIu8 ", error=%" PRIu8
+                ", command=0x%" PRIx16 ". Queue depth: %" PRIu8 "->%d",
                 packetCode, len, header->handle, header->type,
                 header->transaction, header->error, header->command,
+                context->txDatagramQueue.pending,
                 context->txDatagramQueue.pending + 1);
     }
 
     chppMutexLock(&context->mutex);
 
     if (context->txDatagramQueue.pending >= CHPP_TX_DATAGRAM_QUEUE_LEN) {
-      CHPP_LOGE("Cannot enqueue TX datagram: H#%" PRIu8, *handle);
+      CHPP_LOGE("Queue full. Cannot enqueue TX datagram for handle=%" PRIu8,
+                *handle);
 
     } else {
       uint16_t end =
@@ -1083,7 +1100,7 @@ void chppTransportInit(struct ChppTransportState *transportContext,
   CHPP_NOT_NULL(transportContext);
   CHPP_NOT_NULL(appContext);
 
-  CHPP_LOGD("Initializing the CHPP transport layer");
+  CHPP_LOGI("Initializing the CHPP transport layer");
 
   chppResetTransportContext(transportContext);
   chppMutexInit(&transportContext->mutex);
@@ -1097,7 +1114,7 @@ void chppTransportInit(struct ChppTransportState *transportContext,
 void chppTransportDeinit(struct ChppTransportState *transportContext) {
   CHPP_NOT_NULL(transportContext);
 
-  CHPP_LOGD("Deinitializing the CHPP transport layer");
+  CHPP_LOGI("Deinitializing the CHPP transport layer");
 
   chppPlatformLinkDeinit(&transportContext->linkParams);
   chppConditionVariableDeinit(&transportContext->resetCondVar);
@@ -1125,8 +1142,9 @@ bool chppRxDataCb(struct ChppTransportState *context, const uint8_t *buf,
   CHPP_NOT_NULL(buf);
   CHPP_NOT_NULL(context);
 
-  CHPP_LOGI("RX %" PRIuSIZE " bytes: state=%" PRIu8, len,
-            context->rxStatus.state);
+  CHPP_LOGI("chppRxDataCb received %" PRIuSIZE
+            " bytes while in RX state=%" PRIu8,
+            len, context->rxStatus.state);
 
   size_t consumed = 0;
   while (consumed < len) {
@@ -1180,7 +1198,8 @@ void chppTxTimeoutTimerCb(struct ChppTransportState *context) {
 }
 
 void chppRxTimeoutTimerCb(struct ChppTransportState *context) {
-  CHPP_LOGE("Rx timeout: state=%" PRIu8 " packet=%" PRIu8 " len=%" PRIu16,
+  CHPP_LOGE("Rx timeout during state %" PRIu8 ". Aborting packet# %" PRIu8
+            " len=%" PRIu16,
             context->rxStatus.state, context->rxHeader.seq,
             context->rxHeader.length);
 
@@ -1198,14 +1217,15 @@ bool chppEnqueueTxDatagramOrFail(struct ChppTransportState *context, void *buf,
   bool resetting = (context->resetState == CHPP_RESET_STATE_RESETTING);
 
   if (len == 0) {
-    CHPP_LOGE("Enqueue datagram len 0");
+    CHPP_LOGE("chppEnqueueTxDatagramOrFail called with data length of 0");
     CHPP_DEBUG_ASSERT(false);
 
   } else if (resetting || !chppEnqueueTxDatagram(
                               context, CHPP_TRANSPORT_ERROR_NONE, buf, len)) {
     uint8_t *handle = buf;
-    CHPP_LOGE("%s. Discarding %" PRIuSIZE " bytes for H#%" PRIu8,
-              resetting ? "Resetting" : "TX queue full", len, *handle);
+    CHPP_LOGE("%s. Discarding TX datagram of %" PRIuSIZE
+              " bytes for handle=%" PRIu8,
+              resetting ? "CHPP resetting" : "TX queue full", len, *handle);
     CHPP_FREE_AND_NULLIFY(buf);
 
   } else {
@@ -1231,7 +1251,9 @@ void chppEnqueueTxErrorDatagram(struct ChppTransportState *context,
     }
     default: {
       // App layer should not invoke any other errors
-      CHPP_LOGE("App enqueueing invalid err=%" PRIu8, errorCode);
+      CHPP_LOGE("App layer is enqueueing an invalid error (%" PRIu8
+                ") datagram",
+                errorCode);
       CHPP_DEBUG_ASSERT(false);
     }
   }
@@ -1260,7 +1282,7 @@ uint64_t chppTransportGetTimeUntilNextDoWorkNs(
 
 void chppWorkThreadStart(struct ChppTransportState *context) {
   chppTransportSendReset(context, CHPP_TRANSPORT_ATTR_RESET);
-  CHPP_LOGD("CHPP Work Thread started");
+  CHPP_LOGI("CHPP Work Thread started");
 
   uint32_t signals;
   do {
@@ -1279,7 +1301,7 @@ void chppWorkThreadStart(struct ChppTransportState *context) {
 bool chppWorkThreadHandleSignal(struct ChppTransportState *context,
                                 uint32_t signals) {
   if (signals & CHPP_TRANSPORT_SIGNAL_EXIT) {
-    CHPP_LOGD("CHPP Work Thread terminated");
+    CHPP_LOGI("CHPP Work Thread terminated");
     return false;
   }
 
@@ -1292,7 +1314,7 @@ bool chppWorkThreadHandleSignal(struct ChppTransportState *context,
 
     if (chppGetCurrentTimeNs() - context->txStatus.lastTxTimeNs >=
         CHPP_TRANSPORT_TX_TIMEOUT_NS) {
-      CHPP_LOGE("ACK timeout");
+      CHPP_LOGE("Timeout waiting for ACK, i.e. implicit NACK");
       chppTransportDoWork(context);
     }
 
@@ -1300,11 +1322,11 @@ bool chppWorkThreadHandleSignal(struct ChppTransportState *context,
         (chppGetCurrentTimeNs() - context->resetTimeNs >=
          CHPP_TRANSPORT_RESET_TIMEOUT_NS)) {
       if (context->resetCount < CHPP_TRANSPORT_MAX_RESET) {
-        CHPP_LOGE("RESET-ACK timeout; retrying");
+        CHPP_LOGE("Timeout while waiting for RESET-ACK. Retrying a reset");
         context->resetCount++;
         chppReset(context, CHPP_TRANSPORT_ATTR_RESET);
       } else {
-        CHPP_LOGE("RESET-ACK timeout; giving up");
+        CHPP_LOGE("Timeout while waiting for RESET-ACK. Giving up permanently");
         context->resetState = CHPP_RESET_STATE_PERMANENT_FAILURE;
       }
     }
@@ -1325,7 +1347,9 @@ void chppWorkThreadStop(struct ChppTransportState *context) {
 void chppLinkSendDoneCb(struct ChppPlatformLinkParameters *params,
                         enum ChppLinkErrorCode error) {
   if (error != CHPP_LINK_ERROR_NONE_SENT) {
-    CHPP_LOGE("Async send failure: %" PRIu8, error);
+    CHPP_LOGE(
+        "chppLinkSendDoneCb() indicates async send failure with error %" PRIu8,
+        error);
   }
 
   struct ChppTransportState *context =
@@ -1422,7 +1446,7 @@ uint8_t chppRunTransportLoopback(struct ChppTransportState *context,
   }
 
   if (result != CHPP_APP_ERROR_NONE) {
-    CHPP_LOGE("Transport-loopback failure: %" PRIu8, result);
+    CHPP_LOGE("Could not run transport-loopback. result=%" PRIu8, result);
   }
 #endif
   return result;
@@ -1433,7 +1457,8 @@ void chppTransportSendReset(struct ChppTransportState *context,
   // Make sure CHPP is in an initialized state
   if (context->txDatagramQueue.pending > 0 ||
       context->txDatagramQueue.front != 0) {
-    CHPP_LOGE("Send reset, but not initialized");
+    CHPP_LOGE(
+        "chppTransportSendReset called but CHPP not in initialized state.");
     CHPP_ASSERT(false);
   }
 

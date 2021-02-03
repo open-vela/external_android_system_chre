@@ -394,14 +394,15 @@ static void chppWifiGetCapabilitiesResult(
     struct ChppWifiClientState *clientContext, uint8_t *buf, size_t len) {
   if (len < sizeof(struct ChppWifiGetCapabilitiesResponse)) {
     struct ChppAppHeader *rxHeader = (struct ChppAppHeader *)buf;
-    CHPP_LOGE("GetCapabilities failed at service err=%" PRIu8, rxHeader->error);
+    CHPP_LOGE("WiFi GetCapabilities request failed at service. error=%" PRIu8,
+              rxHeader->error);
     CHPP_ASSERT(rxHeader->error != CHPP_APP_ERROR_NONE);
 
   } else {
     struct ChppWifiGetCapabilitiesParameters *result =
         &((struct ChppWifiGetCapabilitiesResponse *)buf)->params;
 
-    CHPP_LOGD("chppWifiGetCapabilitiesResult received capabilities=0x%" PRIx32,
+    CHPP_LOGI("chppWifiGetCapabilitiesResult received capabilities=0x%" PRIx32,
               result->capabilities);
 #ifdef CHPP_WIFI_DEFAULT_CAPABILITIES
     if (result->capabilities != CHPP_WIFI_DEFAULT_CAPABILITIES) {
@@ -436,9 +437,9 @@ static void chppWifiConfigureScanMonitorResult(
       // But no error reported
       CHPP_PROD_ASSERT(false);
     } else {
-      CHPP_LOGD(
-          "Scan monitor failed at service. "
-          "err=%" PRIu8,
+      CHPP_LOGE(
+          "WiFi ControlLocationSession request failed at service. "
+          "error=%" PRIu8,
           rxHeader->error);
       gCallbacks->scanMonitorStatusChangeCallback(false, CHRE_ERROR);
     }
@@ -448,7 +449,7 @@ static void chppWifiConfigureScanMonitorResult(
         &((struct ChppWifiConfigureScanMonitorAsyncResponse *)buf)->params;
 
     gWifiClientContext.scanMonitorEnabled = result->enabled;
-    CHPP_LOGD(
+    CHPP_LOGI(
         "chppWifiConfigureScanMonitorResult received enable=%s, "
         "errorCode=%" PRIu8,
         result->enabled ? "true" : "false", result->errorCode);
@@ -488,7 +489,9 @@ static void chppWifiRequestScanResult(struct ChppWifiClientState *clientContext,
       // But no error reported
       CHPP_PROD_ASSERT(false);
     } else {
-      CHPP_LOGD("Scan request failed at service. err=%" PRIu8, rxHeader->error);
+      CHPP_LOGE(
+          "WiFi RequestScanResult request failed at service. error=%" PRIu8,
+          rxHeader->error);
       gCallbacks->scanResponseCallback(false, CHRE_ERROR);
     }
 
@@ -496,7 +499,7 @@ static void chppWifiRequestScanResult(struct ChppWifiClientState *clientContext,
     struct ChppWifiRequestScanResponseParameters *result =
         &((struct ChppWifiRequestScanResponse *)buf)->params;
 
-    CHPP_LOGI("Scan request %ssuccessful at service",
+    CHPP_LOGI("WiFi RequestScanResult request %ssuccessful at service",
               result->pending ? "accepted and " : "FAILURE - accepted but un");
 
     gCallbacks->scanResponseCallback(result->pending, result->errorCode);
@@ -520,12 +523,13 @@ static void chppWifiRequestRangingResult(
   struct ChppAppHeader *rxHeader = (struct ChppAppHeader *)buf;
 
   if (rxHeader->error != CHPP_APP_ERROR_NONE) {
-    CHPP_LOGE("Ranging request failed at service. err=%" PRIu8,
-              rxHeader->error);
+    CHPP_LOGE(
+        "WiFi RequestRangingResult request failed at service. error=%" PRIu8,
+        rxHeader->error);
     gCallbacks->rangingEventCallback(CHRE_ERROR, NULL);
 
   } else {
-    CHPP_LOGD("Ranging request accepted at service");
+    CHPP_LOGD("WiFi RequestRangingResult request accepted at service");
   }
 }
 
@@ -541,7 +545,7 @@ static void chppWifiRequestRangingResult(
 static void chppWifiScanEventNotification(
     struct ChppWifiClientState *clientContext, uint8_t *buf, size_t len) {
   UNUSED_VAR(clientContext);
-  CHPP_LOGD("chppWifiScanEventNotification received data len=%" PRIuSIZE, len);
+  CHPP_LOGI("chppWifiScanEventNotification received data len=%" PRIuSIZE, len);
 
   buf += sizeof(struct ChppAppHeader);
   len -= sizeof(struct ChppAppHeader);
@@ -550,7 +554,10 @@ static void chppWifiScanEventNotification(
       chppWifiScanEventToChre((struct ChppWifiScanEvent *)buf, len);
 
   if (chre == NULL) {
-    CHPP_LOGE("Scan event conversion failed: len=%" PRIuSIZE, len);
+    CHPP_LOGE(
+        "chppWifiScanEventNotification CHPP -> CHRE conversion failed. Input "
+        "len=%" PRIuSIZE,
+        len);
   } else {
 #ifdef CHPP_CLIENT_ENABLED_TIMESYNC
     chre->referenceTime -= (uint64_t)chppTimesyncGetOffset(
@@ -586,7 +593,10 @@ static void chppWifiRangingEventNotification(
   uint8_t error = CHRE_ERROR_NONE;
   if (chre == NULL) {
     error = CHRE_ERROR;
-    CHPP_LOGE("Ranging event conversion failed len=%" PRIuSIZE, len);
+    CHPP_LOGE(
+        "chppWifiRangingEventNotification CHPP -> CHRE conversion failed. "
+        "Input len=%" PRIuSIZE,
+        len);
   }
 
   gCallbacks->rangingEventCallback(error, chre);
@@ -610,7 +620,7 @@ static bool chppWifiClientOpen(const struct chrePalSystemApi *systemApi,
   gSystemApi = systemApi;
   gCallbacks = callbacks;
 
-  CHPP_LOGD("WiFi client opening");
+  CHPP_LOGI("WiFi client opening");
 
   if (chppWaitForDiscoveryComplete(gWifiClientContext.client.appContext,
                                    CHPP_WIFI_DISCOVERY_TIMEOUT_MS)) {
