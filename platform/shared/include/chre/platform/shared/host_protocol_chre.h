@@ -128,8 +128,7 @@ class HostProtocolChre : public HostProtocolCommon {
   static void addNanoappListEntry(
       ChreFlatBufferBuilder &builder,
       DynamicVector<NanoappListEntryOffset> &offsetVector, uint64_t appId,
-      uint32_t appVersion, bool enabled, bool isSystemNanoapp,
-      uint32_t appPermissions);
+      uint32_t appVersion, bool enabled, bool isSystemNanoapp);
 
   /**
    * Finishes encoding a NanoappListResponse message after all NanoappListEntry
