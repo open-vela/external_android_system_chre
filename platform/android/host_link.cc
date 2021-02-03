@@ -124,7 +124,6 @@ void handleNanoappListRequest(uint16_t hostClientId) {
       nanoappListEntry->version = nanoapp->getAppVersion();
       nanoappListEntry->enabled = true;
       nanoappListEntry->is_system = nanoapp->isSystemNanoapp();
-      nanoappListEntry->permissions = nanoapp->getAppPermissions();
       response->nanoapps.push_back(std::move(nanoappListEntry));
     };
 

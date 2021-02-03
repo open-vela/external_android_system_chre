@@ -113,9 +113,10 @@ class SocketCallbacks : public SocketClient::ICallbacks,
     for (const std::unique_ptr<fbs::NanoappListEntryT> &nanoapp :
          response.nanoapps) {
       LOGI("  App ID 0x%016" PRIx64 " version 0x%" PRIx32
-           " permissions 0x%" PRIx32 " enabled %d system %d",
-           nanoapp->app_id, nanoapp->version, nanoapp->permissions,
-           nanoapp->enabled, nanoapp->is_system);
+           " enabled %d system "
+           "%d",
+           nanoapp->app_id, nanoapp->version, nanoapp->enabled,
+           nanoapp->is_system);
     }
   }
 
