@@ -100,34 +100,31 @@ enum class Setting : int8_t {
   LOCATION = 0,
   WIFI_AVAILABLE = 1,
   AIRPLANE_MODE = 2,
-  GLOBAL_MIC_DISABLE = 3,
   MIN = LOCATION,
-  MAX = GLOBAL_MIC_DISABLE
+  MAX = AIRPLANE_MODE
 };
 
-inline const Setting (&EnumValuesSetting())[4] {
+inline const Setting (&EnumValuesSetting())[3] {
   static const Setting values[] = {
     Setting::LOCATION,
     Setting::WIFI_AVAILABLE,
-    Setting::AIRPLANE_MODE,
-    Setting::GLOBAL_MIC_DISABLE
+    Setting::AIRPLANE_MODE
   };
   return values;
 }
 
 inline const char * const *EnumNamesSetting() {
-  static const char * const names[5] = {
+  static const char * const names[4] = {
     "LOCATION",
     "WIFI_AVAILABLE",
     "AIRPLANE_MODE",
-    "GLOBAL_MIC_DISABLE",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameSetting(Setting e) {
-  if (flatbuffers::IsOutRange(e, Setting::LOCATION, Setting::GLOBAL_MIC_DISABLE)) return "";
+  if (flatbuffers::IsOutRange(e, Setting::LOCATION, Setting::AIRPLANE_MODE)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesSetting()[index];
 }
