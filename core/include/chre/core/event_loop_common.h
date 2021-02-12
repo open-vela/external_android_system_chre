@@ -42,6 +42,7 @@ enum class SystemCallbackType : uint16_t {
   PerformDebugDump,
   TimerPoolTick,
   AudioHandleDataEvent,
+  WifiHandleFailedRanging,
   WifiHandleRangingEvent,
   AudioAvailabilityChange,
   AudioHandleHostAwake,
@@ -52,19 +53,11 @@ enum class SystemCallbackType : uint16_t {
   SettingChangeEvent,
   GnssLocationReportEvent,
   GnssMeasurementReportEvent,
-  Shutdown,
-  TimerSyncRequest,
-  DelayedFatalError,
-  GnssRequestResyncEvent,
-  SendBufferedLogMessage,
 };
 
-//! Deferred/delayed callbacks use the event subsystem but are invariably sent
-//! by the system and received by the system, so they are able to make use of an
-//! extra parameter
-//! @see Event
-using SystemEventCallbackFunction = void(uint16_t type, void *data,
-                                         void *extraData);
+//! The function signature of a system callback mirrors the CHRE event free
+//! callback to allow it to use the same event infrastructure.
+typedef chreEventCompleteFunction SystemCallbackFunction;
 
 /**
  * Generic event free callback that can be used by any event where the event
