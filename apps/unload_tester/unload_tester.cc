@@ -22,7 +22,6 @@
 #include "chre/platform/log.h"
 #include "chre/platform/static_nanoapp_init.h"
 #include "chre/util/nanoapp/app_id.h"
-#include "chre/util/system/napp_permissions.h"
 #include "chre/util/time.h"
 #include "chre_api/chre.h"
 
@@ -104,5 +103,4 @@ void nanoappEnd() {}
 }  // anonymous namespace
 }  // namespace chre
 
-CHRE_STATIC_NANOAPP_INIT(UnloadTester, chre::kUnloadTesterAppId, kAppVersion,
-                         chre::NanoappPermissions::CHRE_PERMS_NOTHING);
+CHRE_STATIC_NANOAPP_INIT(UnloadTester, chre::kUnloadTesterAppId, kAppVersion);
