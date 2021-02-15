@@ -28,7 +28,9 @@
 /**
  * @file
  * A nanoapp exclusively for testing, which unloads the spammer nanoapp after a
- * short delay. Must only be compiled as a static/internal nanoapp.
+ * short delay. Must only be compiled as a static/internal nanoapp, because it
+ * accesses internal framework APIs to do the unload - generally, nanoapps are
+ * not allowed to unload other nanoapps.
  */
 
 namespace chre {
@@ -36,7 +38,7 @@ namespace {
 
 constexpr uint32_t kAppVersion = 99;
 
-void handleUnload(uint16_t /* eventType */, void * /* data */) {
+void handleUnload(uint16_t /*type*/, void * /*data*/, void * /*extraData*/) {
   EventLoop &eventLoop = EventLoopManagerSingleton::get()->getEventLoop();
   uint32_t instanceId;
 
