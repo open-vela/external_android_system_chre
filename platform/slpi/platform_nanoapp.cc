@@ -25,6 +25,7 @@
 #include "chre/platform/slpi/memory.h"
 #include "chre/platform/slpi/power_control_util.h"
 #include "chre/util/system/debug_dump.h"
+#include "chre/util/system/napp_permissions.h"
 #include "chre_api/chre/version.h"
 
 #include "dlfcn.h"
@@ -207,6 +208,7 @@ bool PlatformNanoappBase::setAppInfo(uint64_t appId, uint32_t appVersion,
 }
 
 bool PlatformNanoappBase::reserveBuffer(uint64_t appId, uint32_t appVersion,
+                                        uint32_t /* appFlags */,
                                         size_t appBinaryLen) {
   CHRE_ASSERT(!isLoaded());
   bool success = false;
@@ -344,11 +346,15 @@ bool PlatformNanoappBase::verifyNanoappInfo() {
       if (!success) {
         mAppInfo = nullptr;
       } else {
-        LOGI("Successfully loaded nanoapp: %s (0x%016" PRIx64
-             ") version 0x%" PRIx32 " (%s) uimg %d system %d",
+        LOGI("Nanoapp loaded: %s (0x%016" PRIx64 ") version 0x%" PRIx32
+             " (%s) uimg %d system %d",
              mAppInfo->name, mAppInfo->appId, mAppInfo->appVersion,
              getAppVersionString(), mAppInfo->isTcmNanoapp,
              mAppInfo->isSystemNanoapp);
+        if (mAppInfo->structMinorVersion >=
+            CHRE_NSL_NANOAPP_INFO_STRUCT_MINOR_VERSION) {
+          LOGI("Nanoapp permissions: 0x%" PRIx32, mAppInfo->appPermissions);
+        }
       }
     }
   }
@@ -388,6 +394,19 @@ uint32_t PlatformNanoapp::getAppVersion() const {
 
 uint32_t PlatformNanoapp::getTargetApiVersion() const {
   return (mAppInfo != nullptr) ? mAppInfo->targetApiVersion : 0;
+}
+
+bool PlatformNanoapp::supportsAppPermissions() const {
+  return (mAppInfo != nullptr) ? (mAppInfo->structMinorVersion >=
+                                  CHRE_NSL_NANOAPP_INFO_STRUCT_MINOR_VERSION)
+                               : false;
+}
+
+uint32_t PlatformNanoapp::getAppPermissions() const {
+  return (supportsAppPermissions())
+             ? mAppInfo->appPermissions
+             : static_cast<uint32_t>(
+                   chre::NanoappPermissions::CHRE_PERMS_NOTHING);
 }
 
 const char *PlatformNanoapp::getAppName() const {
