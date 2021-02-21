@@ -18,13 +18,11 @@
 
 #include "chre/core/event_loop_manager.h"
 #include "chre/util/macros.h"
-#include "chre/util/system/napp_permissions.h"
 #include "chre/util/time.h"
 
 using chre::EventLoopManager;
 using chre::EventLoopManagerSingleton;
 using chre::Milliseconds;
-using chre::NanoappPermissions;
 
 DLL_EXPORT uint32_t chreGnssGetCapabilities() {
 #ifdef CHRE_GNSS_SUPPORT_ENABLED
@@ -41,12 +39,11 @@ DLL_EXPORT bool chreGnssLocationSessionStartAsync(uint32_t minIntervalMs,
                                                   const void *cookie) {
 #ifdef CHRE_GNSS_SUPPORT_ENABLED
   chre::Nanoapp *nanoapp = EventLoopManager::validateChreApiCall(__func__);
-  return nanoapp->permitPermissionUse(NanoappPermissions::CHRE_PERMS_GNSS) &&
-         chre::EventLoopManagerSingleton::get()
-             ->getGnssManager()
-             .getLocationSession()
-             .addRequest(nanoapp, Milliseconds(minIntervalMs),
-                         Milliseconds(minTimeToNextFixMs), cookie);
+  return chre::EventLoopManagerSingleton::get()
+      ->getGnssManager()
+      .getLocationSession()
+      .addRequest(nanoapp, Milliseconds(minIntervalMs),
+                  Milliseconds(minTimeToNextFixMs), cookie);
 #else
   return false;
 #endif  // CHRE_GNSS_SUPPORT_ENABLED
@@ -55,11 +52,10 @@ DLL_EXPORT bool chreGnssLocationSessionStartAsync(uint32_t minIntervalMs,
 DLL_EXPORT bool chreGnssLocationSessionStopAsync(const void *cookie) {
 #ifdef CHRE_GNSS_SUPPORT_ENABLED
   chre::Nanoapp *nanoapp = EventLoopManager::validateChreApiCall(__func__);
-  return nanoapp->permitPermissionUse(NanoappPermissions::CHRE_PERMS_GNSS) &&
-         chre::EventLoopManagerSingleton::get()
-             ->getGnssManager()
-             .getLocationSession()
-             .removeRequest(nanoapp, cookie);
+  return chre::EventLoopManagerSingleton::get()
+      ->getGnssManager()
+      .getLocationSession()
+      .removeRequest(nanoapp, cookie);
 #else
   return false;
 #endif  // CHRE_GNSS_SUPPORT_ENABLED
@@ -69,12 +65,11 @@ DLL_EXPORT bool chreGnssMeasurementSessionStartAsync(uint32_t minIntervalMs,
                                                      const void *cookie) {
 #ifdef CHRE_GNSS_SUPPORT_ENABLED
   chre::Nanoapp *nanoapp = EventLoopManager::validateChreApiCall(__func__);
-  return nanoapp->permitPermissionUse(NanoappPermissions::CHRE_PERMS_GNSS) &&
-         chre::EventLoopManagerSingleton::get()
-             ->getGnssManager()
-             .getMeasurementSession()
-             .addRequest(nanoapp, Milliseconds(minIntervalMs),
-                         Milliseconds(0) /* minTimeToNext */, cookie);
+  return chre::EventLoopManagerSingleton::get()
+      ->getGnssManager()
+      .getMeasurementSession()
+      .addRequest(nanoapp, Milliseconds(minIntervalMs),
+                  Milliseconds(0) /* minTimeToNext */, cookie);
 #else
   return false;
 #endif  // CHRE_GNSS_SUPPORT_ENABLED
@@ -83,23 +78,10 @@ DLL_EXPORT bool chreGnssMeasurementSessionStartAsync(uint32_t minIntervalMs,
 DLL_EXPORT bool chreGnssMeasurementSessionStopAsync(const void *cookie) {
 #ifdef CHRE_GNSS_SUPPORT_ENABLED
   chre::Nanoapp *nanoapp = EventLoopManager::validateChreApiCall(__func__);
-  return nanoapp->permitPermissionUse(NanoappPermissions::CHRE_PERMS_GNSS) &&
-         chre::EventLoopManagerSingleton::get()
-             ->getGnssManager()
-             .getMeasurementSession()
-             .removeRequest(nanoapp, cookie);
-#else
-  return false;
-#endif  // CHRE_GNSS_SUPPORT_ENABLED
-}
-
-DLL_EXPORT bool chreGnssConfigurePassiveLocationListener(bool enable) {
-#ifdef CHRE_GNSS_SUPPORT_ENABLED
-  chre::Nanoapp *nanoapp = EventLoopManager::validateChreApiCall(__func__);
-  return nanoapp->permitPermissionUse(NanoappPermissions::CHRE_PERMS_GNSS) &&
-         chre::EventLoopManagerSingleton::get()
-             ->getGnssManager()
-             .configurePassiveLocationListener(nanoapp, enable);
+  return chre::EventLoopManagerSingleton::get()
+      ->getGnssManager()
+      .getMeasurementSession()
+      .removeRequest(nanoapp, cookie);
 #else
   return false;
 #endif  // CHRE_GNSS_SUPPORT_ENABLED
