@@ -14,14 +14,6 @@
  * limitations under the License.
  */
 
-package {
-    // See: http://go/android-license-faq
-    // A large-scale-change added 'default_applicable_licenses' to import
-    // all of the 'license_kinds' from "system_chre_license"
-    // to get the below license kinds:
-    //   SPDX-license-identifier-Apache-2.0
-    default_applicable_licenses: ["system_chre_license"],
-}
 
 cc_library_static {
     name: "chre_chpp_linux",
@@ -112,10 +104,6 @@ cc_test_host {
         "test/app_test.cpp",
         "test/transport_test.cpp",
     ],
-    test_suites: [
-        // Needed to support running on TreeHugger
-        "general-tests",
-    ],
     static_libs: [
         "chre_chpp_linux",
         "chre_pal_linux"
@@ -131,10 +119,6 @@ cc_test_host {
     srcs: [
         "test/wifi_convert_test.cpp",
         "test/wwan_convert_test.cpp"
-    ],
-    test_suites: [
-        // Needed to support running on TreeHugger
-        "general-tests",
     ],
     static_libs: ["chre_chpp_linux"],
 }
