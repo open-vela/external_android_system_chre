@@ -21,7 +21,6 @@
 #include "chre/core/event_loop_manager.h"
 #include "chre/platform/log.h"
 #include "chre/platform/shared/pal_system_api.h"
-#include "chre/util/system/wifi_util.h"
 
 namespace chre {
 
@@ -88,15 +87,7 @@ bool PlatformWifi::requestRanging(const struct chreWifiRangingParams *params) {
 bool PlatformWifi::requestScan(const struct chreWifiScanParams *params) {
   if (mWifiApi != nullptr) {
     prePalApiCall();
-
-    // TODO(174240925): remove the version check override
-    if (true || mWifiApi->moduleVersion < CHRE_PAL_WIFI_API_V1_5) {
-      const struct chreWifiScanParams paramsCompat =
-          translateToLegacyWifiScanParams(params);
-      return mWifiApi->requestScan(&paramsCompat);
-    } else {
-      return mWifiApi->requestScan(params);
-    }
+    return mWifiApi->requestScan(params);
   } else {
     return false;
   }
