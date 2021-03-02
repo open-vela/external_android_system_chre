@@ -24,7 +24,7 @@
 namespace chre {
 
 void DebugDumpManager::trigger() {
-  auto callback = [](uint16_t /*type*/, void * /*data*/, void * /*extraData*/) {
+  auto callback = [](uint16_t /*eventType*/, void * /*eventData*/) {
     DebugDumpManager &debugDumpManager =
         EventLoopManagerSingleton::get()->getDebugDumpManager();
     debugDumpManager.collectFrameworkDebugDumps();
@@ -90,7 +90,6 @@ void DebugDumpManager::collectFrameworkDebugDumps() {
   eventLoopManager->getAudioRequestManager().logStateToBuffer(mDebugDump);
 #endif  // CHRE_AUDIO_SUPPORT_ENABLED
   logSettingStateToBuffer(mDebugDump);
-  logStateToBuffer(mDebugDump);
 }
 
 void DebugDumpManager::sendFrameworkDebugDumps() {

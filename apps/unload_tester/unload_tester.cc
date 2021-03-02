@@ -22,16 +22,13 @@
 #include "chre/platform/log.h"
 #include "chre/platform/static_nanoapp_init.h"
 #include "chre/util/nanoapp/app_id.h"
-#include "chre/util/system/napp_permissions.h"
 #include "chre/util/time.h"
 #include "chre_api/chre.h"
 
 /**
  * @file
  * A nanoapp exclusively for testing, which unloads the spammer nanoapp after a
- * short delay. Must only be compiled as a static/internal nanoapp, because it
- * accesses internal framework APIs to do the unload - generally, nanoapps are
- * not allowed to unload other nanoapps.
+ * short delay. Must only be compiled as a static/internal nanoapp.
  */
 
 namespace chre {
@@ -39,7 +36,7 @@ namespace {
 
 constexpr uint32_t kAppVersion = 99;
 
-void handleUnload(uint16_t /*type*/, void * /*data*/, void * /*extraData*/) {
+void handleUnload(uint16_t /* eventType */, void * /* data */) {
   EventLoop &eventLoop = EventLoopManagerSingleton::get()->getEventLoop();
   uint32_t instanceId;
 
@@ -104,5 +101,4 @@ void nanoappEnd() {}
 }  // anonymous namespace
 }  // namespace chre
 
-CHRE_STATIC_NANOAPP_INIT(UnloadTester, chre::kUnloadTesterAppId, kAppVersion,
-                         chre::NanoappPermissions::CHRE_PERMS_NONE);
+CHRE_STATIC_NANOAPP_INIT(UnloadTester, chre::kUnloadTesterAppId, kAppVersion);

@@ -28,9 +28,6 @@
  *   LOGI(format, ...)
  *   LOGD(format, ...)
  *
- * The platform header is recommend to also supply LOGV for verbose logs,
- * however it is not required.
- *
  * Where "format" is a printf-style format string, and E, W, I, D correspond to
  * the log levels Error, Warning, Informational, and Debug, respectively.
  */
@@ -38,28 +35,25 @@
 #include "chre/target_platform/log.h"
 #include "chre/util/log_common.h"
 
+/*
+ * Log errors if the platform does not supply logging macros.
+ */
+
 #ifndef LOGE
-#error "LOGE must be defined by chre/target_platform/log.h"
+#error "LOGE must be defined"
 #endif  // LOGE
 
 #ifndef LOGW
-#error "LOGW must be defined by chre/target_platform/log.h"
+#error "LOGW must be defined"
 #endif  // LOGW
 
 #ifndef LOGI
-#error "LOGI must be defined by chre/target_platform/log.h"
+#error "LOGI must be defined"
 #endif  // LOGI
 
 #ifndef LOGD
-#error "LOGD must be defined by chre/target_platform/log.h"
+#error "LOGD must be defined"
 #endif  // LOGD
-
-#ifndef LOGV
-// Map LOGV to LOGD if the platform doesn't supply it - in that case LOGV won't
-// be distinguished at runtime from LOGD, but we'll still retain the ability to
-// compile out LOGV based on CHRE_MINIMUM_LOG_LEVEL
-#define LOGV LOGD
-#endif
 
 /*
  * Supply a stub implementation of the LOGx macros when the build is
@@ -72,27 +66,27 @@
 
 #if CHRE_MINIMUM_LOG_LEVEL < CHRE_LOG_LEVEL_ERROR
 #undef LOGE
-#define LOGE(format, ...) CHRE_LOG_NULL(format, ##__VA_ARGS__)
+#define LOGE(format, ...) chreLogNull(format, ##__VA_ARGS__)
 #endif
 
 #if CHRE_MINIMUM_LOG_LEVEL < CHRE_LOG_LEVEL_WARN
 #undef LOGW
-#define LOGW(format, ...) CHRE_LOG_NULL(format, ##__VA_ARGS__)
+#define LOGW(format, ...) chreLogNull(format, ##__VA_ARGS__)
 #endif
 
 #if CHRE_MINIMUM_LOG_LEVEL < CHRE_LOG_LEVEL_INFO
 #undef LOGI
-#define LOGI(format, ...) CHRE_LOG_NULL(format, ##__VA_ARGS__)
+#define LOGI(format, ...) chreLogNull(format, ##__VA_ARGS__)
 #endif
 
 #if CHRE_MINIMUM_LOG_LEVEL < CHRE_LOG_LEVEL_DEBUG
 #undef LOGD
-#define LOGD(format, ...) CHRE_LOG_NULL(format, ##__VA_ARGS__)
+#define LOGD(format, ...) chreLogNull(format, ##__VA_ARGS__)
 #endif
 
-#if CHRE_MINIMUM_LOG_LEVEL < CHRE_LOG_LEVEL_VERBOSE
-#undef LOGV
-#define LOGV(format, ...) CHRE_LOG_NULL(format, ##__VA_ARGS__)
-#endif
+/**
+ * Logs an out of memory error with file and line number.
+ */
+#define LOG_OOM() LOGE("OOM at %s:%d", CHRE_FILENAME, __LINE__)
 
 #endif  // CHRE_PLATFORM_LOG_H_
