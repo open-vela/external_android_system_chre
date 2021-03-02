@@ -27,8 +27,7 @@ void *MemoryManager::nanoappAlloc(Nanoapp *app, uint32_t bytes) {
       LOGE("Failed to allocate memory from Nanoapp ID %" PRIu32
            ": allocation count exceeded limit.",
            app->getInstanceId());
-    } else if ((bytes > kMaxAllocationBytes) ||
-               ((mTotalAllocatedBytes + bytes) > kMaxAllocationBytes)) {
+    } else if ((mTotalAllocatedBytes + bytes) > kMaxAllocationBytes) {
       LOGE("Failed to allocate memory from Nanoapp ID %" PRIu32
            ": not enough space.",
            app->getInstanceId());
