@@ -68,8 +68,7 @@ class SystemTimer : public SystemTimerBase, public NonCopyable {
    * Note that it is possible for the timer to fire before this function
    * returns.
    *
-   * @param callback Non-null pointer to a callback to invoke when the timer has
-   *     elapsed.
+   * @param callback The callback to invoke when the timer has elapsed.
    * @param data The data to pass to the callback when it is invoked.
    * @param delay The minimum delay until the first firing of the timer.
    * @return true on success, false on failure
@@ -81,8 +80,7 @@ class SystemTimer : public SystemTimerBase, public NonCopyable {
    * firing, this prevents the callback from being invoked until the timer is
    * restarted by a subsequent call to set().
    *
-   * @return true if the timer was cancelled successfully and false if the timer
-   *     was already canceled or something failed.
+   * @return Whether or not the timer was cancelled successfully.
    */
   bool cancel();
 

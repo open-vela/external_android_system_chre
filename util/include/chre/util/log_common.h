@@ -45,21 +45,19 @@ inline void chreLogNull(const char *fmt, ...) {
     CHRE_LOG_EPILOGUE                \
   } while (0)
 
-// Each log level below increases with value as verbosity increases, such that
-// we can set a threshold for verbosity at compile time
-
-//! Used with CHRE_MINIMUM_LOG_LEVEL to indicate that no logs should be included
+//! The logging level to specify that no logs are output.
 #define CHRE_LOG_LEVEL_MUTE 0
 
+//! The logging level to specify that only LOGE is output.
 #define CHRE_LOG_LEVEL_ERROR 1
-#define CHRE_LOG_LEVEL_WARN 2
-#define CHRE_LOG_LEVEL_INFO 3
-#define CHRE_LOG_LEVEL_DEBUG 4
-#define CHRE_LOG_LEVEL_VERBOSE 5
 
-/**
- * Logs an out of memory error with file and line number.
- */
-#define LOG_OOM() LOGE("OOM at %s:%d", CHRE_FILENAME, __LINE__)
+//! The logging level to specify that LOGW and LOGE are output.
+#define CHRE_LOG_LEVEL_WARN 2
+
+//! The logging level to specify that LOGI, LOGW and LOGE are output.
+#define CHRE_LOG_LEVEL_INFO 3
+
+//! The logging level to specify that LOGD, LOGI, LOGW and LOGE are output.
+#define CHRE_LOG_LEVEL_DEBUG 4
 
 #endif  // CHRE_UTIL_LOG_COMMON_H_

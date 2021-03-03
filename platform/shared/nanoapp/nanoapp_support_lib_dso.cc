@@ -20,10 +20,6 @@
 
 #include "chre/platform/shared/debug_dump.h"
 #include "chre/util/macros.h"
-#include "chre/util/system/napp_permissions.h"
-#ifdef CHRE_NANOAPP_USES_WIFI
-#include "chre/util/system/wifi_util.h"
-#endif
 
 /**
  * @file
@@ -35,29 +31,13 @@
 
 namespace {
 
-constexpr uint32_t kNanoappPermissions =
-    0
-#ifdef CHRE_NANOAPP_USES_AUDIO
-    | static_cast<uint32_t>(chre::NanoappPermissions::CHRE_PERMS_AUDIO)
-#endif
-#ifdef CHRE_NANOAPP_USES_GNSS
-    | static_cast<uint32_t>(chre::NanoappPermissions::CHRE_PERMS_GNSS)
-#endif
-#ifdef CHRE_NANOAPP_USES_WIFI
-    | static_cast<uint32_t>(chre::NanoappPermissions::CHRE_PERMS_WIFI)
-#endif
-#ifdef CHRE_NANOAPP_USES_WWAN
-    | static_cast<uint32_t>(chre::NanoappPermissions::CHRE_PERMS_WWAN)
-#endif
-    ;
-
-#if defined(CHRE_SLPI_UIMG_ENABLED) || defined(CHRE_TCM_ENABLED)
+#ifdef CHRE_SLPI_UIMG_ENABLED
 constexpr int kIsTcmNanoapp = 1;
 #else
 constexpr int kIsTcmNanoapp = 0;
 #endif  // CHRE_SLPI_UIMG_ENABLED
 
-#if !defined(CHRE_NANOAPP_DISABLE_BACKCOMPAT) && defined(CHRE_NANOAPP_USES_GNSS)
+#ifndef CHRE_NANOAPP_DISABLE_BACKCOMPAT
 // Return a v1.3+ GnssLocationEvent for the nanoapp when running on a v1.2-
 // platform.
 chreGnssLocationEvent translateLegacyGnssLocation(
@@ -95,19 +75,6 @@ void nanoappHandleEventCompat(uint32_t senderInstanceId, uint16_t eventType,
 
 }  // anonymous namespace
 
-//! Additional symbol used to determine the given unstable ID that was provided
-//! when building this nanoapp, if any. The symbol is placed in its own section
-//! so it be stripped to determine if the nanoapp changed compared to a previous
-//! version. We also align the variable to match the minimum alignment of the
-//! surrounding sections, since for compilers with a default size-1 alignment,
-//! there might be a spill-over from the previous segment if not zero-padded,
-//! when we attempt to read the string.
-#ifdef NANOAPP_UNSTABLE_ID
-DLL_EXPORT extern "C" const char _chreNanoappUnstableId[]
-    __attribute__((section(".unstable_id"))) __attribute__((aligned(8))) =
-        NANOAPP_UNSTABLE_ID;
-#endif  // NANOAPP_UNSTABLE_ID
-
 DLL_EXPORT extern "C" const struct chreNslNanoappInfo _chreNslDsoNanoappInfo = {
     /* magic */ CHRE_NSL_NANOAPP_INFO_MAGIC,
     /* structMinorVersion */ CHRE_NSL_NANOAPP_INFO_STRUCT_MINOR_VERSION,
@@ -125,7 +92,7 @@ DLL_EXPORT extern "C" const struct chreNslNanoappInfo _chreNslDsoNanoappInfo = {
     /* entryPoints */
     {
         /* start */ nanoappStart,
-#if !defined(CHRE_NANOAPP_DISABLE_BACKCOMPAT) && defined(CHRE_NANOAPP_USES_GNSS)
+#ifndef CHRE_NANOAPP_DISABLE_BACKCOMPAT
         /* handleEvent */ nanoappHandleEventCompat,
 #else
         /* handleEvent */ nanoappHandleEvent,
@@ -133,7 +100,6 @@ DLL_EXPORT extern "C" const struct chreNslNanoappInfo _chreNslDsoNanoappInfo = {
         /* end */ nanoappEnd,
     },
     /* appVersionString */ NANOAPP_VERSION_STRING,
-    /* appPermissions */ kNanoappPermissions,
 };
 
 // The code section below provides default implementations for new symbols
@@ -167,8 +133,6 @@ DLL_EXPORT extern "C" const struct chreNslNanoappInfo _chreNslDsoNanoappInfo = {
     fptr;                                             \
   })
 
-#ifdef CHRE_NANOAPP_USES_AUDIO
-
 WEAK_SYMBOL
 bool chreAudioGetSource(uint32_t handle, struct chreAudioSource *audioSource) {
   auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreAudioGetSource);
@@ -191,8 +155,6 @@ bool chreAudioGetStatus(uint32_t handle, struct chreAudioSourceStatus *status) {
   return (fptr != nullptr) ? fptr(handle, status) : false;
 }
 
-#endif /* CHRE_NANOAPP_USES_AUDIO */
-
 WEAK_SYMBOL
 void chreConfigureHostSleepStateEvents(bool enable) {
   auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreConfigureHostSleepStateEvents);
@@ -207,33 +169,10 @@ bool chreIsHostAwake(void) {
   return (fptr != nullptr) ? fptr() : false;
 }
 
-#ifdef CHRE_NANOAPP_USES_GNSS
-
 WEAK_SYMBOL
-bool chreGnssConfigurePassiveLocationListener(bool enable) {
-  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreGnssConfigurePassiveLocationListener);
+bool chreGnssConfigureLocationMonitor(bool enable) {
+  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreGnssConfigureLocationMonitor);
   return (fptr != nullptr) ? fptr(enable) : false;
-}
-
-#endif /* CHRE_NANOAPP_USES_GNSS */
-
-#ifdef CHRE_NANOAPP_USES_WIFI
-
-WEAK_SYMBOL
-bool chreWifiRequestScanAsync(const struct chreWifiScanParams *params,
-                              const void *cookie) {
-  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreWifiRequestScanAsync);
-
-  if (fptr == nullptr) {
-    // Should never happen
-    return false;
-  } else if (chreGetApiVersion() < CHRE_API_VERSION_1_5) {
-    const struct chreWifiScanParams legacyParams =
-        chre::translateToLegacyWifiScanParams(params);
-    return fptr(&legacyParams, cookie);
-  } else {
-    return fptr(params, cookie);
-  }
 }
 
 WEAK_SYMBOL
@@ -241,20 +180,6 @@ bool chreWifiRequestRangingAsync(const struct chreWifiRangingParams *params,
                                  const void *cookie) {
   auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreWifiRequestRangingAsync);
   return (fptr != nullptr) ? fptr(params, cookie) : false;
-}
-
-#endif /* CHRE_NANOAPP_USES_WIFI */
-
-WEAK_SYMBOL
-bool chreSensorFind(uint8_t sensorType, uint8_t sensorIndex, uint32_t *handle) {
-  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreSensorFind);
-  if (fptr != nullptr) {
-    return fptr(sensorType, sensorIndex, handle);
-  } else if (sensorIndex == 0) {
-    return chreSensorFindDefault(sensorType, handle);
-  } else {
-    return false;
-  }
 }
 
 WEAK_SYMBOL

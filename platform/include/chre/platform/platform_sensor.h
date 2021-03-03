@@ -65,11 +65,6 @@ class PlatformSensor : public PlatformSensorBase, public NonCopyable {
    */
   const char *getSensorName() const;
 
-  /**
-   * @return The index of the sensor.
-   */
-  uint8_t getSensorIndex() const;
-
  protected:
   /**
    * Default constructor that puts this instance in an unspecified state.
