@@ -41,8 +41,8 @@ static void checkTimestampDelta(uint32_t delta, size_t index) {
   }
 }
 
-static void verifyThreeAxisData(const void *eventData, float extremeLow,
-                                float extremeHigh) {
+static void sanityCheckThreeAxisData(const void *eventData, float extremeLow,
+                                     float extremeHigh) {
   auto data = static_cast<const chreSensorThreeAxisData *>(eventData);
   for (size_t i = 0; i < data->header.readingCount; i++) {
     checkTimestampDelta(data->readings[i].timestampDelta, i);
@@ -52,8 +52,8 @@ static void verifyThreeAxisData(const void *eventData, float extremeLow,
   }
 }
 
-static void verifyFloatData(const void *eventData, float extremeLow,
-                            float extremeHigh) {
+static void sanityCheckFloatData(const void *eventData, float extremeLow,
+                                 float extremeHigh) {
   auto data = static_cast<const chreSensorFloatData *>(eventData);
   for (size_t i = 0; i < data->header.readingCount; i++) {
     checkTimestampDelta(data->readings[i].timestampDelta, i);
@@ -63,36 +63,36 @@ static void verifyFloatData(const void *eventData, float extremeLow,
 
 void BasicAccelerometerTest::confirmDataIsSane(const void *eventData) {
   constexpr float kExtreme = 70.5f;  // Apollo 16 on reentry (7.19g)
-  verifyThreeAxisData(eventData, -kExtreme, kExtreme);
+  sanityCheckThreeAxisData(eventData, -kExtreme, kExtreme);
 }
 
 void BasicInstantMotionDetectTest::confirmDataIsSane(const void *eventData) {
-  // Nothing to check.
+  // Nothing to sanity check.
 }
 
 void BasicStationaryDetectTest::confirmDataIsSane(const void *eventData) {
-  // Nothing to check.
+  // Nothing to sanity check.
 }
 
 void BasicGyroscopeTest::confirmDataIsSane(const void *eventData) {
   constexpr float kExtreme = 9420.0f;  // Zippe centrifuge
-  verifyThreeAxisData(eventData, -kExtreme, kExtreme);
+  sanityCheckThreeAxisData(eventData, -kExtreme, kExtreme);
 }
 
 void BasicMagnetometerTest::confirmDataIsSane(const void *eventData) {
   constexpr float kExtreme = 9400000.0f;  // Strength of medical MRI
-  verifyThreeAxisData(eventData, -kExtreme, kExtreme);
+  sanityCheckThreeAxisData(eventData, -kExtreme, kExtreme);
 }
 
 void BasicBarometerTest::confirmDataIsSane(const void *eventData) {
   constexpr float kExtremeLow = 337.0f;    // Mount Everest summit
   constexpr float kExtremeHigh = 1067.0f;  // Dead Sea
-  verifyFloatData(eventData, kExtremeLow, kExtremeHigh);
+  sanityCheckFloatData(eventData, kExtremeLow, kExtremeHigh);
 }
 
 void BasicLightSensorTest::confirmDataIsSane(const void *eventData) {
   constexpr float kExtreme = 300000.0f;  // 3x the Sun
-  verifyFloatData(eventData, 0.0f, kExtreme);
+  sanityCheckFloatData(eventData, 0.0f, kExtreme);
 }
 
 void BasicProximityTest::confirmDataIsSane(const void *eventData) {

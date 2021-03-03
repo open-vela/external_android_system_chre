@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "chre/platform/linux/platform_log.h"
+#include "chre/platform/shared/platform_log.h"
 
 #include <cstdarg>
 #include <cstdio>
@@ -24,7 +24,7 @@
 
 namespace chre {
 
-void PlatformLog::logLooper() {
+void PlatformLogBase::logLooper() {
   while (1) {
     char *logMessage = nullptr;
 
@@ -67,10 +67,12 @@ PlatformLog::~PlatformLog() {
   mLoggerThread.join();
 }
 
-void PlatformLog::logVa(chreLogLevel /*logLevel*/, const char *formatStr,
-                        va_list args) {
+void PlatformLog::log(const char *formatStr, ...) {
   char *formattedStr;
-  int result = vasprintf(&formattedStr, formatStr, args);
+  va_list argList;
+  va_start(argList, formatStr);
+  int result = vasprintf(&formattedStr, formatStr, argList);
+  va_end(argList);
 
   if (result >= 0) {
     std::unique_lock<std::mutex> lock(mMutex);
