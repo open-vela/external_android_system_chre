@@ -86,9 +86,7 @@ void PlatformGnss::releaseLocationEvent(chreGnssLocationEvent *event) {
 }
 
 void PlatformGnssBase::requestStateResyncCallback() {
-  EventLoopManagerSingleton::get()
-      ->getGnssManager()
-      .handleRequestStateResyncCallback();
+  // TODO: Implement this.
 }
 
 void PlatformGnssBase::locationStatusChangeCallback(bool enabled,
@@ -123,16 +121,6 @@ void PlatformGnss::releaseMeasurementDataEvent(chreGnssDataEvent *event) {
     prePalApiCall();
     mGnssApi->releaseMeasurementDataEvent(event);
   }
-}
-
-bool PlatformGnss::configurePassiveLocationListener(bool enable) {
-  bool success = false;
-  if (mGnssApi != nullptr &&
-      mGnssApi->moduleVersion >= CHRE_PAL_GNSS_API_V1_2) {
-    prePalApiCall();
-    success = mGnssApi->configurePassiveLocationListener(enable);
-  }
-  return success;
 }
 
 void PlatformGnssBase::measurementStatusChangeCallback(bool enabled,
