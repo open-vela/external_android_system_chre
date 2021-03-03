@@ -44,10 +44,6 @@ extern "C" {
 #include "chre/platform/slpi/qsh/qsh_shim.h"
 #endif
 
-#ifdef CHRE_USE_BUFFERED_LOGGING
-#include "chre/platform/shared/log_buffer_manager.h"
-#endif
-
 using chre::EventLoop;
 using chre::EventLoopManagerSingleton;
 using chre::LockGuard;
@@ -159,10 +155,6 @@ extern "C" int chre_slpi_start_thread(void) {
   // This lock ensures that we only start the thread once
   LockGuard<Mutex> lock(gThreadMutex);
   int fastRpcResult = CHRE_FASTRPC_ERROR;
-
-#ifdef CHRE_USE_BUFFERED_LOGGING
-  chre::LogBufferManagerSingleton::init();
-#endif
 
   if (gThreadRunning) {
     LOGE("CHRE thread already running");
