@@ -25,6 +25,9 @@ namespace chre {
 
 enum class Setting : uint8_t {
   LOCATION = 0,
+  WIFI_AVAILABLE,
+  AIRPLANE_MODE,
+  GLOBAL_MIC_DISABLE,
   SETTING_MAX,
 };
 

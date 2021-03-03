@@ -17,7 +17,7 @@ NANOAPP_DIR_NAME ?= $(NANOAPP_NAME)
 NANOAPP_SRC_PATH = ../../src
 
 SHARED_LIB_FILES = abort.cc \
-  dumb_allocator.cc \
+  chunk_allocator.cc \
   nano_endian.cc \
   nano_string.cc \
   send_message.cc \
@@ -39,5 +39,12 @@ COMMON_CFLAGS += -DCHRE_NO_ENDIAN_H \
 COMMON_CFLAGS += -I$(NANOAPP_SRC_PATH)
 
 OPT_LEVEL=2
+
+# Permission declarations ######################################################
+
+CHRE_NANOAPP_USES_AUDIO = true
+CHRE_NANOAPP_USES_GNSS = true
+CHRE_NANOAPP_USES_WIFI = true
+CHRE_NANOAPP_USES_WWAN = true
 
 include ${ANDROID_BUILD_TOP}/system/chre/build/nanoapp/app.mk
