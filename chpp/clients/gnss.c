@@ -426,9 +426,9 @@ static void chppGnssControlLocationSessionResult(
         (struct ChppGnssControlLocationSessionResponse *)buf;
 
     CHPP_LOGD(
-        "chppGnssControlLocationSessionResult received enable=%d, "
+        "chppGnssControlLocationSessionResult received enable=%s, "
         "errorCode=%" PRIu8,
-        result->enabled, result->errorCode);
+        result->enabled ? "true" : "false", result->errorCode);
 
     gCallbacks->locationStatusChangeCallback(result->enabled,
                                              result->errorCode);
@@ -466,9 +466,9 @@ static void chppGnssControlMeasurementSessionResult(
         (struct ChppGnssControlMeasurementSessionResponse *)buf;
 
     CHPP_LOGD(
-        "chppGnssControlMeasurementSessionResult received enable=%d, "
+        "chppGnssControlMeasurementSessionResult received enable=%s, "
         "errorCode=%" PRIu8,
-        result->enabled, result->errorCode);
+        result->enabled ? "true" : "false", result->errorCode);
 
     gCallbacks->measurementStatusChangeCallback(result->enabled,
                                                 result->errorCode);
