@@ -689,8 +689,11 @@ static void chppEnqueueTxPacket(struct ChppTransportState *context,
   context->txStatus.hasPacketsToSend = true;
   context->txStatus.packetCodeToSend = packetCode;
 
-  CHPP_LOGD("chppEnqueueTxPacket called with packet code=0x%" PRIx8,
-            packetCode);
+  CHPP_LOGD("chppEnqueueTxPacket called with packet code=0x%" PRIx8 "(%serror)",
+            packetCode,
+            (CHPP_TRANSPORT_GET_ERROR(packetCode) == CHPP_TRANSPORT_ERROR_NONE)
+                ? "no "
+                : "");
 
   // Notifies the main CHPP Transport Layer to run chppTransportDoWork().
   chppNotifierSignal(&context->notifier, CHPP_TRANSPORT_SIGNAL_EVENT);
@@ -784,12 +787,16 @@ static void chppTransportDoWork(struct ChppTransportState *context) {
   // Note: For a future ACK window >1, there needs to be a loop outside the lock
 
   CHPP_LOGD(
-      "chppTransportDoWork start. hasPackets=%d, linkBusy=%d, "
-      "pending datagrams=%" PRIu8 ", last RX ACK=%" PRIu8
-      " (last TX seq=%" PRIu8 ")",
-      context->txStatus.hasPacketsToSend, context->txStatus.linkBusy,
+      "chppTransportDoWork start. packets to send=%s, link=%s, pending "
+      "datagrams=%" PRIu8 ", last RX ACK=%" PRIu8 " (last TX seq=%" PRIu8 "%s)",
+      context->txStatus.hasPacketsToSend ? "true" : "false (can't run)",
+      context->txStatus.linkBusy ? "busy (can't run)" : "not busy",
       context->txDatagramQueue.pending, context->rxStatus.receivedAckSeq,
-      context->txStatus.sentSeq);
+      context->txStatus.sentSeq,
+      (context->txStatus.sentSeq == context->rxStatus.receivedAckSeq) &&
+              context->txStatus.hasPacketsToSend
+          ? ", ReTx payload"
+          : "");
 
   chppMutexLock(&context->mutex);
 
@@ -899,9 +906,10 @@ static void chppTransportDoWork(struct ChppTransportState *context) {
     // Either there are no pending outgoing packets or we are blocked on the
     // link layer.
     CHPP_LOGW(
-        "TransportDoWork can't run. hasPackets=%d, linkBusy=%d, "
-        "pending datagrams=%" PRIu8 ", RX state=%" PRIu8,
-        context->txStatus.hasPacketsToSend, context->txStatus.linkBusy,
+        "chppTransportDoWork could not run. packets to send=%s, link=%s"
+        ", pending datagrams=%" PRIu8 ", RX state=%" PRIu8,
+        context->txStatus.hasPacketsToSend ? "true" : "false (can't run)",
+        context->txStatus.linkBusy ? "busy (can't run)" : "not busy",
         context->txDatagramQueue.pending, context->rxStatus.state);
 
     chppMutexUnlock(&context->mutex);
@@ -1203,9 +1211,8 @@ bool chppEnqueueTxDatagramOrFail(struct ChppTransportState *context, void *buf,
   } else if (resetting || !chppEnqueueTxDatagram(
                               context, CHPP_TRANSPORT_ERROR_NONE, buf, len)) {
     uint8_t *handle = buf;
-    CHPP_LOGE("Resetting=%d. Discarding %" PRIuSIZE " bytes for H#%" PRIu8,
-              resetting, len, *handle);
-
+    CHPP_LOGE("%s. Discarding %" PRIuSIZE " bytes for H#%" PRIu8,
+              resetting ? "Resetting" : "TX queue full", len, *handle);
     CHPP_FREE_AND_NULLIFY(buf);
 
   } else {
@@ -1219,11 +1226,14 @@ void chppEnqueueTxErrorDatagram(struct ChppTransportState *context,
                                 enum ChppTransportErrorCode errorCode) {
   switch (errorCode) {
     case CHPP_TRANSPORT_ERROR_OOM: {
-      CHPP_LOGD("App layer enqueueing CHPP_TRANSPORT_ERROR_OOM");
+      CHPP_LOGD(
+          "App layer is enqueueing a CHPP_TRANSPORT_ERROR_OOM error datagram");
       break;
     }
     case CHPP_TRANSPORT_ERROR_APPLAYER: {
-      CHPP_LOGD("App layer enqueueing CHPP_TRANSPORT_ERROR_APPLAYER");
+      CHPP_LOGD(
+          "App layer is enqueueing a CHPP_TRANSPORT_ERROR_APPLAYER error "
+          "datagram");
       break;
     }
     default: {
@@ -1458,11 +1468,8 @@ void chppTransportSendReset(struct ChppTransportState *context,
   config->timeoutInMs = CHPP_PLATFORM_TRANSPORT_TIMEOUT_MS;
 
   // Send out the reset datagram
-  if (resetType == CHPP_TRANSPORT_ATTR_RESET_ACK) {
-    CHPP_LOGI("Sending RESET-ACK");
-  } else {
-    CHPP_LOGI("Sending RESET");
-  }
+  CHPP_LOGI("Sending out CHPP transport layer RESET%s",
+            (resetType == CHPP_TRANSPORT_ATTR_RESET_ACK) ? "-ACK" : "");
 
   if (resetType == CHPP_TRANSPORT_ATTR_RESET_ACK) {
     chppSetResetComplete(context);
