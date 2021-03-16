@@ -18,7 +18,6 @@
 #define CHRE_PLATFORM_LOG_BUFFER_MANAGER_BUFFER_H_
 
 #include "chre/platform/assert.h"
-#include "chre/platform/condition_variable.h"
 #include "chre/platform/mutex.h"
 #include "chre/platform/shared/log_buffer.h"
 #include "chre/util/singleton.h"
@@ -87,11 +86,10 @@ class LogBufferManager : public LogBufferCallbackInterface {
   void onLogsSentToHost();
 
   /**
-   * Loop that waits on the conditions for sending logs to host to be met and
-   * sends the logs to the host if so. This method never exits. Should be called
-   * by a platform thread.
+   * Send logs to this host. This is called inside the deferred callback past to
+   * the event loop manaager.
    */
-  void startSendLogsToHostLoop();
+  void sendLogsToHost();
 
  private:
   /*
@@ -107,18 +105,11 @@ class LogBufferManager : public LogBufferCallbackInterface {
    */
   void preSecondaryBufferUse() const;
 
-  /**
-   * Same as onLogsSentToHost, but without locking. The calling code should have
-   * the flush logs mutex locked before calling this method.
-   */
-  void onLogsSentToHostLocked();
-
   LogBuffer mPrimaryLogBuffer;
   LogBuffer mSecondaryLogBuffer;
 
   size_t mNumLogsDroppedTotal = 0;
 
-  ConditionVariable mSendLogsToHostCondition;
   bool mLogFlushToHostPending = false;
   bool mLogsBecameReadyWhileFlushPending = false;
   Mutex mFlushLogsMutex;
