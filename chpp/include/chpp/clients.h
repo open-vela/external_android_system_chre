@@ -71,9 +71,8 @@ struct ChppClientState {
   uint8_t handle;                   // Handle number for this client
   uint8_t transaction;              // Next Transaction ID to be used
 
-  uint8_t openState;         // As defined in enum ChppOpenState
-  bool initialized : 1;      // Is initialized
-  bool everInitialized : 1;  // Synchronization primitives initialized
+  uint8_t openState;     // As defined in enum ChppOpenState
+  bool initialized : 1;  // Has been initialized
 
   bool responseReady : 1;  // For sync. request/responses
   struct ChppMutex responseMutex;
@@ -93,8 +92,6 @@ struct ChppClientState {
 #endif
 
 #if defined(CHPP_CLIENT_ENABLED_LOOPBACK) ||                                  \
-    defined(CHPP_CLIENT_ENABLED_TIMESYNC) ||                                  \
-    defined(CHPP_CLIENT_ENABLED_DISCOVERY) ||                                 \
     defined(CHPP_CLIENT_ENABLED_WWAN) || defined(CHPP_CLIENT_ENABLED_WIFI) || \
     defined(CHPP_CLIENT_ENABLED_GNSS)
 #define CHPP_CLIENT_ENABLED
@@ -113,6 +110,22 @@ struct ChppClientState {
 /************************************************
  *  Public functions
  ***********************************************/
+
+/**
+ * Initializes a client. This function must be called when a client is matched
+ * with a service during discovery to provides its handle number.
+ *
+ * @param clientContext Maintains status for each client instance.
+ * @param handle Handle number for this client.
+ */
+void chppClientInit(struct ChppClientState *clientContext, uint8_t handle);
+
+/**
+ * Deinitializes a client.
+ *
+ * @param clientContext Maintains status for each client instance.
+ */
+void chppClientDeinit(struct ChppClientState *clientContext);
 
 /**
  * Registers common clients with the CHPP app layer. These clients are enabled
@@ -152,43 +165,6 @@ void chppDeregisterCommonClients(struct ChppAppState *context);
  */
 void chppRegisterClient(struct ChppAppState *appContext, void *clientContext,
                         const struct ChppClient *newClient);
-
-/**
- * Initializes basic CHPP clients.
- *
- * @param clientContext Maintains status for each client instance.
- */
-void chppInitBasicClients(struct ChppAppState *context);
-
-/**
- * Initializes a client. This function must be called when a client is matched
- * with a service during discovery to provides its handle number.
- *
- * @param clientContext Maintains status for each client instance.
- * @param handle Handle number for this client.
- */
-void chppClientInit(struct ChppClientState *clientContext, uint8_t handle);
-
-/**
- * Deinitializes a client.
- *
- * @param clientContext Maintains status for each client instance.
- */
-void chppClientDeinit(struct ChppClientState *clientContext);
-
-/**
- * Deinitializes basic clients.
- *
- * @param clientContext Maintains status for each client instance.
- */
-void chppDeinitBasicClients(struct ChppAppState *context);
-
-/**
- * Deinitializes all matched clients.
- *
- * @param clientContext Maintains status for each client instance.
- */
-void chppDeinitMatchedClients(struct ChppAppState *context);
 
 /**
  * Allocates a client request message of a specified length, populating the

@@ -370,7 +370,6 @@ struct ChppAppState {
   struct ChppTimesyncClientState *timesyncClientContext;
 
   // For discovery clients
-  bool isDiscoveryClientEverInitialized;
   bool isDiscoveryClientInitialized;
   bool isDiscoveryComplete;
 
