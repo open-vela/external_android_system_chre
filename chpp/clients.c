@@ -203,7 +203,9 @@ void chppInitBasicClients(struct ChppAppState *context) {
 #endif
 
 #ifdef CHPP_CLIENT_ENABLED_TIMESYNC
-  chppTimesyncClientInit(context);
+  if (context->clientServiceSet.timesyncClient) {
+    chppTimesyncClientInit(context);
+  }
 #endif
 
 #ifdef CHPP_CLIENT_ENABLED_DISCOVERY
@@ -244,7 +246,9 @@ void chppDeinitBasicClients(struct ChppAppState *context) {
 #endif
 
 #ifdef CHPP_CLIENT_ENABLED_TIMESYNC
-  chppTimesyncClientDeinit(context);
+  if (context->clientServiceSet.timesyncClient) {
+    chppTimesyncClientDeinit(context);
+  }
 #endif
 
 #ifdef CHPP_CLIENT_ENABLED_DISCOVERY
@@ -403,10 +407,6 @@ bool chppClientSendOpenRequest(struct ChppClientState *clientState,
                                struct ChppRequestResponseState *openRRState,
                                uint16_t openCommand, bool reopen) {
   bool result = false;
-
-#ifdef CHPP_CLIENT_ENABLED_TIMESYNC
-  chppTimesyncMeasureOffset(clientState->appContext);
-#endif
 
   struct ChppAppHeader *request =
       chppAllocClientRequestCommand(clientState, openCommand);
