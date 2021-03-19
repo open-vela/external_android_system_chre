@@ -336,6 +336,7 @@ struct ChppClientServiceSet {
   bool gnssClient : 1;
   bool wwanClient : 1;
   bool loopbackClient : 1;
+  bool timesyncClient : 1;
 };
 
 struct ChppLoopbackClientState;
