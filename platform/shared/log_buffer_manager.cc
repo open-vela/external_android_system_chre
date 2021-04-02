@@ -51,9 +51,9 @@ void LogBufferManager::flushLogs() {
   onLogsReady();
 }
 
-void LogBufferManager::onLogsSentToHost(bool success) {
+void LogBufferManager::onLogsSentToHost() {
   LockGuard<Mutex> lockGuard(mFlushLogsMutex);
-  onLogsSentToHostLocked(success);
+  onLogsSentToHostLocked();
 }
 
 void LogBufferManager::startSendLogsToHostLoop() {
@@ -72,8 +72,6 @@ void LogBufferManager::startSendLogsToHostLoop() {
           EventLoopManagerSingleton::get()->getHostCommsManager();
       preSecondaryBufferUse();
       if (mSecondaryLogBuffer.getBufferSize() == 0) {
-        // TODO (b/184178045): Transfer logs into the secondary buffer from
-        // primary if there is room.
         mPrimaryLogBuffer.transferTo(mSecondaryLogBuffer);
       }
       // If the primary buffer was not flushed to the secondary buffer then set
@@ -94,7 +92,7 @@ void LogBufferManager::startSendLogsToHostLoop() {
       }
     }
     if (!logWasSent) {
-      onLogsSentToHostLocked(false);
+      onLogsSentToHostLocked();
     }
   }
 }
@@ -142,12 +140,10 @@ LogBufferLogLevel LogBufferManager::chreToLogBufferLogLevel(
   }
 }
 
-void LogBufferManager::onLogsSentToHostLocked(bool success) {
-  if (success) {
-    mSecondaryLogBuffer.reset();
-  }
+void LogBufferManager::onLogsSentToHostLocked() {
   mLogFlushToHostPending = mLogsBecameReadyWhileFlushPending;
   mLogsBecameReadyWhileFlushPending = false;
+  mSecondaryLogBuffer.reset();
   if (mLogFlushToHostPending) {
     mSendLogsToHostCondition.notify_one();
   }

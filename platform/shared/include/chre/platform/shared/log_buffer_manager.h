@@ -82,13 +82,9 @@ class LogBufferManager : public LogBufferCallbackInterface {
 
   /**
    * The platform code should call this method after the logs have been sent to
-   * the host to signal that more logs can be sent to the host when ready. The
-   * caller must indicate whether the platform could successfully deliver the
-   * logs as well.
-   *
-   * @param success true if the logs were sent through to host successfully.
+   * the host to signal that more logs can be sent to the host when ready.
    */
-  void onLogsSentToHost(bool success);
+  void onLogsSentToHost();
 
   /**
    * Loop that waits on the conditions for sending logs to host to be met and
@@ -114,10 +110,8 @@ class LogBufferManager : public LogBufferCallbackInterface {
   /**
    * Same as onLogsSentToHost, but without locking. The calling code should have
    * the flush logs mutex locked before calling this method.
-   *
-   * @param success true if the logs were successfully delivered to the host.
    */
-  void onLogsSentToHostLocked(bool success);
+  void onLogsSentToHostLocked();
 
   LogBuffer mPrimaryLogBuffer;
   LogBuffer mSecondaryLogBuffer;
