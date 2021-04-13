@@ -1125,14 +1125,12 @@ static void chppReset(struct ChppTransportState *transportContext,
       transportContext->rxHeader.packetCode;
   transportContext->rxStatus.expectedSeq = transportContext->rxHeader.seq + 1;
 
-  // Send reset or reset-ACK
+  // Send reset-ACK
   chppMutexUnlock(&transportContext->mutex);
   chppTransportSendReset(transportContext, resetType, error);
 
   // Inform the App Layer
-  if (resetType == CHPP_TRANSPORT_ATTR_RESET_ACK) {
-    chppAppProcessReset(appContext);
-  }
+  chppAppProcessRxReset(appContext);
 }
 
 /************************************************
