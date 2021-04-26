@@ -109,9 +109,9 @@ class BasicSensorTestBase : public Test {
                        const chreSensorThreeAxisData *eventData);
   void handleSamplingChangeEvent(
       const chreSensorSamplingStatusEvent *eventData);
-  void handleSensorDataEvent(const void *eventData);
-  void sanityCheckHeader(const chreSensorDataHeader *header,
-                         bool modifyTimestamps, uint64_t eventDuration);
+  void handleSensorDataEvent(uint16_t eventType, const void *eventData);
+  void verifyEventHeader(const chreSensorDataHeader *header, uint16_t eventType,
+                         uint64_t eventDuration);
 };
 
 }  // namespace general_test
