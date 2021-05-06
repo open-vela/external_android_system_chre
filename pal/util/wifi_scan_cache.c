@@ -81,7 +81,8 @@ static bool isFrequencyListValid(const uint32_t *frequencyList,
 static bool paramsMatchScanCache(const struct chreWifiScanParams *params) {
   uint64_t timeNs = gWifiCacheState.event.referenceTime;
   // TODO(b/174510035): Add checks for other parameters
-  return (timeNs >= gSystemApi->getCurrentTime() - params->maxScanAgeMs);
+  return (timeNs >= gSystemApi->getCurrentTime() -
+                        (params->maxScanAgeMs * kOneMillisecondInNanoseconds));
 }
 
 static bool isWifiScanCacheBusy(bool logOnBusy) {
@@ -103,6 +104,8 @@ static bool isWifiScanCacheBusy(bool logOnBusy) {
 
 static void chreWifiScanCacheDispatchAll(void) {
   uint8_t eventIndex = 0;
+  gSystemApi->log(CHRE_LOG_DEBUG, "Dispatching %" PRIu8 " events",
+                  gWifiCacheState.event.resultTotal);
   for (uint16_t i = 0; i < gWifiCacheState.event.resultTotal;
        i += CHRE_PAL_WIFI_SCAN_CACHE_MAX_RESULT_COUNT) {
     gWifiCacheState.event.resultCount =
@@ -224,8 +227,9 @@ void chreWifiScanCacheScanEventAdd(const struct chreWifiScanResult *result) {
              sizeof(const struct chreWifiScanResult));
 
       // ageMs will be properly populated in chreWifiScanCacheScanEventEnd
-      gWifiCacheState.resultList[index].ageMs = (uint32_t)(
-          gSystemApi->getCurrentTime() / kOneMillisecondInNanoseconds);
+      gWifiCacheState.resultList[index].ageMs =
+          (uint32_t)gSystemApi->getCurrentTime() /
+          (uint32_t)kOneMillisecondInNanoseconds;
     }
   }
 }
@@ -247,8 +251,8 @@ void chreWifiScanCacheScanEventEnd(enum chreError errorCode) {
       gWifiCacheState.event.referenceTime = gSystemApi->getCurrentTime();
       gWifiCacheState.event.scannedFreqList = gWifiCacheState.scannedFreqList;
 
-      uint32_t referenceTimeMs = (uint32_t)(
-          gWifiCacheState.event.referenceTime / kOneMillisecondInNanoseconds);
+      uint32_t referenceTimeMs = (uint32_t)gWifiCacheState.event.referenceTime /
+                                 (uint32_t)kOneMillisecondInNanoseconds;
       for (uint16_t i = 0; i < gWifiCacheState.event.resultTotal; i++) {
         gWifiCacheState.resultList[i].ageMs =
             referenceTimeMs - gWifiCacheState.resultList[i].ageMs;
