@@ -81,8 +81,7 @@ static bool isFrequencyListValid(const uint32_t *frequencyList,
 static bool paramsMatchScanCache(const struct chreWifiScanParams *params) {
   uint64_t timeNs = gWifiCacheState.event.referenceTime;
   // TODO(b/174510035): Add checks for other parameters
-  return (timeNs >= gSystemApi->getCurrentTime() -
-                        (params->maxScanAgeMs * kOneMillisecondInNanoseconds));
+  return (timeNs >= gSystemApi->getCurrentTime() - params->maxScanAgeMs);
 }
 
 static bool isWifiScanCacheBusy(bool logOnBusy) {
@@ -104,8 +103,6 @@ static bool isWifiScanCacheBusy(bool logOnBusy) {
 
 static void chreWifiScanCacheDispatchAll(void) {
   uint8_t eventIndex = 0;
-  gSystemApi->log(CHRE_LOG_DEBUG, "Dispatching %" PRIu8 " events",
-                  gWifiCacheState.event.resultTotal);
   for (uint16_t i = 0; i < gWifiCacheState.event.resultTotal;
        i += CHRE_PAL_WIFI_SCAN_CACHE_MAX_RESULT_COUNT) {
     gWifiCacheState.event.resultCount =
