@@ -151,46 +151,29 @@ class EventLoop : public NonCopyable {
   /**
    * Posts an event to a nanoapp that is currently running (or all nanoapps if
    * the target instance ID is kBroadcastInstanceId). A senderInstanceId cannot
-   * be provided to this method because it must only be used to post events
-   * sent by the system. If the event fails to post and the event loop thread is
-   * running, this is considered a fatal error. If the thread is not running
-   * (e.g. CHRE is shutting down), the event is silently dropped and the free
-   * callback is invoked prior to returning (if not null).
-   *
-   * Safe to call from any thread.
-   *
-   * @param eventType Event type identifier, which implies the type of eventData
-   * @param eventData The data being posted
-   * @param freeCallback Function to invoke to when the event has been processed
-   *        by all recipients; this must be safe to call immediately, to handle
-   *        the case where CHRE is shutting down
-   * @param targetInstanceId The instance ID of the destination of this event
-   * @param targetGroupMask Mask used to limit the recipients that are
-   *        registered to receive this event
+   * be provided to this method because it should only be used to post events
+   * sent by the system. If the event fails to post, this is considered a fatal
+   * error.
    *
    * @see postLowPriorityEventOrFree
    */
-  void postEventOrDie(uint16_t eventType, void *eventData,
+  bool postEventOrDie(uint16_t eventType, void *eventData,
                       chreEventCompleteFunction *freeCallback,
-                      uint32_t targetInstanceId = kBroadcastInstanceId,
-                      uint16_t targetGroupMask = kDefaultTargetGroupMask);
+                      uint32_t targetInstanceId = kBroadcastInstanceId);
 
   /**
    * Posts an event to a nanoapp that is currently running (or all nanoapps if
    * the target instance ID is kBroadcastInstanceId). If the event fails to
-   * post, freeCallback is invoked prior to returning (if not null).
+   * post, it is freed with freeCallback.
    *
-   * Safe to call from any thread.
+   * This function is safe to call from any thread.
    *
-   * @param eventType Event type identifier, which implies the type of eventData
-   * @param eventData The data being posted
-   * @param freeCallback Function to invoke to when the event has been processed
-   *        by all recipients; this must be safe to call immediately, to handle
-   *        the case where CHRE is shutting down
-   * @param senderInstanceId The instance ID of the sender of this event
-   * @param targetInstanceId The instance ID of the destination of this event
-   * @param targetGroupMask Mask used to limit the recipients that are
-   *        registered to receive this event
+   * @param eventType The type of data being posted.
+   * @param eventData The data being posted.
+   * @param freeCallback The callback to invoke when the event is no longer
+   *        needed.
+   * @param senderInstanceId The instance ID of the sender of this event.
+   * @param targetInstanceId The instance ID of the destination of this event.
    *
    * @return true if the event was successfully added to the queue.
    *
@@ -200,33 +183,7 @@ class EventLoop : public NonCopyable {
       uint16_t eventType, void *eventData,
       chreEventCompleteFunction *freeCallback,
       uint32_t senderInstanceId = kSystemInstanceId,
-      uint32_t targetInstanceId = kBroadcastInstanceId,
-      uint16_t targetGroupMask = kDefaultTargetGroupMask);
-
-  /**
-   * Posts an event for processing by the system from within the context of the
-   * CHRE thread. Uses the same underlying event queue as is used for nanoapp
-   * events, but gives the ability to provide an additional data pointer. If the
-   * event loop is running and the system event can't be posted (i.e. queue is
-   * full), then a fatal error is raised.
-   *
-   * Safe to call from any thread.
-   *
-   * @param eventType Event type identifier, which is forwarded to the callback
-   * @param eventData Arbitrary data to pass to the callback
-   * @param callback Function to invoke from the context of the CHRE thread
-   * @param extraData Additional arbitrary data to provide to the callback
-   *
-   * @return true if successfully posted; false ONLY IF the CHRE event loop is
-   *         shutting down and not accepting any new events - in this case,
-   *         the callback will not be invoked and any allocated memory must be
-   *         cleaned up
-   *
-   * @see postEventOrDie
-   * @see EventLoopManager::deferCallback
-   */
-  bool postSystemEvent(uint16_t eventType, void *eventData,
-                       SystemEventCallbackFunction *callback, void *extraData);
+      uint32_t targetInstanceId = kBroadcastInstanceId);
 
   /**
    * Returns a pointer to the currently executing Nanoapp, or nullptr if none is
@@ -385,8 +342,7 @@ class EventLoop : public NonCopyable {
   bool allocateAndPostEvent(uint16_t eventType, void *eventData,
                             chreEventCompleteFunction *freeCallback,
                             uint32_t senderInstanceId,
-                            uint32_t targetInstanceId,
-                            uint16_t targetGroupMask);
+                            uint32_t targetInstanceId);
 
   /**
    * Do one round of Nanoapp event delivery, only considering events in

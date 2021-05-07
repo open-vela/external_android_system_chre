@@ -876,15 +876,6 @@ void populateEventSample(SeeInfoArg *info, const float *val) {
         timestampDelta = &event->readings[index].timestampDelta;
         break;
       }
-
-      case SensorSampleType::Vendor10: {
-        auto *event =
-            reinterpret_cast<chrexSensorVendor10Data *>(data->event.get());
-        memcpy(event->readings[index].values, val,
-               sizeof(event->readings[index].values));
-        timestampDelta = &event->readings[index].timestampDelta;
-        break;
-      }
 #endif  // CHREX_SENSOR_SUPPORT
 
       default:
@@ -1443,10 +1434,6 @@ void *allocateEvent(uint8_t sensorType, size_t numSamples) {
     case SensorSampleType::Vendor9:
       sampleSize = sizeof(chrexSensorVendor9SampleData);
       break;
-
-    case SensorSampleType::Vendor10:
-      sampleSize = sizeof(chrexSensorVendor10SampleData);
-      break;
 #endif  // CHREX_SENSOR_SUPPORT
 
     default:
@@ -1720,21 +1707,11 @@ bool SeeHelper::init(SeeHelperCallbackInterface *cbIf, Microseconds timeout,
   sns_client *client;
 
   // Initialize cal/remote_proc_state sensors before making sensor data request.
-  bool success = waitForService(&client, timeout) &&
-                 mSeeClients.push_back(client) && initResamplerSensor();
-  if (success && !skipDefaultSensorInit) {
-    if (!mCalHelper->findCalibrationSensors(*this)) {
-#ifdef CHRE_LOG_ONLY_NO_CAL_SENSOR
-      LOGW("Bypassing failure to find calibrated sensor");
-#else   // CHRE_LOG_ONLY_NO_CAL_SENSOR
-      success = false;
-#endif  // CHRE_LOG_ONLY_NO_CAL_SENSOR
-    }
-    if (success) {
-      success = initRemoteProcSensor();
-    }
-  }
-  return success;
+  return (waitForService(&client, timeout) && mSeeClients.push_back(client) &&
+          initResamplerSensor() &&
+          (skipDefaultSensorInit ||
+           (mCalHelper->registerForCalibrationUpdates(*this) &&
+            initRemoteProcSensor())));
 }
 
 bool SeeHelper::makeRequest(const SeeSensorRequest &request) {

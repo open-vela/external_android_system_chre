@@ -44,40 +44,30 @@ Nanoapp::~Nanoapp() {
   }
 }
 
-bool Nanoapp::isRegisteredForBroadcastEvent(uint16_t eventType,
-                                            uint16_t targetGroupIdMask) const {
-  bool registered = false;
-  size_t foundIndex = registrationIndex(eventType);
-  if (foundIndex < mRegisteredEvents.size()) {
-    const EventRegistration &reg = mRegisteredEvents[foundIndex];
-    if (targetGroupIdMask & reg.groupIdMask) {
-      registered = true;
-    }
-  }
-  return registered;
+bool Nanoapp::isRegisteredForBroadcastEvent(uint16_t eventType) const {
+  return (mRegisteredEvents.find(eventType) != mRegisteredEvents.size());
 }
 
-void Nanoapp::registerForBroadcastEvent(uint16_t eventType,
-                                        uint16_t groupIdMask) {
-  size_t foundIndex = registrationIndex(eventType);
-  if (foundIndex < mRegisteredEvents.size()) {
-    mRegisteredEvents[foundIndex].groupIdMask |= groupIdMask;
-  } else if (!mRegisteredEvents.push_back(
-                 EventRegistration(eventType, groupIdMask))) {
+bool Nanoapp::registerForBroadcastEvent(uint16_t eventId) {
+  if (isRegisteredForBroadcastEvent(eventId)) {
+    return false;
+  }
+
+  if (!mRegisteredEvents.push_back(eventId)) {
     FATAL_ERROR_OOM();
   }
+
+  return true;
 }
 
-void Nanoapp::unregisterForBroadcastEvent(uint16_t eventType,
-                                          uint16_t groupIdMask) {
-  size_t foundIndex = registrationIndex(eventType);
-  if (foundIndex < mRegisteredEvents.size()) {
-    EventRegistration &reg = mRegisteredEvents[foundIndex];
-    reg.groupIdMask &= ~groupIdMask;
-    if (reg.groupIdMask == 0) {
-      mRegisteredEvents.erase(foundIndex);
-    }
+bool Nanoapp::unregisterForBroadcastEvent(uint16_t eventId) {
+  size_t registeredEventIndex = mRegisteredEvents.find(eventId);
+  if (registeredEventIndex == mRegisteredEvents.size()) {
+    return false;
   }
+
+  mRegisteredEvents.erase(registeredEventIndex);
+  return true;
 }
 
 void Nanoapp::configureNanoappInfoEvents(bool enable) {
@@ -105,15 +95,6 @@ void Nanoapp::configureDebugDumpEvent(bool enable) {
     registerForBroadcastEvent(CHRE_EVENT_DEBUG_DUMP);
   } else {
     unregisterForBroadcastEvent(CHRE_EVENT_DEBUG_DUMP);
-  }
-}
-
-void Nanoapp::configureUserSettingEvent(uint8_t setting, bool enable) {
-  if (enable) {
-    registerForBroadcastEvent(CHRE_EVENT_SETTING_CHANGED_FIRST_EVENT + setting);
-  } else {
-    unregisterForBroadcastEvent(CHRE_EVENT_SETTING_CHANGED_FIRST_EVENT +
-                                setting);
   }
 }
 
@@ -161,22 +142,6 @@ void Nanoapp::logStateToBuffer(DebugDumpWrapper &debugDump) const {
   }
   // Earliest bucket gets no comma
   debugDump.print("%" PRIu16 " ]\n", mWakeupBuckets.front());
-}
-
-bool Nanoapp::permitPermissionUse(uint32_t permission) const {
-  return !supportsAppPermissions() ||
-         ((getAppPermissions() & permission) == permission);
-}
-
-size_t Nanoapp::registrationIndex(uint16_t eventType) const {
-  size_t foundIndex = 0;
-  for (; foundIndex < mRegisteredEvents.size(); ++foundIndex) {
-    const EventRegistration &reg = mRegisteredEvents[foundIndex];
-    if (reg.eventType == eventType) {
-      break;
-    }
-  }
-  return foundIndex;
 }
 
 }  // namespace chre
