@@ -47,18 +47,18 @@ namespace general_test {
 
 namespace {
 
-//! A fake/unused cookie to pass into the enable configure scan monitoring async
+//! A dummy cookie to pass into the enable configure scan monitoring async
 //! request.
 constexpr uint32_t kEnableScanMonitoringCookie = 0x1337;
 
-//! A fake/unused cookie to pass into the disable configure scan monitoring
-//! async request.
+//! A dummy cookie to pass into the disable configure scan monitoring async
+//! request.
 constexpr uint32_t kDisableScanMonitoringCookie = 0x1338;
 
-//! A fake/unused cookie to pass into request ranging async.
+//! A dummy cookie to pass into request ranging async.
 constexpr uint32_t kRequestRangingCookie = 0xefac;
 
-//! A fake/unused cookie to pass into request scan async.
+//! A dummy cookie to pass into request scan async.
 constexpr uint32_t kOnDemandScanCookie = 0xcafe;
 
 //! Starting frequency of band 2.4 GHz
@@ -98,17 +98,7 @@ void testConfigureScanMonitorAsync(bool enable, const void *cookie) {
  * if API call fails.
  */
 void testRequestScanAsync() {
-  constexpr struct chreWifiScanParams kParams = {
-      /*.scanType=*/CHRE_WIFI_SCAN_TYPE_ACTIVE,
-      /*.maxScanAgeMs=*/5000,  // 5 seconds
-      /*.frequencyListLen=*/0,
-      /*.frequencyList=*/NULL,
-      /*.ssidListLen=*/0,
-      /*.ssidList=*/NULL,
-      /*.radioChainPref=*/CHRE_WIFI_RADIO_CHAIN_PREF_DEFAULT,
-      /*.channelSet=*/CHRE_WIFI_CHANNEL_SET_NON_DFS};
-
-  if (!chreWifiRequestScanAsync(&kParams, &kOnDemandScanCookie)) {
+  if (!chreWifiRequestScanAsyncDefault(&kOnDemandScanCookie)) {
     sendFatalFailureToHost("Failed to request for on-demand WiFi scan.");
   }
 }

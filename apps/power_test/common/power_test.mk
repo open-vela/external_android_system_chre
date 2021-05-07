@@ -16,7 +16,7 @@ endif
 
 # Nanoapp Configuration ########################################################
 
-NANOAPP_VERSION = 0x00020000
+NANOAPP_VERSION = 0x00000001
 
 # Common Compiler Flags ########################################################
 
@@ -26,11 +26,7 @@ COMMON_CFLAGS += -I$(CHRE_PREFIX)/external/flatbuffers/include
 COMMON_CFLAGS += -I$(CHRE_PREFIX)/util/include
 
 # Defines
-COMMON_CFLAGS += -DNANOAPP_MINIMUM_LOG_LEVEL=CHRE_LOG_LEVEL_DEBUG
-
-# Flatbuffers configuration
-include $(CHRE_PREFIX)/external/flatbuffers/flatbuffers.mk
-COMMON_CFLAGS += $(FLATBUFFERS_CFLAGS)
+COMMON_CFLAGS += -DNANOAPP_MINIMUM_LOG_LEVEL=CHRE_LOG_LEVEL_INFO
 
 # Common Source Files ##########################################################
 
@@ -40,13 +36,7 @@ COMMON_SRCS += $(CHRE_PREFIX)/util/dynamic_vector_base.cc
 COMMON_SRCS += $(CHRE_PREFIX)/util/nanoapp/audio.cc
 COMMON_SRCS += $(CHRE_PREFIX)/util/nanoapp/callbacks.cc
 
-# Permission declarations ######################################################
-
-CHRE_NANOAPP_USES_AUDIO = true
-CHRE_NANOAPP_USES_GNSS = true
-CHRE_NANOAPP_USES_WIFI = true
-CHRE_NANOAPP_USES_WWAN = true
-
 # Makefile Includes ############################################################
 
 include $(CHRE_PREFIX)/build/nanoapp/app.mk
+include $(CHRE_PREFIX)/external/external.mk

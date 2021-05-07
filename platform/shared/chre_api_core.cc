@@ -23,7 +23,6 @@
 #include "chre/platform/fatal_error.h"
 #include "chre/platform/log.h"
 #include "chre/util/macros.h"
-#include "chre/util/system/napp_permissions.h"
 #include "chre_api/chre/event.h"
 #include "chre_api/chre/re.h"
 
@@ -73,10 +72,9 @@ DLL_EXPORT bool chreSendMessageToHost(void *message, uint32_t messageSize,
       CHRE_HOST_ENDPOINT_BROADCAST, freeCallback);
 }
 
-DLL_EXPORT bool chreSendMessageWithPermissions(
+DLL_EXPORT bool chreSendMessageToHostEndpoint(
     void *message, size_t messageSize, uint32_t messageType,
-    uint16_t hostEndpoint, uint32_t messagePermissions,
-    chreMessageFreeFunction *freeCallback) {
+    uint16_t hostEndpoint, chreMessageFreeFunction *freeCallback) {
   Nanoapp *nanoapp = EventLoopManager::validateChreApiCall(__func__);
 
   bool success = false;
@@ -89,8 +87,7 @@ DLL_EXPORT bool chreSendMessageWithPermissions(
     auto &hostCommsManager =
         EventLoopManagerSingleton::get()->getHostCommsManager();
     success = hostCommsManager.sendMessageToHostFromNanoapp(
-        nanoapp, message, messageSize, messageType, hostEndpoint,
-        messagePermissions, freeCallback);
+        nanoapp, message, messageSize, messageType, hostEndpoint, freeCallback);
   }
 
   if (!success && freeCallback != nullptr) {
@@ -98,15 +95,6 @@ DLL_EXPORT bool chreSendMessageWithPermissions(
   }
 
   return success;
-}
-
-DLL_EXPORT bool chreSendMessageToHostEndpoint(
-    void *message, size_t messageSize, uint32_t messageType,
-    uint16_t hostEndpoint, chreMessageFreeFunction *freeCallback) {
-  return chreSendMessageWithPermissions(
-      message, messageSize, messageType, hostEndpoint,
-      static_cast<uint32_t>(chre::NanoappPermissions::CHRE_PERMS_NONE),
-      freeCallback);
 }
 
 DLL_EXPORT bool chreGetNanoappInfoByAppId(uint64_t appId,
