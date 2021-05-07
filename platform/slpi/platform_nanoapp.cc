@@ -25,6 +25,7 @@
 #include "chre/platform/slpi/memory.h"
 #include "chre/platform/slpi/power_control_util.h"
 #include "chre/util/system/debug_dump.h"
+#include "chre/util/system/napp_permissions.h"
 #include "chre_api/chre/version.h"
 
 #include "dlfcn.h"
@@ -188,10 +189,12 @@ void PlatformNanoapp::end() {
 }
 
 bool PlatformNanoappBase::setAppInfo(uint64_t appId, uint32_t appVersion,
-                                     const char *appFilename) {
+                                     const char *appFilename,
+                                     uint32_t targetApiVersion) {
   CHRE_ASSERT(!isLoaded());
   mExpectedAppId = appId;
   mExpectedAppVersion = appVersion;
+  mExpectedTargetApiVersion = targetApiVersion;
   size_t appFilenameLen = strlen(appFilename) + 1;
   mAppFilename = static_cast<char *>(memoryAllocBigImage(appFilenameLen));
 
@@ -207,7 +210,9 @@ bool PlatformNanoappBase::setAppInfo(uint64_t appId, uint32_t appVersion,
 }
 
 bool PlatformNanoappBase::reserveBuffer(uint64_t appId, uint32_t appVersion,
-                                        size_t appBinaryLen) {
+                                        uint32_t /* appFlags */,
+                                        size_t appBinaryLen,
+                                        uint32_t targetApiVersion) {
   CHRE_ASSERT(!isLoaded());
   bool success = false;
   constexpr size_t kMaxAppSize = 2 * 1024 * 1024;  // 2 MiB
@@ -222,6 +227,7 @@ bool PlatformNanoappBase::reserveBuffer(uint64_t appId, uint32_t appVersion,
     } else {
       mExpectedAppId = appId;
       mExpectedAppVersion = appVersion;
+      mExpectedTargetApiVersion = targetApiVersion;
       mAppBinaryLen = appBinaryLen;
       success = true;
     }
@@ -340,15 +346,20 @@ bool PlatformNanoappBase::verifyNanoappInfo() {
     if (mAppInfo == nullptr) {
       LOGE("Failed to find app info symbol: %s", dlerror());
     } else {
-      success = validateAppInfo(mExpectedAppId, mExpectedAppVersion, mAppInfo);
+      success = validateAppInfo(mExpectedAppId, mExpectedAppVersion,
+                                mExpectedTargetApiVersion, mAppInfo);
       if (!success) {
         mAppInfo = nullptr;
       } else {
-        LOGI("Successfully loaded nanoapp: %s (0x%016" PRIx64
-             ") version 0x%" PRIx32 " (%s) uimg %d system %d",
+        LOGI("Nanoapp loaded: %s (0x%016" PRIx64 ") version 0x%" PRIx32
+             " (%s) uimg %d system %d",
              mAppInfo->name, mAppInfo->appId, mAppInfo->appVersion,
              getAppVersionString(), mAppInfo->isTcmNanoapp,
              mAppInfo->isSystemNanoapp);
+        if (mAppInfo->structMinorVersion >=
+            CHRE_NSL_NANOAPP_INFO_STRUCT_MINOR_VERSION) {
+          LOGI("Nanoapp permissions: 0x%" PRIx32, mAppInfo->appPermissions);
+        }
       }
     }
   }
@@ -387,7 +398,20 @@ uint32_t PlatformNanoapp::getAppVersion() const {
 }
 
 uint32_t PlatformNanoapp::getTargetApiVersion() const {
-  return (mAppInfo != nullptr) ? mAppInfo->targetApiVersion : 0;
+  return (mAppInfo != nullptr) ? mAppInfo->targetApiVersion
+                               : mExpectedTargetApiVersion;
+}
+
+bool PlatformNanoapp::supportsAppPermissions() const {
+  return (mAppInfo != nullptr) ? (mAppInfo->structMinorVersion >=
+                                  CHRE_NSL_NANOAPP_INFO_STRUCT_MINOR_VERSION)
+                               : false;
+}
+
+uint32_t PlatformNanoapp::getAppPermissions() const {
+  return (supportsAppPermissions())
+             ? mAppInfo->appPermissions
+             : static_cast<uint32_t>(chre::NanoappPermissions::CHRE_PERMS_NONE);
 }
 
 const char *PlatformNanoapp::getAppName() const {
