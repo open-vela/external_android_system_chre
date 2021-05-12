@@ -29,7 +29,6 @@
 #include "chpp/log.h"
 #include "chpp/macros.h"
 #include "chpp/memory.h"
-#include "chpp/platform/platform_link.h"
 #include "chpp/time.h"
 
 /************************************************
@@ -636,27 +635,20 @@ static enum ChppTransportErrorCode chppRxHeaderCheck(
   enum ChppTransportErrorCode result = CHPP_TRANSPORT_ERROR_NONE;
 
   bool invalidSeqNo = (context->rxHeader.seq != context->rxStatus.expectedSeq);
-  bool invalidLen = (context->rxHeader.length > CHPP_TRANSPORT_RX_MTU_BYTES);
-
   bool hasPayload = (context->rxHeader.length > 0);
   bool regularPacket = (CHPP_TRANSPORT_GET_ATTR(context->rxHeader.packetCode) ==
                         CHPP_TRANSPORT_ATTR_NONE);
-
-  if (hasPayload && regularPacket && invalidSeqNo) {
+  if (invalidSeqNo && hasPayload && regularPacket) {
     // Note: For a future ACK window > 1, might make more sense to keep quiet
     // instead of flooding with out of order NACK errors
     result = CHPP_TRANSPORT_ERROR_ORDER;
 
-  } else if (hasPayload && invalidLen) {
-    result = CHPP_TRANSPORT_ERROR_HEADER;
+    CHPP_LOGE("Invalid header. seq=%" PRIu8 " expected=%" PRIu8 " len=%" PRIu16,
+              context->rxHeader.seq, context->rxStatus.expectedSeq,
+              context->rxHeader.length);
   }
 
-  if (result != CHPP_TRANSPORT_ERROR_NONE) {
-    CHPP_LOGE("Bad header. seq=%" PRIu8 " expect=%" PRIu8 " len=%" PRIu16
-              " err=%" PRIu8,
-              context->rxHeader.seq, context->rxStatus.expectedSeq,
-              context->rxHeader.length, result);
-  }
+  // TODO: More checks
 
   return result;
 }
