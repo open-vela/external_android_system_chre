@@ -385,7 +385,6 @@ TEST_P(TransportTests, ZeroThenPreambleInput) {
 TEST_P(TransportTests, RxPayloadOfZeros) {
   mTransportContext.rxStatus.state = CHPP_STATE_PREAMBLE;
   size_t len = static_cast<size_t>(GetParam());
-  bool validLen = (len <= CHPP_TRANSPORT_RX_MTU_BYTES);
 
   mTransportContext.txStatus.hasPacketsToSend = true;
   std::thread t1(chppWorkThreadStart, &mTransportContext);
@@ -402,14 +401,10 @@ TEST_P(TransportTests, RxPayloadOfZeros) {
     addTransportFooterToBuf(mBuf, &loc);
 
     // Send header and check for correct state
-    EXPECT_EQ(
+    EXPECT_FALSE(
         chppRxDataCb(&mTransportContext, mBuf,
-                     CHPP_PREAMBLE_LEN_BYTES + sizeof(ChppTransportHeader)),
-        !validLen);
-
-    if (!validLen) {
-      EXPECT_EQ(mTransportContext.rxStatus.state, CHPP_STATE_PREAMBLE);
-    } else if (len > 0) {
+                     CHPP_PREAMBLE_LEN_BYTES + sizeof(ChppTransportHeader)));
+    if (len > 0) {
       EXPECT_EQ(mTransportContext.rxStatus.state, CHPP_STATE_PAYLOAD);
     } else {
       EXPECT_EQ(mTransportContext.rxStatus.state, CHPP_STATE_FOOTER);
@@ -418,22 +413,18 @@ TEST_P(TransportTests, RxPayloadOfZeros) {
     // Correct decoding of packet length
     EXPECT_EQ(mTransportContext.rxHeader.length, len);
     EXPECT_EQ(mTransportContext.rxStatus.locInDatagram, 0);
-    EXPECT_EQ(mTransportContext.rxDatagram.length, validLen ? len : 0);
+    EXPECT_EQ(mTransportContext.rxDatagram.length, len);
 
     // Send payload if any and check for correct state
     if (len > 0) {
-      EXPECT_EQ(
-          chppRxDataCb(
-              &mTransportContext,
-              &mBuf[CHPP_PREAMBLE_LEN_BYTES + sizeof(ChppTransportHeader)],
-              len),
-          !validLen);
-      EXPECT_EQ(mTransportContext.rxStatus.state,
-                validLen ? CHPP_STATE_FOOTER : CHPP_STATE_PREAMBLE);
+      EXPECT_FALSE(chppRxDataCb(
+          &mTransportContext,
+          &mBuf[CHPP_PREAMBLE_LEN_BYTES + sizeof(ChppTransportHeader)], len));
+      EXPECT_EQ(mTransportContext.rxStatus.state, CHPP_STATE_FOOTER);
     }
 
     // Should have complete packet payload by now
-    EXPECT_EQ(mTransportContext.rxStatus.locInDatagram, validLen ? len : 0);
+    EXPECT_EQ(mTransportContext.rxStatus.locInDatagram, len);
 
     // But no ACK yet
     EXPECT_EQ(mTransportContext.rxStatus.expectedSeq, transHeader->seq);
@@ -446,12 +437,12 @@ TEST_P(TransportTests, RxPayloadOfZeros) {
 
     // The next expected packet sequence # should incremented only if the
     // received packet is payload-bearing.
-    uint8_t nextSeq = transHeader->seq + ((validLen && len > 0) ? 1 : 0);
+    uint8_t nextSeq = transHeader->seq + ((len > 0) ? 1 : 0);
     EXPECT_EQ(mTransportContext.rxStatus.expectedSeq, nextSeq);
 
     // Check for correct ACK crafting if applicable (i.e. if the received packet
     // is payload-bearing).
-    if (validLen && len > 0) {
+    if (len > 0) {
       // TODO: Remove later as can cause flaky tests
       // These are expected to change shortly afterwards, as chppTransportDoWork
       // is run
