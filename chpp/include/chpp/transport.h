@@ -519,13 +519,18 @@ bool chppRxDataCb(struct ChppTransportState *context, const uint8_t *buf,
                   size_t len);
 
 /**
- * Optional callback function for the link layer to indicate the end of a
- * packet. The availability of this information depends on the link layer
- * implementation.
+ * Callback function for the timer that detects timeouts during transmit.
  *
  * @param context Maintains status for each transport layer instance.
  */
-void chppRxPacketCompleteCb(struct ChppTransportState *context);
+void chppTxTimeoutTimerCb(struct ChppTransportState *context);
+
+/**
+ * Callback function for the timer that detects timeouts during receive.
+ *
+ * @param context Maintains status for each transport layer instance.
+ */
+void chppRxTimeoutTimerCb(struct ChppTransportState *context);
 
 /**
  * Enqueues an outgoing datagram of a specified length and frees the payload
