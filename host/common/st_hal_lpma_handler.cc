@@ -72,7 +72,7 @@ void StHalLpmaHandler::enable(bool enabled) {
   }
 }
 
-bool StHalLpmaHandler::load() {
+bool StHalLpmaHandler::load(SoundModelHandle &lpmaHandle) {
   constexpr uint8_t kUuidNode[] = {0x2E, 0x95, 0xA2, 0x31, 0x3A, 0xEE};
 
   LOGV("Loading LPMA");
@@ -94,7 +94,7 @@ bool StHalLpmaHandler::load() {
       soundModel, nullptr /* callback */, 0 /* cookie */,
       [&](int32_t retval, SoundModelHandle handle) {
         loadResult = retval;
-        mLpmaHandle = handle;
+        lpmaHandle = handle;
       });
 
   if (hidlResult.isOk()) {
@@ -112,10 +112,9 @@ bool StHalLpmaHandler::load() {
   return loaded;
 }
 
-void StHalLpmaHandler::unload() {
+void StHalLpmaHandler::unload(SoundModelHandle lpmaHandle) {
   checkConnectionToStHalServiceLocked();
-  Return<int32_t> hidlResult = mStHalService->unloadSoundModel(mLpmaHandle);
-  mLpmaHandle = 0;
+  Return<int32_t> hidlResult = mStHalService->unloadSoundModel(lpmaHandle);
 
   if (hidlResult.isOk()) {
     if (hidlResult != 0) {
@@ -138,6 +137,7 @@ void StHalLpmaHandler::checkConnectionToStHalServiceLocked() {
 }
 
 bool StHalLpmaHandler::waitOnStHalRequestAndProcess() {
+  SoundModelHandle lpmaHandle = 0;
   bool noDelayNeeded = true;
   std::unique_lock<std::mutex> lock(mMutex);
 
@@ -148,14 +148,14 @@ bool StHalLpmaHandler::waitOnStHalRequestAndProcess() {
     mCondVar.wait(lock, [this] { return mCondVarPredicate; });
     mCondVarPredicate = false;
     acquireWakeLock();  // Ensure the system stays up while retrying.
-  } else if (mTargetLpmaEnabled && load()) {
+  } else if (mTargetLpmaEnabled && load(lpmaHandle)) {
     mCurrentLpmaEnabled = mTargetLpmaEnabled;
   } else if (!mTargetLpmaEnabled) {
     // Regardless of whether the use case fails to unload, set the
     // currentLpmaEnabled to the targetLpmaEnabled. This will allow the next
     // enable request to proceed. After a failure to unload occurs, the
     // supplied handle is invalid and should not be unloaded again.
-    unload();
+    unload(lpmaHandle);
     mCurrentLpmaEnabled = mTargetLpmaEnabled;
   } else {
     noDelayNeeded = false;
