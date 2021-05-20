@@ -95,9 +95,11 @@ class StHalLpmaHandler {
   /**
    * Loads the LPMA use case via the SoundTrigger HAL HIDL service.
    *
+   * @param lpmaHandle The handle that was generated as a result of enabling
+   *        the LPMA use case successfully.
    * @return true if LPMA was enabled successfully, false otherwise.
    */
-  bool load();
+  bool load(SoundModelHandle &lpmaHandle);
 
   /**
    * Unloads the LPMA use case via the SoundTrigger HAL HIDL service. This
@@ -105,8 +107,12 @@ class StHalLpmaHandler {
    * the event of a failure to unload, the use case will be unloaded. As long as
    * the sound trigger HAL received the request we can be assured that the use
    * case will be unloaded (even if it means reseting the codec or otherwise).
+   *
+   * @param lpmaHandle A handle that was previously produced by
+   * thesetLpmaEnabled function. This is the handle that is unloaded from the ST
+   * HAL to disable LPMA.
    */
-  void unload();
+  void unload(SoundModelHandle lpmaHandle);
 
   /**
    * Entry point for the thread that loads/unloads sound models from the
@@ -119,7 +125,6 @@ class StHalLpmaHandler {
   bool mCurrentLpmaEnabled;
   bool mTargetLpmaEnabled;
   bool mCondVarPredicate;
-  SoundModelHandle mLpmaHandle = 0;
 
   int mRetryCount;
   useconds_t mRetryDelay;

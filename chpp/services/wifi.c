@@ -385,11 +385,9 @@ static enum ChppAppErrorCode chppWifiServiceConfigureScanMonitorAsync(
  * Request that the WiFi chipset perform a scan, or deliver results from its
  * cache if the parameters allow for it.
  *
- * This function returns an error code synchronously.
- * A subsequent call to chppWifiServiceScanResponseCallback() will be used to
- * communicate the result of this request (as a service response).
- * A subsequent call to chppWifiServiceScanEventCallback() will be used to
- * communicate the scan results (as a service notification).
+ * This function returns an error code synchronously. A subsequent call to
+ * chppWifiServiceScanEventCallback() will be used to communicate the scan
+ * results.
  *
  * @param serviceContext Maintains status for each service instance.
  * @param requestHeader App layer header of the request.
@@ -425,9 +423,9 @@ static enum ChppAppErrorCode chppWifiServiceRequestScanAsync(
  * Request that the WiFi chipset perform RTT ranging against a set of access
  * points specified in params.
  *
- * This function returns an error code synchronously.
- * A subsequent call to chppWifiServiceRangingEventCallback() will be used to
- * communicate the ranging results (as a service notification).
+ * This function returns an error code synchronously. A subsequent call to
+ * chppWifiServiceRangingEventCallback() will be used to communicate the
+ * result of the operation
  *
  * @param serviceContext Maintains status for each service instance.
  * @param requestHeader App layer header of the request.
@@ -454,20 +452,6 @@ static enum ChppAppErrorCode chppWifiServiceRequestRangingAsync(
 
   } else if (!wifiServiceContext->api->requestRanging(chre)) {
     error = CHPP_APP_ERROR_UNSPECIFIED;
-
-  } else {
-    struct ChppAppHeader *response =
-        chppAllocServiceResponseFixed(requestHeader, struct ChppAppHeader);
-    size_t responseLen = sizeof(*response);
-
-    if (response == NULL) {
-      CHPP_LOG_OOM();
-      error = CHPP_APP_ERROR_OOM;
-    } else {
-      chppSendTimestampedResponseOrFail(
-          &wifiServiceContext->service,
-          &wifiServiceContext->requestRangingAsync, response, responseLen);
-    }
   }
 
   return error;
@@ -542,7 +526,7 @@ static void chppWifiServiceScanResponseCallback(bool pending,
 }
 
 /**
- * PAL callback with WiFi scan results.
+ * PAL callback with WiFi scan result.
  *
  * @param event Scan result data.
  */
