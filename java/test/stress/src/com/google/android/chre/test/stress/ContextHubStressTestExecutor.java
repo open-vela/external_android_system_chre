@@ -120,9 +120,8 @@ public class ContextHubStressTestExecutor extends ContextHubClientCallback {
         mCountDownLatch = new CountDownLatch(1);
 
         // TODO(b/186868033): Add other features
-        sendTestMessage(ChreStressTest.TestCommand.Feature.WIFI, true /* start */);
-        sendTestMessage(ChreStressTest.TestCommand.Feature.GNSS_LOCATION, true /* start */);
-        sendTestMessage(ChreStressTest.TestCommand.Feature.GNSS_MEASUREMENT, true /* start */);
+        sendTestStartMessage(ChreStressTest.TestCommand.Feature.WIFI);
+        sendTestStartMessage(ChreStressTest.TestCommand.Feature.GNSS_LOCATION);
 
         try {
             mCountDownLatch.await(timeout, unit);
@@ -138,17 +137,6 @@ public class ContextHubStressTestExecutor extends ContextHubClientCallback {
             } else {
                 Assert.fail("Stress test failed");
             }
-        }
-
-        sendTestMessage(ChreStressTest.TestCommand.Feature.WIFI, false /* start */);
-        sendTestMessage(ChreStressTest.TestCommand.Feature.GNSS_LOCATION, false /* start */);
-        sendTestMessage(ChreStressTest.TestCommand.Feature.GNSS_MEASUREMENT, false /* start */);
-
-        try {
-            // Add a short delay to make sure the stop command did not cause issues.
-            Thread.sleep(10000);
-        } catch (InterruptedException e) {
-            Assert.fail(e.getMessage());
         }
     }
 
@@ -168,11 +156,10 @@ public class ContextHubStressTestExecutor extends ContextHubClientCallback {
 
     /**
      * @param feature The feature to start testing for.
-     * @param start true to start the test, false to stop.
      */
-    private void sendTestMessage(ChreStressTest.TestCommand.Feature feature, boolean start) {
+    private void sendTestStartMessage(ChreStressTest.TestCommand.Feature feature) {
         ChreStressTest.TestCommand testCommand = ChreStressTest.TestCommand.newBuilder()
-                .setFeature(feature).setStart(start).build();
+                .setFeature(feature).setStart(true).build();
 
         NanoAppMessage message = NanoAppMessage.createMessageToNanoApp(
                 mNanoAppId, ChreStressTest.MessageType.TEST_COMMAND_VALUE,
