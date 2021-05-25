@@ -246,10 +246,7 @@ void Manager::setTimer(uint64_t delayNs, bool oneShot, uint32_t *timerHandle) {
 void Manager::cancelTimer(uint32_t *timerHandle) {
   if (*timerHandle != CHRE_TIMER_INVALID) {
     if (!chreTimerCancel(*timerHandle)) {
-      // We don't treat this as a test failure, because the CHRE API does not
-      // guarantee this method succeeds (e.g. if the timer is one-shot and just
-      // fired).
-      LOGW("Failed to cancel timer");
+      logAndSendFailure("Failed to cancel timer");
     }
     *timerHandle = CHRE_TIMER_INVALID;
   }
