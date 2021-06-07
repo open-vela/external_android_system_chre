@@ -124,6 +124,7 @@ void Manager::handleStepStartMessage(
       break;
     }
     case chre_cross_validation_wifi_Step_VALIDATE:
+      LOGE("start message received in VALIDATE phase");
       break;
   }
   mStep = stepStartCommand.step;
