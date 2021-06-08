@@ -99,7 +99,10 @@ struct ChppWwanClientState {
   struct ChppClientState client;     // WWAN client state
   const struct chrePalWwanApi *api;  // WWAN PAL API
 
-  struct ChppRequestResponseState rRState[CHPP_WWAN_CLIENT_REQUEST_MAX + 1];
+  struct ChppRequestResponseState open;              // Service init state
+  struct ChppRequestResponseState close;             // Service deinit state
+  struct ChppRequestResponseState getCapabilities;   // Get Capabilities state
+  struct ChppRequestResponseState getCellInfoAsync;  // Get CellInfo Async state
 
   uint32_t capabilities;  // Cached GetCapabilities result
 };
@@ -154,39 +157,40 @@ static enum ChppAppErrorCode chppDispatchWwanResponse(void *clientContext,
       (struct ChppWwanClientState *)clientContext;
   enum ChppAppErrorCode error = CHPP_APP_ERROR_NONE;
 
-  if (rxHeader->command > CHPP_WWAN_CLIENT_REQUEST_MAX) {
-    error = CHPP_APP_ERROR_INVALID_COMMAND;
-
-  } else if (!chppClientTimestampResponse(
-                 &wwanClientContext->rRState[rxHeader->command], rxHeader)) {
-    error = CHPP_APP_ERROR_UNEXPECTED_RESPONSE;
-
-  } else {
-    switch (rxHeader->command) {
-      case CHPP_WWAN_OPEN: {
+  switch (rxHeader->command) {
+    case CHPP_WWAN_OPEN: {
+      if (chppClientTimestampResponse(&wwanClientContext->open, rxHeader)) {
         chppClientProcessOpenResponse(&wwanClientContext->client, buf, len);
-        break;
       }
+      break;
+    }
 
-      case CHPP_WWAN_CLOSE: {
+    case CHPP_WWAN_CLOSE: {
+      if (chppClientTimestampResponse(&wwanClientContext->close, rxHeader)) {
         chppWwanCloseResult(wwanClientContext, buf, len);
-        break;
       }
+      break;
+    }
 
-      case CHPP_WWAN_GET_CAPABILITIES: {
+    case CHPP_WWAN_GET_CAPABILITIES: {
+      if (chppClientTimestampResponse(&wwanClientContext->getCapabilities,
+                                      rxHeader)) {
         chppWwanGetCapabilitiesResult(wwanClientContext, buf, len);
-        break;
       }
+      break;
+    }
 
-      case CHPP_WWAN_GET_CELLINFO_ASYNC: {
+    case CHPP_WWAN_GET_CELLINFO_ASYNC: {
+      if (chppClientTimestampResponse(&wwanClientContext->getCellInfoAsync,
+                                      rxHeader)) {
         chppWwanGetCellInfoAsyncResult(wwanClientContext, buf, len);
-        break;
       }
+      break;
+    }
 
-      default: {
-        error = CHPP_APP_ERROR_INVALID_COMMAND;
-        break;
-      }
+    default: {
+      error = CHPP_APP_ERROR_INVALID_COMMAND;
+      break;
     }
   }
 
@@ -240,8 +244,7 @@ static void chppWwanClientNotifyReset(void *clientContext) {
   } else {
     CHPP_LOGI("WWAN client reopening");
     chppClientSendOpenRequest(&gWwanClientContext.client,
-                              &gWwanClientContext.rRState[CHPP_WWAN_OPEN],
-                              CHPP_WWAN_OPEN,
+                              &gWwanClientContext.open, CHPP_WWAN_OPEN,
                               /*reopen=*/true);
   }
 }
@@ -258,8 +261,7 @@ static void chppWwanClientNotifyMatch(void *clientContext) {
   if (wwanClientContext->client.openState == CHPP_OPEN_STATE_PSEUDO_OPEN) {
     CHPP_LOGD("Previously pseudo-open WWAN client reopening");
     chppClientSendOpenRequest(&gWwanClientContext.client,
-                              &gWwanClientContext.rRState[CHPP_WWAN_OPEN],
-                              CHPP_WWAN_OPEN,
+                              &gWwanClientContext.open, CHPP_WWAN_OPEN,
                               /*reopen=*/true);
   }
 }
@@ -333,17 +335,12 @@ static void chppWwanGetCellInfoAsyncResult(
 
   struct ChppAppHeader *rxHeader = (struct ChppAppHeader *)buf;
   struct chreWwanCellInfoResult *chre = NULL;
-  uint8_t errorCode = CHRE_ERROR;
 
   if (len == sizeof(struct ChppAppHeader)) {
     // Short response length indicates an error
     CHPP_LOGE("GetCellInfo failed at service err=%" PRIu8, rxHeader->error);
-
     if (rxHeader->error == CHPP_APP_ERROR_NONE) {
       CHPP_LOGE("Missing err");
-      errorCode = CHPP_APP_ERROR_INVALID_LENGTH;
-    } else {
-      errorCode = chppAppErrorToChreError(rxHeader->error);
     }
 
   } else {
@@ -364,7 +361,7 @@ static void chppWwanGetCellInfoAsyncResult(
       CHPP_LOG_OOM();
     } else {
       chre->version = CHRE_WWAN_CELL_INFO_RESULT_VERSION;
-      chre->errorCode = errorCode;
+      chre->errorCode = CHRE_ERROR;
       chre->cellInfoCount = 0;
       chre->reserved = 0;
       chre->cookie = 0;
@@ -411,10 +408,9 @@ static bool chppWwanClientOpen(const struct chrePalSystemApi *systemApi,
   // Wait for discovery to complete for "open" call to succeed
   if (chppWaitForDiscoveryComplete(gWwanClientContext.client.appContext,
                                    CHPP_WWAN_DISCOVERY_TIMEOUT_MS)) {
-    result = chppClientSendOpenRequest(
-        &gWwanClientContext.client, &gWwanClientContext.rRState[CHPP_WWAN_OPEN],
-        CHPP_WWAN_OPEN,
-        /*reopen=*/false);
+    result = chppClientSendOpenRequest(&gWwanClientContext.client,
+                                       &gWwanClientContext.open, CHPP_WWAN_OPEN,
+                                       /*reopen=*/false);
   }
 
 #ifdef CHPP_WWAN_CLIENT_OPEN_ALWAYS_SUCCESS
@@ -435,10 +431,9 @@ static void chppWwanClientClose(void) {
 
   if (request == NULL) {
     CHPP_LOG_OOM();
-  } else if (chppSendTimestampedRequestAndWait(
-                 &gWwanClientContext.client,
-                 &gWwanClientContext.rRState[CHPP_WWAN_CLOSE], request,
-                 sizeof(*request))) {
+  } else if (chppSendTimestampedRequestAndWait(&gWwanClientContext.client,
+                                               &gWwanClientContext.close,
+                                               request, sizeof(*request))) {
     gWwanClientContext.client.openState = CHPP_OPEN_STATE_CLOSED;
     gWwanClientContext.capabilities = CHRE_WWAN_CAPABILITIES_NONE;
   }
@@ -468,10 +463,9 @@ static uint32_t chppWwanClientGetCapabilities(void) {
     if (request == NULL) {
       CHPP_LOG_OOM();
     } else {
-      if (chppSendTimestampedRequestAndWait(
-              &gWwanClientContext.client,
-              &gWwanClientContext.rRState[CHPP_WWAN_GET_CAPABILITIES], request,
-              sizeof(*request))) {
+      if (chppSendTimestampedRequestAndWait(&gWwanClientContext.client,
+                                            &gWwanClientContext.getCapabilities,
+                                            request, sizeof(*request))) {
         // Success. gWwanClientContext.capabilities is now populated
         capabilities = gWwanClientContext.capabilities;
       }
@@ -498,9 +492,8 @@ static bool chppWwanClientGetCellInfoAsync(void) {
     CHPP_LOG_OOM();
   } else {
     result = chppSendTimestampedRequestOrFail(
-        &gWwanClientContext.client,
-        &gWwanClientContext.rRState[CHPP_WWAN_GET_CELLINFO_ASYNC], request,
-        sizeof(*request));
+        &gWwanClientContext.client, &gWwanClientContext.getCellInfoAsync,
+        request, sizeof(*request));
   }
 
   return result;
