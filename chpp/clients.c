@@ -213,26 +213,26 @@ void chppInitBasicClients(struct ChppAppState *context) {
 #endif
 }
 
-void chppClientInit(struct ChppClientState *clientState, uint8_t handle) {
-  CHPP_ASSERT_LOG(!clientState->initialized,
+void chppClientInit(struct ChppClientState *clientContext, uint8_t handle) {
+  CHPP_ASSERT_LOG(!clientContext->initialized,
                   "Client H#%" PRIu8 " already initialized", handle);
 
-  if (!clientState->everInitialized) {
-    clientState->handle = handle;
-    chppMutexInit(&clientState->responseMutex);
-    chppConditionVariableInit(&clientState->responseCondVar);
-    clientState->everInitialized = true;
+  if (!clientContext->everInitialized) {
+    clientContext->handle = handle;
+    chppMutexInit(&clientContext->responseMutex);
+    chppConditionVariableInit(&clientContext->responseCondVar);
+    clientContext->everInitialized = true;
   }
 
-  clientState->initialized = true;
+  clientContext->initialized = true;
 }
 
-void chppClientDeinit(struct ChppClientState *clientState) {
-  CHPP_ASSERT_LOG(clientState->initialized,
+void chppClientDeinit(struct ChppClientState *clientContext) {
+  CHPP_ASSERT_LOG(clientContext->initialized,
                   "Client H#%" PRIu8 " already deinitialized",
-                  clientState->handle);
+                  clientContext->handle);
 
-  clientState->initialized = false;
+  clientContext->initialized = false;
 }
 
 void chppDeinitBasicClients(struct ChppAppState *context) {
