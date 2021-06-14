@@ -59,25 +59,6 @@ static void chppWwanClientNotifyMatch(void *clientContext);
  ***********************************************/
 
 /**
- * Structure to maintain state for the WWAN client and its Request/Response
- * (RR) functionality.
- */
-struct ChppWwanClientState {
-  struct ChppClientState client;     // WWAN client state
-  const struct chrePalWwanApi *api;  // WWAN PAL API
-
-  struct ChppRequestResponseState rRState[CHPP_WWAN_CLIENT_REQUEST_MAX + 1];
-
-  uint32_t capabilities;  // Cached GetCapabilities result
-};
-
-// Note: This global definition of gWwanClientContext supports only one
-// instance of the CHPP WWAN client at a time.
-struct ChppWwanClientState gWwanClientContext;
-static const struct chrePalSystemApi *gSystemApi;
-static const struct chrePalWwanCallbacks *gCallbacks;
-
-/**
  * Configuration parameters for this client
  */
 static const struct ChppClient kWwanClientConfig = {
@@ -106,15 +87,28 @@ static const struct ChppClient kWwanClientConfig = {
     // Service notification dispatch function pointer
     .deinitFunctionPtr = &chppWwanClientDeinit,
 
-    // Pointer to array of request-response states
-    .rRStates = gWwanClientContext.rRState,
-
-    // Number of request-response states in the rRStates array.
-    .rRStateCount = ARRAY_SIZE(gWwanClientContext.rRState),
-
     // Min length is the entire header
     .minLength = sizeof(struct ChppAppHeader),
 };
+
+/**
+ * Structure to maintain state for the WWAN client and its Request/Response
+ * (RR) functionality.
+ */
+struct ChppWwanClientState {
+  struct ChppClientState client;     // WWAN client state
+  const struct chrePalWwanApi *api;  // WWAN PAL API
+
+  struct ChppRequestResponseState rRState[CHPP_WWAN_CLIENT_REQUEST_MAX + 1];
+
+  uint32_t capabilities;  // Cached GetCapabilities result
+};
+
+// Note: This global definition of gWwanClientContext supports only one
+// instance of the CHPP WWAN client at a time.
+struct ChppWwanClientState gWwanClientContext;
+static const struct chrePalSystemApi *gSystemApi;
+static const struct chrePalWwanCallbacks *gCallbacks;
 
 /************************************************
  *  Prototypes
@@ -164,7 +158,6 @@ static enum ChppAppErrorCode chppDispatchWwanResponse(void *clientContext,
     error = CHPP_APP_ERROR_INVALID_COMMAND;
 
   } else if (!chppClientTimestampResponse(
-                 &wwanClientContext->client,
                  &wwanClientContext->rRState[rxHeader->command], rxHeader)) {
     error = CHPP_APP_ERROR_UNEXPECTED_RESPONSE;
 
@@ -507,7 +500,7 @@ static bool chppWwanClientGetCellInfoAsync(void) {
     result = chppSendTimestampedRequestOrFail(
         &gWwanClientContext.client,
         &gWwanClientContext.rRState[CHPP_WWAN_GET_CELLINFO_ASYNC], request,
-        sizeof(*request), CHPP_CLIENT_REQUEST_TIMEOUT_DEFAULT);
+        sizeof(*request));
   }
 
   return result;
