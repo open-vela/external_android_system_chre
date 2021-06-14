@@ -16,11 +16,9 @@
 
 #include "chre/core/audio_request_manager.h"
 
-#include "chre/core/audio_util.h"
 #include "chre/core/event_loop_manager.h"
 #include "chre/platform/fatal_error.h"
 #include "chre/platform/system_time.h"
-#include "chre/util/nested_data_ptr.h"
 #include "chre/util/system/debug_dump.h"
 
 /*
@@ -75,14 +73,14 @@ void AudioRequestManager::handleAudioDataEvent(
         SystemTime::getMonotonicTime();
   }
 
-  auto callback = [](uint16_t /*type*/, void *data, void * /*extraData*/) {
-    auto *event = static_cast<struct chreAudioDataEvent *>(data);
+  auto callback = [](uint16_t /* eventType */, void *eventData) {
+    auto *event = static_cast<struct chreAudioDataEvent *>(eventData);
     EventLoopManagerSingleton::get()
         ->getAudioRequestManager()
         .handleAudioDataEventSync(event);
   };
 
-  // Cast off the event const so that it can be provided to the callback as
+  // Cast off the event const so that it can be provided to the free callback as
   // non-const. The event is provided to nanoapps as const and the runtime
   // itself will not modify this memory so this is safe.
   EventLoopManagerSingleton::get()->deferCallback(
@@ -92,18 +90,29 @@ void AudioRequestManager::handleAudioDataEvent(
 
 void AudioRequestManager::handleAudioAvailability(uint32_t handle,
                                                   bool available) {
-  auto callback = [](uint16_t /*type*/, void *data, void *extraData) {
-    uint32_t cbHandle = NestedDataPtr<uint32_t>(data);
-    bool cbAvailable = NestedDataPtr<bool>(extraData);
-    EventLoopManagerSingleton::get()
-        ->getAudioRequestManager()
-        .handleAudioAvailabilitySync(cbHandle, cbAvailable);
+  struct CallbackState {
+    uint32_t handle;
+    bool available;
   };
 
-  EventLoopManagerSingleton::get()->deferCallback(
-      SystemCallbackType::AudioAvailabilityChange,
-      NestedDataPtr<uint32_t>(handle), callback,
-      NestedDataPtr<bool>(available));
+  auto *cbState = memoryAlloc<CallbackState>();
+  if (cbState == nullptr) {
+    LOG_OOM();
+  } else {
+    cbState->handle = handle;
+    cbState->available = available;
+
+    auto callback = [](uint16_t /* eventType */, void *eventData) {
+      auto *state = static_cast<CallbackState *>(eventData);
+      EventLoopManagerSingleton::get()
+          ->getAudioRequestManager()
+          .handleAudioAvailabilitySync(state->handle, state->available);
+      memoryFree(state);
+    };
+
+    EventLoopManagerSingleton::get()->deferCallback(
+        SystemCallbackType::AudioAvailabilityChange, cbState, callback);
+  }
 }
 
 void AudioRequestManager::logStateToBuffer(DebugDumpWrapper &debugDump) const {
@@ -156,7 +165,7 @@ bool AudioRequestManager::validateConfigureSourceArguments(
            bufferDuration, audioSource.minBufferDuration,
            audioSource.maxBufferDuration);
     } else {
-      *numSamples = AudioUtil::getSampleCountFromRateAndDuration(
+      *numSamples = getSampleCountFromRateAndDuration(
           audioSource.sampleRate, Nanoseconds(bufferDuration));
       success = true;
     }
@@ -205,8 +214,7 @@ bool AudioRequestManager::doConfigureSource(uint32_t instanceId,
                                              deliveryInterval));
   }
 
-  if (success &&
-      (getSettingState(Setting::MICROPHONE) != SettingState::DISABLED)) {
+  if (success) {
     scheduleNextAudioDataEvent(handle);
     updatePlatformHandleEnabled(handle, lastNumRequests);
   }
@@ -256,10 +264,7 @@ bool AudioRequestManager::createAudioRequest(uint32_t handle,
   }
 
   if (success) {
-    bool suspended =
-        (getSettingState(Setting::MICROPHONE) == SettingState::DISABLED);
-    postAudioSamplingChangeEvent(instanceId, handle, requestList.available,
-                                 suspended);
+    postAudioSamplingChangeEvent(instanceId, handle, requestList.available);
   }
 
   return success;
@@ -346,10 +351,8 @@ void AudioRequestManager::handleAudioAvailabilitySync(uint32_t handle,
                                                       bool available) {
   if (handle < mAudioRequestLists.size()) {
     if (mAudioRequestLists[handle].available != available) {
-      bool suspended =
-          (getSettingState(Setting::MICROPHONE) == SettingState::DISABLED);
       mAudioRequestLists[handle].available = available;
-      postAudioSamplingChangeEvents(handle, suspended);
+      postAudioSamplingChangeEvents(handle);
     }
 
     scheduleNextAudioDataEvent(handle);
@@ -359,17 +362,12 @@ void AudioRequestManager::handleAudioAvailabilitySync(uint32_t handle,
 }
 
 void AudioRequestManager::scheduleNextAudioDataEvent(uint32_t handle) {
-  if (getSettingState(Setting::MICROPHONE) == SettingState::DISABLED) {
-    LOGD("Mic access disabled, doing nothing");
-    return;
-  }
-
   auto &reqList = mAudioRequestLists[handle];
   AudioRequest *nextRequest = findNextAudioRequest(handle);
 
   // Clear the next request and it will be reset below if needed.
   reqList.nextAudioRequest = nullptr;
-  if (reqList.available && (nextRequest != nullptr)) {
+  if (reqList.available && nextRequest != nullptr) {
     Nanoseconds curTime = SystemTime::getMonotonicTime();
     Nanoseconds eventDelay = Nanoseconds(0);
     if (nextRequest->nextEventTimestamp > curTime) {
@@ -383,25 +381,22 @@ void AudioRequestManager::scheduleNextAudioDataEvent(uint32_t handle) {
   }
 }
 
-void AudioRequestManager::postAudioSamplingChangeEvents(uint32_t handle,
-                                                        bool suspended) {
+void AudioRequestManager::postAudioSamplingChangeEvents(uint32_t handle) {
   const auto &requestList = mAudioRequestLists[handle];
   for (const auto &request : requestList.requests) {
     for (const auto &instanceId : request.instanceIds) {
-      postAudioSamplingChangeEvent(instanceId, handle, requestList.available,
-                                   suspended);
+      postAudioSamplingChangeEvent(instanceId, handle, requestList.available);
     }
   }
 }
 
 void AudioRequestManager::postAudioSamplingChangeEvent(uint32_t instanceId,
                                                        uint32_t handle,
-                                                       bool available,
-                                                       bool suspended) {
+                                                       bool available) {
   auto *event = memoryAlloc<struct chreAudioSourceStatusEvent>();
   event->handle = handle;
   event->status.enabled = true;
-  event->status.suspended = !available || suspended;
+  event->status.suspended = !available;
 
   EventLoopManagerSingleton::get()->getEventLoop().postEventOrDie(
       CHRE_EVENT_AUDIO_SAMPLING_CHANGE, event, freeEventDataCallback,
@@ -452,26 +447,6 @@ void AudioRequestManager::freeAudioDataEventCallback(uint16_t eventType,
   EventLoopManagerSingleton::get()
       ->getAudioRequestManager()
       .handleFreeAudioDataEvent(event);
-}
-
-void AudioRequestManager::onSettingChanged(Setting setting,
-                                           SettingState state) {
-  if (setting == Setting::MICROPHONE) {
-    for (size_t i = 0; i < mAudioRequestLists.size(); ++i) {
-      uint32_t handle = static_cast<uint32_t>(i);
-      if (mAudioRequestLists[i].available) {
-        if (state == SettingState::DISABLED) {
-          LOGD("Canceling data event request for handle %" PRIu32, handle);
-          postAudioSamplingChangeEvents(handle, true /* suspended */);
-          mPlatformAudio.cancelAudioDataEventRequest(handle);
-        } else {
-          LOGD("Scheduling data event for handle %" PRIu32, handle);
-          postAudioSamplingChangeEvents(handle, false /* suspended */);
-          scheduleNextAudioDataEvent(handle);
-        }
-      }
-    }
-  }
 }
 
 }  // namespace chre

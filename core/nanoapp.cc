@@ -21,14 +21,9 @@
 #include "chre/platform/fatal_error.h"
 #include "chre/platform/log.h"
 #include "chre/util/system/debug_dump.h"
-#include "chre_api/chre/gnss.h"
 #include "chre_api/chre/version.h"
 
 #include <algorithm>
-
-#if CHRE_FIRST_SUPPORTED_API_VERSION < CHRE_API_VERSION_1_5
-#define CHRE_GNSS_MEASUREMENT_BACK_COMPAT_ENABLED
-#endif
 
 namespace chre {
 
@@ -49,40 +44,30 @@ Nanoapp::~Nanoapp() {
   }
 }
 
-bool Nanoapp::isRegisteredForBroadcastEvent(uint16_t eventType,
-                                            uint16_t targetGroupIdMask) const {
-  bool registered = false;
-  size_t foundIndex = registrationIndex(eventType);
-  if (foundIndex < mRegisteredEvents.size()) {
-    const EventRegistration &reg = mRegisteredEvents[foundIndex];
-    if (targetGroupIdMask & reg.groupIdMask) {
-      registered = true;
-    }
-  }
-  return registered;
+bool Nanoapp::isRegisteredForBroadcastEvent(uint16_t eventType) const {
+  return (mRegisteredEvents.find(eventType) != mRegisteredEvents.size());
 }
 
-void Nanoapp::registerForBroadcastEvent(uint16_t eventType,
-                                        uint16_t groupIdMask) {
-  size_t foundIndex = registrationIndex(eventType);
-  if (foundIndex < mRegisteredEvents.size()) {
-    mRegisteredEvents[foundIndex].groupIdMask |= groupIdMask;
-  } else if (!mRegisteredEvents.push_back(
-                 EventRegistration(eventType, groupIdMask))) {
+bool Nanoapp::registerForBroadcastEvent(uint16_t eventId) {
+  if (isRegisteredForBroadcastEvent(eventId)) {
+    return false;
+  }
+
+  if (!mRegisteredEvents.push_back(eventId)) {
     FATAL_ERROR_OOM();
   }
+
+  return true;
 }
 
-void Nanoapp::unregisterForBroadcastEvent(uint16_t eventType,
-                                          uint16_t groupIdMask) {
-  size_t foundIndex = registrationIndex(eventType);
-  if (foundIndex < mRegisteredEvents.size()) {
-    EventRegistration &reg = mRegisteredEvents[foundIndex];
-    reg.groupIdMask &= ~groupIdMask;
-    if (reg.groupIdMask == 0) {
-      mRegisteredEvents.erase(foundIndex);
-    }
+bool Nanoapp::unregisterForBroadcastEvent(uint16_t eventId) {
+  size_t registeredEventIndex = mRegisteredEvents.find(eventId);
+  if (registeredEventIndex == mRegisteredEvents.size()) {
+    return false;
   }
+
+  mRegisteredEvents.erase(registeredEventIndex);
+  return true;
 }
 
 void Nanoapp::configureNanoappInfoEvents(bool enable) {
@@ -113,25 +98,12 @@ void Nanoapp::configureDebugDumpEvent(bool enable) {
   }
 }
 
-void Nanoapp::configureUserSettingEvent(uint8_t setting, bool enable) {
-  if (enable) {
-    registerForBroadcastEvent(CHRE_EVENT_SETTING_CHANGED_FIRST_EVENT + setting);
-  } else {
-    unregisterForBroadcastEvent(CHRE_EVENT_SETTING_CHANGED_FIRST_EVENT +
-                                setting);
-  }
-}
-
 Event *Nanoapp::processNextEvent() {
   Event *event = mEventQueue.pop();
 
   CHRE_ASSERT_LOG(event != nullptr, "Tried delivering event, but queue empty");
   if (event != nullptr) {
-    if (event->eventType == CHRE_EVENT_GNSS_DATA) {
-      handleGnssMeasurementDataEvent(event);
-    } else {
-      handleEvent(event->senderInstanceId, event->eventType, event->eventData);
-    }
+    handleEvent(event->senderInstanceId, event->eventType, event->eventData);
   }
 
   return event;
@@ -170,39 +142,6 @@ void Nanoapp::logStateToBuffer(DebugDumpWrapper &debugDump) const {
   }
   // Earliest bucket gets no comma
   debugDump.print("%" PRIu16 " ]\n", mWakeupBuckets.front());
-}
-
-bool Nanoapp::permitPermissionUse(uint32_t permission) const {
-  return !supportsAppPermissions() ||
-         ((getAppPermissions() & permission) == permission);
-}
-
-size_t Nanoapp::registrationIndex(uint16_t eventType) const {
-  size_t foundIndex = 0;
-  for (; foundIndex < mRegisteredEvents.size(); ++foundIndex) {
-    const EventRegistration &reg = mRegisteredEvents[foundIndex];
-    if (reg.eventType == eventType) {
-      break;
-    }
-  }
-  return foundIndex;
-}
-
-void Nanoapp::handleGnssMeasurementDataEvent(const Event *event) {
-#ifdef CHRE_GNSS_MEASUREMENT_BACK_COMPAT_ENABLED
-  const struct chreGnssDataEvent *data =
-      static_cast<const struct chreGnssDataEvent *>(event->eventData);
-  if (getTargetApiVersion() < CHRE_API_VERSION_1_5 &&
-      data->measurement_count > CHRE_GNSS_MAX_MEASUREMENT_PRE_1_5) {
-    chreGnssDataEvent localEvent;
-    memcpy(&localEvent, data, sizeof(struct chreGnssDataEvent));
-    localEvent.measurement_count = CHRE_GNSS_MAX_MEASUREMENT_PRE_1_5;
-    handleEvent(event->senderInstanceId, event->eventType, &localEvent);
-  } else
-#endif  // CHRE_GNSS_MEASUREMENT_BACK_COMPAT_ENABLED
-  {
-    handleEvent(event->senderInstanceId, event->eventType, event->eventData);
-  }
 }
 
 }  // namespace chre
