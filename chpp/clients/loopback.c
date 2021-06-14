@@ -88,7 +88,6 @@ bool chppDispatchLoopbackServiceResponse(struct ChppAppState *context,
   CHPP_NOT_NULL(context->loopbackClientContext->loopbackData);
 
   CHPP_ASSERT(chppClientTimestampResponse(
-      &context->loopbackClientContext->client,
       &context->loopbackClientContext->runLoopbackTest,
       (const struct ChppAppHeader *)response));
 
