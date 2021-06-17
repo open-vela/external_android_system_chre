@@ -47,18 +47,18 @@ namespace general_test {
 
 namespace {
 
-//! A dummy cookie to pass into the enable configure scan monitoring async
+//! A fake/unused cookie to pass into the enable configure scan monitoring async
 //! request.
 constexpr uint32_t kEnableScanMonitoringCookie = 0x1337;
 
-//! A dummy cookie to pass into the disable configure scan monitoring async
-//! request.
+//! A fake/unused cookie to pass into the disable configure scan monitoring
+//! async request.
 constexpr uint32_t kDisableScanMonitoringCookie = 0x1338;
 
-//! A dummy cookie to pass into request ranging async.
+//! A fake/unused cookie to pass into request ranging async.
 constexpr uint32_t kRequestRangingCookie = 0xefac;
 
-//! A dummy cookie to pass into request scan async.
+//! A fake/unused cookie to pass into request scan async.
 constexpr uint32_t kOnDemandScanCookie = 0xcafe;
 
 //! Starting frequency of band 2.4 GHz
@@ -98,7 +98,18 @@ void testConfigureScanMonitorAsync(bool enable, const void *cookie) {
  * if API call fails.
  */
 void testRequestScanAsync() {
-  if (!chreWifiRequestScanAsyncDefault(&kOnDemandScanCookie)) {
+  // Request a fresh scan to ensure the correct scan type is performed.
+  constexpr struct chreWifiScanParams kParams = {
+      /*.scanType=*/CHRE_WIFI_SCAN_TYPE_ACTIVE,
+      /*.maxScanAgeMs=*/0,  // 0 seconds
+      /*.frequencyListLen=*/0,
+      /*.frequencyList=*/NULL,
+      /*.ssidListLen=*/0,
+      /*.ssidList=*/NULL,
+      /*.radioChainPref=*/CHRE_WIFI_RADIO_CHAIN_PREF_DEFAULT,
+      /*.channelSet=*/CHRE_WIFI_CHANNEL_SET_NON_DFS};
+
+  if (!chreWifiRequestScanAsync(&kParams, &kOnDemandScanCookie)) {
     sendFatalFailureToHost("Failed to request for on-demand WiFi scan.");
   }
 }
@@ -333,6 +344,7 @@ void BasicWifiTest::handleEvent(uint32_t /* senderInstanceId */,
         sendFatalFailureToHost("WiFi scan event received when not requested");
       }
       const auto *result = static_cast<const chreWifiScanEvent *>(eventData);
+
       if (isActiveWifiScanType(result)) {
         // The first chreWifiScanResult is expected to come immediately,
         // but a long delay is possible if it's implemented incorrectly,
@@ -344,8 +356,12 @@ void BasicWifiTest::handleEvent(uint32_t /* senderInstanceId */,
           sendFatalFailureToHost(
               "Did not receive chreWifiScanResult within 50 milliseconds.");
         }
-        mStartTimestampNs = 0;
+        // Do not reset mStartTimestampNs here, because it is used for the
+        // subsequent RTT ranging timestamp validation.
         validateWifiScanEvent(result);
+      } else {
+        sendFatalFailureToHostUint8("Unexpected scan type %d",
+                                    result->scanType);
       }
       break;
     }
