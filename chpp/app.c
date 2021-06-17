@@ -698,7 +698,6 @@ void chppAppProcessReset(struct ChppAppState *context) {
     chppInitiateDiscovery(context);
 
   } else {
-    // Notify matched clients that a reset happened
     for (uint8_t i = 0; i < context->discoveredServiceCount; i++) {
       uint8_t clientIndex = context->clientIndexOfServiceIndex[i];
       if (clientIndex != CHPP_CLIENT_INDEX_NONE) {
@@ -718,7 +717,6 @@ void chppAppProcessReset(struct ChppAppState *context) {
   }
 #endif  // CHPP_CLIENT_ENABLED_DISCOVERY
 
-  // Notify registered services that a reset happened
   for (uint8_t i = 0; i < context->registeredServiceCount; i++) {
     ChppNotifierFunction *ResetNotifierFunction =
         chppGetServiceResetNotifierFunction(context, i);
@@ -732,7 +730,6 @@ void chppAppProcessReset(struct ChppAppState *context) {
   }
 
 #ifdef CHPP_CLIENT_ENABLED_TIMESYNC
-  // Reinitialize time offset
   chppTimesyncClientReset(context);
 #endif
 }
