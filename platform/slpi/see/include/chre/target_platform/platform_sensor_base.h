@@ -39,8 +39,7 @@ class PlatformSensorBase {
    * Initializes various members of PlatformSensorBase.
    */
   void initBase(uint8_t sensorType, uint64_t minInterval,
-                const char *sensorName, bool passiveSupported,
-                uint16_t targetGroupMask);
+                const char *sensorName, bool passiveSupported);
 
   //! Stores the last received sampling status from SEE for this sensor making
   //! it easier to dedup updates that come in later from SEE.
@@ -51,9 +50,6 @@ class PlatformSensorBase {
 
   //! The minimum interval of this sensor.
   uint64_t mMinInterval;
-
-  //! The group mask events from this sensor must target.
-  uint16_t mTargetGroupMask;
 
   //! The sensor type of this sensor.
   uint8_t mSensorType;
