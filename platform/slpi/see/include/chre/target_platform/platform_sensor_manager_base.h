@@ -35,20 +35,20 @@ class PlatformSensorManagerBase : public SeeHelperCallbackInterface {
 #endif  // CHRE_SLPI_UIMG_ENABLED
 
   /**
-   * Helper function to retrieve the SeeHelper for a given sensor.
-   * @param sensor The sensor
+   * Helper function to retrieve the SeeHelper for a given sensor type.
+   * @param sensorType the sensor type
    * @return A reference to the appropriate (bimg or uimg) SeeHelper
    */
-  SeeHelper &getSeeHelperForSensor(const Sensor &sensor);
+  SeeHelper &getSeeHelperForSensorType(uint8_t sensorType);
 
-  const SeeHelper &getSeeHelperForSensor(const Sensor &sensor) const {
+  const SeeHelper &getSeeHelperForSensorType(uint8_t sensorType) const {
     // The following cast is done to share code between this method and
-    // getSeeHelperForSensor so we can expose either a const or non-const
+    // getSeeHelperForSensorType so we can expose either a const or non-const
     // SeeHelper depending on the requirements of the caller. The non-const
-    // version of getSeeHelperForSensor will not modify
+    // version of getSeeHelperForSensorType will not modify
     // PlatformSensorManagerBase so this should be safe.
-    return const_cast<PlatformSensorManagerBase *>(this)->getSeeHelperForSensor(
-        sensor);
+    return const_cast<PlatformSensorManagerBase *>(this)
+        ->getSeeHelperForSensorType(sensorType);
   }
 
 #ifdef CHRE_SLPI_UIMG_ENABLED
