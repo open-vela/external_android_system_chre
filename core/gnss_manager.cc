@@ -20,7 +20,6 @@
 #include "chre/core/settings.h"
 #include "chre/platform/assert.h"
 #include "chre/platform/fatal_error.h"
-#include "chre/util/nested_data_ptr.h"
 #include "chre/util/system/debug_dump.h"
 
 namespace chre {
@@ -87,121 +86,15 @@ void GnssManager::onSettingChanged(Setting setting, SettingState state) {
   mMeasurementSession.onSettingChanged(setting, state);
 }
 
-void GnssManager::handleRequestStateResyncCallback() {
-  auto callback = [](uint16_t /* eventType */, void * /* eventData */,
-                     void * /* extraData */) {
-    EventLoopManagerSingleton::get()
-        ->getGnssManager()
-        .handleRequestStateResyncCallbackSync();
-  };
-  EventLoopManagerSingleton::get()->deferCallback(
-      SystemCallbackType::GnssRequestResyncEvent, nullptr /* data */, callback);
-}
-
-bool GnssManager::configurePassiveLocationListener(Nanoapp *nanoapp,
-                                                   bool enable) {
-  bool success = false;
-  uint32_t instanceId = nanoapp->getInstanceId();
-
-  size_t index;
-  if (nanoappHasPassiveLocationListener(instanceId, &index) != enable) {
-    uint32_t capabilities = getCapabilities();
-    bool locationSupported =
-        (capabilities & CHRE_GNSS_CAPABILITIES_LOCATION) != 0;
-    bool passiveLocationListenerSupported =
-        (capabilities &
-         CHRE_GNSS_CAPABILITIES_GNSS_ENGINE_BASED_PASSIVE_LISTENER) != 0;
-
-    if (!locationSupported) {
-      LOGE("Platform does not have the location capability");
-    } else if (enable && !mPassiveLocationListenerNanoapps.prepareForPush()) {
-      LOG_OOM();
-    } else {
-      bool platformEnable = enable && mPassiveLocationListenerNanoapps.empty();
-      bool platformDisable =
-          !enable && (mPassiveLocationListenerNanoapps.size() == 1);
-
-      if (!passiveLocationListenerSupported) {
-        // Silently succeed per API, since listener capability will occur within
-        // CHRE (nanoapp requests).
-        success = true;
-      } else if (platformEnable || platformDisable) {
-        success = platformConfigurePassiveLocationListener(enable);
-      } else {
-        // Platform was already in the configured state.
-        success = true;
-      }
-
-      if (success) {
-        if (enable) {
-          mPassiveLocationListenerNanoapps.push_back(instanceId);
-          nanoapp->registerForBroadcastEvent(CHRE_EVENT_GNSS_LOCATION);
-        } else {
-          mPassiveLocationListenerNanoapps.erase(index);
-          if (!mLocationSession.nanoappHasRequest(instanceId)) {
-            nanoapp->unregisterForBroadcastEvent(CHRE_EVENT_GNSS_LOCATION);
-          }
-        }
-      }
-    }
-  } else {  // else nanoapp request is already at the desired state.
-    success = true;
-  }
-
-  return success;
-}
-
-bool GnssManager::nanoappHasPassiveLocationListener(uint32_t nanoappInstanceId,
-                                                    size_t *index) {
-  size_t foundIndex = mPassiveLocationListenerNanoapps.find(nanoappInstanceId);
-  bool found = (foundIndex != mPassiveLocationListenerNanoapps.size());
-  if (found && index != nullptr) {
-    *index = foundIndex;
-  }
-
-  return found;
-}
-
-bool GnssManager::platformConfigurePassiveLocationListener(bool enable) {
-  bool success = mPlatformGnss.configurePassiveLocationListener(enable);
-  if (!success) {
-    LOGE("Platform failed to %s passive location listener",
-         enable ? "enable" : "disable");
-  } else {
-    mPlatformPassiveLocationListenerEnabled = enable;
-  }
-
-  return success;
-}
-
-void GnssManager::handleRequestStateResyncCallbackSync() {
-  mLocationSession.handleRequestStateResyncCallbackSync();
-  mMeasurementSession.handleRequestStateResyncCallbackSync();
-
-  mPlatformPassiveLocationListenerEnabled = false;
-  if (!mPassiveLocationListenerNanoapps.empty()) {
-    if (!platformConfigurePassiveLocationListener(true /* enable */)) {
-      FATAL_ERROR("Failed to resync passive location listener");
-    }
-  }
-}
-
 void GnssManager::logStateToBuffer(DebugDumpWrapper &debugDump) const {
   debugDump.print("\nGNSS:");
   mLocationSession.logStateToBuffer(debugDump);
   mMeasurementSession.logStateToBuffer(debugDump);
-
-  debugDump.print(
-      "\n Passive location listener %s\n",
-      mPlatformPassiveLocationListenerEnabled ? "enabled" : "disabled");
-  for (uint32_t instanceId : mPassiveLocationListenerNanoapps) {
-    debugDump.print("  nappId=%" PRIu32 "\n", instanceId);
-  }
 }
 
 GnssSession::GnssSession(uint16_t reportEventType)
-    : kReportEventType(reportEventType) {
-  switch (kReportEventType) {
+    : mReportEventType(reportEventType) {
+  switch (mReportEventType) {
     case CHRE_EVENT_GNSS_LOCATION:
       mStartRequestType = CHRE_GNSS_REQUEST_TYPE_LOCATION_SESSION_START;
       mStopRequestType = CHRE_GNSS_REQUEST_TYPE_LOCATION_SESSION_STOP;
@@ -240,42 +133,44 @@ void GnssSession::handleStatusChange(bool enabled, uint8_t errorCode) {
   struct CallbackState {
     bool enabled;
     uint8_t errorCode;
+    GnssSession *session;
   };
 
-  auto callback = [](uint16_t /*type*/, void *data, void *extraData) {
-    auto *session = static_cast<GnssSession *>(data);
-    CallbackState cbState = NestedDataPtr<CallbackState>(extraData);
-    session->handleStatusChangeSync(cbState.enabled, cbState.errorCode);
-  };
+  auto *cbState = memoryAlloc<CallbackState>();
+  if (cbState == nullptr) {
+    LOG_OOM();
+  } else {
+    cbState->enabled = enabled;
+    cbState->errorCode = errorCode;
+    cbState->session = this;
 
-  CallbackState cbState = {};
-  cbState.enabled = enabled;
-  cbState.errorCode = errorCode;
-  EventLoopManagerSingleton::get()->deferCallback(
-      SystemCallbackType::GnssSessionStatusChange, /*data=*/this, callback,
-      NestedDataPtr<CallbackState>(cbState));
+    auto callback = [](uint16_t /* eventType */, void *eventData) {
+      auto *state = static_cast<CallbackState *>(eventData);
+      state->session->handleStatusChangeSync(state->enabled, state->errorCode);
+      memoryFree(state);
+    };
+
+    EventLoopManagerSingleton::get()->deferCallback(
+        SystemCallbackType::GnssSessionStatusChange, cbState, callback);
+  }
 }
 
 void GnssSession::handleReportEvent(void *event) {
-  if (mRequests.empty()) {
-    LOGW("Unexpected %s event", mName);
-  }
-
-  auto callback = [](uint16_t type, void *data, void * /*extraData*/) {
+  auto callback = [](uint16_t type, void *eventData) {
     uint16_t reportEventType;
     if (!getReportEventType(static_cast<SystemCallbackType>(type),
                             &reportEventType) ||
         (getSettingState(Setting::LOCATION) == SettingState::DISABLED)) {
-      freeReportEventCallback(reportEventType, data);
+      freeReportEventCallback(reportEventType, eventData);
     } else {
       EventLoopManagerSingleton::get()->getEventLoop().postEventOrDie(
-          reportEventType, data, freeReportEventCallback);
+          reportEventType, eventData, freeReportEventCallback);
     }
   };
 
   SystemCallbackType type;
-  if (!getCallbackType(kReportEventType, &type)) {
-    freeReportEventCallback(kReportEventType, event);
+  if (!getCallbackType(mReportEventType, &type)) {
+    freeReportEventCallback(mReportEventType, event);
   } else {
     EventLoopManagerSingleton::get()->deferCallback(type, event, callback);
   }
@@ -283,50 +178,33 @@ void GnssSession::handleReportEvent(void *event) {
 
 void GnssSession::onSettingChanged(Setting setting, SettingState state) {
   if (setting == Setting::LOCATION) {
-    if (asyncResponsePending()) {
+    if (!mStateTransitions.empty()) {
       // A request is in progress, so we wait until the async response arrives
       // to handle the state change.
       mSettingChangePending = true;
     } else {
-      mInternalRequestPending = updatePlatformRequest();
+      handleLocationSettingChange(state);
       mSettingChangePending = false;
     }
   }
 }
 
-bool GnssSession::updatePlatformRequest(bool forceUpdate) {
-  SettingState locationSetting = getSettingState(Setting::LOCATION);
+void GnssSession::handleLocationSettingChange(SettingState state) {
+  bool chreDisable = ((state == SettingState::DISABLED) && mPlatformEnabled);
+  bool chreEnable = ((state == SettingState::ENABLED) && !mPlatformEnabled &&
+                     !mRequests.empty());
 
-  bool desiredPlatformState =
-      (locationSetting == SettingState::ENABLED) && !mRequests.empty();
-  bool shouldUpdatePlatform =
-      forceUpdate ||
-      (desiredPlatformState != mPlatformEnabled) /* (enable/disable) */;
-
-  bool requestPending = false;
-  if (shouldUpdatePlatform) {
-    if (controlPlatform(desiredPlatformState, mCurrentInterval,
+  if (chreEnable || chreDisable) {
+    if (controlPlatform(chreEnable, mCurrentInterval,
                         Milliseconds(0) /* minTimeToNext */)) {
-      LOGD("Configured GNSS %s: enable %d", mName, desiredPlatformState);
-      addSessionRequestLog(CHRE_INSTANCE_ID, mCurrentInterval,
-                           desiredPlatformState);
-      requestPending = true;
+      LOGD("Configured GNSS %s: setting state %" PRIu8, mName,
+           static_cast<uint8_t>(state));
+      addSessionRequestLog(CHRE_INSTANCE_ID, mCurrentInterval, chreEnable);
+      mInternalRequestPending = true;
     } else {
-      LOGE("Failed to configure GNSS %s: enable %d", mName,
-           desiredPlatformState);
+      LOGE("Failed to configure GNSS %s: setting state %" PRIu8, mName,
+           static_cast<uint8_t>(state));
     }
-  }
-
-  return requestPending;
-}
-
-void GnssSession::handleRequestStateResyncCallbackSync() {
-  if (asyncResponsePending()) {
-    // A request is in progress, so we wait until the async response arrives
-    // to handle the resync callback.
-    mResyncPending = true;
-  } else {
-    mInternalRequestPending = updatePlatformRequest(true /* forceUpdate */);
   }
 }
 
@@ -508,22 +386,14 @@ bool GnssSession::updateRequests(bool enable, Milliseconds minInterval,
         if (!success) {
           LOG_OOM();
         } else {
-          nanoapp->registerForBroadcastEvent(kReportEventType);
+          nanoapp->registerForBroadcastEvent(mReportEventType);
         }
       }
     } else if (hasExistingRequest) {
       // The session was successfully disabled for a previously enabled
       // nanoapp. Remove it from the list of requests.
       mRequests.erase(requestIndex);
-
-      // We can only unregister the location events from nanoapps if it has no
-      // request and has not configured the passive listener.
-      if ((kReportEventType != CHRE_EVENT_GNSS_LOCATION) ||
-          !EventLoopManagerSingleton::get()
-               ->getGnssManager()
-               .nanoappHasPassiveLocationListener(instanceId)) {
-        nanoapp->unregisterForBroadcastEvent(kReportEventType);
-      }
+      nanoapp->unregisterForBroadcastEvent(mReportEventType);
     }  // else disabling an inactive request, treat as success per CHRE API
   }
 
@@ -545,10 +415,14 @@ bool GnssSession::postAsyncResultEvent(uint32_t instanceId, bool success,
       event->reserved = 0;
       event->cookie = cookie;
 
-      EventLoopManagerSingleton::get()->getEventLoop().postEventOrDie(
-          CHRE_EVENT_GNSS_ASYNC_RESULT, event, freeEventDataCallback,
-          instanceId);
-      eventPosted = true;
+      eventPosted =
+          EventLoopManagerSingleton::get()->getEventLoop().postEventOrDie(
+              CHRE_EVENT_GNSS_ASYNC_RESULT, event, freeEventDataCallback,
+              instanceId);
+
+      if (!eventPosted) {
+        memoryFree(event);
+      }
     }
   }
 
@@ -569,7 +443,7 @@ void GnssSession::postAsyncResultEventFatal(uint32_t instanceId, bool success,
 void GnssSession::handleStatusChangeSync(bool enabled, uint8_t errorCode) {
   bool success = (errorCode == CHRE_ERROR_NONE);
 
-  CHRE_ASSERT_LOG(asyncResponsePending(),
+  CHRE_ASSERT_LOG(!mStateTransitions.empty() || mInternalRequestPending,
                   "handleStatusChangeSync called with no transitions");
   if (mInternalRequestPending) {
     // Silently handle internal requests from CHRE, since they are not pushed
@@ -589,23 +463,12 @@ void GnssSession::handleStatusChangeSync(bool enabled, uint8_t errorCode) {
     mStateTransitions.pop();
   }
 
-  // If a previous setting change or resync event is pending process, do that
-  // first.
-  if (mResyncPending && !success) {
-    // We only send a platform request on resync if a pending request failed,
-    // because we still need to restore the previous request state.
-    mInternalRequestPending = updatePlatformRequest(true /* forceUpdate */);
-  } else if (mSettingChangePending) {
-    mInternalRequestPending = updatePlatformRequest();
-  }
-
-  mResyncPending = false;
-  mSettingChangePending = false;
-
-  // If we didn't issue an internally-generated update via
-  // updatePlatformRequest(), process pending nanoapp requests (otherwise,
-  // wait for it to finish, then process any pending requests)
-  if (!mInternalRequestPending) {
+  // If a previous setting change event is pending process, do that first.
+  if (mSettingChangePending) {
+    handleLocationSettingChange(getSettingState(Setting::LOCATION));
+    mSettingChangePending = false;
+  } else {
+    // Dispatch pending state transition until first one succeeds
     dispatchQueuedStateTransitions();
   }
 }
@@ -635,7 +498,7 @@ bool GnssSession::controlPlatform(bool enable, Milliseconds minInterval,
                                   Milliseconds /* minTimeToNext */) {
   bool success = false;
 
-  switch (kReportEventType) {
+  switch (mReportEventType) {
     case CHRE_EVENT_GNSS_LOCATION:
       // TODO: Provide support for min time to next report. It is currently sent
       // to the platform as zero.
@@ -653,7 +516,7 @@ bool GnssSession::controlPlatform(bool enable, Milliseconds minInterval,
       break;
 
     default:
-      CHRE_ASSERT_LOG(false, "Unhandled event type %" PRIu16, kReportEventType);
+      CHRE_ASSERT_LOG(false, "Unhandled event type %" PRIu16, mReportEventType);
   }
 
   if (success) {
