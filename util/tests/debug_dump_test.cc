@@ -95,9 +95,12 @@ TEST(DebugDumpWrapper, StringForcesNewBufferWithPartlyFilledBuffer) {
 
 TEST(DebugDumpWrapper, ManyNewBuffersAllocated) {
   DebugDumpWrapper debugDump(kStandardBufferSize);
-  const char *str = "aaaaaaaaa";
-  // Should be 12000 chars added to debugDump
+  constexpr size_t kSizeStrings = 10;
   constexpr size_t kNumPrints = 1200;
+  // Should be about 12000 chars added to debugDump
+  char str[kSizeStrings];
+  memset(str, 'a', sizeof(char) * kSizeStrings);
+  str[kSizeStrings - 1] = '\0';
   for (size_t i = 0; i < kNumPrints; i++) {
     debugDump.print("%s", str);
   }
@@ -136,7 +139,7 @@ TEST(DebugDumpWrapper, BuffersClear) {
 void printVaList(DebugDumpWrapper *debugDump, const char *formatStr, ...) {
   va_list args;
   va_start(args, formatStr);
-  debugDump->printVaList(formatStr, args);
+  debugDump->print(formatStr, args);
   va_end(args);
 }
 

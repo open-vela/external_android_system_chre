@@ -25,11 +25,11 @@ namespace chre {
 void DebugDumpWrapper::print(const char *formatStr, ...) {
   va_list argList;
   va_start(argList, formatStr);
-  printVaList(formatStr, argList);
+  print(formatStr, argList);
   va_end(argList);
 }
 
-void DebugDumpWrapper::printVaList(const char *formatStr, va_list argList) {
+void DebugDumpWrapper::print(const char *formatStr, va_list argList) {
   va_list argListCopy;
   va_copy(argListCopy, argList);
 
