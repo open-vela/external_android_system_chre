@@ -350,13 +350,11 @@ void BasicWifiTest::handleEvent(uint32_t /* senderInstanceId */,
         // but a long delay is possible if it's implemented incorrectly,
         // e.g. the async result comes right away (before the scan is actually
         // completed), then there's a long delay to the scan result.
-        constexpr uint64_t maxDelayNs =
-            100 * chre::kOneMillisecondInNanoseconds;
-        bool delayExceeded = (mStartTimestampNs != 0) &&
-                             (chreGetTime() - mStartTimestampNs > maxDelayNs);
-        if (delayExceeded) {
+        if (mStartTimestampNs != 0 &&
+            chreGetTime() - mStartTimestampNs >
+                50 * chre::kOneMillisecondInNanoseconds) {
           sendFatalFailureToHost(
-              "Did not receive chreWifiScanResult within 100 milliseconds.");
+              "Did not receive chreWifiScanResult within 50 milliseconds.");
         }
         // Do not reset mStartTimestampNs here, because it is used for the
         // subsequent RTT ranging timestamp validation.
