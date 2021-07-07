@@ -323,7 +323,7 @@ static void chppGnssClientNotifyReset(void *clientContext) {
                               false /* clearOnly */);
 
   if (gnssClientContext->client.openState != CHPP_OPEN_STATE_OPENED &&
-      !gnssClientContext->client.pseudoOpen) {
+      gnssClientContext->client.openState != CHPP_OPEN_STATE_PSEUDO_OPEN) {
     CHPP_LOGW("GNSS client reset but wasn't open");
   } else {
     CHPP_LOGI("GNSS client reopening from state=%" PRIu8,
@@ -332,7 +332,7 @@ static void chppGnssClientNotifyReset(void *clientContext) {
     chppClientSendOpenRequest(&gGnssClientContext.client,
                               &gGnssClientContext.rRState[CHPP_GNSS_OPEN],
                               CHPP_GNSS_OPEN,
-                              /*blocking=*/false);
+                              /*reopen=*/true);
   }
 }
 
@@ -345,12 +345,12 @@ static void chppGnssClientNotifyMatch(void *clientContext) {
   struct ChppGnssClientState *gnssClientContext =
       (struct ChppGnssClientState *)clientContext;
 
-  if (gnssClientContext->client.pseudoOpen) {
-    CHPP_LOGD("Pseudo-open GNSS client opening");
+  if (gnssClientContext->client.openState == CHPP_OPEN_STATE_PSEUDO_OPEN) {
+    CHPP_LOGD("Previously pseudo-open GNSS client reopening");
     chppClientSendOpenRequest(&gGnssClientContext.client,
                               &gGnssClientContext.rRState[CHPP_GNSS_OPEN],
                               CHPP_GNSS_OPEN,
-                              /*blocking=*/false);
+                              /*reopen=*/true);
   }
 }
 
@@ -384,7 +384,10 @@ static void chppGnssGetCapabilitiesResult(
     struct ChppGnssClientState *clientContext, uint8_t *buf, size_t len) {
   if (len < sizeof(struct ChppGnssGetCapabilitiesResponse)) {
     struct ChppAppHeader *rxHeader = (struct ChppAppHeader *)buf;
-    CHPP_LOGE("GetCapabilities resp. too short. err=%" PRIu8, rxHeader->error);
+    CHPP_LOGE("GetCapabilities failed at service err=%" PRIu8, rxHeader->error);
+    if (rxHeader->error == CHPP_APP_ERROR_NONE) {
+      CHPP_LOGE("Missing err");
+    }
 
   } else {
     struct ChppGnssGetCapabilitiesParameters *result =
@@ -420,9 +423,9 @@ static void chppGnssControlLocationSessionResult(
     // Short response length indicates an error
 
     struct ChppAppHeader *rxHeader = (struct ChppAppHeader *)buf;
-    CHPP_LOGE("ControlLocation resp. too short. err=%" PRIu8, rxHeader->error);
-
+    CHPP_LOGE("ControlLocation failed at service err=%" PRIu8, rxHeader->error);
     if (rxHeader->error == CHPP_APP_ERROR_NONE) {
+      CHPP_LOGE("Missing err");
       rxHeader->error = CHPP_APP_ERROR_INVALID_LENGTH;
     }
     gCallbacks->locationStatusChangeCallback(
@@ -460,9 +463,9 @@ static void chppGnssControlMeasurementSessionResult(
     // Short response length indicates an error
 
     struct ChppAppHeader *rxHeader = (struct ChppAppHeader *)buf;
-    CHPP_LOGE("Measurement resp. too short. err=%" PRIu8, rxHeader->error);
-
+    CHPP_LOGE("Measurement failed at service err=%" PRIu8, rxHeader->error);
     if (rxHeader->error == CHPP_APP_ERROR_NONE) {
+      CHPP_LOGE("Missing err");
       rxHeader->error = CHPP_APP_ERROR_INVALID_LENGTH;
     }
     gCallbacks->measurementStatusChangeCallback(
@@ -615,7 +618,7 @@ static bool chppGnssClientOpen(const struct chrePalSystemApi *systemApi,
     result = chppClientSendOpenRequest(
         &gGnssClientContext.client, &gGnssClientContext.rRState[CHPP_GNSS_OPEN],
         CHPP_GNSS_OPEN,
-        /*blocking=*/true);
+        /*reopen=*/false);
   }
 
 #ifdef CHPP_GNSS_CLIENT_OPEN_ALWAYS_SUCCESS
