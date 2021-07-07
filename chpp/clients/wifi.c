@@ -321,7 +321,7 @@ static void chppWifiClientNotifyReset(void *clientContext) {
   chppCheckWifiScanEventNotificationReset();
 
   if (wifiClientContext->client.openState != CHPP_OPEN_STATE_OPENED &&
-      !wifiClientContext->client.pseudoOpen) {
+      wifiClientContext->client.openState != CHPP_OPEN_STATE_PSEUDO_OPEN) {
     CHPP_LOGW("WiFi client reset but wasn't open");
   } else {
     CHPP_LOGI("WiFi client reopening from state=%" PRIu8,
@@ -329,7 +329,7 @@ static void chppWifiClientNotifyReset(void *clientContext) {
     chppClientSendOpenRequest(&wifiClientContext->client,
                               &wifiClientContext->rRState[CHPP_WIFI_OPEN],
                               CHPP_WIFI_OPEN,
-                              /*blocking=*/false);
+                              /*reopen=*/true);
   }
 }
 
@@ -342,12 +342,12 @@ static void chppWifiClientNotifyMatch(void *clientContext) {
   struct ChppWifiClientState *wifiClientContext =
       (struct ChppWifiClientState *)clientContext;
 
-  if (wifiClientContext->client.pseudoOpen) {
-    CHPP_LOGD("Pseudo-open WiFi client opening");
+  if (wifiClientContext->client.openState == CHPP_OPEN_STATE_PSEUDO_OPEN) {
+    CHPP_LOGD("Previously pseudo-open WiFi client reopening");
     chppClientSendOpenRequest(&wifiClientContext->client,
                               &wifiClientContext->rRState[CHPP_WIFI_OPEN],
                               CHPP_WIFI_OPEN,
-                              /*blocking=*/false);
+                              /*reopen=*/true);
   }
 }
 
@@ -401,7 +401,10 @@ static void chppWifiGetCapabilitiesResult(
     struct ChppWifiClientState *clientContext, uint8_t *buf, size_t len) {
   if (len < sizeof(struct ChppWifiGetCapabilitiesResponse)) {
     struct ChppAppHeader *rxHeader = (struct ChppAppHeader *)buf;
-    CHPP_LOGE("GetCapabilities resp. too short. err=%" PRIu8, rxHeader->error);
+    CHPP_LOGE("GetCapabilities failed at service err=%" PRIu8, rxHeader->error);
+    if (rxHeader->error == CHPP_APP_ERROR_NONE) {
+      CHPP_LOGE("Missing err");
+    }
 
   } else {
     struct ChppWifiGetCapabilitiesParameters *result =
@@ -437,9 +440,9 @@ static void chppWifiConfigureScanMonitorResult(
     // Short response length indicates an error
 
     struct ChppAppHeader *rxHeader = (struct ChppAppHeader *)buf;
-    CHPP_LOGE("ScanMonitor resp. too short. err=%" PRIu8, rxHeader->error);
-
+    CHPP_LOGE("Scan monitor failed at service err=%" PRIu8, rxHeader->error);
     if (rxHeader->error == CHPP_APP_ERROR_NONE) {
+      CHPP_LOGE("Missing err");
       rxHeader->error = CHPP_APP_ERROR_INVALID_LENGTH;
     }
     gCallbacks->scanMonitorStatusChangeCallback(
@@ -486,9 +489,9 @@ static void chppWifiRequestScanResult(struct ChppWifiClientState *clientContext,
     // Short response length indicates an error
 
     struct ChppAppHeader *rxHeader = (struct ChppAppHeader *)buf;
-    CHPP_LOGE("ScanRequest resp. too short. err=%" PRIu8, rxHeader->error);
-
+    CHPP_LOGE("Scan request failed at service err=%" PRIu8, rxHeader->error);
     if (rxHeader->error == CHPP_APP_ERROR_NONE) {
+      CHPP_LOGE("Missing err");
       rxHeader->error = CHPP_APP_ERROR_INVALID_LENGTH;
     }
     gCallbacks->scanResponseCallback(false,
@@ -519,7 +522,7 @@ static void chppWifiRequestRangingResult(
   struct ChppAppHeader *rxHeader = (struct ChppAppHeader *)buf;
 
   if (rxHeader->error != CHPP_APP_ERROR_NONE) {
-    CHPP_LOGE("RangingRequest failed at service err=%" PRIu8, rxHeader->error);
+    CHPP_LOGE("Ranging request failed at service err=%" PRIu8, rxHeader->error);
     gCallbacks->rangingEventCallback(chppAppErrorToChreError(rxHeader->error),
                                      NULL);
 
@@ -641,7 +644,7 @@ static bool chppWifiClientOpen(const struct chrePalSystemApi *systemApi,
     result = chppClientSendOpenRequest(
         &gWifiClientContext.client, &gWifiClientContext.rRState[CHPP_WIFI_OPEN],
         CHPP_WIFI_OPEN,
-        /*blocking=*/true);
+        /*reopen=*/false);
   }
 
 #ifdef CHPP_WIFI_CLIENT_OPEN_ALWAYS_SUCCESS
