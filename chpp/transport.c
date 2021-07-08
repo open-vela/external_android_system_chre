@@ -935,7 +935,7 @@ static void chppClearTxDatagramQueue(struct ChppTransportState *context) {
 static void chppTransportDoWork(struct ChppTransportState *context) {
   bool havePacketForLinkLayer = false;
   struct ChppTransportHeader *txHeader;
-  struct ChppAppHeader *timeoutResponse = NULL;
+  struct ChppAppHeader *timeoutResponse;
 
   // Note: For a future ACK window >1, there needs to be a loop outside the lock
   chppMutexLock(&context->mutex);
