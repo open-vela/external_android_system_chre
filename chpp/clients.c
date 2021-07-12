@@ -315,7 +315,7 @@ void chppClientTimestampRequest(struct ChppClientState *clientState,
   if (rRState->requestState == CHPP_REQUEST_STATE_REQUEST_SENT) {
     CHPP_LOGE("Dupe req ID=%" PRIu8 " existing ID=%" PRIu8 " from t=%" PRIu64,
               requestHeader->transaction, rRState->transaction,
-              rRState->requestTimeNs / CHPP_NSEC_PER_MSEC);
+              rRState->requestTimeNs);
 
     // Clear a possible pending timeout from the previous request
     rRState->responseTimeNs = CHPP_TIME_MAX;
@@ -338,10 +338,9 @@ void chppClientTimestampRequest(struct ChppClientState *clientState,
 
   CHPP_LOGD("Timestamp req ID=%" PRIu8 " at t=%" PRIu64 " timeout=%" PRIu64
             " (requested=%" PRIu64 "), next timeout=%" PRIu64,
-            rRState->transaction, rRState->requestTimeNs / CHPP_NSEC_PER_MSEC,
-            rRState->responseTimeNs / CHPP_NSEC_PER_MSEC,
-            timeoutNs / CHPP_NSEC_PER_MSEC,
-            clientState->appContext->nextRequestTimeoutNs / CHPP_NSEC_PER_MSEC);
+            rRState->transaction, rRState->requestTimeNs,
+            rRState->responseTimeNs, timeoutNs,
+            clientState->appContext->nextRequestTimeoutNs);
 }
 
 bool chppClientTimestampResponse(struct ChppClientState *clientState,
@@ -352,31 +351,27 @@ bool chppClientTimestampResponse(struct ChppClientState *clientState,
 
   switch (rRState->requestState) {
     case CHPP_REQUEST_STATE_NONE: {
-      CHPP_LOGE("Resp with no req t=%" PRIu64,
-                responseTime / CHPP_NSEC_PER_MSEC);
+      CHPP_LOGE("Resp with no req t=%" PRIu64, responseTime);
       break;
     }
 
     case CHPP_REQUEST_STATE_RESPONSE_RCV: {
-      CHPP_LOGE("Extra resp at t=%" PRIu64 " for req t=%" PRIu64,
-                responseTime / CHPP_NSEC_PER_MSEC,
-                rRState->requestTimeNs / CHPP_NSEC_PER_MSEC);
+      CHPP_LOGE("Extra resp at t=%" PRIu64 " for req t=%" PRIu64, responseTime,
+                rRState->requestTimeNs);
       break;
     }
 
     case CHPP_REQUEST_STATE_RESPONSE_TIMEOUT: {
-      CHPP_LOGE("Late resp at t=%" PRIu64 " for req t=%" PRIu64,
-                responseTime / CHPP_NSEC_PER_MSEC,
-                rRState->requestTimeNs / CHPP_NSEC_PER_MSEC);
+      CHPP_LOGE("Late resp at t=%" PRIu64 " for req t=%" PRIu64, responseTime,
+                rRState->requestTimeNs);
       break;
     }
 
     case CHPP_REQUEST_STATE_REQUEST_SENT: {
       if (responseHeader->transaction != rRState->transaction) {
-        CHPP_LOGE("Invalid resp ID=%" PRIu8 " at t=%" PRIu64
-                  " expected=%" PRIu8,
-                  responseHeader->transaction,
-                  responseTime / CHPP_NSEC_PER_MSEC, rRState->transaction);
+        CHPP_LOGE(
+            "Invalid resp ID=%" PRIu8 " at t=%" PRIu64 " expected=%" PRIu8,
+            responseHeader->transaction, responseTime, rRState->transaction);
       } else {
         rRState->requestState = (responseTime > rRState->responseTimeNs)
                                     ? CHPP_REQUEST_STATE_RESPONSE_TIMEOUT
@@ -386,10 +381,8 @@ bool chppClientTimestampResponse(struct ChppClientState *clientState,
         CHPP_LOGD(
             "Timestamp resp ID=%" PRIu8 " req t=%" PRIu64 " resp t=%" PRIu64
             " timeout t=%" PRIu64 " (RTT=%" PRIu64 ", timeout = %s)",
-            rRState->transaction, rRState->requestTimeNs / CHPP_NSEC_PER_MSEC,
-            responseTime / CHPP_NSEC_PER_MSEC,
-            rRState->responseTimeNs / CHPP_NSEC_PER_MSEC,
-            (responseTime - rRState->requestTimeNs) / CHPP_NSEC_PER_MSEC,
+            rRState->transaction, rRState->requestTimeNs, responseTime,
+            rRState->responseTimeNs, responseTime - rRState->requestTimeNs,
             (responseTime > rRState->responseTimeNs) ? "yes" : "no");
       }
       break;
@@ -554,8 +547,7 @@ void chppClientRecalculateNextTimeout(struct ChppAppState *context) {
     }
   }
 
-  CHPP_LOGD("nextReqTimeout=%" PRIu64,
-            context->nextRequestTimeoutNs / CHPP_NSEC_PER_MSEC);
+  CHPP_LOGD("nextReqTimeout=%" PRIu64, context->nextRequestTimeoutNs);
 }
 
 void chppClientCloseOpenRequests(struct ChppClientState *clientState,
