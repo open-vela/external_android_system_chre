@@ -54,7 +54,7 @@ static void chppTimesyncGetTime(struct ChppAppState *context,
     response->timeNs = chppGetCurrentTimeNs();
     CHPP_LOGD("chppTimesyncGetTime returning %" PRIuSIZE
               " bytes at time=%" PRIu64,
-              responseLen, response->timeNs / CHPP_NSEC_PER_MSEC);
+              responseLen, response->timeNs);
 
     chppEnqueueTxDatagramOrFail(context->transportContext, response,
                                 responseLen);
