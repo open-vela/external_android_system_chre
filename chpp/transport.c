@@ -81,8 +81,6 @@ static void chppAppendToPendingTxPacket(struct PendingTxPacket *packet,
 static const char *chppGetPacketAttrStr(uint8_t packetCode);
 static bool chppEnqueueTxDatagram(struct ChppTransportState *context,
                                   uint8_t packetCode, void *buf, size_t len);
-enum ChppLinkErrorCode chppSendPendingPacket(
-    struct ChppTransportState *context);
 
 static void chppResetTransportContext(struct ChppTransportState *context);
 static void chppReset(struct ChppTransportState *context,
@@ -444,7 +442,9 @@ static void chppProcessTransportLoopbackRequest(
               ", Tx payload len=%" PRIu16 ", Rx payload len=%" PRIuSIZE ")",
               context->pendingTxPacket.length, txHeader->length,
               context->rxDatagram.length);
-    enum ChppLinkErrorCode error = chppSendPendingPacket(context);
+    enum ChppLinkErrorCode error = chppPlatformLinkSend(
+        &context->linkParams, context->pendingTxPacket.payload,
+        context->pendingTxPacket.length);
 
     if (error != CHPP_LINK_ERROR_NONE_QUEUED) {
       chppLinkSendDoneCb(&context->linkParams, error);
@@ -1020,8 +1020,10 @@ static void chppTransportDoWork(struct ChppTransportState *context) {
               context->pendingTxPacket.length, txHeader->flags,
               txHeader->packetCode, txHeader->ackSeq, txHeader->seq,
               txHeader->length, context->txDatagramQueue.pending);
-    enum ChppLinkErrorCode error = chppSendPendingPacket(context);
 
+    enum ChppLinkErrorCode error = chppPlatformLinkSend(
+        &context->linkParams, context->pendingTxPacket.payload,
+        context->pendingTxPacket.length);
     if (error != CHPP_LINK_ERROR_NONE_QUEUED) {
       // Platform implementation for platformLinkSend() is synchronous or an
       // error occurred. In either case, we should call chppLinkSendDoneCb()
@@ -1141,25 +1143,6 @@ static bool chppEnqueueTxDatagram(struct ChppTransportState *context,
   }
 
   return success;
-}
-
-/**
- * Sends the pending outgoing packet (context->pendingTxPacket) over to the link
- * layer using chppPlatformLinkSend() and updates the last Tx packet time.
- *
- * @param context Maintains status for each transport layer instance.
- *
- * @return Result of chppPlatformLinkSend().
- */
-enum ChppLinkErrorCode chppSendPendingPacket(
-    struct ChppTransportState *context) {
-  enum ChppLinkErrorCode error = chppPlatformLinkSend(
-      &context->linkParams, context->pendingTxPacket.payload,
-      context->pendingTxPacket.length);
-
-  context->txStatus.lastTxTimeNs = chppGetCurrentTimeNs();
-
-  return error;
 }
 
 /**
@@ -1287,7 +1270,7 @@ struct ChppAppHeader *chppTransportGetClientRequestTimeoutResponse(
 
     if (!timeoutClientFound) {
       CHPP_LOGE("Timeout at %" PRIu64 " but no client",
-                context->appContext->nextRequestTimeoutNs / CHPP_NSEC_PER_MSEC);
+                context->appContext->nextRequestTimeoutNs);
       chppClientRecalculateNextTimeout(context->appContext);
     }
   }
@@ -1506,9 +1489,7 @@ uint64_t chppTransportGetTimeUntilNextDoWorkNs(
   }
 
   CHPP_LOGD("NextDoWork=%" PRIu64 " currentTime=%" PRIu64 " delta=%" PRId64,
-            nextDoWorkTime / CHPP_NSEC_PER_MSEC,
-            currentTime / CHPP_NSEC_PER_MSEC,
-            (nextDoWorkTime - currentTime) / (int64_t)CHPP_NSEC_PER_MSEC);
+            nextDoWorkTime, currentTime, nextDoWorkTime - currentTime);
 
   if (nextDoWorkTime == CHPP_TIME_MAX) {
     return CHPP_TRANSPORT_TIMEOUT_INFINITE;
@@ -1554,8 +1535,7 @@ bool chppWorkThreadHandleSignal(struct ChppTransportState *context,
 
     if (chppGetCurrentTimeNs() - context->txStatus.lastTxTimeNs >=
         CHPP_TRANSPORT_TX_TIMEOUT_NS) {
-      CHPP_LOGE("ACK timeout. Tx t=%" PRIu64,
-                context->txStatus.lastTxTimeNs / CHPP_NSEC_PER_MSEC);
+      CHPP_LOGE("ACK timeout");
       chppTransportDoWork(context);
     }
 
@@ -1598,6 +1578,7 @@ void chppLinkSendDoneCb(struct ChppPlatformLinkParameters *params,
 
   chppMutexLock(&context->mutex);
 
+  context->txStatus.lastTxTimeNs = chppGetCurrentTimeNs();
   context->txStatus.linkBusy = false;
 
   // No need to free anything as pendingTxPacket.payload is static. Likewise, we
@@ -1668,7 +1649,9 @@ uint8_t chppRunTransportLoopback(struct ChppTransportState *context,
     CHPP_LOGD("Sending transport-loopback request (packet len=%" PRIuSIZE
               ", payload len=%" PRIu16 ", asked len was %" PRIuSIZE ")",
               context->pendingTxPacket.length, txHeader->length, len);
-    enum ChppLinkErrorCode error = chppSendPendingPacket(context);
+    enum ChppLinkErrorCode error = chppPlatformLinkSend(
+        &context->linkParams, context->pendingTxPacket.payload,
+        context->pendingTxPacket.length);
 
     if (error != CHPP_LINK_ERROR_NONE_QUEUED) {
       // Either sent synchronously or an error has occurred
