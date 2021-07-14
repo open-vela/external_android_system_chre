@@ -152,12 +152,6 @@ bool EventLoop::startNanoapp(UniquePtr<Nanoapp> &nanoapp) {
 
   if (nanoapp.isNull()) {
     // no-op, invalid argument
-  } else if (nanoapp->getTargetApiVersion() <
-             CHRE_FIRST_SUPPORTED_API_VERSION) {
-    LOGE("Incompatible nanoapp (target ver 0x%" PRIx32
-         ", first supported ver 0x%" PRIx32 ")",
-         nanoapp->getTargetApiVersion(),
-         static_cast<uint32_t>(CHRE_FIRST_SUPPORTED_API_VERSION));
   } else if (eventLoop.findNanoappInstanceIdByAppId(nanoapp->getAppId(),
                                                     &existingInstanceId)) {
     LOGE("App with ID 0x%016" PRIx64
@@ -255,70 +249,55 @@ bool EventLoop::unloadNanoapp(uint32_t instanceId,
   return unloaded;
 }
 
-void EventLoop::postEventOrDie(uint16_t eventType, void *eventData,
+bool EventLoop::postEventOrDie(uint16_t eventType, void *eventData,
                                chreEventCompleteFunction *freeCallback,
-                               uint32_t targetInstanceId,
-                               uint16_t targetGroupMask) {
-  if (mRunning) {
-    if (!allocateAndPostEvent(eventType, eventData, freeCallback,
-                              kSystemInstanceId, targetInstanceId,
-                              targetGroupMask)) {
-      FATAL_ERROR("Failed to post critical system event 0x%" PRIx16, eventType);
-    }
-  } else if (freeCallback != nullptr) {
-    freeCallback(eventType, eventData);
-  }
-}
+                               uint32_t targetInstanceId) {
+  bool success = false;
 
-bool EventLoop::postSystemEvent(uint16_t eventType, void *eventData,
-                                SystemEventCallbackFunction *callback,
-                                void *extraData) {
   if (mRunning) {
-    Event *event =
-        mEventPool.allocate(eventType, eventData, callback, extraData);
-
-    if (event == nullptr || !mEvents.push(event)) {
-      FATAL_ERROR("Failed to post critical system event 0x%" PRIx16, eventType);
+    success = allocateAndPostEvent(eventType, eventData, freeCallback,
+                                   kSystemInstanceId, targetInstanceId);
+    if (!success) {
+      // This can only happen if the event is a system event type. This
+      // postEvent method will fail if a non-system event is posted when the
+      // memory pool is close to full.
+      FATAL_ERROR("Failed to allocate system event type %" PRIu16, eventType);
     }
-    return true;
   }
-  return false;
+
+  return success;
 }
 
 bool EventLoop::postLowPriorityEventOrFree(
     uint16_t eventType, void *eventData,
     chreEventCompleteFunction *freeCallback, uint32_t senderInstanceId,
-    uint32_t targetInstanceId, uint16_t targetGroupMask) {
-  bool eventPosted = false;
+    uint32_t targetInstanceId) {
+  bool success = false;
 
   if (mRunning) {
     if (mEventPool.getFreeBlockCount() > kMinReservedHighPriorityEventCount) {
-      eventPosted = allocateAndPostEvent(eventType, eventData, freeCallback,
-                                         senderInstanceId, targetInstanceId,
-                                         targetGroupMask);
-      if (!eventPosted) {
-        LOGE("Failed to allocate event 0x%" PRIx16 " to instanceId %" PRIu32,
-             eventType, targetInstanceId);
+      success = allocateAndPostEvent(eventType, eventData, freeCallback,
+                                     senderInstanceId, targetInstanceId);
+    }
+    if (!success) {
+      if (freeCallback != nullptr) {
+        freeCallback(eventType, eventData);
       }
+      LOGE("Failed to allocate event 0x%" PRIx16 " to instanceId %" PRIu32,
+           eventType, targetInstanceId);
     }
   }
 
-  if (!eventPosted && freeCallback != nullptr) {
-    freeCallback(eventType, eventData);
-  }
-
-  return eventPosted;
+  return success;
 }
 
 void EventLoop::stop() {
-  auto callback = [](uint16_t /*type*/, void *data, void * /*extraData*/) {
-    auto *obj = static_cast<EventLoop *>(data);
-    obj->onStopComplete();
+  auto callback = [](uint16_t /* type */, void * /* data */) {
+    EventLoopManagerSingleton::get()->getEventLoop().onStopComplete();
   };
 
-  // Stop accepting new events and tell the main loop to finish
-  postSystemEvent(static_cast<uint16_t>(SystemCallbackType::Shutdown),
-                  /*eventData=*/this, callback, /*extraData=*/nullptr);
+  // Stop accepting new events and tell the main loop to finish.
+  postEventOrDie(0, nullptr, callback, kSystemInstanceId);
 }
 
 void EventLoop::onStopComplete() {
@@ -372,17 +351,22 @@ void EventLoop::logStateToBuffer(DebugDumpWrapper &debugDump) const {
 bool EventLoop::allocateAndPostEvent(uint16_t eventType, void *eventData,
                                      chreEventCompleteFunction *freeCallback,
                                      uint32_t senderInstanceId,
-                                     uint32_t targetInstanceId,
-                                     uint16_t targetGroupMask) {
+                                     uint32_t targetInstanceId) {
   bool success = false;
 
+  Milliseconds receivedTime = Nanoseconds(SystemTime::getMonotonicTime());
+  // The event loop should never contain more than 65 seconds worth of data
+  // unless something has gone terribly wrong so use uint16_t to save space.
+  uint16_t receivedTimeMillis =
+      static_cast<uint16_t>(receivedTime.getMilliseconds());
+
   Event *event =
-      mEventPool.allocate(eventType, eventData, freeCallback, senderInstanceId,
-                          targetInstanceId, targetGroupMask);
+      mEventPool.allocate(eventType, receivedTimeMillis, eventData,
+                          freeCallback, senderInstanceId, targetInstanceId);
+
   if (event != nullptr) {
     success = mEvents.push(event);
   }
-
   return success;
 }
 
@@ -416,23 +400,18 @@ bool EventLoop::deliverNextEvent(const UniquePtr<Nanoapp> &app) {
 void EventLoop::distributeEvent(Event *event) {
   for (const UniquePtr<Nanoapp> &app : mNanoapps) {
     if ((event->targetInstanceId == chre::kBroadcastInstanceId &&
-         app->isRegisteredForBroadcastEvent(event->eventType,
-                                            event->targetAppGroupMask)) ||
+         app->isRegisteredForBroadcastEvent(event->eventType)) ||
         event->targetInstanceId == app->getInstanceId()) {
       app->postEvent(event);
     }
   }
 
   if (event->isUnreferenced()) {
-    // Log if an event unicast to a nanoapp isn't delivered, as this is could be
-    // a bug (e.g. something isn't properly keeping track of when nanoapps are
-    // unloaded), though it could just be a harmless transient issue (e.g. race
-    // condition with nanoapp unload, where we post an event to a nanoapp just
-    // after queues are flushed while it's unloading)
-    if (event->targetInstanceId != kBroadcastInstanceId &&
-        event->targetInstanceId != kSystemInstanceId) {
-      LOGW("Dropping event 0x%" PRIx16 " from instanceId %" PRIu32 "->%" PRIu32,
-           event->eventType, event->senderInstanceId, event->targetInstanceId);
+    // Events sent to the system instance ID are processed via the free callback
+    // and are not expected to be delivered to any nanoapp, so no need to log a
+    // warning in that case
+    if (event->senderInstanceId != kSystemInstanceId) {
+      LOGW("Dropping event 0x%" PRIx16, event->eventType);
     }
     freeEvent(event);
   }
@@ -450,10 +429,10 @@ void EventLoop::flushNanoappEventQueues() {
 }
 
 void EventLoop::freeEvent(Event *event) {
-  if (event->hasFreeCallback()) {
+  if (event->freeCallback != nullptr) {
     // TODO: find a better way to set the context to the creator of the event
     mCurrentApp = lookupAppByInstanceId(event->senderInstanceId);
-    event->invokeFreeCallback();
+    event->freeCallback(event->eventType, event->eventData);
     mCurrentApp = nullptr;
   }
 

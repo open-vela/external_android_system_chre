@@ -44,11 +44,7 @@ class WifiScanResult {
    */
   WifiScanResult(const chreWifiScanResult &chreScanResult);
 
-  static bool areEqual(const WifiScanResult &result1,
-                       const WifiScanResult &result2);
-
-  static bool bssidsAreEqual(const WifiScanResult &result1,
-                             const WifiScanResult &result2);
+  static bool areEqual(WifiScanResult result1, WifiScanResult result2);
 
   uint8_t getResultIndex() const {
     return mResultIndex;
@@ -63,14 +59,6 @@ class WifiScanResult {
     return mResultIndex >= mTotalNumResults - 1;
   }
 
-  bool getSeen() const {
-    return mSeen;
-  }
-
-  void didSee() {
-    mSeen = true;
-  }
-
  private:
   char mSsid[CHRE_WIFI_SSID_MAX_LEN];
   uint8_t mBssid[CHRE_WIFI_BSSID_LEN];
@@ -78,12 +66,10 @@ class WifiScanResult {
   uint8_t mTotalNumResults = 0;
   uint8_t mResultIndex = 0;
 
-  //! If true then, a scan result with this bssid has been seen before in the
-  //! other set of scan results.
-  bool mSeen = false;
-
   static bool decodeString(pb_istream_t *stream, const pb_field_t * /*field*/,
                            void **arg);
+
+  static bool byteArraysAreEqual(uint8_t *arr1, uint8_t *arr2, uint8_t len);
 };
 
 #endif  // WIFI_SCAN_RESULT_H_
