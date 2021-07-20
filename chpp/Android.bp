@@ -56,7 +56,6 @@ cc_library_static {
         "-DCHPP_SERVICE_ENABLED_TRANSPORT_LOOPBACK",
         "-DCHPP_MAX_REGISTERED_CLIENTS=3",
         "-DCHPP_MAX_REGISTERED_SERVICES=3",
-        "-DCHPP_DEBUG_ASSERT_ENABLED",
         // clock_gettime() requires _POSIX_C_SOURCE >= 199309L
         "-D_POSIX_C_SOURCE=199309L",
         // Required for pthread_setname_np()
@@ -121,6 +120,10 @@ cc_test_host {
         "test/transport_test.cpp",
         "test/clients_test.cpp",
     ],
+    test_suites: [
+        // Needed to support running on TreeHugger
+        "general-tests",
+    ],
     static_libs: [
         "chre_chpp_linux",
         "chre_pal_linux"
@@ -139,6 +142,10 @@ cc_test_host {
     srcs: [
         "test/wifi_convert_test.cpp",
         "test/wwan_convert_test.cpp"
+    ],
+    test_suites: [
+        // Needed to support running on TreeHugger
+        "general-tests",
     ],
     static_libs: ["chre_chpp_linux"],
 }

@@ -39,8 +39,6 @@ bool chppDispatchLoopbackClientRequest(struct ChppAppState *context,
                                CHPP_TRANSPORT_ERROR_OOM);
 
   } else {
-    CHPP_LOGI("Looping back len=%" PRIuSIZE, len);
-
     // Copy received datagram
     memcpy(response, buf, len);
 
