@@ -65,16 +65,9 @@ extern "C" {
 #define CHPP_NOT_NULL(var) CHPP_ASSERT((var) != NULL)
 #endif
 
-/**
- * Debug assertions that are not intended to be enabled for production software.
- */
 #ifndef CHPP_DEBUG_ASSERT
-#ifdef CHPP_DEBUG_ASSERT_ENABLED
 #define CHPP_DEBUG_ASSERT(var) CHPP_ASSERT(var)
-#else
-#define CHPP_DEBUG_ASSERT(var) UNUSED_VAR(var)
-#endif  // CHPP_DEBUG_ASSERT_ENABLED
-#endif  // CHPP_DEBUG_ASSERT
+#endif
 
 #ifndef PRIu64  // Pre-C99 lacks PRIu64 support. Note that the correct
                 // definition on pre-C99 systems would be compiler-dependent.
