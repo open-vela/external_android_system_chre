@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 The Android Open Source Project
+ * Copyright (C) 2021 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,15 +14,26 @@
  * limitations under the License.
  */
 
-#ifndef CHRE_POWER_TEST_COMMON_H_
-#define CHRE_POWER_TEST_COMMON_H_
+#ifndef CHRE_SIMULATION_TEST_BASE_H_
+#define CHRE_SIMULATION_TEST_BASE_H_
 
-#include "chre/util/nanoapp/log.h"
+#include <gtest/gtest.h>
 
-#ifdef CHRE_TCM_BUILD
-#define LOG_TAG "[PowerTest_TCM]"
-#else  // CHRE_TCM_BUILD
-#define LOG_TAG "[PowerTest]"
-#endif  // CHRE_TCM_BUILD
+#include <thread>
 
-#endif  // CHRE_POWER_TEST_COMMON_H_
+namespace chre {
+
+/*
+ * A base class for all CHRE simulated tests.
+ */
+class TestBase : public testing::Test {
+ protected:
+  void SetUp() override;
+  void TearDown() override;
+
+  std::thread mChreThread;
+};
+
+}  // namespace chre
+
+#endif  // CHRE_SIMULATION_TEST_BASE_H_
