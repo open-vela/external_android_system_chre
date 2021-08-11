@@ -32,9 +32,6 @@ namespace cross_validator_sensor {
 // TODO(b/154271551): Break up the Manager class into more fine-grained classes
 // to avoid it becoming to complex.
 
-//! The maximum size of a sensor name.
-constexpr size_t kMaxSensorNameSize = 128;
-
 /**
  * Class to manage a CHRE cross validator nanoapp.
  */
@@ -102,9 +99,6 @@ class Manager {
   //! message.
   chre::Optional<CrossValidatorState> mCrossValidatorState;
 
-  //! A temporary global buffer where the sensor name is stored.
-  char mSensorNameArray[kMaxSensorNameSize];
-
   /**
    * Make a SensorDatapoint proto message.
    *
@@ -167,18 +161,6 @@ class Manager {
                                               void *const *arg);
 
   /**
-   * Encodes the datapoints into a SensorData message.
-   *
-   * @param stream The stream to write to.
-   * @param field The field to write to.
-   * @param arg The data passed in order to write to the stream.
-   * @return true if successful.
-   */
-  static bool encodeStepCounterSensorDatapoints(pb_ostream_t *stream,
-                                                const pb_field_t *field,
-                                                void *const *arg);
-
-  /**
    * Encodes a single float value into values list of SensorDatapoint object.
    *
    * @param stream The stream to write to.
@@ -203,19 +185,6 @@ class Manager {
   static bool encodeProximitySensorDatapointValue(pb_ostream_t *stream,
                                                   const pb_field_t * /*field*/,
                                                   void *const *arg);
-
-  /**
-   * Encodes a single step counter value into the values list of SensorDatapoint
-   * object, converting the uint64 value property into a float in the process.
-   *
-   * @param stream The stream to write to.
-   * @param field The field to write to (unused).
-   * @param arg The data passed in order to write to the stream.
-   * @return true if successful.
-   */
-  static bool encodeStepCounterSensorDatapointValue(pb_ostream_t *stream,
-                                                    const pb_field_t *field,
-                                                    void *const *arg);
 
   /**
    * Handle a start sensor message.
@@ -293,16 +262,6 @@ class Manager {
       const chreSensorByteData *proximityDataFromChre);
 
   /**
-   * @param stepCounterDataFromChre Proximity sensor data from CHRE.
-   * @param sensorType The sensor type that sent the uint64 data.
-   *
-   * @return The Data proto message that is ready to be sent to host with float
-   * data.
-   */
-  chre_cross_validation_sensor_Data makeSensorStepCounterData(
-      const chreSensorUint64Data *stepCounterDataFromChre);
-
-  /**
    * Handle sensor three axis data from CHRE.
    *
    * @param threeAxisDataFromChre The data from CHRE to parse.
@@ -329,15 +288,6 @@ class Manager {
 
   /**
    * Send data to be validated to the host.
-   * Handle step counter sensor data from CHRE.
-   *
-   * @param stepCounterDataFromChre The data to parse.
-   */
-  void handleStepCounterData(
-      const chreSensorUint64Data *stepCounterDataFromChre);
-
-  /**
-   * Encode and send data to be validated to host.
    *
    * @param data The data to send.
    */
@@ -389,16 +339,6 @@ class Manager {
    * during validation.
    */
   void cleanup();
-
-  /**
-   * @param sensorType The CHRE sensor type.
-   * @param sensorIndex The CHRE sensor index as defined in chreSensorFind.
-   * @param handle A non-null pointer where the sensor handle is stored, if
-   * found.
-   *
-   * @return true if the sensor corresponding to the input is available.
-   */
-  bool getSensor(uint32_t sensorType, uint32_t sensorIndex, uint32_t *handle);
 };
 
 // The chre cross validator manager singleton.

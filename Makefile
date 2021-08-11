@@ -57,9 +57,6 @@ ifeq ($(CHRE_WWAN_SUPPORT_ENABLED), true)
 COMMON_CFLAGS += -DCHRE_WWAN_SUPPORT_ENABLED
 endif
 
-# Optional on-device unit tests support
-include $(CHRE_PREFIX)/test/test.mk
-
 # Determine the CHRE_HOST_OS to resolve build discrepancies across Darwin and
 # Linux.
 CHRE_HOST_OS := $(shell uname)
@@ -89,6 +86,7 @@ include $(CHRE_PREFIX)/build/common.mk
 
 # CHRE Implementation includes.
 include $(CHRE_PREFIX)/apps/apps.mk
+include $(CHRE_PREFIX)/ash/ash.mk
 include $(CHRE_PREFIX)/chre_api/chre_api.mk
 include $(CHRE_PREFIX)/core/core.mk
 include $(CHRE_PREFIX)/external/external.mk
@@ -96,10 +94,9 @@ include $(CHRE_PREFIX)/pal/pal.mk
 include $(CHRE_PREFIX)/platform/platform.mk
 include $(CHRE_PREFIX)/util/util.mk
 
-# Supported variants includes.
-ifneq ($(CHRE_TARGET_EXTENSION),)
-include $(CHRE_TARGET_EXTENSION)
-endif
+# Supported Variants Includes. Not all CHRE variants are supported by this
+# implementation of CHRE. Example: this CHRE implementation is never built for
+# google_cm4_nanohub as Nanohub itself is a CHRE implementation.
 include $(CHRE_PREFIX)/build/variant/google_arm64_android.mk
 include $(CHRE_PREFIX)/build/variant/google_hexagonv55_slpi-see.mk
 include $(CHRE_PREFIX)/build/variant/google_hexagonv60_slpi.mk
