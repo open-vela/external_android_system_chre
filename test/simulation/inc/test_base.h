@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 The Android Open Source Project
+ * Copyright (C) 2021 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,20 +14,26 @@
  * limitations under the License.
  */
 
-#ifndef CHRE_PLATFORM_SLPI_SYSTEM_TIME_H_
-#define CHRE_PLATFORM_SLPI_SYSTEM_TIME_H_
+#ifndef CHRE_SIMULATION_TEST_BASE_H_
+#define CHRE_SIMULATION_TEST_BASE_H_
 
-#include <cstdint>
+#include <gtest/gtest.h>
+
+#include <thread>
 
 namespace chre {
 
-/**
- * Sets the estimated offset between the host and SLPI clock.
- *
- * @param offset The current estimated offset in nanoseconds.
+/*
+ * A base class for all CHRE simulated tests.
  */
-void setEstimatedHostTimeOffset(int64_t offset);
+class TestBase : public testing::Test {
+ protected:
+  void SetUp() override;
+  void TearDown() override;
+
+  std::thread mChreThread;
+};
 
 }  // namespace chre
 
-#endif  // CHRE_PLATFORM_SLPI_SYSTEM_TIME_H_
+#endif  // CHRE_SIMULATION_TEST_BASE_H_
