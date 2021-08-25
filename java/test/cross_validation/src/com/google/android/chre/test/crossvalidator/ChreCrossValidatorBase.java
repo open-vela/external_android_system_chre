@@ -179,16 +179,6 @@ abstract class ChreCrossValidatorBase {
         }
     }
 
-    /**
-     * Reloads the cross-validation nanoapp.
-     */
-    protected void reloadNanoApp() {
-        ChreTestUtil.unloadNanoAppAssertSuccess(
-                mContextHubManager, mContextHubInfo, mNappBinary.getNanoAppId());
-        ChreTestUtil.loadNanoAppAssertSuccess(
-                mContextHubManager, mContextHubInfo, mNappBinary);
-    }
-
     // Methods below implemented by concrete subclasses
 
     /**
