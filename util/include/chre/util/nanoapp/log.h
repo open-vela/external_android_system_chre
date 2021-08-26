@@ -27,7 +27,7 @@
  */
 #ifdef CHRE_IS_NANOAPP_BUILD
 
-#include <chre.h>
+#include <chre/re.h>
 
 #include "chre/util/log_common.h"
 
@@ -128,14 +128,5 @@
 #define LOGV_SENSITIVE_INFO(fmt, ...) CHRE_LOG_NULL(fmt, ##__VA_ARGS__)
 #define LOGV_TAG_SENSITIVE_INFO(tag, fmt, ...) CHRE_LOG_NULL(fmt, ##__VA_ARGS__)
 #endif
-
-// Convenience macro that helps with suppressing double promotion warnings when
-// passing a float to chreDebugDumpLog().
-#define CHRE_DEBUG_DUMP_LOG(fmt, ...)     \
-  do {                                    \
-    CHRE_LOG_PREAMBLE                     \
-    chreDebugDumpLog(fmt, ##__VA_ARGS__); \
-    CHRE_LOG_EPILOGUE                     \
-  } while (0)
 
 #endif  // CHRE_UTIL_NANOAPP_LOG_H_
