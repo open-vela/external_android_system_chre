@@ -169,13 +169,13 @@ DLL_EXPORT extern "C" const struct chreNslNanoappInfo _chreNslDsoNanoappInfo = {
 #define CHRE_NSL_LAZY_LOOKUP(functionName)            \
   ({                                                  \
     static bool lookupPerformed = false;              \
-    static decltype(functionName) *funcPtr = nullptr; \
+    static decltype(functionName) *fptr = nullptr;    \
     if (!lookupPerformed) {                           \
-      funcPtr = reinterpret_cast<decltype(funcPtr)>(  \
+      fptr = reinterpret_cast<decltype(fptr)>(        \
           dlsym(RTLD_NEXT, STRINGIFY(functionName))); \
       lookupPerformed = true;                         \
     }                                                 \
-    funcPtr;                                          \
+    fptr;                                             \
   })
 
 #ifdef CHRE_NANOAPP_USES_AUDIO
