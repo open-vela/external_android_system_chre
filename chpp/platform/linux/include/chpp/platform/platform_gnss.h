@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 The Android Open Source Project
+ * Copyright (C) 2021 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,20 +14,21 @@
  * limitations under the License.
  */
 
-#ifndef CHRE_PLATFORM_SLPI_SYSTEM_TIME_H_
-#define CHRE_PLATFORM_SLPI_SYSTEM_TIME_H_
+#ifndef CHPP_PLATFORM_GNSS_SERVICE_H_
+#define CHPP_PLATFORM_GNSS_SERVICE_H_
 
-#include <cstdint>
-
-namespace chre {
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /**
- * Sets the estimated offset between the host and SLPI clock.
- *
- * @param offset The current estimated offset in nanoseconds.
+ * Helper functions to force send a measurement or data event from the service.
  */
-void setEstimatedHostTimeOffset(int64_t offset);
+void gnssPalSendLocationEvent(void);
+void gnssPalSendMeasurementEvent(void);
 
-}  // namespace chre
+#ifdef __cplusplus
+}
+#endif
 
-#endif  // CHRE_PLATFORM_SLPI_SYSTEM_TIME_H_
+#endif  // CHPP_PLATFORM_GNSS_SERVICE_H_
