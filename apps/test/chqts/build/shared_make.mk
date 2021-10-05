@@ -6,16 +6,16 @@ ifndef NANOAPP_SRC_FILES
 $(error NANOAPP_SRC_FILES unset)
 endif
 
+ifndef CHRE_PREFIX
 ifndef ANDROID_BUILD_TOP
-$(error Must set Android build environment first)
+$(error Must supply CHRE_PREFIX or set Android build environment first)
+else
+CHRE_PREFIX = $(ANDROID_BUILD_TOP)/system/chre
+endif
 endif
 
 NANOAPP_DIR_NAME ?= $(NANOAPP_NAME)
-
-# This path is actually relative to one level deeper as this file
-# gets included from Makefile of each test subdirectory
-NANOAPP_SRC_PATH = ../../src
-CHRE_ROOT_PATH = ../../../..
+NANOAPP_SRC_PATH = $(CHRE_PREFIX)/apps/test/chqts/src
 
 SHARED_LIB_FILES = abort.cc \
   chunk_allocator.cc \
@@ -38,7 +38,7 @@ COMMON_CFLAGS += -DCHRE_NO_ENDIAN_H \
   -D__BIG_ENDIAN=2
 
 COMMON_CFLAGS += -I$(NANOAPP_SRC_PATH)
-COMMON_CFLAGS += -I$(CHRE_ROOT_PATH)/util/include
+COMMON_CFLAGS += -I$(CHRE_PREFIX)/util/include
 
 OPT_LEVEL=2
 
@@ -49,4 +49,4 @@ CHRE_NANOAPP_USES_GNSS = true
 CHRE_NANOAPP_USES_WIFI = true
 CHRE_NANOAPP_USES_WWAN = true
 
-include ${ANDROID_BUILD_TOP}/system/chre/build/nanoapp/app.mk
+include $(CHRE_PREFIX)/build/nanoapp/app.mk
