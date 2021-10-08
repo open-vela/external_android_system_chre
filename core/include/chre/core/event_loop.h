@@ -389,9 +389,21 @@ class EventLoop : public NonCopyable {
                             uint16_t targetGroupMask);
 
   /**
-   * Delivers the next event pending to the Nanoapp.
+   * Do one round of Nanoapp event delivery, only considering events in
+   * Nanoapps' own queues (not mEvents).
+   *
+   * @return true if there are more events pending in Nanoapps' own queues
    */
-  void deliverNextEvent(const UniquePtr<Nanoapp> &app, Event *event);
+  bool deliverEvents();
+
+  /**
+   * Delivers the next event pending in the Nanoapp's queue, and takes care of
+   * freeing events once they have been delivered to all nanoapps. Must only be
+   * called after confirming that the app has at least 1 pending event.
+   *
+   * @return true if the nanoapp has another event pending in its queue
+   */
+  bool deliverNextEvent(const UniquePtr<Nanoapp> &app);
 
   /**
    * Given an event pulled from the main incoming event queue (mEvents), deliver
@@ -410,6 +422,11 @@ class EventLoop : public NonCopyable {
    * long as postEvent() will accept them.
    */
   void flushInboundEventQueue();
+
+  /**
+   * Delivers events pending in Nanoapps' own queues until they are all empty.
+   */
+  void flushNanoappEventQueues();
 
   /**
    * Call after when an Event has been delivered to all intended recipients.
