@@ -30,10 +30,6 @@ namespace fbs = ::chre::fbs;
 namespace android {
 namespace chre {
 
-ChreDaemonBase::ChreDaemonBase() : mChreShutdownRequested(false) {
-  mLogger.init();
-}
-
 void ChreDaemonBase::loadPreloadedNanoapps() {
   constexpr char kPreloadedNanoappsConfigPath[] =
       "/vendor/etc/chre/preloaded_nanoapps.json";
@@ -157,7 +153,7 @@ bool ChreDaemonBase::sendMessageToChre(uint16_t clientId, void *data,
     LOGE("Couldn't set host client ID in message container!");
   } else {
     LOGV("Delivering message from host (size %zu)", length);
-    getLogger().dump(static_cast<const uint8_t *>(data), length);
+    getLogger()->dump(static_cast<const uint8_t *>(data), length);
     success = doSendMessage(data, length);
   }
 
@@ -166,7 +162,7 @@ bool ChreDaemonBase::sendMessageToChre(uint16_t clientId, void *data,
 
 void ChreDaemonBase::onMessageReceived(const unsigned char *messageBuffer,
                                        size_t messageLen) {
-  getLogger().dump(messageBuffer, messageLen);
+  getLogger()->dump(messageBuffer, messageLen);
 
   uint16_t hostClientId;
   fbs::ChreMessage messageType;
@@ -182,18 +178,17 @@ void ChreDaemonBase::onMessageReceived(const unsigned char *messageBuffer,
     const auto *logMessage = container->message.AsLogMessage();
     const std::vector<int8_t> &logData = logMessage->buffer;
 
-    getLogger().log(reinterpret_cast<const uint8_t *>(logData.data()),
-                    logData.size());
+    getLogger()->log(reinterpret_cast<const uint8_t *>(logData.data()),
+                     logData.size());
   } else if (messageType == fbs::ChreMessage::LogMessageV2) {
     std::unique_ptr<fbs::MessageContainerT> container =
         fbs::UnPackMessageContainer(messageBuffer);
     const auto *logMessage = container->message.AsLogMessageV2();
-    const std::vector<int8_t> &logDataBuffer = logMessage->buffer;
-    const auto *logData =
-        reinterpret_cast<const uint8_t *>(logDataBuffer.data());
+    const std::vector<int8_t> &logData = logMessage->buffer;
     uint32_t numLogsDropped = logMessage->num_logs_dropped;
 
-    getLogger().logV2(logData, logDataBuffer.size(), numLogsDropped);
+    getLogger()->logV2(reinterpret_cast<const uint8_t *>(logData.data()),
+                       logData.size(), numLogsDropped);
   } else if (messageType == fbs::ChreMessage::TimeSyncRequest) {
     sendTimeSync(true /* logOnError */);
   } else if (messageType == fbs::ChreMessage::LowPowerMicAccessRequest) {

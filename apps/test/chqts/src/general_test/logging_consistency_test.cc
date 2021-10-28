@@ -50,8 +50,7 @@ void LoggingConsistencyTest::setUp(uint32_t messageSize,
   constexpr chreLogLevel kInfo = CHRE_LOG_INFO;
 
   // Empty string
-  char emptyString[1] = {'\0'};
-  chreLog(kInfo, "%s", emptyString);
+  chreLog(kInfo, "");
 
   // Try up through 10 arguments
   chreLog(kInfo, "%d", 1);
