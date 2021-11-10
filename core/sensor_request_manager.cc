@@ -196,21 +196,15 @@ bool SensorRequestManager::setSensorRequest(
           if (success) {
             cancelFlushRequests(sensorHandle, nanoapp->getInstanceId());
 
-            // Only unregister if nanoapp no longer has an outstanding request
-            // for a sensor + target group mask.
-            uint16_t activeMask =
-                getActiveTargetGroupMask(nanoapp->getInstanceId(), sensorType);
-            uint16_t inactiveMask = sensor.getTargetGroupMask() & ~activeMask;
-            if (inactiveMask != 0) {
-              nanoapp->unregisterForBroadcastEvent(eventType, inactiveMask);
+            nanoapp->unregisterForBroadcastEvent(eventType,
+                                                 sensor.getTargetGroupMask());
 
-              uint16_t biasEventType;
-              if (sensor.getBiasEventType(&biasEventType)) {
-                // Per API requirements, turn off bias reporting when
-                // unsubscribing from the sensor.
-                nanoapp->unregisterForBroadcastEvent(biasEventType,
-                                                     inactiveMask);
-              }
+            uint16_t biasEventType;
+            if (sensor.getBiasEventType(&biasEventType)) {
+              // Per API requirements, turn off bias reporting when
+              // unsubscribing from the sensor.
+              nanoapp->unregisterForBroadcastEvent(biasEventType,
+                                                   sensor.getTargetGroupMask());
             }
           }
         } else {
@@ -895,23 +889,6 @@ bool SensorRequestManager::configurePlatformSensor(
     }
   }
   return success;
-}
-
-uint16_t SensorRequestManager::getActiveTargetGroupMask(
-    uint32_t nanoappInstanceId, uint8_t sensorType) {
-  uint16_t mask = 0;
-  for (Sensor &sensor : mSensors) {
-    if (sensor.getSensorType() == sensorType) {
-      size_t index;
-      if (sensor.getRequestMultiplexer().findRequest(nanoappInstanceId,
-                                                     &index) != nullptr) {
-        mask |= sensor.getTargetGroupMask();
-        break;
-      }
-    }
-  }
-
-  return mask;
 }
 
 }  // namespace chre
