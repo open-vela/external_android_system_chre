@@ -60,15 +60,6 @@ void deleteOverride(void *ptr) {
   FATAL_ERROR("Nanoapp tried to free %p through delete operator", ptr);
 }
 
-// From C++17, a call to the overloaded delete operator aimed at safely freeing
-// over-aligned allocations maybe present in the nanoapp binary even though it
-// is unused. Since all memory allocations/deallocations are managed by CHRE,
-// signal a fatal error if the nanoapp tries to use this version of the delete
-// operator.
-void deleteAlignedOverride(void *ptr, std::align_val_t alignment) {
-  FATAL_ERROR("Nanoapp tried to free aligned %p via the delte operator", ptr);
-}
-
 // atexit is used to register functions that must be called when a binary is
 // removed from the system.
 int atexitOverride(void (*function)(void)) {
@@ -177,7 +168,6 @@ const ExportedData gExportedData[] = {
     ADD_EXPORTED_C_SYMBOL(__cxa_pure_virtual),
     ADD_EXPORTED_SYMBOL(atexitOverride, "atexit"),
     ADD_EXPORTED_SYMBOL(deleteOverride, "_ZdlPv"),
-    ADD_EXPORTED_SYMBOL(deleteAlignedOverride, "_ZdlPvSt11align_val_t"),
     ADD_EXPORTED_C_SYMBOL(dlsym),
     ADD_EXPORTED_C_SYMBOL(memcmp),
     ADD_EXPORTED_C_SYMBOL(memcpy),
@@ -248,7 +238,6 @@ const ExportedData gExportedData[] = {
     ADD_EXPORTED_C_SYMBOL(chreWwanGetCapabilities),
     ADD_EXPORTED_C_SYMBOL(chreWwanGetCellInfoAsync),
     ADD_EXPORTED_C_SYMBOL(platform_chreDebugDumpVaLog),
-    ADD_EXPORTED_C_SYMBOL(chreConfigureHostEndpointNotifications),
 };
 CHRE_DEPRECATED_EPILOGUE
 // clang-format on
@@ -403,9 +392,8 @@ bool NanoappLoader::callInitArray() {
   return success;
 }
 
-uintptr_t NanoappLoader::roundDownToAlign(uintptr_t virtualAddr,
-                                          size_t alignment) {
-  return virtualAddr & -alignment;
+uintptr_t NanoappLoader::roundDownToAlign(uintptr_t virtualAddr) {
+  return virtualAddr & -kBinaryAlignment;
 }
 
 void NanoappLoader::freeAllocatedData() {
@@ -683,16 +671,15 @@ bool NanoappLoader::createMappings() {
       // Get the last load segment
       while (last > first && last->p_type != PT_LOAD) --last;
 
-      size_t alignment = first->p_align;
       size_t memorySpan = last->p_vaddr + last->p_memsz - first->p_vaddr;
       LOGV("Nanoapp image Memory Span: %u", memorySpan);
 
       if (mIsTcmBinary) {
-        mMapping =
-            static_cast<uint8_t *>(nanoappBinaryAlloc(memorySpan, alignment));
+        mMapping = static_cast<uint8_t *>(
+            nanoappBinaryAlloc(memorySpan, kBinaryAlignment));
       } else {
         mMapping = static_cast<uint8_t *>(
-            nanoappBinaryDramAlloc(memorySpan, alignment));
+            nanoappBinaryDramAlloc(memorySpan, kBinaryAlignment));
       }
 
       if (mMapping == nullptr) {
@@ -701,8 +688,7 @@ bool NanoappLoader::createMappings() {
         LOGV("Starting location of mappings %p", mMapping);
 
         // Calculate the load bias using the first load segment.
-        uintptr_t adjustedFirstLoadSegAddr =
-            roundDownToAlign(first->p_vaddr, alignment);
+        uintptr_t adjustedFirstLoadSegAddr = roundDownToAlign(first->p_vaddr);
         mLoadBias =
             reinterpret_cast<uintptr_t>(mMapping) - adjustedFirstLoadSegAddr;
         LOGV("Load bias is %" PRIu32, mLoadBias);

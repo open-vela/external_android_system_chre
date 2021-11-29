@@ -122,12 +122,19 @@ void Nanoapp::configureUserSettingEvent(uint8_t setting, bool enable) {
   }
 }
 
-void Nanoapp::processEvent(Event *event) {
-  if (event->eventType == CHRE_EVENT_GNSS_DATA) {
-    handleGnssMeasurementDataEvent(event);
-  } else {
-    handleEvent(event->senderInstanceId, event->eventType, event->eventData);
+Event *Nanoapp::processNextEvent() {
+  Event *event = mEventQueue.pop();
+
+  CHRE_ASSERT_LOG(event != nullptr, "Tried delivering event, but queue empty");
+  if (event != nullptr) {
+    if (event->eventType == CHRE_EVENT_GNSS_DATA) {
+      handleGnssMeasurementDataEvent(event);
+    } else {
+      handleEvent(event->senderInstanceId, event->eventType, event->eventData);
+    }
   }
+
+  return event;
 }
 
 void Nanoapp::blameHostWakeup() {
@@ -196,12 +203,6 @@ void Nanoapp::handleGnssMeasurementDataEvent(const Event *event) {
   {
     handleEvent(event->senderInstanceId, event->eventType, event->eventData);
   }
-}
-
-bool Nanoapp::configureHostEndpointNotifications(uint16_t /* hostEndpointId */,
-                                                 bool /* enable */) {
-  // TODO(b/194287786): Implement this
-  return false;
 }
 
 }  // namespace chre
