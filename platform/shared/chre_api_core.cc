@@ -32,7 +32,7 @@ using chre::EventLoopManager;
 using chre::EventLoopManagerSingleton;
 using chre::Nanoapp;
 
-DLL_EXPORT void chreAbort(uint32_t abortCode) {
+DLL_EXPORT void chreAbort(uint32_t /* abortCode */) {
   Nanoapp *nanoapp = EventLoopManager::validateChreApiCall(__func__);
 
   // TODO: we should cleanly unload the nanoapp, release all of its resources,
@@ -143,4 +143,10 @@ DLL_EXPORT bool chreIsHostAwake() {
 DLL_EXPORT void chreConfigureDebugDumpEvent(bool enable) {
   chre::Nanoapp *nanoapp = EventLoopManager::validateChreApiCall(__func__);
   nanoapp->configureDebugDumpEvent(enable);
+}
+
+DLL_EXPORT bool chreConfigureHostEndpointNotifications(uint16_t hostEndpointId,
+                                                       bool enable) {
+  chre::Nanoapp *nanoapp = EventLoopManager::validateChreApiCall(__func__);
+  return nanoapp->configureHostEndpointNotifications(hostEndpointId, enable);
 }
