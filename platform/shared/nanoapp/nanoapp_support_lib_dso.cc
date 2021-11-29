@@ -14,15 +14,20 @@
  * limitations under the License.
  */
 
-#include "chre/platform/shared/nanoapp_support_lib_dso.h"
+// Note that to avoid always polluting the include paths of nanoapps, we use
+// symlinks under the chre_nsl_internal include path to the "real" files, e.g.
+// chre_nsl_internal/platform/shared maps to the same files that would normally
+// be included via chre/platform/shared
+
+#include "chre_nsl_internal/platform/shared/nanoapp_support_lib_dso.h"
 
 #include <chre.h>
 
-#include "chre/platform/shared/debug_dump.h"
-#include "chre/util/macros.h"
-#include "chre/util/system/napp_permissions.h"
+#include "chre_nsl_internal/platform/shared/debug_dump.h"
+#include "chre_nsl_internal/util/macros.h"
+#include "chre_nsl_internal/util/system/napp_permissions.h"
 #ifdef CHRE_NANOAPP_USES_WIFI
-#include "chre/util/system/wifi_util.h"
+#include "chre_nsl_internal/util/system/wifi_util.h"
 #endif
 
 /**
@@ -169,13 +174,13 @@ DLL_EXPORT extern "C" const struct chreNslNanoappInfo _chreNslDsoNanoappInfo = {
 #define CHRE_NSL_LAZY_LOOKUP(functionName)            \
   ({                                                  \
     static bool lookupPerformed = false;              \
-    static decltype(functionName) *fptr = nullptr;    \
+    static decltype(functionName) *funcPtr = nullptr; \
     if (!lookupPerformed) {                           \
-      fptr = reinterpret_cast<decltype(fptr)>(        \
+      funcPtr = reinterpret_cast<decltype(funcPtr)>(  \
           dlsym(RTLD_NEXT, STRINGIFY(functionName))); \
       lookupPerformed = true;                         \
     }                                                 \
-    fptr;                                             \
+    funcPtr;                                          \
   })
 
 #ifdef CHRE_NANOAPP_USES_AUDIO
@@ -337,6 +342,13 @@ void chreUserSettingConfigureEvents(uint8_t setting, bool enable) {
   if (fptr != nullptr) {
     fptr(setting, enable);
   }
+}
+
+WEAK_SYMBOL
+bool chreConfigureHostEndpointNotifications(uint16_t hostEndpointId,
+                                            bool enable) {
+  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreConfigureHostEndpointNotifications);
+  return (fptr != nullptr) ? fptr(hostEndpointId, enable) : false;
 }
 
 #endif  // CHRE_NANOAPP_DISABLE_BACKCOMPAT
