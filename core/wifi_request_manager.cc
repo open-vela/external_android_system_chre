@@ -18,7 +18,6 @@
 #include <cstddef>
 #include <cstring>
 
-#include "chre/core/api_manager_common.h"
 #include "chre/core/event_loop_manager.h"
 #include "chre/core/settings.h"
 #include "chre/core/wifi_request_manager.h"
@@ -153,13 +152,7 @@ bool WifiRequestManager::requestScan(Nanoapp *nanoapp,
 
   bool success = false;
   if (mScanRequestingNanoappInstanceId.has_value()) {
-    LOGE("Active wifi scan request made by 0x%" PRIx64
-         " while a request by 0x%" PRIx64 " is in flight",
-         nanoapp->getAppId(),
-         EventLoopManagerSingleton::get()
-             ->getEventLoop()
-             .findNanoappByInstanceId(mScanRequestingNanoappInstanceId.value())
-             ->getAppId());
+    LOGE("Active wifi scan request made while a request is in flight");
   } else if (getSettingState(Setting::WIFI_AVAILABLE) ==
              SettingState::DISABLED) {
     // Treat as success, but send an async failure per API contract.
@@ -290,16 +283,8 @@ void WifiRequestManager::logStateToBuffer(DebugDumpWrapper &debugDump) const {
                     log.scanType, log.maxScanAgeMs.getMilliseconds());
   }
 
-  debugDump.print(" Last scan event @ %" PRIu64 " ms\n",
+  debugDump.print(" Last scan event @ %" PRIu64 " ms",
                   mLastScanEventTime.getMilliseconds());
-
-  debugDump.print(" API error distribution (error-code indexed):\n");
-  debugDump.print("   Scan monitor:\n");
-  WifiRequestManager::logErrorHistogram(debugDump, mScanMonitorErrorHistogram,
-                                        CHRE_ERROR_SIZE);
-  debugDump.print("   Active Scan:\n");
-  WifiRequestManager::logErrorHistogram(debugDump, mActiveScanErrorHistogram,
-                                        CHRE_ERROR_SIZE);
 }
 
 bool WifiRequestManager::scanMonitorIsEnabled() const {
@@ -398,8 +383,6 @@ bool WifiRequestManager::postScanMonitorAsyncResultEvent(
       event->reserved = 0;
       event->cookie = cookie;
 
-      mScanMonitorErrorHistogram[errorCode]++;
-
       EventLoopManagerSingleton::get()->getEventLoop().postEventOrDie(
           CHRE_EVENT_WIFI_ASYNC_RESULT, event, freeEventDataCallback,
           nanoappInstanceId);
@@ -435,8 +418,6 @@ bool WifiRequestManager::postScanRequestAsyncResultEvent(
     event->errorCode = errorCode;
     event->reserved = 0;
     event->cookie = cookie;
-
-    mActiveScanErrorHistogram[errorCode]++;
 
     EventLoopManagerSingleton::get()->getEventLoop().postEventOrDie(
         CHRE_EVENT_WIFI_ASYNC_RESULT, event, freeEventDataCallback,
@@ -694,19 +675,6 @@ void WifiRequestManager::freeWifiRangingEventCallback(uint16_t /* eventType */,
   EventLoopManagerSingleton::get()
       ->getWifiRequestManager()
       .mPlatformWifi.releaseRangingEvent(event);
-}
-
-void WifiRequestManager::logErrorHistogram(DebugDumpWrapper &debugDump,
-                                           const uint32_t *histogram,
-                                           uint8_t histogramLength) const {
-  debugDump.print("     [");
-  for (int i = 0; i < histogramLength; i++) {
-    debugDump.print("%" PRIu32, histogram[i]);
-    if (i < histogramLength - 1) {
-      debugDump.print(",");
-    }
-  }
-  debugDump.print("]\n");
 }
 
 }  // namespace chre

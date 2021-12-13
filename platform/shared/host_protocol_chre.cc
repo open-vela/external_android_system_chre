@@ -19,7 +19,6 @@
 #include <inttypes.h>
 #include <string.h>
 
-#include "chre/core/host_notifications.h"
 #include "chre/platform/log.h"
 #include "chre/platform/shared/generated/host_messages_generated.h"
 
@@ -120,22 +119,6 @@ bool HostProtocolChre::decodeMessageFromHost(const void *message,
 
       case fbs::ChreMessage::SelfTestRequest: {
         HostMessageHandlers::handleSelfTestRequest(hostClientId);
-        break;
-      }
-
-      case fbs::ChreMessage::HostEndpointConnected: {
-        const auto *connectedMessage =
-            static_cast<const fbs::HostEndpointConnected *>(
-                container->message());
-        postHostEndpointConnected(connectedMessage->host_endpoint());
-        break;
-      }
-
-      case fbs::ChreMessage::HostEndpointDisconnected: {
-        const auto *disconnectedMessage =
-            static_cast<const fbs::HostEndpointDisconnected *>(
-                container->message());
-        postHostEndpointDisconnected(disconnectedMessage->host_endpoint());
         break;
       }
 
@@ -275,16 +258,6 @@ void HostProtocolChre::encodeSelfTestResponse(ChreFlatBufferBuilder &builder,
   auto response = fbs::CreateSelfTestResponse(builder, success);
   finalize(builder, fbs::ChreMessage::SelfTestResponse, response.Union(),
            hostClientId);
-}
-
-void HostProtocolChre::encodeMetricLog(ChreFlatBufferBuilder &builder,
-                                       uint32_t metricId,
-                                       const uint8_t *encodedMsg,
-                                       size_t metricSize) {
-  auto encodedMessage = builder.CreateVector(
-      reinterpret_cast<const int8_t *>(encodedMsg), metricSize);
-  auto message = fbs::CreateMetricLog(builder, metricId, encodedMessage);
-  finalize(builder, fbs::ChreMessage::MetricLog, message.Union());
 }
 
 bool HostProtocolChre::getSettingFromFbs(fbs::Setting setting,
