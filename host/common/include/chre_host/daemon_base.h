@@ -24,7 +24,7 @@
 #include <string>
 
 #include "chre_host/host_protocol_host.h"
-#include "chre_host/log_message_parser.h"
+#include "chre_host/log_message_parser_base.h"
 #include "chre_host/socket_server.h"
 
 namespace android {
@@ -32,7 +32,7 @@ namespace chre {
 
 class ChreDaemonBase {
  public:
-  ChreDaemonBase();
+  ChreDaemonBase() : mChreShutdownRequested(false) {}
   virtual ~ChreDaemonBase() {}
 
   /**
@@ -195,24 +195,14 @@ class ChreDaemonBase {
   virtual void configureLpma(bool enabled) = 0;
 
   /**
-   * Handles a metric log message sent from CHRE
+   * @return logger used by the underlying platform.
    */
-  virtual void handleMetricLog(const ::chre::fbs::MetricLogT *metric_msg);
-
-  /**
-   * Returns the CHRE log message parser instance.
-   * @return log message parser instance.
-   */
-  LogMessageParser &getLogger() {
-    return mLogger;
-  }
+  virtual ChreLogMessageParserBase *getLogger() = 0;
 
   //! Server used to communicate with daemon clients
   SocketServer mServer;
 
  private:
-  LogMessageParser mLogger;
-
   //! Set to true when we request a graceful shutdown of CHRE
   std::atomic<bool> mChreShutdownRequested;
 
