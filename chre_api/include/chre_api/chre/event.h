@@ -154,6 +154,16 @@ extern "C" {
 #define CHRE_EVENT_DEBUG_DUMP  UINT16_C(0x0007)
 
 /**
+ * nanoappHandleEvent argument: struct chreHostEndpointNotification
+ *
+ * Notifications event regarding a host endpoint.
+ *
+ * @see chreConfigureHostEndpointNotifications
+ * @since v1.6
+ */
+#define CHRE_EVENT_HOST_ENDPOINT_NOTIFICATION UINT16_C(0x0008)
+
+/**
  * First possible value for CHRE_EVENT_SENSOR events.
  *
  * This allows us to separately define our CHRE_EVENT_SENSOR_* events in
@@ -194,7 +204,6 @@ extern "C" {
  * First event in the block reserved for audio. These events are defined in
  * chre/audio.h.
  */
-
 #define CHRE_EVENT_AUDIO_FIRST_EVENT UINT16_C(0x0330)
 #define CHRE_EVENT_AUDIO_LAST_EVENT  UINT16_C(0x033F)
 
@@ -206,6 +215,13 @@ extern "C" {
  */
 #define CHRE_EVENT_SETTING_CHANGED_FIRST_EVENT UINT16_C(0x340)
 #define CHRE_EVENT_SETTING_CHANGED_LAST_EVENT  UINT16_C(0x34F)
+
+/**
+ * First event in the block reserved for Bluetooth LE. These events are defined
+ * in chre/ble.h.
+ */
+#define CHRE_EVENT_BLE_FIRST_EVENT UINT16_C(0x0350)
+#define CHRE_EVENT_BLE_LAST_EVENT  UINT16_C(0x035F)
 
 /**
  * First in the extended range of values dedicated for internal CHRE
@@ -379,6 +395,61 @@ struct chreNanoappInfo {
      * guaranteed to be unique among all nanoapps in the system.
      */
     uint32_t instanceId;
+};
+
+/**
+ * The types of notification events that can be included in struct
+ * chreHostEndpointNotification.
+ *
+ * @defgroup HOST_ENDPOINT_NOTIFICATION_TYPE
+ * @{
+ */
+#define HOST_ENDPOINT_NOTIFICATION_TYPE_DISCONNECT UINT8_C(0)
+/** @} */
+
+/**
+ * Data provided in CHRE_EVENT_HOST_ENDPOINT_NOTIFICATION.
+ */
+struct chreHostEndpointNotification {
+    /**
+     * The ID of the host endpoint that this notification is for.
+     */
+    uint16_t hostEndpointId;
+
+    /**
+     * The type of notification this event represents, which should be
+     * one of the HOST_ENDPOINT_NOTIFICATION_TYPE_* values.
+     */
+    uint8_t notificationType;
+
+    /**
+     * Reserved for future use, must be zero.
+     */
+    uint8_t reserved;
+};
+
+/**
+ * An RPC service exposed by a nanoapp.
+ *
+ * The implementation of the RPC interface is not defined by the HAL, and is written
+ * at the messaging endpoint layers (Android app and/or CHRE nanoapp). NanoappRpcService
+ * contains the informational metadata to be consumed by the RPC interface layer.
+ */
+struct chreNanoappRpcService {
+    /**
+     * The unique 64-bit ID of an RPC service exposed by a nanoapp. Note that
+     * the uniqueness is only required within the nanoapp's domain (i.e. the
+     * combination of the nanoapp ID and service id must be unique).
+     */
+    uint64_t id;
+
+    /**
+     * The software version of this service, which follows the sematic
+     * versioning scheme (see semver.org). It follows the format
+     * major.minor.patch, where major and minor versions take up one byte
+     * each, and the patch version takes up the final 2 bytes.
+     */
+    uint32_t version;
 };
 
 /**
@@ -671,6 +742,50 @@ bool chreIsHostAwake(void);
  * @since v1.4
  */
 void chreConfigureDebugDumpEvent(bool enable);
+
+/**
+ * Configures whether this nanoapp will receive updates regarding a host
+ * endpoint that is connected with the Context Hub.
+ *
+ * If this API succeeds, the nanoapp will receive disconnection notifications,
+ * via the CHRE_EVENT_HOST_ENDPOINT_NOTIFICATION event with type
+ * HOST_ENDPOINT_NOTIFICATION_TYPE_DISCONNECT, which can be invoked if the host
+ * has disconnected from the Context Hub either explicitly or implicitly (e.g.
+ * crashes). Nanoapps can use this notifications to clean up any resources
+ * associated with this host endpoint.
+ *
+ * @param hostEndpointId The host endpoint ID to configure notifications for.
+ * @param enable true to enable notifications.
+ *
+ * @return true on success
+ *
+ * @see chreMessageFromHostData
+ * @see chreHostEndpointNotification
+ * @see CHRE_EVENT_HOST_ENDPOINT_NOTIFICATION
+ *
+ * @since v1.6
+ */
+bool chreConfigureHostEndpointNotifications(uint16_t hostEndpointId, bool enable);
+
+/**
+ * Publishes an RPC service from this nanoapp.
+ *
+ * When this API is invoked, the list of RPC services will be provided to
+ * host applications interacting with the nanoapp.
+ *
+ * This function must be invoked from nanoappStart(), to guarantee stable output
+ * of the list of RPC services supported by the nanoapp.
+ *
+ * @param services A non-null pointer to the list of RPC services to publish.
+ * @param numServices The number of services to publish, i.e. the length of the
+ *   services array.
+ *
+ * @return true if the publishing is successful.
+ *
+ * @since v1.6
+ */
+bool chrePublishRpcServices(struct chreNanoappRpcService *services,
+                            size_t numServices);
 
 #ifdef __cplusplus
 }
