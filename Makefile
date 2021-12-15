@@ -57,12 +57,6 @@ ifeq ($(CHRE_WWAN_SUPPORT_ENABLED), true)
 COMMON_CFLAGS += -DCHRE_WWAN_SUPPORT_ENABLED
 endif
 
-# Optional tokenized logging support.
-ifeq ($(CHRE_TOKENIZED_LOGGING_ENABLED), true)
-COMMON_CFLAGS += -DCHRE_USE_TOKENIZED_LOGGING
-include $(CHRE_PREFIX)/external/pigweed/pw_tokenizer.mk
-endif
-
 # Optional on-device unit tests support
 include $(CHRE_PREFIX)/test/test.mk
 
@@ -102,7 +96,9 @@ include $(CHRE_PREFIX)/pal/pal.mk
 include $(CHRE_PREFIX)/platform/platform.mk
 include $(CHRE_PREFIX)/util/util.mk
 
-# Supported variants includes.
+# Supported Variants Includes. Not all CHRE variants are supported by this
+# implementation of CHRE. Example: this CHRE implementation is never built for
+# google_cm4_nanohub as Nanohub itself is a CHRE implementation.
 ifneq ($(CHRE_TARGET_EXTENSION),)
 include $(CHRE_TARGET_EXTENSION)
 endif
