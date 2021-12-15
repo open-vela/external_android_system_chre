@@ -24,6 +24,7 @@
 #include "chre/platform/shared/host_protocol_common.h"
 #include "chre/util/dynamic_vector.h"
 #include "chre/util/flatbuffers/helpers.h"
+#include "chre_api/chre/event.h"
 #include "flatbuffers/flatbuffers.h"
 
 namespace chre {
@@ -131,7 +132,8 @@ class HostProtocolChre : public HostProtocolCommon {
       ChreFlatBufferBuilder &builder,
       DynamicVector<NanoappListEntryOffset> &offsetVector, uint64_t appId,
       uint32_t appVersion, bool enabled, bool isSystemNanoapp,
-      uint32_t appPermissions);
+      uint32_t appPermissions,
+      const DynamicVector<struct chreNanoappRpcService> &rpcServices);
 
   /**
    * Finishes encoding a NanoappListResponse message after all NanoappListEntry
@@ -236,6 +238,12 @@ class HostProtocolChre : public HostProtocolCommon {
    */
   static void encodeSelfTestResponse(ChreFlatBufferBuilder &builder,
                                      uint16_t hostClientId, bool success);
+
+  /**
+   * Encodes a metric message using custon-defined protocol
+   */
+  static void encodeMetricLog(ChreFlatBufferBuilder &builder, uint32_t metricId,
+                              const uint8_t *encodedMsg, size_t metricSize);
 };
 
 }  // namespace chre

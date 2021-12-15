@@ -19,6 +19,7 @@
 #include <inttypes.h>
 #include <string.h>
 
+#include "chre/core/host_notifications.h"
 #include "chre/platform/log.h"
 #include "chre/platform/shared/generated/host_messages_generated.h"
 
@@ -122,6 +123,22 @@ bool HostProtocolChre::decodeMessageFromHost(const void *message,
         break;
       }
 
+      case fbs::ChreMessage::HostEndpointConnected: {
+        const auto *connectedMessage =
+            static_cast<const fbs::HostEndpointConnected *>(
+                container->message());
+        postHostEndpointConnected(connectedMessage->host_endpoint());
+        break;
+      }
+
+      case fbs::ChreMessage::HostEndpointDisconnected: {
+        const auto *disconnectedMessage =
+            static_cast<const fbs::HostEndpointDisconnected *>(
+                container->message());
+        postHostEndpointDisconnected(disconnectedMessage->host_endpoint());
+        break;
+      }
+
       default:
         LOGW("Got invalid/unexpected message type %" PRIu8,
              static_cast<uint8_t>(container->message_type()));
@@ -154,9 +171,23 @@ void HostProtocolChre::addNanoappListEntry(
     ChreFlatBufferBuilder &builder,
     DynamicVector<Offset<fbs::NanoappListEntry>> &offsetVector, uint64_t appId,
     uint32_t appVersion, bool enabled, bool isSystemNanoapp,
-    uint32_t appPermissions) {
+    uint32_t appPermissions,
+    const DynamicVector<struct chreNanoappRpcService> &rpcServices) {
+  DynamicVector<Offset<fbs::NanoappRpcService>> rpcServiceList;
+  for (const auto &service : rpcServices) {
+    Offset<fbs::NanoappRpcService> offsetService =
+        fbs::CreateNanoappRpcService(builder, service.id, service.version);
+    if (!rpcServiceList.push_back(offsetService)) {
+      LOGE("Couldn't push RPC service to list");
+    }
+  }
+
+  auto vectorOffset =
+      builder.CreateVector<Offset<fbs::NanoappRpcService>>(rpcServiceList);
   auto offset = fbs::CreateNanoappListEntry(builder, appId, appVersion, enabled,
-                                            isSystemNanoapp, appPermissions);
+                                            isSystemNanoapp, appPermissions,
+                                            vectorOffset);
+
   if (!offsetVector.push_back(offset)) {
     LOGE("Couldn't push nanoapp list entry offset!");
   }
@@ -258,6 +289,16 @@ void HostProtocolChre::encodeSelfTestResponse(ChreFlatBufferBuilder &builder,
   auto response = fbs::CreateSelfTestResponse(builder, success);
   finalize(builder, fbs::ChreMessage::SelfTestResponse, response.Union(),
            hostClientId);
+}
+
+void HostProtocolChre::encodeMetricLog(ChreFlatBufferBuilder &builder,
+                                       uint32_t metricId,
+                                       const uint8_t *encodedMsg,
+                                       size_t metricSize) {
+  auto encodedMessage = builder.CreateVector(
+      reinterpret_cast<const int8_t *>(encodedMsg), metricSize);
+  auto message = fbs::CreateMetricLog(builder, metricId, encodedMessage);
+  finalize(builder, fbs::ChreMessage::MetricLog, message.Union());
 }
 
 bool HostProtocolChre::getSettingFromFbs(fbs::Setting setting,
