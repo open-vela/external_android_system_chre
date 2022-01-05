@@ -30,6 +30,10 @@ const chrePalWifiCallbacks PlatformWifiBase::sWifiCallbacks = {
     PlatformWifiBase::scanResponseCallback,
     PlatformWifiBase::scanEventCallback,
     PlatformWifiBase::rangingEventCallback,
+    PlatformWifiBase::nanServiceIdentifierCallback,
+    PlatformWifiBase::nanServiceDiscoveryCallback,
+    PlatformWifiBase::nanServiceLostCallback,
+    PlatformWifiBase::nanServiceTerminatedCallback,
 };
 
 PlatformWifi::~PlatformWifi() {
@@ -85,6 +89,17 @@ bool PlatformWifi::requestRanging(const struct chreWifiRangingParams *params) {
   }
 }
 
+bool PlatformWifi::requestNanRanging(
+    const struct chreWifiNanRangingParams *params) {
+  if (mWifiApi != nullptr &&
+      mWifiApi->moduleVersion >= CHRE_PAL_WIFI_API_V1_6) {
+    prePalApiCall();
+    return mWifiApi->requestNanRanging(params);
+  } else {
+    return false;
+  }
+}
+
 bool PlatformWifi::requestScan(const struct chreWifiScanParams *params) {
   if (mWifiApi != nullptr) {
     prePalApiCall();
@@ -111,6 +126,33 @@ void PlatformWifi::releaseScanEvent(struct chreWifiScanEvent *event) {
   mWifiApi->releaseScanEvent(event);
 }
 
+void PlatformWifi::releaseNanDiscoveryEvent(
+    struct chreWifiNanDiscoveryEvent *event) {
+  prePalApiCall();
+  mWifiApi->releaseNanDiscoveryEvent(event);
+}
+
+bool PlatformWifi::nanSubscribe(
+    const struct chreWifiNanSubscribeConfig *config) {
+  if (mWifiApi != nullptr &&
+      mWifiApi->moduleVersion >= CHRE_PAL_WIFI_API_V1_6) {
+    prePalApiCall();
+    return mWifiApi->nanSubscribe(config);
+  } else {
+    return false;
+  }
+}
+
+bool PlatformWifi::nanSubscribeCancel(uint32_t subscriptionId) {
+  if (mWifiApi != nullptr &&
+      mWifiApi->moduleVersion >= CHRE_PAL_WIFI_API_V1_6) {
+    prePalApiCall();
+    return mWifiApi->nanSubscribeCancel(subscriptionId);
+  } else {
+    return false;
+  }
+}
+
 void PlatformWifiBase::rangingEventCallback(
     uint8_t errorCode, struct chreWifiRangingEvent *event) {
   EventLoopManagerSingleton::get()->getWifiRequestManager().handleRangingEvent(
@@ -132,6 +174,34 @@ void PlatformWifiBase::scanResponseCallback(bool pending, uint8_t errorCode) {
 void PlatformWifiBase::scanEventCallback(struct chreWifiScanEvent *event) {
   EventLoopManagerSingleton::get()->getWifiRequestManager().handleScanEvent(
       event);
+}
+
+void PlatformWifiBase::nanServiceIdentifierCallback(uint8_t errorCode,
+                                                    uint32_t subscriptionId) {
+  EventLoopManagerSingleton::get()
+      ->getWifiRequestManager()
+      .handleNanServiceIdentifierEvent(errorCode, subscriptionId);
+}
+
+void PlatformWifiBase::nanServiceDiscoveryCallback(
+    struct chreWifiNanDiscoveryEvent *event) {
+  EventLoopManagerSingleton::get()
+      ->getWifiRequestManager()
+      .handleNanServiceDiscoveryEvent(event);
+}
+
+void PlatformWifiBase::nanServiceLostCallback(uint32_t subscriptionId,
+                                              uint32_t publisherId) {
+  EventLoopManagerSingleton::get()
+      ->getWifiRequestManager()
+      .handleNanServiceLostEvent(subscriptionId, publisherId);
+}
+
+void PlatformWifiBase::nanServiceTerminatedCallback(uint32_t errorCode,
+                                                    uint32_t subscriptionId) {
+  EventLoopManagerSingleton::get()
+      ->getWifiRequestManager()
+      .handleNanServiceTerminatedEvent(errorCode, subscriptionId);
 }
 
 }  // namespace chre
