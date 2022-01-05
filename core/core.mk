@@ -15,9 +15,7 @@ COMMON_SRCS += core/event_loop.cc
 COMMON_SRCS += core/event_loop_manager.cc
 COMMON_SRCS += core/event_ref_queue.cc
 COMMON_SRCS += core/host_comms_manager.cc
-COMMON_SRCS += core/host_notifications.cc
 COMMON_SRCS += core/init.cc
-COMMON_SRCS += core/log.cc
 COMMON_SRCS += core/nanoapp.cc
 COMMON_SRCS += core/settings.cc
 COMMON_SRCS += core/static_nanoapps.cc
@@ -26,11 +24,6 @@ COMMON_SRCS += core/timer_pool.cc
 # Optional audio support.
 ifeq ($(CHRE_AUDIO_SUPPORT_ENABLED), true)
 COMMON_SRCS += core/audio_request_manager.cc
-endif
-
-# Optional BLE support.
-ifeq ($(CHRE_BLE_SUPPORT_ENABLED), true)
-COMMON_SRCS += core/ble_request_manager.cc
 endif
 
 # Optional GNSS support.
