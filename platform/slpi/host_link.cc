@@ -34,6 +34,7 @@
 #endif
 #include "chre/platform/slpi/fastrpc.h"
 #include "chre/platform/slpi/power_control_util.h"
+#include "chre/platform/slpi/system_time.h"
 #include "chre/platform/system_time.h"
 #include "chre/platform/system_timer.h"
 #include "chre/util/fixed_size_blocking_queue.h"
@@ -217,7 +218,7 @@ void buildNanoappListResponse(ChreFlatBufferBuilder &builder, void *cookie) {
     HostProtocolChre::addNanoappListEntry(
         *(cbData->builder), cbData->nanoappEntries, nanoapp->getAppId(),
         nanoapp->getAppVersion(), true /*enabled*/, nanoapp->isSystemNanoapp(),
-        nanoapp->getAppPermissions(), nanoapp->getRpcServices());
+        nanoapp->getAppPermissions());
   };
 
   // Add a NanoappListEntry to the FlatBuffer for each nanoapp
@@ -282,7 +283,7 @@ int generateMessageToHost(const MessageToHost *msgToHost, unsigned char *buffer,
       builder, msgToHost->appId, msgToHost->toHostData.messageType,
       msgToHost->toHostData.hostEndpoint, msgToHost->message.data(),
       msgToHost->message.size(), msgToHost->toHostData.appPermissions,
-      msgToHost->toHostData.messagePermissions, msgToHost->toHostData.wokeHost);
+      msgToHost->toHostData.messagePermissions);
 
   int result = copyToHostBuffer(builder, buffer, bufferSize, messageLen);
 
@@ -920,7 +921,7 @@ void HostMessageHandlers::handleUnloadNanoappRequest(
 }
 
 void HostMessageHandlers::handleTimeSyncMessage(int64_t offset) {
-  SystemTime::setEstimatedHostTimeOffset(offset);
+  setEstimatedHostTimeOffset(offset);
 
   // Schedule a time sync request since offset may drift
   constexpr Seconds kClockDriftTimeSyncPeriod =
