@@ -15,9 +15,7 @@ COMMON_SRCS += core/event_loop.cc
 COMMON_SRCS += core/event_loop_manager.cc
 COMMON_SRCS += core/event_ref_queue.cc
 COMMON_SRCS += core/host_comms_manager.cc
-COMMON_SRCS += core/host_notifications.cc
 COMMON_SRCS += core/init.cc
-COMMON_SRCS += core/log.cc
 COMMON_SRCS += core/nanoapp.cc
 COMMON_SRCS += core/settings.cc
 COMMON_SRCS += core/static_nanoapps.cc
@@ -26,11 +24,6 @@ COMMON_SRCS += core/timer_pool.cc
 # Optional audio support.
 ifeq ($(CHRE_AUDIO_SUPPORT_ENABLED), true)
 COMMON_SRCS += core/audio_request_manager.cc
-endif
-
-# Optional BLE support.
-ifeq ($(CHRE_BLE_SUPPORT_ENABLED), true)
-COMMON_SRCS += core/ble_request_manager.cc
 endif
 
 # Optional GNSS support.
@@ -57,23 +50,6 @@ endif
 # Optional WWAN support.
 ifeq ($(CHRE_WWAN_SUPPORT_ENABLED), true)
 COMMON_SRCS += core/wwan_request_manager.cc
-endif
-
-# Optional Telemetry support.
-ifeq ($(CHRE_TELEMETRY_SUPPORT_ENABLED), true)
-COMMON_SRCS += core/telemetry_manager.cc
-
-COMMON_CFLAGS += -DPB_FIELD_32BIT
-COMMON_CFLAGS += -DCHRE_TELEMETRY_SUPPORT_ENABLED
-
-NANOPB_EXTENSION = nanopb
-
-NANOPB_SRCS += $(CHRE_PREFIX)/../../hardware/google/pixel/pixelstats/pixelatoms.proto
-NANOPB_PROTO_PATH = $(CHRE_PREFIX)/../../hardware/google/pixel/pixelstats/
-NANOPB_INCLUDES = $(NANOPB_PROTO_PATH)
-NANOPB_FLAGS += --proto_path=$(NANOPB_PROTO_PATH)
-
-include $(CHRE_PREFIX)/build/nanopb.mk
 endif
 
 # GoogleTest Source Files ######################################################
