@@ -20,6 +20,7 @@
 
 #include "chre/core/event_loop_manager.h"
 #include "chre/core/host_comms_manager.h"
+#include "chre/core/host_notifications.h"
 #include "chre/platform/fatal_error.h"
 #include "chre/platform/log.h"
 #include "chre/util/macros.h"
@@ -32,7 +33,7 @@ using chre::EventLoopManager;
 using chre::EventLoopManagerSingleton;
 using chre::Nanoapp;
 
-DLL_EXPORT void chreAbort(uint32_t abortCode) {
+DLL_EXPORT void chreAbort(uint32_t /* abortCode */) {
   Nanoapp *nanoapp = EventLoopManager::validateChreApiCall(__func__);
 
   // TODO: we should cleanly unload the nanoapp, release all of its resources,
@@ -143,4 +144,21 @@ DLL_EXPORT bool chreIsHostAwake() {
 DLL_EXPORT void chreConfigureDebugDumpEvent(bool enable) {
   chre::Nanoapp *nanoapp = EventLoopManager::validateChreApiCall(__func__);
   nanoapp->configureDebugDumpEvent(enable);
+}
+
+DLL_EXPORT bool chreConfigureHostEndpointNotifications(uint16_t hostEndpointId,
+                                                       bool enable) {
+  chre::Nanoapp *nanoapp = EventLoopManager::validateChreApiCall(__func__);
+  return nanoapp->configureHostEndpointNotifications(hostEndpointId, enable);
+}
+
+DLL_EXPORT bool chrePublishRpcServices(struct chreNanoappRpcService *services,
+                                       size_t numServices) {
+  chre::Nanoapp *nanoapp = EventLoopManager::validateChreApiCall(__func__);
+  return nanoapp->publishRpcServices(services, numServices);
+}
+
+DLL_EXPORT bool chreGetHostEndpointInfo(uint16_t hostEndpointId,
+                                        struct chreHostEndpointInfo *info) {
+  return chre::getHostEndpointInfo(hostEndpointId, info);
 }

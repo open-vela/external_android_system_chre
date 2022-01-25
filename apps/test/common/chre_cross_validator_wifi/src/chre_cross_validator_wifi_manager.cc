@@ -15,6 +15,7 @@
 
 #include "chre_cross_validator_wifi_manager.h"
 
+#include <chre.h>
 #include <stdio.h>
 #include <algorithm>
 #include <cinttypes>
@@ -23,10 +24,9 @@
 #include "chre/util/nanoapp/assert.h"
 #include "chre/util/nanoapp/callbacks.h"
 #include "chre/util/nanoapp/log.h"
+#include "chre/util/nanoapp/wifi.h"
 #include "chre_cross_validation_wifi.nanopb.h"
 #include "chre_test_common.nanopb.h"
-
-#define LOG_TAG "ChreCrossValidatorWifi"
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
@@ -121,7 +121,6 @@ void Manager::handleStepStartMessage(
       break;
     }
     case chre_cross_validation_wifi_Step_VALIDATE:
-      LOGE("start message received in VALIDATE phase");
       break;
   }
   mStep = stepStartCommand.step;
@@ -164,9 +163,16 @@ void Manager::handleWifiScanResult(const chreWifiScanEvent *event) {
 
 void Manager::compareAndSendResultToHost() {
   chre_test_common_TestResult testResult;
+  // TODO(b/209673792): kMaxChreResultSize should be provided by the host
+  // because it can be different depending on the platform
+  uint16_t kMaxChreResultSize = 100;
+  bool belowMaxSizeCheck = (mApScanResultsSize <= kMaxChreResultSize) &&
+                           (mApScanResultsSize != mChreScanResultsSize);
+  bool aboveMaxSizeCheck = (mApScanResultsSize > kMaxChreResultSize) &&
+                           (mApScanResultsSize < mChreScanResultsSize);
   // TODO(b/185188753): Log info about all scan results so that it is easier
   // to figure out which AP or CHRE scan results are missing or corrupted.
-  if (mApScanResultsSize != mChreScanResultsSize) {
+  if (belowMaxSizeCheck || aboveMaxSizeCheck) {
     testResult = makeTestResultProtoMessage(
         false, "There is a different number of AP and CHRE scan results.");
     LOGE("AP and CHRE wifi scan result counts differ, AP = %" PRIu8
@@ -188,15 +194,22 @@ void Manager::verifyScanResults(chre_test_common_TestResult *testResultOut) {
     uint8_t apScanResultIndex;
     bool didFind = getMatchingScanResult(mApScanResults, mApScanResultsSize,
                                          chreScanResult, &apScanResultIndex);
-    // TODO(b/185188753): Log info about each result iterated through here and
-    // do not just break at the first error.
+
+    const char *bssidStr = "<non-printable>";
+    char bssidBuffer[chre::kBssidStrLen];
+    if (chre::parseBssidToStr(chreScanResult.getBssid(), bssidBuffer,
+                              sizeof(bssidBuffer))) {
+      bssidStr = bssidBuffer;
+    }
+
     if (didFind) {
       WifiScanResult &apScanResult = mApScanResults[apScanResultIndex];
       if (apScanResult.getSeen()) {
         *testResultOut = makeTestResultProtoMessage(
             false, "Saw a CHRE scan result with a duplicate BSSID.");
         allResultsValid = false;
-        break;
+        LOGE("Chre Scan Result with bssid: %s has a dupplicate BSSID",
+             bssidStr);
       }
       if (!WifiScanResult::areEqual(chreScanResult, apScanResult)) {
         *testResultOut =
@@ -204,7 +217,10 @@ void Manager::verifyScanResults(chre_test_common_TestResult *testResultOut) {
                                        "Fields differ between an AP and "
                                        "CHRE scan result with same Bssid.");
         allResultsValid = false;
-        break;
+        LOGE(
+            "Chre Scan Result with bssid: %s found fields differ with "
+            "an AP scan result with same Bssid",
+            bssidStr);
       }
       apScanResult.didSee();
     } else {
@@ -214,7 +230,10 @@ void Manager::verifyScanResults(chre_test_common_TestResult *testResultOut) {
           "Could not find an AP scan result with the same Bssid as a CHRE "
           "result");
       allResultsValid = false;
-      break;
+      LOGE(
+          "Chre Scan Result with bssid: %s fail to find an AP scan "
+          "with same Bssid",
+          bssidStr);
     }
   }
   if (allResultsValid) {
