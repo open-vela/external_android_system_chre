@@ -34,10 +34,6 @@
 #include "chre/core/audio_request_manager.h"
 #endif  // CHRE_AUDIO_SUPPORT_ENABLED
 
-#ifdef CHRE_BLE_SUPPORT_ENABLED
-#include "chre/core/ble_request_manager.h"
-#endif  // CHRE_BLE_SUPPORT_ENABLED
-
 #ifdef CHRE_GNSS_SUPPORT_ENABLED
 #include "chre/core/gnss_manager.h"
 #endif  // CHRE_GNSS_SUPPORT_ENABLED
@@ -53,10 +49,6 @@
 #ifdef CHRE_WWAN_SUPPORT_ENABLED
 #include "chre/core/wwan_request_manager.h"
 #endif  // CHRE_WWAN_SUPPORT_ENABLED
-
-#ifdef CHRE_TELEMETRY_SUPPORT_ENABLED
-#include "chre/core/telemetry_manager.h"
-#endif  // CHRE_TELEMETRY_SUPPORT_ENABLED
 
 #include <cstddef>
 
@@ -222,17 +214,6 @@ class EventLoopManager : public NonCopyable {
   }
 #endif  // CHRE_AUDIO_SUPPORT_ENABLED
 
-#ifdef CHRE_BLE_SUPPORT_ENABLED
-  /**
-   * @return A reference to the ble request manager. This allows interacting
-   *         with the ble subsystem and manages requests from various
-   *         nanoapps.
-   */
-  BleRequestManager &getBleRequestManager() {
-    return mBleRequestManager;
-  }
-#endif  // CHRE_BLE_SUPPORT_ENABLED
-
   /**
    * @return The event loop managed by this event loop manager.
    */
@@ -308,15 +289,6 @@ class EventLoopManager : public NonCopyable {
     return mDebugDumpManager;
   }
 
-#ifdef CHRE_TELEMETRY_SUPPORT_ENABLED
-  /**
-   * @return A reference to the telemetry manager.
-   */
-  TelemetryManager &getTelemetryManager() {
-    return mTelemetryManager;
-  }
-#endif  // CHRE_TELEMETRY_SUPPORT_ENABLED
-
   /**
    * Performs second-stage initialization of things that are not necessarily
    * required at construction time but need to be completed prior to executing
@@ -333,12 +305,6 @@ class EventLoopManager : public NonCopyable {
   //! the state of the audio subsystem that the runtime subscribes to.
   AudioRequestManager mAudioRequestManager;
 #endif
-
-#ifdef CHRE_BLE_SUPPORT_ENABLED
-  //! The BLE request manager handles requests for all nanoapps and manages
-  //! the state of the BLE subsystem that the runtime subscribes to.
-  BleRequestManager mBleRequestManager;
-#endif  // CHRE_BLE_SUPPORT_ENABLED
 
   //! The event loop managed by this event loop manager.
   EventLoop mEventLoop;
@@ -376,11 +342,6 @@ class EventLoopManager : public NonCopyable {
 
   //! The DebugDumpManager that handles the debug dump process.
   DebugDumpManager mDebugDumpManager;
-
-#ifdef CHRE_TELEMETRY_SUPPORT_ENABLED
-  //! The TelemetryManager that handles metric collection/reporting.
-  TelemetryManager mTelemetryManager;
-#endif  // CHRE_TELEMETRY_SUPPORT_ENABLED
 };
 
 //! Provide an alias to the EventLoopManager singleton.
