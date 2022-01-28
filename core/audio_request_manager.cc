@@ -448,7 +448,6 @@ void AudioRequestManager::handleFreeAudioDataEvent(
 
 void AudioRequestManager::freeAudioDataEventCallback(uint16_t eventType,
                                                      void *eventData) {
-  UNUSED_VAR(eventType);
   auto *event = static_cast<struct chreAudioDataEvent *>(eventData);
   EventLoopManagerSingleton::get()
       ->getAudioRequestManager()
