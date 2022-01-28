@@ -28,11 +28,11 @@
 
 #if defined(CHRE_ASSERTIONS_ENABLED)
 
-#define CHRE_ASSERT(condition)               \
-  do {                                       \
-    if (!(condition)) {                      \
-      chreDoAssert(CHRE_FILENAME, __LINE__); \
-    }                                        \
+#define CHRE_ASSERT(condition)                 \
+  do {                                         \
+    if (!(condition)) {                        \
+      chre::doAssert(CHRE_FILENAME, __LINE__); \
+    }                                          \
   } while (0)
 
 #elif defined(CHRE_ASSERTIONS_DISABLED)
@@ -81,9 +81,7 @@
 #define CHRE_ASSERT_IF_NOT_TEST(condition) CHRE_ASSERT(condition)
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace chre {
 
 /**
  * Performs assertion while logging the filename and line provided.
@@ -91,10 +89,8 @@ extern "C" {
  * @param filename The filename containing the assertion being fired.
  * @param line The line that contains the assertion being fired.
  */
-void chreDoAssert(const char *filename, size_t line);
+void doAssert(const char *filename, size_t line);
 
-#ifdef __cplusplus
-}
-#endif
+}  // namespace chre
 
 #endif  // CHRE_PLATFORM_ASSERT_H_
