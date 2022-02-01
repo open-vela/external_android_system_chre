@@ -911,7 +911,8 @@ TEST_F(TransportTests, WifiOpen) {
   uint32_t capabilitySet = CHRE_WIFI_CAPABILITIES_SCAN_MONITORING |
                            CHRE_WIFI_CAPABILITIES_ON_DEMAND_SCAN |
                            CHRE_WIFI_CAPABILITIES_RADIO_CHAIN_PREF |
-                           CHRE_WIFI_CAPABILITIES_RTT_RANGING;
+                           CHRE_WIFI_CAPABILITIES_RTT_RANGING |
+                           CHRE_WIFI_CAPABILITIES_NAN_SUB;
   EXPECT_EQ((*capabilities) & ~(capabilitySet), 0);
 
   // Check total length
@@ -1136,6 +1137,16 @@ TEST_F(TransportTests, NotificationToInvalidService) {
 TEST_F(TransportTests, NotificationToInvalidClient) {
   messageToInvalidHandle(&mTransportContext,
                          CHPP_MESSAGE_TYPE_SERVICE_NOTIFICATION);
+}
+
+TEST_F(TransportTests, WorkMonitorInvoked) {
+  // Send message to spin work thread so it interacts with the work monitor
+  messageToInvalidHandle(&mTransportContext,
+                         CHPP_MESSAGE_TYPE_SERVICE_NOTIFICATION);
+
+  // 1 pre/post call for executing the work and 1 for shutting down the thread.
+  EXPECT_EQ(mTransportContext.workMonitor.numPreProcessCalls, 2);
+  EXPECT_EQ(mTransportContext.workMonitor.numPostProcessCalls, 2);
 }
 
 INSTANTIATE_TEST_SUITE_P(TransportTestRange, TransportTests,

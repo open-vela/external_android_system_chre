@@ -90,7 +90,6 @@ abstract class ChreCrossValidatorBase {
      * needed. Should be called in @Before methods of tests.
      */
     public void init() throws AssertionError {
-        unloadAllNanoApps();
         // Load cross validator nanoapp
         ChreTestUtil.loadNanoAppAssertSuccess(mContextHubManager, mContextHubInfo, mNappBinary);
     }
@@ -177,6 +176,16 @@ abstract class ChreCrossValidatorBase {
             default:
                 return "UNKNOWN_RESULT";
         }
+    }
+
+    /**
+     * Reloads the cross-validation nanoapp.
+     */
+    protected void reloadNanoApp() {
+        ChreTestUtil.unloadNanoAppAssertSuccess(
+                mContextHubManager, mContextHubInfo, mNappBinary.getNanoAppId());
+        ChreTestUtil.loadNanoAppAssertSuccess(
+                mContextHubManager, mContextHubInfo, mNappBinary);
     }
 
     // Methods below implemented by concrete subclasses
