@@ -282,7 +282,7 @@ void GnssSession::handleReportEvent(void *event) {
   }
 }
 
-void GnssSession::onSettingChanged(Setting setting, SettingState state) {
+void GnssSession::onSettingChanged(Setting setting, SettingState /*state*/) {
   if (setting == Setting::LOCATION) {
     if (asyncResponsePending()) {
       // A request is in progress, so we wait until the async response arrives
@@ -586,7 +586,11 @@ void GnssSession::handleStatusChangeSync(bool enabled, uint8_t errorCode) {
       mCurrentInterval = stateTransition.minInterval;
     }
 
-    success &= (stateTransition.enable == enabled);
+    if (success && stateTransition.enable != enabled) {
+      success = false;
+      errorCode = CHRE_ERROR;
+      LOGE("GNSS PAL did not transition to expected state");
+    }
     postAsyncResultEventFatal(
         stateTransition.nanoappInstanceId, success, stateTransition.enable,
         stateTransition.minInterval, errorCode, stateTransition.cookie);
