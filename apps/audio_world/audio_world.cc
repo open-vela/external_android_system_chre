@@ -180,8 +180,6 @@ bool nanoappStart() {
 
 void nanoappHandleEvent(uint32_t senderInstanceId, uint16_t eventType,
                         const void *eventData) {
-  UNUSED_VAR(senderInstanceId);
-
   switch (eventType) {
     case CHRE_EVENT_AUDIO_DATA:
       handleAudioDataEvent(
