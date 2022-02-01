@@ -105,8 +105,6 @@ void WwanRequestManager::handleFreeCellInfoResult(
 
 void WwanRequestManager::freeCellInfoResultCallback(uint16_t eventType,
                                                     void *eventData) {
-  UNUSED_VAR(eventType);
-
   auto *result = static_cast<chreWwanCellInfoResult *>(eventData);
   EventLoopManagerSingleton::get()
       ->getWwanRequestManager()

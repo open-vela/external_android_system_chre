@@ -113,8 +113,6 @@ void SettingManager::logStateToBuffer(DebugDumpWrapper &debugDump) {
                   getSettingStateString(Setting::AIRPLANE_MODE));
   debugDump.print("\n Microphone Access %s",
                   getSettingStateString(Setting::MICROPHONE));
-  debugDump.print("\n BLE available %s",
-                  getSettingStateString(Setting::BLE_AVAILABLE));
 }
 
 void SettingManager::settingChangedCallback(uint16_t /* type */, void *data,
