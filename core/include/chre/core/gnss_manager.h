@@ -96,9 +96,9 @@ class GnssSession {
    * Invoked when the host notifies CHRE of a settings change.
    *
    * @param setting The setting that changed.
-   * @param enabled Whether setting is enabled or not.
+   * @param state The new setting state.
    */
-  void onSettingChanged(Setting setting, bool enabled);
+  void onSettingChanged(Setting setting, SettingState state);
 
   /**
    * Updates the platform GNSS request according to the current state. It should
@@ -409,9 +409,9 @@ class GnssManager : public NonCopyable {
    * Invoked when the host notifies CHRE of a settings change.
    *
    * @param setting The setting that changed.
-   * @param enabled Whether setting is enabled or not.
+   * @param state The new setting state.
    */
-  void onSettingChanged(Setting setting, bool enabled);
+  void onSettingChanged(Setting setting, SettingState state);
 
   /**
    * Invoked as a result of a requestStateResync() callback from the GNSS PAL.
