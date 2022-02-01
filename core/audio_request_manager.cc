@@ -206,8 +206,8 @@ bool AudioRequestManager::doConfigureSource(uint32_t instanceId,
   }
 
   if (success &&
-      (EventLoopManagerSingleton::get()->getSettingManager().getSettingEnabled(
-          Setting::MICROPHONE))) {
+      (EventLoopManagerSingleton::get()->getSettingManager().getSettingState(
+           Setting::MICROPHONE) != SettingState::DISABLED)) {
     scheduleNextAudioDataEvent(handle);
     updatePlatformHandleEnabled(handle, lastNumRequests);
   }
@@ -257,9 +257,9 @@ bool AudioRequestManager::createAudioRequest(uint32_t handle,
   }
 
   if (success) {
-    bool suspended = !EventLoopManagerSingleton::get()
-                          ->getSettingManager()
-                          .getSettingEnabled(Setting::MICROPHONE);
+    bool suspended =
+        (EventLoopManagerSingleton::get()->getSettingManager().getSettingState(
+             Setting::MICROPHONE) == SettingState::DISABLED);
     postAudioSamplingChangeEvent(instanceId, handle, requestList.available,
                                  suspended);
   }
@@ -348,9 +348,10 @@ void AudioRequestManager::handleAudioAvailabilitySync(uint32_t handle,
                                                       bool available) {
   if (handle < mAudioRequestLists.size()) {
     if (mAudioRequestLists[handle].available != available) {
-      bool suspended = !EventLoopManagerSingleton::get()
-                            ->getSettingManager()
-                            .getSettingEnabled(Setting::MICROPHONE);
+      bool suspended =
+          (EventLoopManagerSingleton::get()
+               ->getSettingManager()
+               .getSettingState(Setting::MICROPHONE) == SettingState::DISABLED);
       mAudioRequestLists[handle].available = available;
       postAudioSamplingChangeEvents(handle, suspended);
     }
@@ -362,8 +363,8 @@ void AudioRequestManager::handleAudioAvailabilitySync(uint32_t handle,
 }
 
 void AudioRequestManager::scheduleNextAudioDataEvent(uint32_t handle) {
-  if (!EventLoopManagerSingleton::get()->getSettingManager().getSettingEnabled(
-          Setting::MICROPHONE)) {
+  if (EventLoopManagerSingleton::get()->getSettingManager().getSettingState(
+          Setting::MICROPHONE) == SettingState::DISABLED) {
     LOGD("Mic access disabled, doing nothing");
     return;
   }
@@ -452,19 +453,19 @@ void AudioRequestManager::handleFreeAudioDataEvent(
 
 void AudioRequestManager::freeAudioDataEventCallback(uint16_t eventType,
                                                      void *eventData) {
-  UNUSED_VAR(eventType);
   auto *event = static_cast<struct chreAudioDataEvent *>(eventData);
   EventLoopManagerSingleton::get()
       ->getAudioRequestManager()
       .handleFreeAudioDataEvent(event);
 }
 
-void AudioRequestManager::onSettingChanged(Setting setting, bool enabled) {
+void AudioRequestManager::onSettingChanged(Setting setting,
+                                           SettingState state) {
   if (setting == Setting::MICROPHONE) {
     for (size_t i = 0; i < mAudioRequestLists.size(); ++i) {
       uint32_t handle = static_cast<uint32_t>(i);
       if (mAudioRequestLists[i].available) {
-        if (!enabled) {
+        if (state == SettingState::DISABLED) {
           LOGD("Canceling data event request for handle %" PRIu32, handle);
           postAudioSamplingChangeEvents(handle, true /* suspended */);
           mPlatformAudio.cancelAudioDataEventRequest(handle);

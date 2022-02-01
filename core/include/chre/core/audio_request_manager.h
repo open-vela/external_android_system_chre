@@ -107,9 +107,9 @@ class AudioRequestManager : public NonCopyable {
    * disabled via the user settings.
    *
    * @param setting The setting that changed.
-   * @param enabled Whether setting is enabled or not.
+   * @param state The new setting state.
    */
-  void onSettingChanged(Setting setting, bool enabled);
+  void onSettingChanged(Setting setting, SettingState state);
 
   /**
    * @return the instance of platform audio to allow platform-specific
