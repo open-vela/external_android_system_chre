@@ -265,7 +265,8 @@ void GnssSession::handleReportEvent(void *event) {
     uint16_t reportEventType;
     if (!getReportEventType(static_cast<SystemCallbackType>(type),
                             &reportEventType) ||
-        (getSettingState(Setting::LOCATION) == SettingState::DISABLED)) {
+        (EventLoopManagerSingleton::get()->getSettingManager().getSettingState(
+             Setting::LOCATION) == SettingState::DISABLED)) {
       freeReportEventCallback(reportEventType, data);
     } else {
       EventLoopManagerSingleton::get()->getEventLoop().postEventOrDie(
@@ -281,7 +282,7 @@ void GnssSession::handleReportEvent(void *event) {
   }
 }
 
-void GnssSession::onSettingChanged(Setting setting, SettingState /*state*/) {
+void GnssSession::onSettingChanged(Setting setting, SettingState state) {
   if (setting == Setting::LOCATION) {
     if (asyncResponsePending()) {
       // A request is in progress, so we wait until the async response arrives
@@ -295,7 +296,9 @@ void GnssSession::onSettingChanged(Setting setting, SettingState /*state*/) {
 }
 
 bool GnssSession::updatePlatformRequest(bool forceUpdate) {
-  SettingState locationSetting = getSettingState(Setting::LOCATION);
+  SettingState locationSetting =
+      EventLoopManagerSingleton::get()->getSettingManager().getSettingState(
+          Setting::LOCATION);
 
   bool desiredPlatformState =
       (locationSetting == SettingState::ENABLED) && !mRequests.empty();
@@ -379,7 +382,8 @@ bool GnssSession::configure(Nanoapp *nanoapp, bool enable,
   } else if (stateTransitionIsRequired(enable, minInterval, hasRequest,
                                        requestIndex)) {
     if (enable &&
-        getSettingState(Setting::LOCATION) == SettingState::DISABLED) {
+        EventLoopManagerSingleton::get()->getSettingManager().getSettingState(
+            Setting::LOCATION) == SettingState::DISABLED) {
       // Treat as success but post async failure per API.
       success = postAsyncResultEvent(instanceId, false /* success */, enable,
                                      minInterval, CHRE_ERROR_FUNCTION_DISABLED,
@@ -582,11 +586,7 @@ void GnssSession::handleStatusChangeSync(bool enabled, uint8_t errorCode) {
       mCurrentInterval = stateTransition.minInterval;
     }
 
-    if (success && stateTransition.enable != enabled) {
-      success = false;
-      errorCode = CHRE_ERROR;
-      LOGE("GNSS PAL did not transition to expected state");
-    }
+    success &= (stateTransition.enable == enabled);
     postAsyncResultEventFatal(
         stateTransition.nanoappInstanceId, success, stateTransition.enable,
         stateTransition.minInterval, errorCode, stateTransition.cookie);
@@ -684,7 +684,8 @@ void GnssSession::dispatchQueuedStateTransitions() {
     if (stateTransitionIsRequired(stateTransition.enable,
                                   stateTransition.minInterval, hasRequest,
                                   requestIndex)) {
-      if (getSettingState(Setting::LOCATION) == SettingState::DISABLED) {
+      if (EventLoopManagerSingleton::get()->getSettingManager().getSettingState(
+              Setting::LOCATION) == SettingState::DISABLED) {
         postAsyncResultEventFatal(
             stateTransition.nanoappInstanceId, false /* success */,
             stateTransition.enable, stateTransition.minInterval,
