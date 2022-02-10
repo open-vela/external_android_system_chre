@@ -31,7 +31,7 @@ extern "C" {
  *  Public Definitions
  ***********************************************/
 
-#define CHPP_PAL_WIFI_API_VERSION CHRE_PAL_WIFI_API_V1_6
+#define CHPP_PAL_WIFI_API_VERSION CHRE_PAL_WIFI_API_V1_5
 
 /**
  * Data structures used by the Configure Scan Monitor request.
@@ -101,16 +101,6 @@ struct ChppWifiRequestScanResponse {
 CHPP_PACKED_END
 
 /**
- * Data structure used by the NAN subscribe cancel request.
- */
-CHPP_PACKED_START
-struct ChppWifiNanSubscribeCancelRequest {
-  struct ChppAppHeader header;
-  uint32_t subscriptionId;
-} CHPP_PACKED_ATTR;
-CHPP_PACKED_END
-
-/**
  * Commands used by the WiFi (WLAN) Service.
  */
 enum ChppWifiCommands {
@@ -131,17 +121,8 @@ enum ChppWifiCommands {
 
   //! Request that the WiFi chipset perform RTT ranging.
   CHPP_WIFI_REQUEST_RANGING_ASYNC = 0x0005,
-
-  //! Request that the WiFi chipset perform a NAN subscription.
-  CHPP_WIFI_REQUEST_NAN_SUB = 0x0006,
-
-  //! Request that the WiFi chipset cancel a NAN subscription.
-  CHPP_WIFI_REQUEST_NAN_SUB_CANCEL = 0x0007,
-
-  //! Request that the WiFi chipset perform NAN ranging.
-  CHPP_WIFI_REQUEST_NAN_RANGING_ASYNC = 0x0008,
 };
-#define CHPP_WIFI_CLIENT_REQUEST_MAX CHPP_WIFI_REQUEST_NAN_RANGING_ASYNC
+#define CHPP_WIFI_CLIENT_REQUEST_MAX CHPP_WIFI_REQUEST_RANGING_ASYNC
 
 #ifdef __cplusplus
 }

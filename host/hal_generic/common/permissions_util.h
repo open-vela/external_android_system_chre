@@ -17,8 +17,7 @@
 #ifndef ANDROID_HARDWARE_CONTEXTHUB_COMMON_PERMISSIONS_UTIL_H
 #define ANDROID_HARDWARE_CONTEXTHUB_COMMON_PERMISSIONS_UTIL_H
 
-#include <string>
-#include <vector>
+#include <hidl/HidlSupport.h>
 
 namespace android {
 namespace hardware {
@@ -27,17 +26,15 @@ namespace common {
 namespace implementation {
 
 // List of permissions supported by this HAL.
-const std::string kBackgroundLocationPerm =
+const hidl_string kBackgroundLocationPerm =
     "android.permission.ACCESS_BACKGROUND_LOCATION";
-const std::string kFineLocationPerm = "android.permission.ACCESS_FINE_LOCATION";
-const std::string kRecordAudioPerm = "android.permission.RECORD_AUDIO";
-const std::string kBluetoothScanPerm = "android.permission.BLUETOOTH_SCAN";
-const std::vector<std::string> kSupportedPermissions = {
-    kBackgroundLocationPerm, kFineLocationPerm, kRecordAudioPerm,
-    kBluetoothScanPerm};
+const hidl_string kFineLocationPerm = "android.permission.ACCESS_FINE_LOCATION";
+const hidl_string kRecordAudioPerm = "android.permission.RECORD_AUDIO";
+const hidl_vec<hidl_string> kSupportedPermissions = {
+    kBackgroundLocationPerm, kFineLocationPerm, kRecordAudioPerm};
 
 //! Converts the CHRE permissions bitmask to a list of CHRE permissions.
-std::vector<std::string> chreToAndroidPermissions(uint32_t chrePermissions);
+hidl_vec<hidl_string> chreToAndroidPermissions(uint32_t chrePermissions);
 
 }  // namespace implementation
 }  // namespace common

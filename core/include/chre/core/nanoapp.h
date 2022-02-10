@@ -26,7 +26,6 @@
 #include "chre/util/fixed_size_vector.h"
 #include "chre/util/system/debug_dump.h"
 #include "chre/util/system/napp_permissions.h"
-#include "chre_api/chre/event.h"
 
 namespace chre {
 
@@ -49,7 +48,7 @@ class Nanoapp : public PlatformNanoapp {
   /**
    * @return The unique identifier for this Nanoapp instance
    */
-  uint16_t getInstanceId() const {
+  uint32_t getInstanceId() const {
     return mInstanceId;
   }
 
@@ -57,7 +56,7 @@ class Nanoapp : public PlatformNanoapp {
    * Assigns an instance ID to this Nanoapp. This must be called prior to
    * starting this Nanoapp.
    */
-  void setInstanceId(uint16_t instanceId) {
+  void setInstanceId(uint32_t instanceId) {
     mInstanceId = instanceId;
   }
 
@@ -89,9 +88,11 @@ class Nanoapp : public PlatformNanoapp {
   }
 
   /**
-   * @return true if the nanoapp should receive broadcast event
+   * @return true if the nanoapp should receive broadcast events with the given
+   *         type
    */
-  bool isRegisteredForBroadcastEvent(const Event *event) const;
+  bool isRegisteredForBroadcastEvent(uint16_t eventType,
+                                     uint16_t targetGroupIdMask) const;
 
   /**
    * Updates the Nanoapp's registration so that it will receive broadcast events
@@ -116,6 +117,22 @@ class Nanoapp : public PlatformNanoapp {
    */
   void unregisterForBroadcastEvent(
       uint16_t eventType, uint16_t groupIdMask = kDefaultTargetGroupMask);
+
+  /**
+   * Adds an event to this nanoapp's queue of pending events.
+   */
+  void postEvent(Event *event) {
+    mEventQueue.push(event);
+  }
+
+  /**
+   * Indicates whether there are any pending events in this apps queue.
+   *
+   * @return true if there are events waiting to be processed
+   */
+  bool hasPendingEvent() {
+    return !mEventQueue.empty();
+  }
 
   /**
    * Configures whether nanoapp info events will be sent to the nanoapp.
@@ -154,11 +171,12 @@ class Nanoapp : public PlatformNanoapp {
   void configureUserSettingEvent(uint8_t setting, bool enable);
 
   /**
-   * Sends an event to the nanoapp to be processed.
+   * Sends the next event in the queue to the nanoapp and returns the processed
+   * event. The hasPendingEvent() method should be tested before invoking this.
    *
-   * @param event A pointer to the event to be processed
+   * @return A pointer to the processed event
    */
-  void processEvent(Event *event);
+  Event *processNextEvent();
 
   /**
    * Log info about a single host wakeup that this nanoapp triggered by storing
@@ -188,38 +206,8 @@ class Nanoapp : public PlatformNanoapp {
    */
   bool permitPermissionUse(uint32_t permission) const;
 
-  /**
-   * Configures notification updates for a given host endpoint.
-   *
-   * @param hostEndpointId The ID of the host endpoint.
-   * @param enable true to enable notifications.
-   *
-   * @return true if the configuration is successful.
-   */
-  bool configureHostEndpointNotifications(uint16_t hostEndpointId, bool enable);
-
-  /**
-   * Publishes RPC services for this nanoapp.
-   *
-   * @param services A pointer to the list of RPC services to publish.
-   *   Can be null if numServices is 0.
-   * @param numServices The number of services to publish, i.e. the length of
-   * the services array.
-   *
-   * @return true if the publishing is successful.
-   */
-  bool publishRpcServices(struct chreNanoappRpcService *services,
-                          size_t numServices);
-
-  /**
-   * @return The list of RPC services pushblished by this nanoapp.
-   */
-  const DynamicVector<struct chreNanoappRpcService> &getRpcServices() const {
-    return mRpcServices;
-  }
-
  private:
-  uint16_t mInstanceId = kInvalidInstanceId;
+  uint32_t mInstanceId = kInvalidInstanceId;
 
   //! The total memory allocated by the nanoapp in bytes.
   size_t mTotalAllocatedBytes = 0;
@@ -251,11 +239,7 @@ class Nanoapp : public PlatformNanoapp {
   // who care about them).
   DynamicVector<EventRegistration> mRegisteredEvents;
 
-  //! The registered host endpoints to receive notifications for.
-  DynamicVector<uint16_t> mRegisteredHostEndpoints;
-
-  //! The list of RPC services for this nanoapp.
-  DynamicVector<struct chreNanoappRpcService> mRpcServices;
+  EventRefQueue mEventQueue;
 
   //! @return index of event registration if found. mRegisteredEvents.size() if
   //!     not.
@@ -268,11 +252,6 @@ class Nanoapp : public PlatformNanoapp {
    * @param event The pointer to the event
    */
   void handleGnssMeasurementDataEvent(const Event *event);
-
-  bool isRegisteredForHostEndpointNotifications(uint16_t hostEndpointId) const {
-    return mRegisteredHostEndpoints.find(hostEndpointId) !=
-           mRegisteredHostEndpoints.size();
-  }
 };
 
 }  // namespace chre
