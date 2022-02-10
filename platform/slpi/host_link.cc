@@ -34,6 +34,7 @@
 #endif
 #include "chre/platform/slpi/fastrpc.h"
 #include "chre/platform/slpi/power_control_util.h"
+#include "chre/platform/slpi/system_time.h"
 #include "chre/platform/system_time.h"
 #include "chre/platform/system_timer.h"
 #include "chre/util/fixed_size_blocking_queue.h"
@@ -84,8 +85,6 @@ enum class PendingMessageType {
   LowPowerMicAccessRelease,
   EncodedLogMessage,
   SelfTestResponse,
-  MetricLog,
-  NanConfigurationRequest,
 };
 
 struct PendingMessage {
@@ -219,7 +218,7 @@ void buildNanoappListResponse(ChreFlatBufferBuilder &builder, void *cookie) {
     HostProtocolChre::addNanoappListEntry(
         *(cbData->builder), cbData->nanoappEntries, nanoapp->getAppId(),
         nanoapp->getAppVersion(), true /*enabled*/, nanoapp->isSystemNanoapp(),
-        nanoapp->getAppPermissions(), nanoapp->getRpcServices());
+        nanoapp->getAppPermissions());
   };
 
   // Add a NanoappListEntry to the FlatBuffer for each nanoapp
@@ -256,7 +255,7 @@ void handleUnloadNanoappCallback(SystemCallbackType /*type*/,
     auto *cbData = static_cast<UnloadNanoappCallbackData *>(cookie);
 
     bool success = false;
-    uint16_t instanceId;
+    uint32_t instanceId;
     EventLoop &eventLoop = EventLoopManagerSingleton::get()->getEventLoop();
     if (!eventLoop.findNanoappInstanceIdByAppId(cbData->appId, &instanceId)) {
       LOGE("Couldn't unload app ID 0x%016" PRIx64 ": not found", cbData->appId);
@@ -284,7 +283,7 @@ int generateMessageToHost(const MessageToHost *msgToHost, unsigned char *buffer,
       builder, msgToHost->appId, msgToHost->toHostData.messageType,
       msgToHost->toHostData.hostEndpoint, msgToHost->message.data(),
       msgToHost->message.size(), msgToHost->toHostData.appPermissions,
-      msgToHost->toHostData.messagePermissions, msgToHost->toHostData.wokeHost);
+      msgToHost->toHostData.messagePermissions);
 
   int result = copyToHostBuffer(builder, buffer, bufferSize, messageLen);
 
@@ -624,8 +623,6 @@ extern "C" int chre_slpi_get_message_to_host(unsigned char *buffer,
       case PendingMessageType::LowPowerMicAccessRelease:
       case PendingMessageType::EncodedLogMessage:
       case PendingMessageType::SelfTestResponse:
-      case PendingMessageType::MetricLog:
-      case PendingMessageType::NanConfigurationRequest:
         result = generateMessageFromBuilder(
             pendingMsg.data.builder, buffer, bufferSize, messageLen,
             pendingMsg.type == PendingMessageType::EncodedLogMessage);
@@ -709,31 +706,6 @@ bool HostLink::sendMessage(const MessageToHost *message) {
       PendingMessage(PendingMessageType::NanoappMessageToHost, message));
 }
 
-bool HostLink::sendMetricLog(uint32_t metricId, const uint8_t *encodedMetric,
-                             size_t encodedMetricLen) {
-  struct MetricLogData {
-    uint32_t metricId;
-    const uint8_t *encodedMetric;
-    size_t encodedMetricLen;
-  };
-
-  MetricLogData data;
-  data.metricId = metricId;
-  data.encodedMetric = encodedMetric;
-  data.encodedMetricLen = encodedMetricLen;
-
-  auto msgBuilder = [](ChreFlatBufferBuilder &builder, void *cookie) {
-    const auto *data = static_cast<const MetricLogData *>(cookie);
-    HostProtocolChre::encodeMetricLog(
-        builder, data->metricId, data->encodedMetric, data->encodedMetricLen);
-  };
-
-  constexpr size_t kInitialSize = 52;
-  buildAndEnqueueMessage(PendingMessageType::MetricLog, kInitialSize,
-                         msgBuilder, &data);
-  return true;
-}
-
 bool HostLinkBase::flushOutboundQueue() {
   int waitCount = 5;
 
@@ -788,17 +760,6 @@ void HostLinkBase::sendLogMessageV2(const uint8_t *logMessage,
   constexpr size_t kInitialSize = 128;
   buildAndEnqueueMessage(PendingMessageType::EncodedLogMessage, kInitialSize,
                          msgBuilder, &logMessageData);
-}
-
-void HostLinkBase::sendNanConfiguration(bool enable) {
-  auto msgBuilder = [](ChreFlatBufferBuilder &builder, void *cookie) {
-    const auto *data = static_cast<const bool *>(cookie);
-    HostProtocolChre::encodeNanConfigurationRequest(builder, *data);
-  };
-
-  constexpr size_t kInitialSize = 48;
-  buildAndEnqueueMessage(PendingMessageType::NanConfigurationRequest,
-                         kInitialSize, msgBuilder, &enable);
 }
 
 void HostLinkBase::shutdown() {
@@ -960,7 +921,7 @@ void HostMessageHandlers::handleUnloadNanoappRequest(
 }
 
 void HostMessageHandlers::handleTimeSyncMessage(int64_t offset) {
-  SystemTime::setEstimatedHostTimeOffset(offset);
+  setEstimatedHostTimeOffset(offset);
 
   // Schedule a time sync request since offset may drift
   constexpr Seconds kClockDriftTimeSyncPeriod =
@@ -980,11 +941,11 @@ void HostMessageHandlers::handleDebugDumpRequest(uint16_t hostClientId) {
 void HostMessageHandlers::handleSettingChangeMessage(fbs::Setting setting,
                                                      fbs::SettingState state) {
   Setting chreSetting;
-  bool chreSettingEnabled;
+  SettingState chreSettingState;
   if (HostProtocolChre::getSettingFromFbs(setting, &chreSetting) &&
-      HostProtocolChre::getSettingEnabledFromFbs(state, &chreSettingEnabled)) {
+      HostProtocolChre::getSettingStateFromFbs(state, &chreSettingState)) {
     EventLoopManagerSingleton::get()->getSettingManager().postSettingChange(
-        chreSetting, chreSettingEnabled);
+        chreSetting, chreSettingState);
   }
 }
 
@@ -992,16 +953,6 @@ void HostMessageHandlers::handleSelfTestRequest(uint16_t hostClientId) {
   // TODO(b/182201569): Run test
   bool success = true;
   sendSelfTestResponse(hostClientId, success);
-}
-
-void HostMessageHandlers::handleNanConfigurationUpdate(bool enabled) {
-#ifdef CHRE_WIFI_NAN_SUPPORT_ENABLED
-  EventLoopManagerSingleton::get()
-      ->getWifiRequestManager()
-      .updateNanAvailability(enabled);
-#else
-  UNUSED_VAR(enabled);
-#endif  // CHRE_WIFI_NAN_SUPPORT_ENABLED
 }
 
 }  // namespace chre

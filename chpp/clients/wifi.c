@@ -365,7 +365,8 @@ static void chppWiFiRecoverScanMonitor(
 
     if (!chppWifiClientConfigureScanMonitor(true)) {
       clientContext->scanMonitorSilenceCallback = false;
-      CHPP_DEBUG_ASSERT_LOG(false, "Failed to re-enable WiFi scan monitoring");
+      CHPP_DEBUG_ASSERT_LOG(
+          false, "Unable to re-enable WiFi scan monitoring after reset");
     }
   }
 }
@@ -399,7 +400,8 @@ static void chppWifiCloseResult(struct ChppWifiClientState *clientContext,
 static void chppWifiGetCapabilitiesResult(
     struct ChppWifiClientState *clientContext, uint8_t *buf, size_t len) {
   if (len < sizeof(struct ChppWifiGetCapabilitiesResponse)) {
-    CHPP_LOGE("Bad WiFi capabilities len=%" PRIuSIZE, len);
+    struct ChppAppHeader *rxHeader = (struct ChppAppHeader *)buf;
+    CHPP_LOGE("GetCapabilities resp. too short. err=%" PRIu8, rxHeader->error);
 
   } else {
     struct ChppWifiGetCapabilitiesParameters *result =
@@ -408,9 +410,11 @@ static void chppWifiGetCapabilitiesResult(
     CHPP_LOGD("chppWifiGetCapabilitiesResult received capabilities=0x%" PRIx32,
               result->capabilities);
 
+#ifdef CHPP_WIFI_DEFAULT_CAPABILITIES
     CHPP_ASSERT_LOG((result->capabilities == CHPP_WIFI_DEFAULT_CAPABILITIES),
-                    "WiFi capabilities 0x%" PRIx32 " != 0x%" PRIx32,
+                    "Unexpected capability 0x%" PRIx32 " != 0x%" PRIx32,
                     result->capabilities, CHPP_WIFI_DEFAULT_CAPABILITIES);
+#endif
 
     clientContext->capabilities = result->capabilities;
   }
@@ -431,8 +435,15 @@ static void chppWifiConfigureScanMonitorResult(
 
   if (len < sizeof(struct ChppWifiConfigureScanMonitorAsyncResponse)) {
     // Short response length indicates an error
+
+    struct ChppAppHeader *rxHeader = (struct ChppAppHeader *)buf;
+    CHPP_LOGE("ScanMonitor resp. too short. err=%" PRIu8, rxHeader->error);
+
+    if (rxHeader->error == CHPP_APP_ERROR_NONE) {
+      rxHeader->error = CHPP_APP_ERROR_INVALID_LENGTH;
+    }
     gCallbacks->scanMonitorStatusChangeCallback(
-        false, chppAppShortResponseErrorHandler(buf, len, "ScanMonitor"));
+        false, chppAppErrorToChreError(rxHeader->error));
 
   } else {
     struct ChppWifiConfigureScanMonitorAsyncResponseParameters *result =
@@ -473,13 +484,34 @@ static void chppWifiRequestScanResult(struct ChppWifiClientState *clientContext,
 
   if (len < sizeof(struct ChppWifiRequestScanResponse)) {
     // Short response length indicates an error
-    gCallbacks->scanResponseCallback(
-        false, chppAppShortResponseErrorHandler(buf, len, "ScanRequest"));
+
+    struct ChppAppHeader *rxHeader = (struct ChppAppHeader *)buf;
+    CHPP_LOGE("ScanRequest resp. too short. err=%" PRIu8, rxHeader->error);
+
+    if (rxHeader->error == CHPP_APP_ERROR_NONE) {
+      rxHeader->error = CHPP_APP_ERROR_INVALID_LENGTH;
+    }
+    gCallbacks->scanResponseCallback(false,
+                                     chppAppErrorToChreError(rxHeader->error));
 
   } else {
     struct ChppWifiRequestScanResponseParameters *result =
         &((struct ChppWifiRequestScanResponse *)buf)->params;
-    CHPP_LOGI("Scan request success=%d at service", result->pending);
+
+    // TODO(b/193540354): Remove when resolved
+    {
+      static uint32_t sNumConsecutiveError = 0;
+      if (result->errorCode != CHRE_ERROR_NONE) {
+        sNumConsecutiveError++;
+      } else {
+        sNumConsecutiveError = 0;
+      }
+      if (sNumConsecutiveError > 20) {
+        CHPP_ASSERT("Too many consecutive WiFi scan errors");
+      }
+    }
+
+    CHPP_LOGI("Scan request success=%d (at service)", result->pending);
     gCallbacks->scanResponseCallback(result->pending, result->errorCode);
   }
 }
@@ -501,7 +533,7 @@ static void chppWifiRequestRangingResult(
   struct ChppAppHeader *rxHeader = (struct ChppAppHeader *)buf;
 
   if (rxHeader->error != CHPP_APP_ERROR_NONE) {
-    CHPP_LOGE("Ranging failed at service" PRIu8);
+    CHPP_LOGE("RangingRequest failed at service err=%" PRIu8, rxHeader->error);
     gCallbacks->rangingEventCallback(chppAppErrorToChreError(rxHeader->error),
                                      NULL);
 
@@ -531,7 +563,7 @@ static void chppWifiScanEventNotification(
       chppWifiScanEventToChre((struct ChppWifiScanEvent *)buf, len);
 
   if (chre == NULL) {
-    CHPP_LOGE("Scan event conversion failed len=%" PRIuSIZE, len);
+    CHPP_LOGE("Scan event conversion failed: len=%" PRIuSIZE, len);
   } else {
 #ifdef CHPP_CLIENT_ENABLED_TIMESYNC
     uint64_t correctedTime =
@@ -619,22 +651,19 @@ static bool chppWifiClientOpen(const struct chrePalSystemApi *systemApi,
   gCallbacks = callbacks;
 
   CHPP_LOGD("WiFi client opening");
-  if (gWifiClientContext.client.appContext == NULL) {
-    CHPP_LOGE("WiFi client app is null");
-  } else {
-    if (chppWaitForDiscoveryComplete(gWifiClientContext.client.appContext,
-                                     CHPP_WIFI_DISCOVERY_TIMEOUT_MS)) {
-      result = chppClientSendOpenRequest(
-          &gWifiClientContext.client,
-          &gWifiClientContext.rRState[CHPP_WIFI_OPEN], CHPP_WIFI_OPEN,
-          /*blocking=*/true);
-    }
 
-    // Since CHPP_WIFI_DEFAULT_CAPABILITIES is mandatory, we can always
-    // pseudo-open and return true. Otherwise, these should have been gated.
-    chppClientPseudoOpen(&gWifiClientContext.client);
-    result = true;
+  if (chppWaitForDiscoveryComplete(gWifiClientContext.client.appContext,
+                                   CHPP_WIFI_DISCOVERY_TIMEOUT_MS)) {
+    result = chppClientSendOpenRequest(
+        &gWifiClientContext.client, &gWifiClientContext.rRState[CHPP_WIFI_OPEN],
+        CHPP_WIFI_OPEN,
+        /*blocking=*/true);
   }
+
+#ifdef CHPP_WIFI_CLIENT_OPEN_ALWAYS_SUCCESS
+  chppClientPseudoOpen(&gWifiClientContext.client);
+  result = true;
+#endif
 
   return result;
 }
@@ -667,7 +696,11 @@ static void chppWifiClientClose(void) {
  * @return Capabilities flags.
  */
 static uint32_t chppWifiClientGetCapabilities(void) {
+#ifdef CHPP_WIFI_DEFAULT_CAPABILITIES
   uint32_t capabilities = CHPP_WIFI_DEFAULT_CAPABILITIES;
+#else
+  uint32_t capabilities = CHRE_WIFI_CAPABILITIES_NONE;
+#endif
 
   if (gWifiClientContext.capabilities != CHRE_WIFI_CAPABILITIES_NONE) {
     // Result already cached
@@ -823,115 +856,6 @@ static void chppWifiClientReleaseRangingEvent(
   CHPP_FREE_AND_NULLIFY(event);
 }
 
-/**
- * Request that the WiFi chipset perform a NAN subscription.
- * @see chreWifiNanSubscribe for more information.
- *
- * @param config NAN service subscription configuration.
- * @return true if subscribe request was successful, false otherwise.
- */
-static bool chppWifiClientNanSubscribe(
-    const struct chreWifiNanSubscribeConfig *config) {
-  struct ChppWifiNanSubscribeConfigWithHeader *request;
-  size_t requestLen;
-
-  bool result =
-      chppWifiNanSubscribeConfigFromChre(config, &request, &requestLen);
-
-  if (!result) {
-    CHPP_LOG_OOM();
-  } else {
-    request->header.handle = gWifiClientContext.client.handle;
-    request->header.type = CHPP_MESSAGE_TYPE_CLIENT_REQUEST;
-    request->header.transaction = gWifiClientContext.client.transaction++;
-    request->header.error = CHPP_APP_ERROR_NONE;
-    request->header.command = CHPP_WIFI_REQUEST_NAN_SUB;
-
-    result = chppSendTimestampedRequestOrFail(
-        &gWifiClientContext.client,
-        &gWifiClientContext.rRState[CHPP_WIFI_REQUEST_NAN_SUB], request,
-        requestLen, CHRE_ASYNC_RESULT_TIMEOUT_NS);
-  }
-  return result;
-}
-
-/**
- * Request the WiFi chipset to cancel a NAN subscription.
- * @param subscriptionId Identifier assigned by the NAN engine for a service
- *        subscription.
- * @return true if cancelation request was successfully dispatched, false
- *         otherwise.
- */
-static bool chppWifiClientNanSubscribeCancel(uint32_t subscriptionId) {
-  bool result = false;
-  struct ChppWifiNanSubscribeCancelRequest *request =
-      chppAllocClientRequestFixed(&gWifiClientContext.client,
-                                  struct ChppWifiNanSubscribeCancelRequest);
-
-  if (request == NULL) {
-    CHPP_LOG_OOM();
-  } else {
-    request->header.handle = gWifiClientContext.client.handle;
-    request->header.command = CHPP_WIFI_REQUEST_NAN_SUB_CANCEL;
-    request->header.type = CHPP_MESSAGE_TYPE_CLIENT_REQUEST;
-    request->header.transaction = gWifiClientContext.client.transaction++;
-    request->header.error = CHPP_APP_ERROR_NONE;
-    request->subscriptionId = subscriptionId;
-
-    result = chppSendTimestampedRequestOrFail(
-        &gWifiClientContext.client,
-        &gWifiClientContext.rRState[CHPP_WIFI_REQUEST_NAN_SUB_CANCEL], request,
-        sizeof(*request), CHRE_ASYNC_RESULT_TIMEOUT_NS);
-  }
-  return result;
-}
-
-/**
- * Release the memory held for the NAN service discovery callback.
- *
- * @param event Discovery event to be freed.
- */
-static void chppWifiClientNanReleaseDiscoveryEvent(
-    struct chreWifiNanDiscoveryEvent *event) {
-  if (event != NULL) {
-    if (event->serviceSpecificInfo != NULL) {
-      void *info = CHPP_CONST_CAST_POINTER(event->serviceSpecificInfo);
-      CHPP_FREE_AND_NULLIFY(info);
-    }
-    CHPP_FREE_AND_NULLIFY(event);
-  }
-}
-
-/**
- * Request that the WiFi chipset perform NAN ranging.
- *
- * @param params WiFi NAN ranging parameters.
- * @return true if the ranging request was successfully dispatched, false
- *         otherwise.
- */
-static bool chppWifiClientNanRequestNanRanging(
-    const struct chreWifiNanRangingParams *params) {
-  struct ChppWifiNanRangingParamsWithHeader *request;
-  size_t requestLen;
-  bool result = chppWifiNanRangingParamsFromChre(params, &request, &requestLen);
-
-  if (!result) {
-    CHPP_LOG_OOM();
-  } else {
-    request->header.handle = gWifiClientContext.client.handle;
-    request->header.command = CHPP_WIFI_REQUEST_NAN_RANGING_ASYNC;
-    request->header.type = CHPP_MESSAGE_TYPE_CLIENT_REQUEST;
-    request->header.transaction = gWifiClientContext.client.transaction++;
-    request->header.error = CHPP_APP_ERROR_NONE;
-
-    result = chppSendTimestampedRequestOrFail(
-        &gWifiClientContext.client,
-        &gWifiClientContext.rRState[CHPP_WIFI_REQUEST_NAN_RANGING_ASYNC],
-        request, requestLen, CHRE_ASYNC_RESULT_TIMEOUT_NS);
-  }
-  return result;
-}
-
 /************************************************
  *  Public Functions
  ***********************************************/
@@ -970,10 +894,6 @@ const struct chrePalWifiApi *chppPalWifiGetApi(uint32_t requestedApiVersion) {
       .releaseScanEvent = chppWifiClientReleaseScanEvent,
       .requestRanging = chppWifiClientRequestRanging,
       .releaseRangingEvent = chppWifiClientReleaseRangingEvent,
-      .nanSubscribe = chppWifiClientNanSubscribe,
-      .nanSubscribeCancel = chppWifiClientNanSubscribeCancel,
-      .releaseNanDiscoveryEvent = chppWifiClientNanReleaseDiscoveryEvent,
-      .requestNanRanging = chppWifiClientNanRequestNanRanging,
   };
 
   CHPP_STATIC_ASSERT(
