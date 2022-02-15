@@ -214,8 +214,17 @@ void HostProtocolHost::encodeSelfTestRequest(
 }
 
 void HostProtocolHost::encodeHostEndpointConnected(
-    flatbuffers::FlatBufferBuilder &builder, uint16_t hostEndpointId) {
-  auto message = fbs::CreateHostEndpointConnected(builder, hostEndpointId);
+    flatbuffers::FlatBufferBuilder &builder, uint16_t hostEndpointId,
+    uint8_t type, const std::string &packageName,
+    const std::string &attributionTag) {
+  std::vector<int8_t> packageNameVec(packageName.begin(), packageName.end());
+  packageNameVec.push_back('\0');
+  std::vector<int8_t> attributionTagVec(attributionTag.begin(),
+                                        attributionTag.end());
+  attributionTagVec.push_back('\0');
+
+  auto message = fbs::CreateHostEndpointConnectedDirect(
+      builder, hostEndpointId, type, &packageNameVec, &attributionTagVec);
   finalize(builder, fbs::ChreMessage::HostEndpointConnected, message.Union());
 }
 
@@ -224,6 +233,12 @@ void HostProtocolHost::encodeHostEndpointDisconnected(
   auto message = fbs::CreateHostEndpointDisconnected(builder, hostEndpointId);
   finalize(builder, fbs::ChreMessage::HostEndpointDisconnected,
            message.Union());
+}
+
+void HostProtocolHost::encodeNanconfigurationUpdate(
+    flatbuffers::FlatBufferBuilder &builder, bool nanEnabled) {
+  auto message = fbs::CreateNanConfigurationUpdate(builder, nanEnabled);
+  finalize(builder, fbs::ChreMessage::NanConfigurationUpdate, message.Union());
 }
 
 }  // namespace chre

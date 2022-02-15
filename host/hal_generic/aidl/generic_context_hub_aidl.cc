@@ -16,6 +16,7 @@
 
 #include "generic_context_hub_aidl.h"
 
+#include "chre_api/chre/event.h"
 #include "chre_host/fragmented_load_transaction.h"
 #include "chre_host/host_protocol_host.h"
 #include "permissions_util.h"
@@ -35,6 +36,7 @@ using ::android::hardware::contexthub::common::implementation::
     chreToAndroidPermissions;
 using ::android::hardware::contexthub::common::implementation::
     kSupportedPermissions;
+using ::ndk::ScopedAStatus;
 
 namespace {
 constexpr uint32_t kDefaultHubId = 0;
@@ -73,9 +75,15 @@ bool getFbsSetting(const Setting &setting, fbs::Setting *fbsSetting) {
   return foundSetting;
 }
 
+ScopedAStatus toServiceSpecificError(bool success) {
+  return success ? ScopedAStatus::ok()
+                 : ScopedAStatus::fromServiceSpecificError(
+                       BnContextHub::EX_CONTEXT_HUB_UNSPECIFIED);
+}
+
 }  // anonymous namespace
 
-::ndk::ScopedAStatus ContextHub::getContextHubs(
+ScopedAStatus ContextHub::getContextHubs(
     std::vector<ContextHubInfo> *out_contextHubInfos) {
   ::chre::fbs::HubInfoResponseT response;
   bool success = mConnection.getContextHubs(&response);
@@ -102,71 +110,60 @@ bool getFbsSetting(const Setting &setting, fbs::Setting *fbsSetting) {
   return ndk::ScopedAStatus::ok();
 }
 
-::ndk::ScopedAStatus ContextHub::loadNanoapp(int32_t contextHubId,
-                                             const NanoappBinary &appBinary,
-                                             int32_t transactionId,
-                                             bool *_aidl_return) {
-  bool success = false;
+ScopedAStatus ContextHub::loadNanoapp(int32_t contextHubId,
+                                      const NanoappBinary &appBinary,
+                                      int32_t transactionId) {
   if (contextHubId != kDefaultHubId) {
     ALOGE("Invalid ID %" PRId32, contextHubId);
+    return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
   } else {
     uint32_t targetApiVersion = (appBinary.targetChreApiMajorVersion << 24) |
                                 (appBinary.targetChreApiMinorVersion << 16);
     FragmentedLoadTransaction transaction(
         transactionId, appBinary.nanoappId, appBinary.nanoappVersion,
         appBinary.flags, targetApiVersion, appBinary.customBinary);
-    success = mConnection.loadNanoapp(transaction);
+    const bool success = mConnection.loadNanoapp(transaction);
+    mEventLogger.logNanoappLoad(appBinary, success);
+    return toServiceSpecificError(success);
   }
-
-  *_aidl_return = success;
-
-  return ndk::ScopedAStatus::ok();
 }
 
-::ndk::ScopedAStatus ContextHub::unloadNanoapp(int32_t contextHubId,
-                                               int64_t appId,
-                                               int32_t transactionId,
-                                               bool *_aidl_return) {
-  bool success = false;
+ScopedAStatus ContextHub::unloadNanoapp(int32_t contextHubId, int64_t appId,
+                                        int32_t transactionId) {
   if (contextHubId != kDefaultHubId) {
     ALOGE("Invalid ID %" PRId32, contextHubId);
+    return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
   } else {
-    success = mConnection.unloadNanoapp(appId, transactionId);
+    const bool success = mConnection.unloadNanoapp(appId, transactionId);
+    mEventLogger.logNanoappUnload(appId, success);
+    return toServiceSpecificError(success);
   }
-
-  *_aidl_return = success;
-
-  return ndk::ScopedAStatus::ok();
 }
 
-::ndk::ScopedAStatus ContextHub::disableNanoapp(int32_t /* contextHubId */,
-                                                int64_t appId,
-                                                int32_t /* transactionId */,
-                                                bool *_aidl_return) {
+ScopedAStatus ContextHub::disableNanoapp(int32_t /* contextHubId */,
+                                         int64_t appId,
+                                         int32_t /* transactionId */) {
   ALOGW("Attempted to disable app ID 0x%016" PRIx64 ", but not supported",
         appId);
-  *_aidl_return = false;
-
-  return ndk::ScopedAStatus::ok();
+  return ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
 }
 
-::ndk::ScopedAStatus ContextHub::enableNanoapp(int32_t /* contextHubId */,
-                                               int64_t appId,
-                                               int32_t /* transactionId */,
-                                               bool *_aidl_return) {
+ScopedAStatus ContextHub::enableNanoapp(int32_t /* contextHubId */,
+                                        int64_t appId,
+                                        int32_t /* transactionId */) {
   ALOGW("Attempted to enable app ID 0x%016" PRIx64 ", but not supported",
         appId);
-  *_aidl_return = false;
-
-  return ndk::ScopedAStatus::ok();
+  return ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
 }
 
-::ndk::ScopedAStatus ContextHub::onSettingChanged(Setting setting,
-                                                  bool enabled) {
+ScopedAStatus ContextHub::onSettingChanged(Setting setting, bool enabled) {
   mSettingEnabled[setting] = enabled;
   fbs::Setting fbsSetting;
-  if ((setting != Setting::WIFI_MAIN) && (setting != Setting::WIFI_SCANNING) &&
-      getFbsSetting(setting, &fbsSetting)) {
+  bool isWifiOrBtSetting =
+      (setting == Setting::WIFI_MAIN || setting == Setting::WIFI_SCANNING ||
+       setting == Setting::BT_MAIN || setting == Setting::BT_SCANNING);
+
+  if (!isWifiOrBtSetting && getFbsSetting(setting, &fbsSetting)) {
     mConnection.sendSettingChangedNotification(fbsSetting,
                                                toFbsSettingState(enabled));
   }
@@ -188,29 +185,34 @@ bool getFbsSetting(const Setting &setting, fbs::Setting *fbsSetting) {
     mIsWifiAvailable = isWifiAvailable;
   }
 
-  return ndk::ScopedAStatus::ok();
-}
-
-::ndk::ScopedAStatus ContextHub::queryNanoapps(int32_t contextHubId,
-                                               bool *_aidl_return) {
-  bool success = false;
-  if (contextHubId != kDefaultHubId) {
-    ALOGE("Invalid ID %" PRId32, contextHubId);
-  } else {
-    success = mConnection.queryNanoapps();
+  // The BT switches determine whether we can BLE scan which is why things are
+  // mapped like this into CHRE.
+  bool isBtMainEnabled = isSettingEnabled(Setting::BT_MAIN);
+  bool isBtScanEnabled = isSettingEnabled(Setting::BT_SCANNING);
+  bool isBleAvailable = isBtMainEnabled || isBtScanEnabled;
+  if (!mIsBleAvailable.has_value() || (isBleAvailable != mIsBleAvailable)) {
+    mConnection.sendSettingChangedNotification(
+        fbs::Setting::BLE_AVAILABLE, toFbsSettingState(isBleAvailable));
+    mIsBleAvailable = isBleAvailable;
   }
 
-  *_aidl_return = success;
-
   return ndk::ScopedAStatus::ok();
 }
 
-::ndk::ScopedAStatus ContextHub::registerCallback(
-    int32_t contextHubId, const std::shared_ptr<IContextHubCallback> &cb,
-    bool *_aidl_return) {
-  bool success = false;
+ScopedAStatus ContextHub::queryNanoapps(int32_t contextHubId) {
   if (contextHubId != kDefaultHubId) {
     ALOGE("Invalid ID %" PRId32, contextHubId);
+    return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
+  } else {
+    return toServiceSpecificError(mConnection.queryNanoapps());
+  }
+}
+
+ScopedAStatus ContextHub::registerCallback(
+    int32_t contextHubId, const std::shared_ptr<IContextHubCallback> &cb) {
+  if (contextHubId != kDefaultHubId) {
+    ALOGE("Invalid ID %" PRId32, contextHubId);
+    return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
   } else {
     std::lock_guard<std::mutex> lock(mCallbackMutex);
     if (mCallback != nullptr) {
@@ -231,58 +233,61 @@ bool getFbsSetting(const Setting &setting, fbs::Setting *fbsSetting) {
         ALOGE("Failed to link to death");
       }
     }
-    success = true;
+
+    return ScopedAStatus::ok();
   }
-
-  *_aidl_return = success;
-
-  return ndk::ScopedAStatus::ok();
 }
 
-::ndk::ScopedAStatus ContextHub::sendMessageToHub(
-    int32_t contextHubId, const ContextHubMessage &message,
-    bool *_aidl_return) {
-  bool success = false;
+ScopedAStatus ContextHub::sendMessageToHub(int32_t contextHubId,
+                                           const ContextHubMessage &message) {
   if (contextHubId != kDefaultHubId) {
     ALOGE("Invalid ID %" PRId32, contextHubId);
-  } else {
-    success = mConnection.sendMessageToHub(
-        message.nanoappId, message.messageType, message.hostEndPoint,
-        message.messageBody.data(), message.messageBody.size());
+    return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
   }
 
-  *_aidl_return = success;
+  const bool success = mConnection.sendMessageToHub(
+      message.nanoappId, message.messageType, message.hostEndPoint,
+      message.messageBody.data(), message.messageBody.size());
+  mEventLogger.logMessageToNanoapp(message, success);
 
-  return ndk::ScopedAStatus::ok();
+  return toServiceSpecificError(success);
 }
 
-::ndk::ScopedAStatus ContextHub::onHostEndpointConnected(
+ScopedAStatus ContextHub::onHostEndpointConnected(
     const HostEndpointInfo &in_info) {
   std::lock_guard<std::mutex> lock(mConnectedHostEndpointsMutex);
   mConnectedHostEndpoints.insert(in_info.hostEndpointId);
 
-  mConnection.onHostEndpointConnected(in_info.hostEndpointId);
+  uint8_t type = (in_info.type == HostEndpointInfo::Type::FRAMEWORK)
+                     ? CHRE_HOST_ENDPOINT_TYPE_FRAMEWORK
+                     : CHRE_HOST_ENDPOINT_TYPE_APP;
+
+  mConnection.onHostEndpointConnected(
+      in_info.hostEndpointId, type, in_info.packageName.value_or(std::string()),
+      in_info.attributionTag.value_or(std::string()));
 
   return ndk::ScopedAStatus::ok();
 }
 
-::ndk::ScopedAStatus ContextHub::onHostEndpointDisconnected(
+ScopedAStatus ContextHub::onHostEndpointDisconnected(
     char16_t in_hostEndpointId) {
   std::lock_guard<std::mutex> lock(mConnectedHostEndpointsMutex);
   if (mConnectedHostEndpoints.count(in_hostEndpointId) > 0) {
     mConnectedHostEndpoints.erase(in_hostEndpointId);
 
     mConnection.onHostEndpointDisconnected(in_hostEndpointId);
-
-    return ndk::ScopedAStatus::ok();
   } else {
-    return ndk::ScopedAStatus(AStatus_fromExceptionCode(EX_ILLEGAL_ARGUMENT));
+    ALOGE("Unknown host endpoint disconnected (ID: %" PRIu16 ")",
+          in_hostEndpointId);
   }
+
+  return ndk::ScopedAStatus::ok();
 }
 
 void ContextHub::onNanoappMessage(const ::chre::fbs::NanoappMessageT &message) {
   std::lock_guard<std::mutex> lock(mCallbackMutex);
   if (mCallback != nullptr) {
+    mEventLogger.logMessageFromNanoapp(message);
     ContextHubMessage outMessage;
     outMessage.nanoappId = message.app_id;
     outMessage.hostEndPoint = message.host_endpoint;
@@ -322,6 +327,15 @@ void ContextHub::onNanoappListResponse(
         appInfo.enabled = nanoapp->enabled;
         appInfo.permissions = chreToAndroidPermissions(nanoapp->permissions);
 
+        std::vector<NanoappRpcService> rpcServices;
+        for (const auto &service : nanoapp->rpc_services) {
+          NanoappRpcService aidlService;
+          aidlService.id = service->id;
+          aidlService.version = service->version;
+          rpcServices.emplace_back(aidlService);
+        }
+        appInfo.rpcServices = rpcServices;
+
         appInfoList.push_back(appInfo);
       }
     }
@@ -340,6 +354,11 @@ void ContextHub::onTransactionResult(uint32_t transactionId, bool success) {
 void ContextHub::onContextHubRestarted() {
   std::lock_guard<std::mutex> lock(mCallbackMutex);
   mIsWifiAvailable.reset();
+  {
+    std::lock_guard<std::mutex> lock(mConnectedHostEndpointsMutex);
+    mConnectedHostEndpoints.clear();
+    mEventLogger.logContextHubRestart();
+  }
   if (mCallback != nullptr) {
     mCallback->handleContextHubAsyncEvent(AsyncEventType::RESTARTED);
   }
@@ -407,6 +426,8 @@ binder_status_t ContextHub::dump(int fd, const char ** /* args */,
         mDebugDumpPending = false;
       }
     }
+
+    writeToDebugFile(mEventLogger.dump());
     writeToDebugFile("\n-- End of CHRE/ASH debug info --\n");
 
     mDebugFd = kInvalidFd;

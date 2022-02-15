@@ -47,24 +47,19 @@ constexpr uint32_t kNanoappPermissions = 0
                                          | CHRE_TEST_NANOAPP_PERMS
 #else
 #ifdef CHRE_NANOAPP_USES_AUDIO
-                                         | static_cast<uint32_t>(
-                                               chre::NanoappPermissions::
-                                                   CHRE_PERMS_AUDIO)
+    | static_cast<uint32_t>(chre::NanoappPermissions::CHRE_PERMS_AUDIO)
+#endif
+#ifdef CHRE_NANOAPP_USES_BLE
+    | static_cast<uint32_t>(chre::NanoappPermissions::CHRE_PERMS_BLE)
 #endif
 #ifdef CHRE_NANOAPP_USES_GNSS
-                                         | static_cast<uint32_t>(
-                                               chre::NanoappPermissions::
-                                                   CHRE_PERMS_GNSS)
+    | static_cast<uint32_t>(chre::NanoappPermissions::CHRE_PERMS_GNSS)
 #endif
 #ifdef CHRE_NANOAPP_USES_WIFI
-                                         | static_cast<uint32_t>(
-                                               chre::NanoappPermissions::
-                                                   CHRE_PERMS_WIFI)
+    | static_cast<uint32_t>(chre::NanoappPermissions::CHRE_PERMS_WIFI)
 #endif
 #ifdef CHRE_NANOAPP_USES_WWAN
-                                         | static_cast<uint32_t>(
-                                               chre::NanoappPermissions::
-                                                   CHRE_PERMS_WWAN)
+    | static_cast<uint32_t>(chre::NanoappPermissions::CHRE_PERMS_WWAN)
 #endif
 #endif  // CHRE_TEST_NANOAPP_PERMS
     ;
@@ -209,6 +204,35 @@ bool chreAudioGetStatus(uint32_t handle, struct chreAudioSourceStatus *status) {
 
 #endif /* CHRE_NANOAPP_USES_AUDIO */
 
+#ifdef CHRE_NANOAPP_USES_BLE
+
+WEAK_SYMBOL
+uint32_t chreBleGetCapabilities() {
+  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreBleGetCapabilities);
+  return (fptr != nullptr) ? fptr() : CHRE_BLE_CAPABILITIES_NONE;
+}
+
+WEAK_SYMBOL
+uint32_t chreBleGetFilterCapabilities() {
+  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreBleGetFilterCapabilities);
+  return (fptr != nullptr) ? fptr() : CHRE_BLE_FILTER_CAPABILITIES_NONE;
+}
+
+WEAK_SYMBOL
+bool chreBleStartScanAsync(chreBleScanMode mode, uint32_t reportDelayMs,
+                           const struct chreBleScanFilter *filter) {
+  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreBleStartScanAsync);
+  return (fptr != nullptr) ? fptr(mode, reportDelayMs, filter) : false;
+}
+
+WEAK_SYMBOL
+bool chreBleStopScanAsync() {
+  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreBleStopScanAsync);
+  return (fptr != nullptr) ? fptr() : false;
+}
+
+#endif /* CHRE_NANOAPP_USES_BLE */
+
 WEAK_SYMBOL
 void chreConfigureHostSleepStateEvents(bool enable) {
   auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreConfigureHostSleepStateEvents);
@@ -257,6 +281,26 @@ bool chreWifiRequestRangingAsync(const struct chreWifiRangingParams *params,
                                  const void *cookie) {
   auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreWifiRequestRangingAsync);
   return (fptr != nullptr) ? fptr(params, cookie) : false;
+}
+
+WEAK_SYMBOL
+bool chreWifiNanRequestRangingAsync(
+    const struct chreWifiNanRangingParams *params, const void *cookie) {
+  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreWifiNanRequestRangingAsync);
+  return (fptr != nullptr) ? fptr(params, cookie) : false;
+}
+
+WEAK_SYMBOL
+bool chreWifiNanSubscribe(struct chreWifiNanSubscribeConfig *config,
+                          const void *cookie) {
+  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreWifiNanSubscribe);
+  return (fptr != nullptr) ? fptr(config, cookie) : false;
+}
+
+WEAK_SYMBOL
+bool chreWifiNanSubscribeCancel(uint32_t subscriptionID) {
+  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreWifiNanSubscribeCancel);
+  return (fptr != nullptr) ? fptr(subscriptionID) : false;
 }
 
 #endif /* CHRE_NANOAPP_USES_WIFI */
@@ -356,6 +400,13 @@ bool chrePublishRpcServices(struct chreNanoappRpcService *services,
                             size_t numServices) {
   auto *fptr = CHRE_NSL_LAZY_LOOKUP(chrePublishRpcServices);
   return (fptr != nullptr) ? fptr(services, numServices) : false;
+}
+
+WEAK_SYMBOL
+bool chreGetHostEndpointInfo(uint16_t hostEndpointId,
+                             struct chreHostEndpointInfo *info) {
+  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreGetHostEndpointInfo);
+  return (fptr != nullptr) ? fptr(hostEndpointId, info) : false;
 }
 
 #endif  // CHRE_NANOAPP_DISABLE_BACKCOMPAT

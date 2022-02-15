@@ -14,31 +14,25 @@
  * limitations under the License.
  */
 
-#include <chre.h>
-#include <cinttypes>
-
-#include "chre/util/nanoapp/log.h"
-
-#define LOG_TAG "[RpcServiceTest]"
+#include "rpc_service_manager.h"
 
 namespace chre {
+namespace rpc_service_test {
 
 extern "C" void nanoappHandleEvent(uint32_t senderInstanceId,
                                    uint16_t eventType, const void *eventData) {
-  LOGW("Got unknown event type from senderInstanceId %" PRIu32
-       " and with eventType %" PRIu16,
-       senderInstanceId, eventType);
+  RpcServiceManagerSingleton::get()->handleEvent(senderInstanceId, eventType,
+                                                 eventData);
 }
 
 extern "C" bool nanoappStart(void) {
-  static chreNanoappRpcService sRpcService = {
-      .id = 0xca8f7150a3f05847,
-      .version = 0x01020034,
-  };
-
-  return chrePublishRpcServices(&sRpcService, 1 /* numServices */);
+  RpcServiceManagerSingleton::init();
+  return RpcServiceManagerSingleton::get()->start();
 }
 
-extern "C" void nanoappEnd(void) {}
+extern "C" void nanoappEnd(void) {
+  RpcServiceManagerSingleton::deinit();
+}
 
+}  // namespace rpc_service_test
 }  // namespace chre

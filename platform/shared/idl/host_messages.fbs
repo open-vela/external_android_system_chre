@@ -275,6 +275,7 @@ enum Setting : byte {
   WIFI_AVAILABLE,
   AIRPLANE_MODE,
   MICROPHONE,
+  BLE_AVAILABLE,
 }
 
 /// An enum describing the state of a setting.
@@ -345,6 +346,16 @@ table SelfTestResponse {
 table HostEndpointConnected {
   /// The host-side endpoint that has connected to the framework.
   host_endpoint:ushort;
+
+  /// The type of host endpoint, which should be any of the CHRE_HOST_ENDPOINT_TYPE_*
+  /// values defined in the chre_api/chre/event.h.
+  type:ubyte;
+
+  /// The (optional) package name associated with the host endpoint.
+  package_name:[byte];
+
+  /// The (optional) attribution tag associated with this host.
+  attribution_tag:[byte];
 }
 
 // Message sent whenever a host endpoint has disconnected from the Context Hub.
@@ -367,6 +378,19 @@ table MetricLog {
 table BatchedMetricLog {
   // The batched metrics
   metrics: [MetricLog];
+}
+
+// NAN enable request sent from CHRE to the host.
+table NanConfigurationRequest {
+  enable:bool;
+}
+
+// NAN status message sent from the host to CHRE whenever a change in the NAN
+// enabled state is detected. Note that this update can be sent to CHRE either
+// as a response to a configuration request, or from out of band if NAN was
+// disabled by an external agent.
+table NanConfigurationUpdate {
+  enabled:bool;
 }
 
 /// A union that joins together all possible messages. Note that in FlatBuffers,
@@ -411,6 +435,9 @@ union ChreMessage {
 
   MetricLog,
   BatchedMetricLog,
+
+  NanConfigurationRequest,
+  NanConfigurationUpdate,
 }
 
 struct HostAddress {

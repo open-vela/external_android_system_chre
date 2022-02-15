@@ -267,12 +267,12 @@ enum chreBleScanFilterAdType {
  * Numbers, Generic Access Profile
  * ref: https://www.bluetooth.com/specifications/assigned-numbers/
  *
- * For example, to add a 32-bit service data UUID filter requiring the least
+ * For example, to add a 32-bit service data UUID filter requiring the most
  * significant byte to be 0x42, the following settings would be used:
  *   type = CHRE_BLE_FILTER_TYPE_SERVICE_DATA_UUID_32
  *   len = 4
- *   data = 0x00000042
- *   dataMask = 0x000000ff
+ *   data = {0x42, 0, 0, 0}
+ *   dataMask = {0xff, 0, 0, 0}
  */
 struct chreBleGenericFilter {
   //! Acceptable values among enum chreBleScanFilterAdType
@@ -318,9 +318,6 @@ struct chreBleScanFilter {
 
   //! Number of generic scan filters provided in the scanFilters array.
   //! A scanFilterCount value of 0 indicates no generic scan filters.
-  //! We currently expect at most one filter per nanoapp.
-  //! Behavior is TBD if the number of scan filters are more than what CHRE can
-  //! provide, and CHRE may provide unfiltered results.
   uint8_t scanFilterCount;
 
   //! Pointer to an array of scan filters. If the array contains more than one
@@ -532,8 +529,8 @@ static inline uint8_t chreBleGetDataStatus(uint8_t eventTypeAndDataStatus) {
  */
 static inline uint8_t chreBleGetEventTypeAndDataStatus(uint8_t eventType,
                                                        uint8_t dataStatus) {
-  return (eventType & CHRE_BLE_EVENT_MASK_TYPE |
-          dataStatus & CHRE_BLE_EVENT_MASK_DATA_STATUS);
+  return ((eventType & CHRE_BLE_EVENT_MASK_TYPE) |
+          (dataStatus & CHRE_BLE_EVENT_MASK_DATA_STATUS));
 }
 
 /**
@@ -595,7 +592,7 @@ bool chreBleStartScanAsync(enum chreBleScanMode mode, uint32_t reportDelayMs,
  *
  * @since v1.6
  */
-bool chreBleStopScanAsync();
+bool chreBleStopScanAsync(void);
 
 /**
  * Definitions for handling unsupported CHRE BLE scenarios.

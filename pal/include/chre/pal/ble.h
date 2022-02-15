@@ -40,6 +40,11 @@ extern "C" {
  */
 #define CHRE_PAL_BLE_API_V1_6 CHRE_PAL_CREATE_API_VERSION(1, 6)
 
+/**
+ * The version of the CHRE BLE PAL defined in this header file.
+ */
+#define CHRE_PAL_BLE_API_CURRENT_VERSION CHRE_PAL_BLE_API_V1_6
+
 struct chrePalBleCallbacks {
   /**
    * This function can be used by the BLE PAL subsystem to request that CHRE
@@ -147,6 +152,10 @@ struct chrePalBleApi {
    * @param reportDelayMs Maximum requested batching delay in ms. 0 indicates no
    *                      batching. Note that the system may deliver results
    *                      before the maximum specified delay is reached.
+   * @param filter List of filters that, if possible, should be used as hardware
+   *               filters by the BT peripheral. Note that if any of these
+   *               filters are invalid, they can be discarded by the PAL rather
+   *               than causing a synchronous failure.
    *
    * @return true if the request was accepted for processing, in which case a
    *         subsequent call to scanStatusChangeCallback() will be used to

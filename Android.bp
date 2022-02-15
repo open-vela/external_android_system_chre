@@ -230,6 +230,64 @@ cc_binary {
     vintf_fragments: ["host/hal_generic/V1_2/android.hardware.contexthub@1.2-generic.xml"],
 }
 
+cc_library_static {
+    name: "event_logger",
+    vendor: true,
+    host_supported: true,
+    srcs: [
+        "host/hal_generic/aidl/event_logger.cc",
+    ],
+    local_include_dirs: [
+        "util/include",
+        "host/common/include",
+    ],
+    shared_libs: [
+        "android.hardware.contexthub-V1-ndk",
+        "libcutils",
+        "libutils",
+    ],
+    header_libs: [
+        "chre_flatbuffers",
+    ],
+    cflags: [
+        "-Wall",
+        "-Werror",
+        "-DCHRE_IS_HOST_BUILD",
+    ],
+}
+
+cc_test_host {
+    name: "hal_unit_tests",
+    vendor: true,
+    srcs: [
+        "host/test/**/*_test.cc",
+    ],
+    local_include_dirs: [
+        "util/include",
+        "host/common/include",
+    ],
+    static_libs: [
+        "android.hardware.contexthub-V1-ndk",
+        "event_logger",
+        "libgmock",
+    ],
+    shared_libs: [
+        "libcutils",
+        "libutils",
+    ],
+    header_libs: [
+        "chre_flatbuffers",
+    ],
+    defaults: [
+        "chre_linux_cflags",
+    ],
+    cflags: [
+        "-Wall",
+        "-Werror",
+        "-DCHRE_IS_HOST_BUILD",
+    ],
+}
+
 cc_binary {
     name: "android.hardware.contexthub-service.generic",
     defaults: ["hidl_defaults"],
@@ -241,18 +299,36 @@ cc_binary {
         "host/hal_generic/common/hal_chre_socket_connection.cc",
         "host/hal_generic/common/permissions_util.cc",
     ],
-    local_include_dirs: ["host/hal_generic/common/"],
+    local_include_dirs: [
+        "host/hal_generic/common/",
+        "util/include",
+    ],
     init_rc: ["host/hal_generic/aidl/android.hardware.contexthub-service.generic.rc"],
-    cflags: ["-Wall", "-Werror"],
+    cflags: [
+        "-Wall",
+        "-Werror",
+        "-DCHRE_MESSAGE_TO_HOST_MAX_SIZE=4000", // Needed to import CHRE APIs.
+        "-DCHRE_HAL_SOCKET_METRICS_ENABLED",
+        "-DCHRE_IS_HOST_BUILD",
+    ],
     shared_libs: [
+        "android.frameworks.stats-V1-ndk",
         "libcutils",
         "liblog",
+        "libprotobuf-cpp-lite",
         "libutils",
         "libbase",
         "libbinder_ndk",
         "android.hardware.contexthub-V1-ndk",
+        "//hardware/google/pixel:pixelatoms-cpp",
     ],
-    static_libs: ["chre_client"],
+    header_libs: [
+        "chre_api",
+    ],
+    static_libs: [
+        "chre_client",
+        "event_logger",
+    ],
     vintf_fragments: ["host/hal_generic/aidl/android.hardware.contexthub-service.generic.xml"],
 }
 
@@ -269,6 +345,7 @@ cc_library_headers {
 cc_library_headers {
     name: "chre_flatbuffers",
     vendor: true,
+    host_supported: true,
     export_include_dirs: [
         "external/flatbuffers/include",
     ],
@@ -307,6 +384,7 @@ cc_library_static {
         "platform/linux/fatal_error.cc",
         "platform/linux/memory.cc",
         "platform/linux/pal_gnss.cc",
+        "platform/linux/pal_nan.cc",
         "platform/linux/pal_wifi.cc",
         "platform/linux/pal_wwan.cc",
         "platform/linux/platform_log.cc",
@@ -334,6 +412,7 @@ cc_test_host {
     srcs: [
         "core/event_ref_queue.cc",
         "core/nanoapp.cc",
+        "core/ble_request.cc",
         "core/sensor_request.cc",
         "core/tests/**/*.cc",
         "core/wifi_scan_request.cc",
@@ -395,14 +474,10 @@ cc_test_host {
     ],
     static_libs: [
         "chre_linux",
+        "chre_pal_linux",
     ],
-    cflags: [
-        "-DCHRE_MESSAGE_TO_HOST_MAX_SIZE=4096",
-        "-DCHRE_MINIMUM_LOG_LEVEL=CHRE_LOG_LEVEL_DEBUG",
-        "-DCHRE_ASSERTIONS_ENABLED=true",
-        "-DCHRE_FILENAME=__FILE__",
-        "-DCHRE_FIRST_SUPPORTED_API_VERSION=CHRE_API_VERSION_1_1",
-        "-DGTEST",
+    defaults: [
+        "chre_linux_cflags",
     ],
     sanitize: {
         address: true,
@@ -413,17 +488,21 @@ cc_library_static {
     name: "chre_linux",
     vendor: true,
     srcs: [
-        "core/init.cc",
+        "core/ble_request.cc",
+        "core/ble_request_manager.cc",
+        "core/ble_request_multiplexer.cc",
         "core/event.cc",
         "core/event_loop.cc",
         "core/event_loop_manager.cc",
         "core/event_ref_queue.cc",
         "core/gnss_manager.cc",
         "core/host_comms_manager.cc",
-        "core/nanoapp.cc",
-        "core/timer_pool.cc",
-        "core/settings.cc",
         "core/host_notifications.cc",
+        "core/init.cc",
+        "core/nanoapp.cc",
+        "core/settings.cc",
+        "core/timer_pool.cc",
+        "core/wifi_request_manager.cc",
         "platform/linux/assert.cc",
         "platform/linux/context.cc",
         "platform/linux/fatal_error.cc",
@@ -437,17 +516,27 @@ cc_library_static {
         "platform/linux/memory_manager.cc",
         "platform/linux/system_time.cc",
         "platform/linux/system_timer.cc",
+        "platform/linux/pal_ble.cc",
         "platform/linux/pal_gnss.cc",
         "platform/shared/log_buffer.cc",
         "platform/shared/memory_manager.cc",
         "platform/shared/pal_system_api.cc",
         "platform/shared/system_time.cc",
         "platform/shared/version.cc",
+        "platform/shared/platform_ble.cc",
         "platform/shared/platform_gnss.cc",
+        "platform/shared/chre_api_ble.cc",
+        "platform/shared/platform_wifi.cc",
         "platform/shared/chre_api_core.cc",
         "platform/shared/chre_api_gnss.cc",
         "platform/shared/chre_api_user_settings.cc",
+        "platform/shared/chre_api_wifi.cc",
         "util/**/*.cc",
+    ],
+    // TODO(b/217952682) Exclude pigweed because it can't be built via
+    // Android.bp
+    exclude_srcs: [
+        "util/pigweed/*.cc",
     ],
     export_include_dirs: [
         "chre_api/include",
@@ -463,20 +552,30 @@ cc_library_static {
     header_libs: [
         "chre_api",
     ],
-    cflags: [
-        "-DCHRE_MESSAGE_TO_HOST_MAX_SIZE=4096",
-        "-DCHRE_MINIMUM_LOG_LEVEL=CHRE_LOG_LEVEL_DEBUG",
-        "-DCHRE_ASSERTIONS_ENABLED=true",
-        "-DCHRE_FILENAME=__FILE__",
-        "-DGTEST",
-        "-DCHRE_FIRST_SUPPORTED_API_VERSION=CHRE_API_VERSION_1_1",
-        "-DCHRE_GNSS_SUPPORT_ENABLED",
+    defaults: [
+        "chre_linux_cflags",
     ],
     static_libs: [
         "libgtest",
         "libgmock",
     ],
     host_supported: true,
+}
+
+cc_defaults {
+   name: "chre_linux_cflags",
+   cflags: [
+        "-DCHRE_MESSAGE_TO_HOST_MAX_SIZE=4096",
+        "-DCHRE_MINIMUM_LOG_LEVEL=CHRE_LOG_LEVEL_DEBUG",
+        "-DCHRE_ASSERTIONS_ENABLED=true",
+        "-DCHRE_FILENAME=__FILE__",
+        "-DGTEST",
+        "-DCHRE_FIRST_SUPPORTED_API_VERSION=CHRE_API_VERSION_1_1",
+        "-DCHRE_BLE_SUPPORT_ENABLED",
+        "-DCHRE_GNSS_SUPPORT_ENABLED",
+        "-DCHRE_WIFI_SUPPORT_ENABLED",
+        "-DCHRE_WIFI_NAN_SUPPORT_ENABLED",
+    ],
 }
 
 subdirs = [

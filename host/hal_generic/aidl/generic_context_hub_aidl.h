@@ -18,15 +18,15 @@
 #define ANDROID_HARDWARE_CONTEXTHUB_AIDL_CONTEXTHUB_H
 
 #include <aidl/android/hardware/contexthub/BnContextHub.h>
-
-#include "hal_chre_socket_connection.h"
-
 #include <android-base/file.h>
 #include <log/log.h>
 #include <map>
 #include <mutex>
 #include <optional>
 #include <unordered_set>
+
+#include "event_logger.h"
+#include "hal_chre_socket_connection.h"
 
 namespace aidl {
 namespace android {
@@ -45,26 +45,20 @@ class ContextHub : public BnContextHub,
       std::vector<ContextHubInfo> *out_contextHubInfos) override;
   ::ndk::ScopedAStatus loadNanoapp(int32_t contextHubId,
                                    const NanoappBinary &appBinary,
-                                   int32_t transactionId,
-                                   bool *_aidl_return) override;
+                                   int32_t transactionId) override;
   ::ndk::ScopedAStatus unloadNanoapp(int32_t contextHubId, int64_t appId,
-                                     int32_t transactionId,
-                                     bool *_aidl_return) override;
+                                     int32_t transactionId) override;
   ::ndk::ScopedAStatus disableNanoapp(int32_t contextHubId, int64_t appId,
-                                      int32_t transactionId,
-                                      bool *_aidl_return) override;
+                                      int32_t transactionId) override;
   ::ndk::ScopedAStatus enableNanoapp(int32_t contextHubId, int64_t appId,
-                                     int32_t transactionId,
-                                     bool *_aidl_return) override;
+                                     int32_t transactionId) override;
   ::ndk::ScopedAStatus onSettingChanged(Setting setting, bool enabled) override;
-  ::ndk::ScopedAStatus queryNanoapps(int32_t contextHubId,
-                                     bool *_aidl_return) override;
+  ::ndk::ScopedAStatus queryNanoapps(int32_t contextHubId) override;
   ::ndk::ScopedAStatus registerCallback(
-      int32_t contextHubId, const std::shared_ptr<IContextHubCallback> &cb,
-      bool *_aidl_return) override;
-  ::ndk::ScopedAStatus sendMessageToHub(int32_t contextHubId,
-                                        const ContextHubMessage &message,
-                                        bool *_aidl_return) override;
+      int32_t contextHubId,
+      const std::shared_ptr<IContextHubCallback> &cb) override;
+  ::ndk::ScopedAStatus sendMessageToHub(
+      int32_t contextHubId, const ContextHubMessage &message) override;
   ::ndk::ScopedAStatus onHostEndpointConnected(
       const HostEndpointInfo &in_info) override;
   ::ndk::ScopedAStatus onHostEndpointDisconnected(
@@ -102,6 +96,7 @@ class ContextHub : public BnContextHub,
 
   std::map<Setting, bool> mSettingEnabled;
   std::optional<bool> mIsWifiAvailable;
+  std::optional<bool> mIsBleAvailable;
 
   std::mutex mConnectedHostEndpointsMutex;
   std::unordered_set<char16_t> mConnectedHostEndpoints;
@@ -112,6 +107,9 @@ class ContextHub : public BnContextHub,
   bool mDebugDumpPending = false;
   std::mutex mDebugDumpMutex;
   std::condition_variable mDebugDumpCond;
+
+  // Logs events to be reported in debug dumps.
+  EventLogger mEventLogger;
 
   bool isSettingEnabled(Setting setting) {
     return mSettingEnabled.count(setting) > 0 ? mSettingEnabled[setting]
@@ -124,15 +122,19 @@ class ContextHub : public BnContextHub,
   }
 
   // Write a string to mDebugFd
+  void writeToDebugFile(const std::string &str) {
+    if (!::android::base::WriteStringToFd(str, mDebugFd)) {
+      ALOGW("Failed to write %zu bytes to debug dump fd", str.size());
+    }
+  }
+
   void writeToDebugFile(const char *str) {
     writeToDebugFile(str, strlen(str));
   }
 
   void writeToDebugFile(const char *str, size_t len) {
     std::string s(str, len);
-    if (!::android::base::WriteStringToFd(s, mDebugFd)) {
-      ALOGW("Failed to write %zu bytes to debug dump fd", len);
-    }
+    writeToDebugFile(s);
   }
 };
 

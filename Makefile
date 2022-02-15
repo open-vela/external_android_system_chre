@@ -37,6 +37,11 @@ ifeq ($(CHRE_AUDIO_SUPPORT_ENABLED), true)
 COMMON_CFLAGS += -DCHRE_AUDIO_SUPPORT_ENABLED
 endif
 
+# Optional BLE support
+ifeq ($(CHRE_BLE_SUPPORT_ENABLED), true)
+COMMON_CFLAGS += -DCHRE_BLE_SUPPORT_ENABLED
+endif
+
 # Optional GNSS support.
 ifeq ($(CHRE_GNSS_SUPPORT_ENABLED), true)
 COMMON_CFLAGS += -DCHRE_GNSS_SUPPORT_ENABLED
@@ -107,8 +112,6 @@ ifneq ($(CHRE_TARGET_EXTENSION),)
 include $(CHRE_TARGET_EXTENSION)
 endif
 include $(CHRE_PREFIX)/build/variant/google_arm64_android.mk
-include $(CHRE_PREFIX)/build/variant/google_hexagonv55_slpi-see.mk
-include $(CHRE_PREFIX)/build/variant/google_hexagonv60_slpi.mk
 include $(CHRE_PREFIX)/build/variant/google_hexagonv62_slpi.mk
 include $(CHRE_PREFIX)/build/variant/google_hexagonv62_slpi-uimg.mk
 include $(CHRE_PREFIX)/build/variant/google_hexagonv65_adsp-see.mk

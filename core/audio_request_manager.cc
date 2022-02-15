@@ -127,7 +127,7 @@ void AudioRequestManager::logStateToBuffer(DebugDumpWrapper &debugDump) const {
 
     for (const auto &request : mAudioRequestLists[i].requests) {
       for (const auto &instanceId : request.instanceIds) {
-        debugDump.print("  nanoappId=%" PRIu32 ", numSamples=%" PRIu32
+        debugDump.print("  nanoappId=%" PRIu16 ", numSamples=%" PRIu32
                         ", interval(ms)=%" PRIu64 "\n",
                         instanceId, request.numSamples,
                         Milliseconds(Nanoseconds(request.deliveryInterval))
@@ -168,7 +168,7 @@ bool AudioRequestManager::validateConfigureSourceArguments(
   return success;
 }
 
-bool AudioRequestManager::doConfigureSource(uint32_t instanceId,
+bool AudioRequestManager::doConfigureSource(uint16_t instanceId,
                                             uint32_t handle, bool enable,
                                             uint32_t numSamples,
                                             Nanoseconds deliveryInterval) {
@@ -206,7 +206,8 @@ bool AudioRequestManager::doConfigureSource(uint32_t instanceId,
   }
 
   if (success &&
-      (getSettingState(Setting::MICROPHONE) != SettingState::DISABLED)) {
+      (EventLoopManagerSingleton::get()->getSettingManager().getSettingEnabled(
+          Setting::MICROPHONE))) {
     scheduleNextAudioDataEvent(handle);
     updatePlatformHandleEnabled(handle, lastNumRequests);
   }
@@ -225,7 +226,7 @@ void AudioRequestManager::updatePlatformHandleEnabled(uint32_t handle,
 }
 
 bool AudioRequestManager::createAudioRequest(uint32_t handle,
-                                             uint32_t instanceId,
+                                             uint16_t instanceId,
                                              uint32_t numSamples,
                                              Nanoseconds deliveryInterval) {
   AudioRequestList &requestList = mAudioRequestLists[handle];
@@ -256,8 +257,9 @@ bool AudioRequestManager::createAudioRequest(uint32_t handle,
   }
 
   if (success) {
-    bool suspended =
-        (getSettingState(Setting::MICROPHONE) == SettingState::DISABLED);
+    bool suspended = !EventLoopManagerSingleton::get()
+                          ->getSettingManager()
+                          .getSettingEnabled(Setting::MICROPHONE);
     postAudioSamplingChangeEvent(instanceId, handle, requestList.available,
                                  suspended);
   }
@@ -267,7 +269,7 @@ bool AudioRequestManager::createAudioRequest(uint32_t handle,
 
 AudioRequestManager::AudioRequest *
 AudioRequestManager::findAudioRequestByInstanceId(uint32_t handle,
-                                                  uint32_t instanceId,
+                                                  uint16_t instanceId,
                                                   size_t *index,
                                                   size_t *instanceIdIndex) {
   AudioRequest *foundAudioRequest = nullptr;
@@ -346,8 +348,9 @@ void AudioRequestManager::handleAudioAvailabilitySync(uint32_t handle,
                                                       bool available) {
   if (handle < mAudioRequestLists.size()) {
     if (mAudioRequestLists[handle].available != available) {
-      bool suspended =
-          (getSettingState(Setting::MICROPHONE) == SettingState::DISABLED);
+      bool suspended = !EventLoopManagerSingleton::get()
+                            ->getSettingManager()
+                            .getSettingEnabled(Setting::MICROPHONE);
       mAudioRequestLists[handle].available = available;
       postAudioSamplingChangeEvents(handle, suspended);
     }
@@ -359,7 +362,8 @@ void AudioRequestManager::handleAudioAvailabilitySync(uint32_t handle,
 }
 
 void AudioRequestManager::scheduleNextAudioDataEvent(uint32_t handle) {
-  if (getSettingState(Setting::MICROPHONE) == SettingState::DISABLED) {
+  if (!EventLoopManagerSingleton::get()->getSettingManager().getSettingEnabled(
+          Setting::MICROPHONE)) {
     LOGD("Mic access disabled, doing nothing");
     return;
   }
@@ -394,7 +398,7 @@ void AudioRequestManager::postAudioSamplingChangeEvents(uint32_t handle,
   }
 }
 
-void AudioRequestManager::postAudioSamplingChangeEvent(uint32_t instanceId,
+void AudioRequestManager::postAudioSamplingChangeEvent(uint16_t instanceId,
                                                        uint32_t handle,
                                                        bool available,
                                                        bool suspended) {
@@ -410,7 +414,7 @@ void AudioRequestManager::postAudioSamplingChangeEvent(uint32_t instanceId,
 
 void AudioRequestManager::postAudioDataEventFatal(
     struct chreAudioDataEvent *event,
-    const DynamicVector<uint32_t> &instanceIds) {
+    const DynamicVector<uint16_t> &instanceIds) {
   if (instanceIds.empty()) {
     LOGW("Received audio data event for no clients");
     mPlatformAudio.releaseAudioDataEvent(event);
@@ -448,19 +452,19 @@ void AudioRequestManager::handleFreeAudioDataEvent(
 
 void AudioRequestManager::freeAudioDataEventCallback(uint16_t eventType,
                                                      void *eventData) {
+  UNUSED_VAR(eventType);
   auto *event = static_cast<struct chreAudioDataEvent *>(eventData);
   EventLoopManagerSingleton::get()
       ->getAudioRequestManager()
       .handleFreeAudioDataEvent(event);
 }
 
-void AudioRequestManager::onSettingChanged(Setting setting,
-                                           SettingState state) {
+void AudioRequestManager::onSettingChanged(Setting setting, bool enabled) {
   if (setting == Setting::MICROPHONE) {
     for (size_t i = 0; i < mAudioRequestLists.size(); ++i) {
       uint32_t handle = static_cast<uint32_t>(i);
       if (mAudioRequestLists[i].available) {
-        if (state == SettingState::DISABLED) {
+        if (!enabled) {
           LOGD("Canceling data event request for handle %" PRIu32, handle);
           postAudioSamplingChangeEvents(handle, true /* suspended */);
           mPlatformAudio.cancelAudioDataEventRequest(handle);
