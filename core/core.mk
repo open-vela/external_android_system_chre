@@ -71,7 +71,9 @@ COMMON_CFLAGS += -DCHRE_TELEMETRY_SUPPORT_ENABLED
 NANOPB_EXTENSION = nanopb
 
 NANOPB_SRCS += $(CHRE_PREFIX)/../../hardware/google/pixel/pixelstats/pixelatoms.proto
-NANOPB_INCLUDES = $(CHRE_PREFIX)/../../hardware/google/pixel/pixelstats/
+NANOPB_PROTO_PATH = $(CHRE_PREFIX)/../../hardware/google/pixel/pixelstats/
+NANOPB_INCLUDES = $(NANOPB_PROTO_PATH)
+NANOPB_FLAGS += --proto_path=$(NANOPB_PROTO_PATH)
 
 include $(CHRE_PREFIX)/build/nanopb.mk
 endif
