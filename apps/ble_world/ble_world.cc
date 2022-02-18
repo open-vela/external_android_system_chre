@@ -47,11 +47,12 @@ enum ScanRequestType {
 };
 
 chreBleScanFilter *getBleScanFilter(ScanRequestType &scanRequestType) {
-  UniquePtr<chreBleScanFilter> filter = MakeUniqueZeroFill<chreBleScanFilter>();
+  chre::UniquePtr<chreBleScanFilter> filter =
+      chre::MakeUniqueZeroFill<chreBleScanFilter>();
   filter->rssiThreshold = CHRE_BLE_RSSI_THRESHOLD_NONE;
   filter->scanFilterCount = 1;
-  UniquePtr<chreBleGenericFilter> scanFilter =
-      MakeUniqueZeroFill<chreBleGenericFilter>();
+  chre::UniquePtr<chreBleGenericFilter> scanFilter =
+      chre::MakeUniqueZeroFill<chreBleGenericFilter>();
   switch (scanRequestType) {
     case NO_FILTER:
       filter = nullptr;
@@ -105,9 +106,10 @@ void makeBleScanRequest() {
     }
     if (filter != nullptr) {
       if (filter->scanFilters != nullptr) {
-        memoryFree(const_cast<chreBleGenericFilter *>(filter->scanFilters));
+        chre::memoryFree(
+            const_cast<chreBleGenericFilter *>(filter->scanFilters));
       }
-      memoryFree(filter);
+      chre::memoryFree(filter);
     }
   } else {
     if (chreBleStopScanAsync()) {
@@ -195,6 +197,6 @@ void nanoappHandleEvent(uint32_t /* sender_instance_id */, uint16_t event_type,
 #include "chre/util/nanoapp/app_id.h"
 #include "chre/util/system/napp_permissions.h"
 
-CHRE_STATIC_NANOAPP_INIT(BleWorld, kBleWorldAppId, 0,
-                         NanoappPermissions::CHRE_PERMS_BLE);
+CHRE_STATIC_NANOAPP_INIT(BleWorld, chre::kBleWorldAppId, 0,
+                         chre::NanoappPermissions::CHRE_PERMS_BLE);
 #endif  // CHRE_NANOAPP_INTERNAL
