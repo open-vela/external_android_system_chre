@@ -16,12 +16,10 @@
 # nanopb compiler. Note that this is global and applies to all protobuf
 # generated source.
 #
-# NANOPB_INCLUDES may optionally be used to automatically add one or more
-# include path prefixes for C/C++ source and .proto files. For example, if the
-# file myprefix/proto/foo.proto is added to NANOPB_SRCS, but you'd like to use
-# #include "proto/foo.pb.h" in your source (rather than myprefix/proto/foo.pb.h)
-# and/or import "proto/foo.proto" in your .proto files, then set NANOPB_INCLUDES
-# to myprefix.
+# NANOPB_INCLUDES may optionally be used to automatically add an include path
+# prefix. For example, if the file myprefix/proto/foo.proto is added to
+# NANOPB_SRCS, but you'd like to use #include "proto/foo.pb.h" in your source
+# (rather than myprefix/proto/foo.pb.h), then set NANOPB_INCLUDES to myprefix.
 
 # Environment Checks ###########################################################
 
@@ -86,8 +84,6 @@ else
 NANOPB_OPTIONS_FLAG =
 endif
 
-NANOPB_FLAGS += $(addprefix --proto_path=, $(abspath $(NANOPB_INCLUDES)))
-
 # Generate NanoPB Sources ######################################################
 
 COMMON_SRCS += $(NANOPB_GEN_SRCS)
@@ -100,9 +96,8 @@ $(NANOPB_GEN_PATH)/%.$(NANOPB_EXTENSION).c \
                                                     $(NANOPB_GENERATOR_SRCS)
 	@echo " [NANOPB] $<"
 	$(V)mkdir -p $(dir $@)
-	$(V)$(PROTOC) --plugin=protoc-gen-nanopb=$(NANOPB_PROTOC) \
+	$(V)$(PROTOC) --plugin=protoc-gen-nanopb=$(NANOPB_PROTOC) $(NANOPB_FLAGS) \
 	  --proto_path=$(abspath $(dir $<)) \
-	  $(NANOPB_FLAGS) \
 	  --nanopb_out="$(NANOPB_GENERATOR_FLAGS) --options-file=$(basename $<).options:$(dir $@)" \
 	  $(abspath $<)
 
@@ -112,8 +107,7 @@ $(NANOPB_GEN_PATH)/%.$(NANOPB_EXTENSION).c \
                                                     $(NANOPB_GENERATOR_SRCS)
 	@echo " [NANOPB] $<"
 	$(V)mkdir -p $(dir $@)
-	$(V)$(PROTOC) --plugin=protoc-gen-nanopb=$(NANOPB_PROTOC) \
+	$(V)$(PROTOC) --plugin=protoc-gen-nanopb=$(NANOPB_PROTOC) $(NANOPB_FLAGS) \
 	  --proto_path=$(abspath $(dir $<)) \
-	  $(NANOPB_FLAGS) \
 	  --nanopb_out="$(NANOPB_GENERATOR_FLAGS) $(NANOPB_OPTIONS_FLAG):$(dir $@)" \
 	  $(abspath $<)
