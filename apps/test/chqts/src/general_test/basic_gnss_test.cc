@@ -65,24 +65,25 @@ void BasicGnssTest::setUp(uint32_t messageSize, const void * /* message */) {
     sendFatalFailureToHost("Expected 0 byte message, got more bytes:",
                            &messageSize);
   } else {
-    if (isCapabilitySet(CHRE_GNSS_CAPABILITIES_LOCATION)) {
+    uint32_t capabilities = chreGnssGetCapabilities();
+
+    if (capabilities & CHRE_GNSS_CAPABILITIES_LOCATION) {
       testLocationSessionAsync();
     } else {
       mTestSuccessMarker.markStageAndSuccessOnFinish(
           BASIC_GNSS_TEST_STAGE_LOCATION);
     }
 
-    if (isCapabilitySet(CHRE_GNSS_CAPABILITIES_MEASUREMENTS)) {
+    if (capabilities & CHRE_GNSS_CAPABILITIES_MEASUREMENTS) {
       testMeasurementSessionAsync();
     } else {
       mTestSuccessMarker.markStageAndSuccessOnFinish(
           BASIC_GNSS_TEST_STAGE_MEASUREMENT);
     }
 
-    if ((mApiVersion < CHRE_API_VERSION_1_5) ||
-        !isCapabilitySet(
-            CHRE_GNSS_CAPABILITIES_GNSS_ENGINE_BASED_PASSIVE_LISTENER) ||
-        !isCapabilitySet(CHRE_GNSS_CAPABILITIES_LOCATION) ||
+    if (((mApiVersion < CHRE_API_VERSION_1_5) &&
+         (capabilities &
+          CHRE_GNSS_CAPABILITIES_GNSS_ENGINE_BASED_PASSIVE_LISTENER) == 0) ||
         testPassiveListener()) {
       mTestSuccessMarker.markStageAndSuccessOnFinish(
           BASIC_GNSS_TEST_STAGE_LISTENER);
