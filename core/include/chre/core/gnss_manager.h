@@ -65,15 +65,6 @@ class GnssSession {
   bool removeRequest(Nanoapp *nanoapp, const void *cookie);
 
   /**
-   * Checks if a nanoapp has an open session request.
-   *
-   * @param nanoapp The nanoapp removing the request.
-   *
-   * @return whether the nanoapp has an active request.
-   */
-  bool nanoappHasRequest(Nanoapp *nanoapp) const;
-
-  /**
    * Handles the result of a request to the PlatformGnss to request a change to
    * the session.
    *
@@ -451,16 +442,6 @@ class GnssManager : public NonCopyable {
    *     into one of the buffers.
    */
   void logStateToBuffer(DebugDumpWrapper &debugDump) const;
-
-  /**
-   * Disables the location session, the measurement session and the passive
-   * location listener associated to a nanoapp.
-   *
-   * @param nanoapp A non-null pointer to the nanoapp.
-   *
-   * @return The number of disabled subscriptions.
-   */
-  uint32_t disableAllSubscriptions(Nanoapp *nanoapp);
 
  private:
   // Allows GnssSession to access mPlatformGnss.
