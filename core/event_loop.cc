@@ -485,31 +485,6 @@ void EventLoop::unloadNanoappAtIndex(size_t index) {
   LOGV("Disabled %" PRId32 " wifi subscriptions", numDisabledWifiSubscriptions);
 #endif  // CHRE_WIFI_SUPPORT_ENABLED
 
-#ifdef CHRE_GNSS_SUPPORT_ENABLED
-  const uint32_t numDisabledGnssSubscriptions =
-      EventLoopManagerSingleton::get()
-          ->getGnssManager()
-          .disableAllSubscriptions(nanoapp.get());
-  LOGV("Disabled %" PRId32 " GNSS subscriptions", numDisabledGnssSubscriptions);
-#endif  // CHRE_GNSS_SUPPORT_ENABLED
-
-#ifdef CHRE_SENSORS_SUPPORT_ENABLED
-  const uint32_t numDisabledSensorSubscriptions =
-      EventLoopManagerSingleton::get()
-          ->getSensorRequestManager()
-          .disableAllSubscriptions(nanoapp.get());
-  LOGV("Disabled %" PRId32 " sensor subscriptions",
-       numDisabledSensorSubscriptions);
-#endif  // CHRE_SENSORS_SUPPORT_ENABLED
-
-#ifdef CHRE_AUDIO_SUPPORT_ENABLED
-  const uint32_t numDisabledAudioRequests =
-      EventLoopManagerSingleton::get()
-          ->getAudioRequestManager()
-          .disableAllAudioRequests(nanoapp.get());
-  LOGV("Disabled %" PRId32 " audio requests", numDisabledAudioRequests);
-#endif  // CHRE_AUDIO_SUPPORT_ENABLED
-
   mCurrentApp = nullptr;
 
   // Destroy the Nanoapp instance
