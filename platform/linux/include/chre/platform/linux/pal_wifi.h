@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,22 +14,12 @@
  * limitations under the License.
  */
 
-#ifndef CHRE_PLATFORM_LINUX_PAL_GNSS_H_
-#define CHRE_PLATFORM_LINUX_PAL_GNSS_H_
+#ifndef CHRE_PLATFORM_LINUX_PAL_WIFI_H_
+#define CHRE_PLATFORM_LINUX_PAL_WIFI_H_
 
 /**
- * @return whether the GNSS location session is enabled in the GNSS PAL.
+ * @return whether scan monitoring is active.
  */
-bool chrePalGnssIsLocationEnabled();
+bool chrePalWifiIsScanMonitoringActive();
 
-/**
- * @return whether the GNSS measurement session is enabled in the GNSS PAL.
- */
-bool chrePalGnssIsMeasurementEnabled();
-
-/**
- * @return whether the GNSS passive listener is enabled in the GNSS PAL.
- */
-bool chrePalGnssIsPassiveLocationListenerEnabled();
-
-#endif  // CHRE_PLATFORM_LINUX_PAL_GNSS_H_
+#endif  // CHRE_PLATFORM_LINUX_PAL_WIFI_H_
