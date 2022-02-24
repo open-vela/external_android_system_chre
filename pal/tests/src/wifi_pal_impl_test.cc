@@ -352,7 +352,7 @@ TEST_F(PalWifiTest, NanSubscribeTest) {
  * discovery.
  */
 TEST_F(PalWifiTest, NanSubscribeCancelTest) {
- bool hasNanCapabilities =
+  bool hasNanCapabilities =
       (api_->getCapabilities() & CHRE_WIFI_CAPABILITIES_NAN_SUB);
   if (!hasNanCapabilities) {
     GTEST_SKIP();
