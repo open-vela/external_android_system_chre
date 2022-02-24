@@ -46,10 +46,6 @@ class BasicGnssTest : public Test {
   nanoapp_testing::TestSuccessMarker mTestSuccessMarker =
       nanoapp_testing::TestSuccessMarker(BASIC_GNSS_TEST_STAGE_COUNT);
 
-  bool isCapabilitySet(uint32_t capability) {
-    return (chreGnssGetCapabilities() & capability);
-  };
-
   void handleGnssAsyncResult(const chreAsyncResult *result);
 };
 
