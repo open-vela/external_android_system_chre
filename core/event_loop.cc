@@ -227,12 +227,6 @@ bool EventLoop::unloadNanoapp(uint16_t instanceId,
         unloadNanoappAtIndex(i);
         mStoppingNanoapp = nullptr;
 
-        // TODO: right now we assume that the nanoapp will clean up all of its
-        // resource allocations in its nanoappEnd callback (memory, sensor
-        // subscriptions, etc.), otherwise we're leaking resources. We should
-        // perform resource cleanup automatically here to avoid these types of
-        // potential leaks.
-
         LOGD("Unloaded nanoapp with instanceId %" PRIu16, instanceId);
         unloaded = true;
       }
@@ -475,6 +469,47 @@ void EventLoop::unloadNanoappAtIndex(size_t index) {
   // Let the app know it's going away
   mCurrentApp = nanoapp.get();
   nanoapp->end();
+
+  // TODO: right now we assume that the nanoapp will clean up all of its
+  // resource allocations in its nanoappEnd callback (memory, sensor
+  // subscriptions, etc.), otherwise we're leaking resources. We should
+  // perform resource cleanup automatically here to avoid these types of
+  // potential leaks.
+
+  // Cleanup resources.
+#ifdef CHRE_WIFI_SUPPORT_ENABLED
+  const uint32_t numDisabledWifiSubscriptions =
+      EventLoopManagerSingleton::get()
+          ->getWifiRequestManager()
+          .disableAllSubscriptions(nanoapp.get());
+  LOGV("Disabled %" PRId32 " wifi subscriptions", numDisabledWifiSubscriptions);
+#endif  // CHRE_WIFI_SUPPORT_ENABLED
+
+#ifdef CHRE_GNSS_SUPPORT_ENABLED
+  const uint32_t numDisabledGnssSubscriptions =
+      EventLoopManagerSingleton::get()
+          ->getGnssManager()
+          .disableAllSubscriptions(nanoapp.get());
+  LOGV("Disabled %" PRId32 " GNSS subscriptions", numDisabledGnssSubscriptions);
+#endif  // CHRE_GNSS_SUPPORT_ENABLED
+
+#ifdef CHRE_SENSORS_SUPPORT_ENABLED
+  const uint32_t numDisabledSensorSubscriptions =
+      EventLoopManagerSingleton::get()
+          ->getSensorRequestManager()
+          .disableAllSubscriptions(nanoapp.get());
+  LOGV("Disabled %" PRId32 " sensor subscriptions",
+       numDisabledSensorSubscriptions);
+#endif  // CHRE_SENSORS_SUPPORT_ENABLED
+
+#ifdef CHRE_AUDIO_SUPPORT_ENABLED
+  const uint32_t numDisabledAudioRequests =
+      EventLoopManagerSingleton::get()
+          ->getAudioRequestManager()
+          .disableAllAudioRequests(nanoapp.get());
+  LOGV("Disabled %" PRId32 " audio requests", numDisabledAudioRequests);
+#endif  // CHRE_AUDIO_SUPPORT_ENABLED
+
   mCurrentApp = nullptr;
 
   // Destroy the Nanoapp instance
