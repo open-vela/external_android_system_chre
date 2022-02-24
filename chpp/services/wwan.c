@@ -415,7 +415,6 @@ void chppRegisterWwanService(struct ChppAppState *appContext) {
 
   } else {
     gWwanServiceContext.service.appContext = appContext;
-    gWwanServiceContext.service.openState = CHPP_OPEN_STATE_CLOSED;
     gWwanServiceContext.service.handle = chppRegisterService(
         appContext, (void *)&gWwanServiceContext, &kWwanServiceConfig);
     CHPP_DEBUG_ASSERT(gWwanServiceContext.service.handle);
