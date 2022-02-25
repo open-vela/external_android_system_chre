@@ -57,9 +57,6 @@ class PlatformWifiBase : public PlatformPal {
 
   static void nanServiceTerminatedCallback(uint32_t errorCode,
                                            uint32_t subscriptionId);
-
-  static void nanServiceSubscriptionCanceledCallback(uint8_t errorCode,
-                                                     uint32_t subscriptionId);
 };
 
 }  // namespace chre
