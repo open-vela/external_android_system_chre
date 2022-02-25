@@ -34,7 +34,6 @@ const chrePalWifiCallbacks PlatformWifiBase::sWifiCallbacks = {
     PlatformWifiBase::nanServiceDiscoveryCallback,
     PlatformWifiBase::nanServiceLostCallback,
     PlatformWifiBase::nanServiceTerminatedCallback,
-    PlatformWifiBase::nanServiceSubscriptionCanceledCallback,
 };
 
 PlatformWifi::~PlatformWifi() {
@@ -238,18 +237,6 @@ void PlatformWifiBase::nanServiceTerminatedCallback(uint32_t errorCode,
   EventLoopManagerSingleton::get()
       ->getWifiRequestManager()
       .handleNanServiceTerminatedEvent(errorCode, subscriptionId);
-#else
-  UNUSED_VAR(errorCode);
-  UNUSED_VAR(subscriptionId);
-#endif
-}
-
-void PlatformWifiBase::nanServiceSubscriptionCanceledCallback(
-    uint8_t errorCode, uint32_t subscriptionId) {
-#ifdef CHRE_WIFI_NAN_SUPPORT_ENABLED
-  EventLoopManagerSingleton::get()
-      ->getWifiRequestManager()
-      .handleNanServiceSubscriptionCanceledEvent(errorCode, subscriptionId);
 #else
   UNUSED_VAR(errorCode);
   UNUSED_VAR(subscriptionId);

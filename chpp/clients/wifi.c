@@ -163,7 +163,6 @@ static void chppWifiDiscoveryEventNotification(uint8_t *buf, size_t len);
 static void chppWifiNanServiceLostEventNotification(uint8_t *buf, size_t len);
 static void chppWifiNanServiceTerminatedEventNotification(uint8_t *buf,
                                                           size_t len);
-static void chppWifiNanSubscriptionCanceledResult(uint8_t *buf, size_t len);
 
 /************************************************
  *  Private Functions
@@ -233,11 +232,6 @@ static enum ChppAppErrorCode chppDispatchWifiResponse(void *clientContext,
 
       case CHPP_WIFI_REQUEST_NAN_SUB: {
         chppWifiRequestNanSubscribeResult(buf, len);
-        break;
-      }
-
-      case CHPP_WIFI_REQUEST_NAN_SUB_CANCEL: {
-        chppWifiNanSubscriptionCanceledResult(buf, len);
         break;
       }
 
@@ -562,20 +556,6 @@ static void chppWifiRequestNanSubscribeResult(uint8_t *buf, size_t len) {
     subscriptionId = id->subscriptionId;
   }
   gCallbacks->nanServiceIdentifierCallback(errorCode, subscriptionId);
-}
-
-static void chppWifiNanSubscriptionCanceledResult(uint8_t *buf, size_t len) {
-  uint8_t errorCode = CHRE_ERROR_NONE;
-  uint32_t subscriptionId = 0;
-  if (len < (sizeof(struct ChppWifiNanSubscriptionCanceledResponse))) {
-    errorCode = CHRE_ERROR;
-  } else {
-    struct ChppWifiNanSubscriptionCanceledResponse *chppNotif =
-        (struct ChppWifiNanSubscriptionCanceledResponse *)buf;
-    errorCode = chppNotif->errorCode;
-    subscriptionId = chppNotif->subscriptionId;
-  }
-  gCallbacks->nanSubscriptionCanceledCallback(errorCode, subscriptionId);
 }
 
 /**
