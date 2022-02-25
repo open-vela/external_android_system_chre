@@ -486,20 +486,6 @@ void WifiRequestManager::handleNanServiceTerminatedEventSync(
   }
 }
 
-void WifiRequestManager::handleNanServiceSubscriptionCanceledEventSync(
-    uint8_t errorCode, uint32_t subscriptionId) {
-  for (size_t i = 0; i < mNanoappSubscriptions.size(); ++i) {
-    if (mNanoappSubscriptions[i].subscriptionId == subscriptionId) {
-      if (errorCode != CHRE_ERROR_NONE) {
-        LOGE("Subscription %" PRIu32 " cancelation error: %" PRIu8,
-             subscriptionId, errorCode);
-      }
-      mNanoappSubscriptions.erase(i);
-      break;
-    }
-  }
-}
-
 void WifiRequestManager::handleNanServiceTerminatedEvent(
     uint8_t errorCode, uint32_t subscriptionId) {
   auto callback = [](uint16_t /*type*/, void *data, void *extraData) {
@@ -508,23 +494,6 @@ void WifiRequestManager::handleNanServiceTerminatedEvent(
     EventLoopManagerSingleton::get()
         ->getWifiRequestManager()
         .handleNanServiceTerminatedEventSync(errorCode, subscriptionId);
-  };
-
-  EventLoopManagerSingleton::get()->deferCallback(
-      SystemCallbackType::WifiNanServiceTerminatedEvent,
-      NestedDataPtr<uint8_t>(errorCode), callback,
-      NestedDataPtr<uint32_t>(subscriptionId));
-}
-
-void WifiRequestManager::handleNanServiceSubscriptionCanceledEvent(
-    uint8_t errorCode, uint32_t subscriptionId) {
-  auto callback = [](uint16_t /*type*/, void *data, void *extraData) {
-    auto errorCode = NestedDataPtr<uint8_t>(data);
-    auto subscriptionId = NestedDataPtr<uint32_t>(extraData);
-    EventLoopManagerSingleton::get()
-        ->getWifiRequestManager()
-        .handleNanServiceSubscriptionCanceledEventSync(errorCode,
-                                                       subscriptionId);
   };
 
   EventLoopManagerSingleton::get()->deferCallback(
@@ -1118,13 +1087,15 @@ bool WifiRequestManager::nanSubscribeCancel(Nanoapp *nanoapp,
         mNanoappSubscriptions[i].nanoappInstanceId ==
             nanoapp->getInstanceId()) {
       success = mPlatformWifi.nanSubscribeCancel(subscriptionId);
+      if (success) {
+        mNanoappSubscriptions.erase(i);
+      }
       break;
     }
   }
 
-  if (!success) {
-    LOGE("Failed to cancel subscription %" PRIu32 " for napp %" PRIu16,
-         subscriptionId, nanoapp->getInstanceId());
+  if (mNanoappSubscriptions.empty()) {
+    sendNanConfiguration(false /*enable*/);
   }
 
   return success;

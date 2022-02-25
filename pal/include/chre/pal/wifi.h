@@ -222,23 +222,6 @@ struct chrePalWifiCallbacks {
    */
   void (*nanServiceTerminatedCallback)(uint32_t reason,
                                        uint32_t subscriptionId);
-
-  /**
-   * Callback invoked when a NAN subscription has been canceled by an explicit
-   * cancel subscription request from CHRE. Note that this is different from
-   * a subscription cancelation or termination from an agent external to CHRE
-   * (eg: the publisher going away or the discovery engine terminating the
-   * subscription for any reason).
-   *
-   * @param errorCode An error code from enum chreError, with CHRE_ERROR_NONE
-   *        indicating successfully canceling a subscription.
-   * @param subscriptionId The ID of the subscribe session which has now been
-   *        canceled.
-   *
-   * @since v1.6
-   */
-  void (*nanSubscriptionCanceledCallback)(uint8_t errorCode,
-                                          uint32_t subscriptionId);
 };
 
 struct chrePalWifiApi {
@@ -446,10 +429,7 @@ struct chrePalWifiApi {
   bool (*nanSubscribe)(const struct chreWifiNanSubscribeConfig *config);
 
   /**
-   * Invoked when CHRE requests an explicit service subscription cancelation
-   * to a published service. Upon completion of the cancelation, the
-   * nanSubscriptionCanceledCallback function must be invoked with the result
-   * of the operation and the subscription ID of this cancelation.
+   * Cancel a NAN service subscription.
    *
    * @param subscriptionId The ID assigned by the NAN discovery engine to the
    *        service subscription session.
