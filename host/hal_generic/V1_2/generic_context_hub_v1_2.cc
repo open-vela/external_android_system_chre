@@ -42,8 +42,6 @@ using ::android::hardware::contexthub::common::implementation::
     getFbsSettingValue;
 using ::android::hardware::contexthub::common::implementation::
     kSupportedPermissions;
-using ::android::hardware::contexthub::common::implementation::
-    stringVectorToHidl;
 using ::android::hardware::contexthub::V1_X::implementation::
     IContextHubCallbackWrapperBase;
 using ::android::hardware::contexthub::V1_X::implementation::
@@ -62,7 +60,7 @@ Return<void> GenericContextHubV1_2::getHubs_1_2(
     IContexthub::getHubs_1_2_cb _hidl_cb) {
   std::vector<ContextHub> retHubs;
   getHubs([&retHubs](std::vector<ContextHub> hubs) { retHubs = hubs; });
-  _hidl_cb(retHubs, stringVectorToHidl(kSupportedPermissions));
+  _hidl_cb(retHubs, kSupportedPermissions);
 
   return Void();
 }
@@ -88,7 +86,10 @@ Return<void> GenericContextHubV1_2::onSettingChanged_1_2(
   fbs::SettingState fbsState;
   if (getFbsSetting(setting, &fbsSetting) &&
       getFbsSettingValue(newValue, &fbsState)) {
-    mConnection.sendSettingChangedNotification(fbsSetting, fbsState);
+    FlatBufferBuilder builder(64);
+    HostProtocolHost::encodeSettingChangeNotification(builder, fbsSetting,
+                                                      fbsState);
+    mClient.sendMessage(builder.GetBufferPointer(), builder.GetSize());
   }
 
   return Void();
