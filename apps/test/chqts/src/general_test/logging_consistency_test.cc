@@ -23,7 +23,6 @@
 
 #include <chre.h>
 
-#include "chre/util/macros.h"
 #include "chre/util/toolchain.h"
 
 using nanoapp_testing::sendFatalFailureToHost;
@@ -51,8 +50,7 @@ void LoggingConsistencyTest::setUp(uint32_t messageSize,
   constexpr chreLogLevel kInfo = CHRE_LOG_INFO;
 
   // Empty string
-  char emptyString[1] = {'\0'};
-  chreLog(kInfo, "%s", emptyString);
+  chreLog(kInfo, "");
 
   // Try up through 10 arguments
   chreLog(kInfo, "%d", 1);
@@ -127,9 +125,6 @@ void LoggingConsistencyTest::setUp(uint32_t messageSize,
 void LoggingConsistencyTest::handleEvent(uint32_t senderInstanceId,
                                          uint16_t eventType,
                                          const void *eventData) {
-  UNUSED_VAR(senderInstanceId);
-  UNUSED_VAR(eventData);
-
   unexpectedEvent(eventType);
 }
 
