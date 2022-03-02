@@ -75,16 +75,9 @@ class BleRequestManager : public NonCopyable {
    * CHRE_EVENT_BLE_ASYNC_RESULT event.
    *
    * @param nanoapp The nanoapp stopping the request.
-   * @return whether the scan was successfully ended.
+   * @return true if scan was successfully ended.
    */
   bool stopScanAsync(Nanoapp *nanoapp);
-
-  /**
-   * Disables active scan for a nanoapp (no-op if no active scan).
-   *
-   * @param nanoapp A non-null pointer to the nanoapp.
-   */
-  void disableActiveScan(const Nanoapp *nanoapp);
 
   /**
    * Frees an advertising event that was previously provided to the BLE
