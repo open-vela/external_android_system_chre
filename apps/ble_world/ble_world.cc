@@ -47,12 +47,11 @@ enum ScanRequestType {
 };
 
 chreBleScanFilter *getBleScanFilter(ScanRequestType &scanRequestType) {
-  chre::UniquePtr<chreBleScanFilter> filter =
-      chre::MakeUniqueZeroFill<chreBleScanFilter>();
+  UniquePtr<chreBleScanFilter> filter = MakeUniqueZeroFill<chreBleScanFilter>();
   filter->rssiThreshold = CHRE_BLE_RSSI_THRESHOLD_NONE;
   filter->scanFilterCount = 1;
-  chre::UniquePtr<chreBleGenericFilter> scanFilter =
-      chre::MakeUniqueZeroFill<chreBleGenericFilter>();
+  UniquePtr<chreBleGenericFilter> scanFilter =
+      MakeUniqueZeroFill<chreBleGenericFilter>();
   switch (scanRequestType) {
     case NO_FILTER:
       filter = nullptr;
@@ -106,10 +105,9 @@ void makeBleScanRequest() {
     }
     if (filter != nullptr) {
       if (filter->scanFilters != nullptr) {
-        chre::memoryFree(
-            const_cast<chreBleGenericFilter *>(filter->scanFilters));
+        memoryFree(const_cast<chreBleGenericFilter *>(filter->scanFilters));
       }
-      chre::memoryFree(filter);
+      memoryFree(filter);
     }
   } else {
     if (chreBleStopScanAsync()) {
