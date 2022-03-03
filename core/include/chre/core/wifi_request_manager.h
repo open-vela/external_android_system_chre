@@ -19,7 +19,6 @@
 
 #include "chre/core/api_manager_common.h"
 #include "chre/core/nanoapp.h"
-#include "chre/core/settings.h"
 #include "chre/platform/platform_wifi.h"
 #include "chre/util/buffer.h"
 #include "chre/util/non_copyable.h"
