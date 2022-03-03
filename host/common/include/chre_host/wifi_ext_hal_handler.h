@@ -51,8 +51,6 @@ class WifiExtHalHandler {
   using WifiChreNanRttState =
       ::vendor::google::wifi_ext::V1_3::WifiChreNanRttState;
 
-  ~WifiExtHalHandler();
-
   /**
    * Construct a new Wifi Ext Hal Handler object, initiate a connection to
    * the Wifi ext HAL service.
@@ -111,8 +109,6 @@ class WifiExtHalHandler {
   };
 
   std::function<void(bool)> mStatusChangeCallback;
-
-  bool mThreadRunning = true;
   std::thread mThread;
   std::mutex mMutex;
   std::condition_variable mCondVar;
@@ -131,11 +127,6 @@ class WifiExtHalHandler {
    * indefinitely.
    */
   void wifiExtHandlerThreadEntry();
-
-  /**
-   * Notifies the WifiExtHalHandler processing thread of a daemon shutdown.
-   */
-  void wifiExtHandlerThreadNotifyToExit();
 
   /**
    * Checks for a valid connection to the Wifi ext HAL service, reconnects if
