@@ -99,6 +99,19 @@ bool BleRequestManager::stopScanAsync(Nanoapp *nanoapp) {
   return configure(std::move(request));
 }
 
+void BleRequestManager::disableActiveScan(const Nanoapp *nanoapp) {
+  CHRE_ASSERT(nanoapp);
+
+  size_t requestIndex;
+  const BleRequest *foundRequest =
+      mRequests.findRequest(nanoapp->getInstanceId(), &requestIndex);
+
+  if (foundRequest != nullptr && foundRequest->isEnabled()) {
+    BleRequest request(nanoapp->getInstanceId(), false /* enable */);
+    configure(std::move(request));
+  }
+}
+
 void BleRequestManager::addBleRequestLog(uint32_t instanceId, bool enabled,
                                          size_t requestIndex,
                                          bool compliesWithBleSetting) {
