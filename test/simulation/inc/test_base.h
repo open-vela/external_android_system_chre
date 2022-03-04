@@ -21,7 +21,6 @@
 #include <cstdint>
 #include <thread>
 
-#include "chre/platform/system_timer.h"
 #include "chre/util/time.h"
 #include "test_event_queue.h"
 
@@ -75,7 +74,6 @@ class TestBase : public testing::Test {
   }
 
   std::thread mChreThread;
-  SystemTimer mSystemTimer;
 };
 
 }  // namespace chre
