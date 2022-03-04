@@ -66,12 +66,12 @@ class Manager {
     FeatureState featureState;
     TestStep step;
 
-    TestSession(uint16_t id, Feature currentFeature, FeatureState state,
-                TestStep currentStep) {
+    TestSession(uint16_t id, Feature feature, FeatureState state,
+                TestStep step) {
       this->hostEndpointId = id;
-      this->feature = currentFeature;
+      this->feature = feature;
       this->featureState = state;
-      this->step = currentStep;
+      this->step = step;
     }
   };
 
