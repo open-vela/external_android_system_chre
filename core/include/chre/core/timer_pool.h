@@ -28,9 +28,6 @@
 
 namespace chre {
 
-// Forward declaration needed to friend TimerPool.
-class TestTimer;
-
 /**
  * The type to use when referring to a timer instance.
  *
@@ -101,13 +98,6 @@ class TimerPool : public NonCopyable {
   }
 
   /**
-   * Cancels all timers held by a nanoapp.
-   *
-   * @param nanoapp The nanoapp requesting timers to be cancelled.
-   */
-  void cancelAllNanoappTimers(const Nanoapp *nanoapp);
-
-  /**
    * Cancels a timer created by setSystemTimer() given a handle.
    *
    * @param timerHandle The handle for a timer to be cancelled.
@@ -118,13 +108,12 @@ class TimerPool : public NonCopyable {
   }
 
  private:
-  // Allows TestTimer to access hasNanoappTimers.
-  friend class TestTimer;
-
   /**
    * Tracks metadata associated with a request for a timed event.
    */
   struct TimerRequest {
+    //! The instance ID from which this request was made
+    uint32_t instanceId;
     TimerHandle timerHandle;
     Nanoseconds expirationTime;
     Nanoseconds duration;
@@ -142,9 +131,6 @@ class TimerPool : public NonCopyable {
 
     //! Whether or not the request is a one shot or should be rescheduled.
     bool isOneShot;
-
-    //! The instance ID from which this request was made
-    uint16_t instanceId;
 
     /**
      * Provides a greater than comparison of TimerRequests.
@@ -202,7 +188,7 @@ class TimerPool : public NonCopyable {
    * @return TimerHandle of the requested timer. Returns CHRE_TIMER_INVALID if
    *         not successful.
    */
-  TimerHandle setTimer(uint16_t instanceId, Nanoseconds duration,
+  TimerHandle setTimer(uint32_t instanceId, Nanoseconds duration,
                        const void *cookie,
                        SystemEventCallbackFunction *systemCallback,
                        SystemCallbackType callbackType, bool isOneShot);
@@ -214,7 +200,7 @@ class TimerPool : public NonCopyable {
    * @param timerHandle The handle for a timer to be cancelled.
    * @return false if the timer handle is invalid or is not owned by the caller
    */
-  bool cancelTimer(uint16_t instanceId, TimerHandle timerHandle);
+  bool cancelTimer(uint32_t instanceId, TimerHandle timerHandle);
 
   /**
    * Looks up a timer request given a timer handle. mMutex must be acquired
@@ -296,14 +282,6 @@ class TimerPool : public NonCopyable {
    * @return true if at least one timer had expired
    */
   bool handleExpiredTimersAndScheduleNextLocked();
-
-  /**
-   * Returns whether the nanoapp holds timers.
-   *
-   * @param instanceId The instance id of the nanoapp.
-   * @return whether the nanoapp hold timers.
-   */
-  bool hasNanoappTimers(uint16_t instanceId);
 
   /**
    * This static method handles the callback from the system timer. The data

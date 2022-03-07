@@ -20,28 +20,20 @@
 
 #include <shared/nano_endian.h>
 
-#include "chre/util/macros.h"
-
 namespace general_test {
 
 NanoAppInfoEventsTestPerformer::NanoAppInfoEventsTestPerformer()
     : Test(CHRE_API_VERSION_1_1) {}
 
-void NanoAppInfoEventsTestPerformer::setUp(uint32_t messageSize,
-                                           const void *message) {
-  UNUSED_VAR(messageSize);
-  UNUSED_VAR(message);
-
+void NanoAppInfoEventsTestPerformer::setUp(uint32_t /* messageSize */,
+                                           const void * /* message */) {
   NanoappInfo info;
   info.sendToHost();
 }
 
 void NanoAppInfoEventsTestPerformer::handleEvent(uint32_t senderInstanceId,
                                                  uint16_t eventType,
-                                                 const void *eventData) {
-  UNUSED_VAR(senderInstanceId);
-  UNUSED_VAR(eventType);
-  UNUSED_VAR(eventData);
+                                                 const void *eventdata) {
   // Do nothing
 }
 
