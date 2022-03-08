@@ -70,9 +70,6 @@ class Manager {
   //! result comes in.
   uint8_t mChreScanResultsI = 0;
 
-  // The max chre scan results to be validated
-  uint8_t mMaxChreResultSize = 100;
-
   uint8_t mChreScanResultsSize = 0;
   uint8_t mApScanResultsSize = 0;
 
