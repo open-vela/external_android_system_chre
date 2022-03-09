@@ -16,10 +16,12 @@
 
 #include "request_manager.h"
 
+#include "chre/util/flatbuffers/helpers.h"
 #include "chre/util/macros.h"
 #include "chre/util/nanoapp/audio.h"
+#include "chre/util/nanoapp/callbacks.h"
 #include "chre/util/nested_data_ptr.h"
-#include "generated/chre_power_test_generated.h"
+#include "chre/util/unique_ptr.h"
 
 namespace chre {
 namespace {
@@ -118,7 +120,33 @@ using power_test::MessageType;
 using power_test::NanoappResponseMessage;
 using power_test::SensorRequestMessage;
 using power_test::TimerMessage;
+using power_test::WifiNanSubCancelMessage;
+using power_test::WifiNanSubMessage;
 using power_test::WifiScanMessage;
+
+void RequestManager::sendResponseMessageToHost(bool success) {
+  auto builder = chre::MakeUnique<chre::ChreFlatBufferBuilder>();
+  if (builder.isNull()) {
+    LOG_OOM();
+  } else {
+    builder->Finish(
+        chre::power_test::CreateNanoappResponseMessage(*builder, success));
+
+    size_t bufferCopySize = builder->GetSize();
+    void *buffer = chreHeapAlloc(bufferCopySize);
+    if (buffer == nullptr) {
+      LOG_OOM();
+    } else {
+      memcpy(buffer, builder->GetBufferPointer(), bufferCopySize);
+      if (!chreSendMessageToHostEndpoint(
+              buffer, bufferCopySize,
+              static_cast<uint32_t>(MessageType::NANOAPP_RESPONSE),
+              mLastHostEndpointId, chre::heapFreeMessageCallback)) {
+        LOGE("Failed to send response message with success %d", success);
+      }
+    }
+  }
+}
 
 bool RequestManager::requestTimer(bool enable, TimerType type,
                                   Nanoseconds delay) {
@@ -295,7 +323,48 @@ void RequestManager::handleTimerEvent(const void *cookie) const {
   }
 }
 
-bool RequestManager::handleMessageFromHost(
+void RequestManager::handleNanIdResult(
+    const struct chreWifiNanIdentifierEvent *event) {
+  auto builder = chre::MakeUnique<chre::ChreFlatBufferBuilder>();
+  if (builder.isNull()) {
+    LOG_OOM();
+  } else {
+    builder->Finish(chre::power_test::CreateWifiNanSubResponseMessage(
+        *builder, event->result.success, event->id));
+
+    size_t bufferCopySize = builder->GetSize();
+    void *buffer = chreHeapAlloc(bufferCopySize);
+    if (buffer == nullptr) {
+      LOG_OOM();
+    } else {
+      memcpy(buffer, builder->GetBufferPointer(), bufferCopySize);
+      if (!chreSendMessageToHostEndpoint(
+              buffer, bufferCopySize,
+              static_cast<uint32_t>(MessageType::WIFI_NAN_SUB_RESP),
+              mLastHostEndpointId, chre::heapFreeMessageCallback)) {
+        LOGE("Failed to send message with success %d", event->result.success);
+      }
+    }
+  }
+}
+
+bool RequestManager::requestWifiNanSub(const WifiNanSubMessage *msg) {
+  chreWifiNanSubscribeConfig config;
+  config.subscribeType = msg->sub_type();
+  config.service = reinterpret_cast<const char *>(msg->service_name()->data());
+  config.serviceSpecificInfo = msg->service_specific_info()->Data();
+  config.serviceSpecificInfoSize = msg->service_specific_info()->size();
+  config.matchFilter = msg->match_filter()->Data();
+  config.matchFilterLength = msg->match_filter()->size();
+
+  return chreWifiNanSubscribe(&config, nullptr /* cookie */);
+}
+
+bool RequestManager::cancelWifiNanSub(uint32_t subscriptionId) {
+  return chreWifiNanSubscribeCancel(subscriptionId);
+}
+
+void RequestManager::handleMessageFromHost(
     const chreMessageFromHostData &hostMessage) {
   bool success = false;
   if (hostMessage.message == nullptr) {
@@ -370,11 +439,25 @@ bool RequestManager::handleMessageFromHost(
         }
         break;
       }
+      case MessageType::WIFI_NAN_SUB: {
+        const WifiNanSubMessage *msg;
+        if (verifyMessage<WifiNanSubMessage>(hostMessage, &msg)) {
+          success = requestWifiNanSub(msg);
+        }
+        break;
+      }
+      case MessageType::WIFI_NAN_SUB_CANCEL: {
+        const WifiNanSubCancelMessage *msg;
+        if (verifyMessage<WifiNanSubCancelMessage>(hostMessage, &msg)) {
+          success = cancelWifiNanSub(msg->subscription_id());
+        }
+        break;
+      }
       default:
         LOGE("Received unknown host message %" PRIu32, hostMessage.messageType);
     }
   }
-  return success;
+  sendResponseMessageToHost(success);
 }
 
 }  // namespace chre
