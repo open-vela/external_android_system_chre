@@ -189,7 +189,6 @@ endif
 # Simulator-specific Compiler Flags ############################################
 
 SIM_CFLAGS += -I$(CHRE_PREFIX)/platform/shared/include
-SIM_CFLAGS += -Iplatform/linux/sim/include
 
 # Simulator-specific Source Files ##############################################
 
