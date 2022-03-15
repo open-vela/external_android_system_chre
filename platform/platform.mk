@@ -189,7 +189,6 @@ endif
 # Simulator-specific Compiler Flags ############################################
 
 SIM_CFLAGS += -I$(CHRE_PREFIX)/platform/shared/include
-SIM_CFLAGS += -Iplatform/linux/sim/include
 
 # Simulator-specific Source Files ##############################################
 
@@ -237,12 +236,6 @@ SIM_SRCS += platform/linux/pal_gnss.cc
 SIM_SRCS += platform/shared/platform_gnss.cc
 endif
 
-# Optional sensor support.
-ifeq ($(CHRE_SENSORS_SUPPORT_ENABLED), true)
-SIM_SRCS += platform/linux/pal_sensor.cc
-SIM_SRCS += platform/shared/platform_sensor_manager.cc
-endif
-
 # Optional Wi-Fi support.
 ifeq ($(CHRE_WIFI_SUPPORT_ENABLED), true)
 ifeq ($(CHRE_WIFI_NAN_SUPPORT_ENABLED), true)
@@ -256,6 +249,12 @@ endif
 ifeq ($(CHRE_WWAN_SUPPORT_ENABLED), true)
 SIM_SRCS += platform/linux/pal_wwan.cc
 SIM_SRCS += platform/shared/platform_wwan.cc
+endif
+
+# Optional sensor support.
+ifeq ($(CHRE_SENSORS_SUPPORT_ENABLED), true)
+SIM_SRCS += platform/linux/pal_sensor.cc
+SIM_SRCS += platform/shared/platform_sensor_manager.cc
 endif
 
 # Linux-specific Compiler Flags ################################################
