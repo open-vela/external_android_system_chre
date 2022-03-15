@@ -39,9 +39,6 @@ std::thread gHandle0Thread;
 std::promise<void> gStopHandle0Thread;
 constexpr uint32_t kHandle0SampleRate = 16000;
 
-//! Whether the handle 0 is currently enabled.
-bool gIsHandle0Enabled = false;
-
 void stopHandle0Thread() {
   if (gHandle0Thread.joinable()) {
     gStopHandle0Thread.set_value();
@@ -60,7 +57,6 @@ bool chrePalAudioApiOpen(const struct chrePalSystemApi *systemApi,
   if (systemApi != nullptr && callbacks != nullptr) {
     gSystemApi = systemApi;
     gCallbacks = callbacks;
-    callbacks->audioAvailabilityCallback(0 /*handle*/, true /*available*/);
     return true;
   }
 
@@ -94,7 +90,6 @@ bool chrePalAudioApiRequestAudioDataEvent(uint32_t handle, uint32_t numSamples,
 
   stopHandle0Thread();
   if (numSamples > 0) {
-    gIsHandle0Enabled = true;
     gStopHandle0Thread = std::promise<void>();
     gHandle0Thread = std::thread(sendHandle0Events, eventDelayNs, numSamples);
   }
@@ -104,7 +99,6 @@ bool chrePalAudioApiRequestAudioDataEvent(uint32_t handle, uint32_t numSamples,
 
 void chrePalAudioApiCancelAudioDataEvent(uint32_t handle) {
   if (handle == 0) {
-    gIsHandle0Enabled = false;
     stopHandle0Thread();
   }
 }
@@ -132,7 +126,7 @@ bool chrePalAudioApiGetAudioSource(uint32_t handle,
       .name = "Test Source",
       .sampleRate = kHandle0SampleRate,
       .minBufferDuration = 1,
-      .maxBufferDuration = 1000000000,
+      .maxBufferDuration = 1000,
       .format = CHRE_AUDIO_DATA_FORMAT_8_BIT_U_LAW,
   };
 
@@ -140,10 +134,6 @@ bool chrePalAudioApiGetAudioSource(uint32_t handle,
 }
 
 }  // namespace
-
-bool chrePalAudioIsHandle0Enabled() {
-  return gIsHandle0Enabled;
-}
 
 const chrePalAudioApi *chrePalAudioGetApi(uint32_t requestedApiVersion) {
   static const struct chrePalAudioApi kApi = {
