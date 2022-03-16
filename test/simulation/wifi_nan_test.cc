@@ -151,10 +151,7 @@ TEST_F(TestBase, WifiNanSuccessfulSubscribe) {
               switch (event->type) {
                 case NAN_SUBSCRIBE: {
                   auto config = (chreWifiNanSubscribeConfig *)(event->data);
-                  const bool success =
-                      chreWifiNanSubscribe(config, &kSubscribeCookie);
-                  TestEventQueueSingleton::get()->pushEvent(NAN_SUBSCRIBE,
-                                                            success);
+                  chreWifiNanSubscribe(config, &kSubscribeCookie);
                   break;
                 }
               }
@@ -170,9 +167,6 @@ TEST_F(TestBase, WifiNanSuccessfulSubscribe) {
       .service = "SomeServiceName",
   };
   sendEventToNanoapp(app, NAN_SUBSCRIBE, config);
-  bool success;
-  waitForEvent(NAN_SUBSCRIBE, &success);
-  EXPECT_TRUE(success);
 
   uint32_t id;
   waitForEvent(CHRE_EVENT_WIFI_NAN_IDENTIFIER_RESULT, &id);
@@ -209,10 +203,7 @@ TEST_F(TestBase, WifiNanUnsSubscribeOnNanoappUnload) {
               switch (event->type) {
                 case NAN_SUBSCRIBE: {
                   auto config = (chreWifiNanSubscribeConfig *)(event->data);
-                  const bool success =
-                      chreWifiNanSubscribe(config, &kSubscribeCookie);
-                  TestEventQueueSingleton::get()->pushEvent(NAN_SUBSCRIBE,
-                                                            success);
+                  chreWifiNanSubscribe(config, &kSubscribeCookie);
                   break;
                 }
               }
@@ -228,9 +219,6 @@ TEST_F(TestBase, WifiNanUnsSubscribeOnNanoappUnload) {
       .service = "SomeServiceName",
   };
   sendEventToNanoapp(app, NAN_SUBSCRIBE, config);
-  bool success;
-  waitForEvent(NAN_SUBSCRIBE, &success);
-  EXPECT_TRUE(success);
 
   uint32_t id;
   waitForEvent(CHRE_EVENT_WIFI_NAN_IDENTIFIER_RESULT, &id);
@@ -270,10 +258,7 @@ TEST_F(TestBase, WifiNanUnuccessfulSubscribeTest) {
               switch (event->type) {
                 case NAN_SUBSCRIBE: {
                   auto config = (chreWifiNanSubscribeConfig *)(event->data);
-                  const bool success =
-                      chreWifiNanSubscribe(config, &kSubscribeCookie);
-                  TestEventQueueSingleton::get()->pushEvent(NAN_SUBSCRIBE,
-                                                            success);
+                  chreWifiNanSubscribe(config, &kSubscribeCookie);
                   break;
                 }
               }
@@ -291,9 +276,6 @@ TEST_F(TestBase, WifiNanUnuccessfulSubscribeTest) {
       .service = "SomeServiceName",
   };
   sendEventToNanoapp(app, NAN_SUBSCRIBE, config);
-  bool success;
-  waitForEvent(NAN_SUBSCRIBE, &success);
-  EXPECT_TRUE(success);
 
   waitForEvent(CHRE_EVENT_WIFI_NAN_IDENTIFIER_RESULT);
 }
@@ -343,9 +325,7 @@ TEST_F(TestBase, WifiNanServiceTerminatedTest) {
           switch (event->type) {
             case NAN_SUBSCRIBE: {
               auto config = (chreWifiNanSubscribeConfig *)(event->data);
-              const bool success =
-                  chreWifiNanSubscribe(config, &kSubscribeCookie);
-              TestEventQueueSingleton::get()->pushEvent(NAN_SUBSCRIBE, success);
+              chreWifiNanSubscribe(config, &kSubscribeCookie);
               break;
             }
           }
@@ -361,9 +341,6 @@ TEST_F(TestBase, WifiNanServiceTerminatedTest) {
       .service = "SomeServiceName",
   };
   sendEventToNanoapp(app, NAN_SUBSCRIBE, config);
-  bool success;
-  waitForEvent(NAN_SUBSCRIBE, &success);
-  EXPECT_TRUE(success);
 
   uint32_t id;
   waitForEvent(CHRE_EVENT_WIFI_NAN_IDENTIFIER_RESULT, &id);
@@ -429,10 +406,7 @@ TEST_F(TestBase, WifiNanServiceLostTest) {
               switch (event->type) {
                 case NAN_SUBSCRIBE: {
                   auto config = (chreWifiNanSubscribeConfig *)(event->data);
-                  const bool success =
-                      chreWifiNanSubscribe(config, &kSubscribeCookie);
-                  TestEventQueueSingleton::get()->pushEvent(NAN_SUBSCRIBE,
-                                                            success);
+                  chreWifiNanSubscribe(config, &kSubscribeCookie);
                   break;
                 }
               }
@@ -448,9 +422,6 @@ TEST_F(TestBase, WifiNanServiceLostTest) {
       .service = "SomeServiceName",
   };
   sendEventToNanoapp(app, NAN_SUBSCRIBE, config);
-  bool success;
-  waitForEvent(NAN_SUBSCRIBE, &success);
-  EXPECT_TRUE(success);
 
   uint32_t id;
   waitForEvent(CHRE_EVENT_WIFI_NAN_IDENTIFIER_RESULT, &id);
@@ -502,10 +473,7 @@ TEST_F(TestBase, WifiNanRangingTest) {
               switch (event->type) {
                 case NAN_SUBSCRIBE: {
                   auto config = (chreWifiNanSubscribeConfig *)(event->data);
-                  const bool success =
-                      chreWifiNanSubscribe(config, &kSubscribeCookie);
-                  TestEventQueueSingleton::get()->pushEvent(NAN_SUBSCRIBE,
-                                                            success);
+                  chreWifiNanSubscribe(config, &kSubscribeCookie);
                   break;
                 }
 
@@ -515,10 +483,8 @@ TEST_F(TestBase, WifiNanRangingTest) {
                   struct chreWifiNanRangingParams fakeRangingParams;
                   std::memcpy(fakeRangingParams.macAddress, fakeMacAddress,
                               CHRE_WIFI_BSSID_LEN);
-                  const bool success = chreWifiNanRequestRangingAsync(
-                      &fakeRangingParams, &kRangingCookie);
-                  TestEventQueueSingleton::get()->pushEvent(REQUEST_RANGING,
-                                                            success);
+                  chreWifiNanRequestRangingAsync(&fakeRangingParams,
+                                                 &kRangingCookie);
                   break;
                 }
               }
@@ -528,19 +494,14 @@ TEST_F(TestBase, WifiNanRangingTest) {
   };
 
   auto app = loadNanoapp<App>();
-  bool success;
 
   chreWifiNanSubscribeConfig config = {
       .subscribeType = CHRE_WIFI_NAN_SUBSCRIBE_TYPE_PASSIVE,
       .service = "SomeServiceName",
   };
   sendEventToNanoapp(app, NAN_SUBSCRIBE, config);
-  waitForEvent(NAN_SUBSCRIBE, &success);
-  EXPECT_TRUE(success);
 
   sendEventToNanoapp(app, REQUEST_RANGING, config);
-  waitForEvent(REQUEST_RANGING, &success);
-  EXPECT_TRUE(success);
   waitForEvent(CHRE_EVENT_WIFI_ASYNC_RESULT);
   waitForEvent(CHRE_EVENT_WIFI_RANGING_RESULT);
 }
