@@ -52,8 +52,32 @@ void QshChreDaemon::run() {
   mServer.run(kChreSocketName, true /* allowSocketCreation */, callback);
 }
 
-bool QshChreDaemon::doSendMessage(void * /*data*/, size_t /*length*/) {
-  LOGE("sendMessage is currently unimplemented");
+bool QshChreDaemon::sendMessageToChre(uint16_t /* clientId */, void * /* data*/,
+                                      size_t /* dataLen */) {
+  LOGE("%s currently unimplemented", __FUNCTION__);
+  return false;
+}
+
+void QshChreDaemon::onMessageReceived(const unsigned char * /* message */,
+                                      size_t /* messageLen */) {
+  LOGE("%s currently unimplemented", __FUNCTION__);
+}
+
+void QshChreDaemon::handleDaemonMessage(const uint8_t * /* message */) {
+  LOGE("%s currently unimplemented", __FUNCTION__);
+}
+
+bool QshChreDaemon::sendNanoappLoad(uint64_t /* appId */,
+                                    uint32_t /* appVersion */,
+                                    uint32_t /* appTargetApiVersion */,
+                                    const std::string & /* appBinaryName */,
+                                    uint32_t /* transactionId */) {
+  LOGE("%s currently unimplemented", __FUNCTION__);
+  return false;
+}
+
+bool QshChreDaemon::sendTimeSync(bool /* logOnError */) {
+  LOGE("%s currently unimplemented", __FUNCTION__);
   return false;
 }
 

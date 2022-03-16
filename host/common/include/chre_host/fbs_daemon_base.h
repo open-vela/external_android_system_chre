@@ -14,43 +14,24 @@
  * limitations under the License.
  */
 
-#ifndef CHRE_QSH_DAEMON_H_
-#define CHRE_QSH_DAEMON_H_
+#ifndef CHRE_FBS_DAEMON_BASE_H_
+#define CHRE_FBS_DAEMON_BASE_H_
+
+/**
+ * @file fbs_daemon_base.h
+ * This header defines a base class for all CHRE daemon variants that use
+ * flatbuffers as the codec scheme for communicating with CHRE.
+ */
 
 #include "chre_host/daemon_base.h"
-#include "chre_host/log.h"
-
-#include <utils/SystemClock.h>
-#include <atomic>
-#include <optional>
-#include <thread>
-
-#include "qmi_client.h"
-#include "qmi_qsh_nanoapp_client.h"
+#include "chre_host/host_protocol_host.h"
 
 namespace android {
 namespace chre {
 
-class QshChreDaemon : public ChreDaemonBase {
+class FbsDaemonBase : public ChreDaemonBase {
  public:
-  QshChreDaemon() : mQmiQshNanoappClient("chre_qsh_nanoapp") {}
-
-  ~QshChreDaemon() {
-    deinit();
-  }
-
-  /**
-   * Initializes QSH message handling then proceeds to load any preloaded
-   * nanoapps.
-   *
-   * @return true on successful init
-   */
-  bool init();
-
-  /**
-   * Starts a socket server receive loop for inbound messages.
-   */
-  void run();
+  virtual ~FbsDaemonBase() {}
 
   /**
    * Send a message to CHRE
@@ -63,32 +44,12 @@ class QshChreDaemon : public ChreDaemonBase {
   bool sendMessageToChre(uint16_t clientId, void *data,
                          size_t dataLen) override;
 
+  /**
+   * Enables or disables LPMA (low power microphone access).
+   */
+  virtual void configureLpma(bool enabled) = 0;
+
  protected:
-  void configureLpma(bool /* enabled */) override {
-    LOGE("LPMA Unsupported");
-  }
-
-  int64_t getTimeOffset(bool *success) override {
-    *success = false;
-    return 0;
-  }
-
-  /**
-   * Interface to a callback that is called when the Daemon receives a message.
-   *
-   * @param message A buffer containing the message
-   * @param messageLen size of the message buffer in bytes
-   */
-  void onMessageReceived(const unsigned char *message,
-                         size_t messageLen) override;
-
-  /**
-   * Handles a message that is directed towards the daemon.
-   *
-   * @param message The message sent to the daemon.
-   */
-  void handleDaemonMessage(const uint8_t *message) override;
-
   /**
    * Loads a nanoapp by sending the nanoapp filename to the CHRE framework. This
    * method will return after sending the request so no guarantee is made that
@@ -117,18 +78,37 @@ class QshChreDaemon : public ChreDaemonBase {
    */
   bool sendTimeSync(bool logOnError) override;
 
- private:
-  QmiQshNanoappClient mQmiQshNanoappClient;
+  /**
+   * Interface to a callback that is called when the Daemon receives a message.
+   *
+   * @param message A buffer containing the message
+   * @param messageLen size of the message buffer in bytes
+   */
+  void onMessageReceived(const unsigned char *message,
+                         size_t messageLen) override;
 
   /**
-   * Shutsdown the daemon, stops all the worker threads created in init()
-   * Since this is to be invoked at exit, it's mostly best effort, and is
-   * invoked by the class destructor
+   * Handles a message that is directed towards the daemon.
+   *
+   * @param message The message sent to the daemon.
    */
-  void deinit();
+  void handleDaemonMessage(const uint8_t *message) override;
+
+  /**
+   * Platform-specific method to actually do the message sending requested by
+   * sendMessageToChre.
+   *
+   * @return true if message was sent successfully, false otherwise.
+   */
+  virtual bool doSendMessage(void *data, size_t dataLen) = 0;
+
+ private:
+  //! Contains a set of transaction IDs and app IDs used to load the preloaded
+  //! nanoapps. The IDs are stored in the order they are sent.
+  std::queue<Transaction> mPreloadedNanoappPendingTransactions;
 };
 
 }  // namespace chre
 }  // namespace android
 
-#endif  // CHRE_QSH_DAEMON_H_
+#endif  // CHRE_FBS_DAEMON_BASE_H_
