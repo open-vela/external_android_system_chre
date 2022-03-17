@@ -40,17 +40,20 @@ void QmiCallbacks::onResponse(qmi_client_type /* handle */, unsigned int msgId,
                               void * /* onResponseData */,
                               qmi_client_error_type err) {
   auto *response = static_cast<sns_client_resp_msg_v01 *>(responseData);
+  if (response == nullptr) {
+    LOGE("Got null response for msg ID %s, responseLen: %u, err: %d", msgId,
+         responseLen, err);
+    return;
+  }
   int result = response->result_valid != 0 ? response->result : -1;
   uint64_t clientId = response->client_id_valid != 0 ? response->client_id : 0;
   LOGD("Got response for msg ID %u, responseLen: %u, clientId %" PRId64
        " result: %d err: %d",
        msgId, responseLen, clientId, result, err);
-  if (response != nullptr) {
-    qmi_response_type_v01 &resp = response->resp;
-    LOGD("Embedded response qmi_result: %u, qmi_err: %u", resp.result,
-         resp.error);
-    delete[] response;
-  }
+  qmi_response_type_v01 &resp = response->resp;
+  LOGD("Embedded response qmi_result: %u, qmi_err: %u", resp.result,
+       resp.error);
+  delete[] response;
 }
 
 void QmiCallbacks::onIndication(qmi_client_type /*handle*/, unsigned int msgId,
