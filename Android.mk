@@ -52,6 +52,38 @@ ifeq ($(CHRE_DAEMON_LOAD_INTO_SENSORSPD),true)
 LOCAL_CFLAGS += -DCHRE_DAEMON_LOAD_INTO_SENSORSPD
 endif
 
+MSM_SRC_FILES := \
+    host/msm/daemon/fastrpc_daemon.cc \
+    host/msm/daemon/main.cc \
+    host/msm/daemon/generated/chre_slpi_stub.c
+
+MSM_INCLUDES := \
+    system/chre/host/msm/daemon
+
+QSH_SRC_FILES := \
+    host/qsh/main.cc \
+    host/qsh/qmi_client_base.cc \
+    host/qsh/qmi_enc_dec_callbacks.cc \
+    host/qsh/qmi_qsh_nanoapp_client.cc \
+    host/qsh/qsh_daemon.cc
+
+QSH_INCLUDES := \
+    system/chre/host/qsh
+
+QSH_SHARED_LIBRARIES := \
+    libsns_api \
+    libqmi_cci \
+    libqmi_encdec \
+    libqmi_common_so \
+    libnanopb
+
+QSH_LIBRARY_HEADERS := \
+    libnanopb_headers \
+    libqmi_cci_headers \
+    libqmi_common_headers \
+    libqmi_encdec_headers \
+    libssc_headers
+
 LOCAL_SRC_FILES := \
     host/common/daemon_base.cc \
     host/common/fragmented_load_transaction.cc \
@@ -60,23 +92,19 @@ LOCAL_SRC_FILES := \
     host/common/socket_server.cc \
     host/common/st_hal_lpma_handler.cc \
     host/common/wifi_ext_hal_handler.cc \
-    host/msm/daemon/fastrpc_daemon.cc \
-    host/msm/daemon/main.cc \
-    host/msm/daemon/generated/chre_slpi_stub.c \
     platform/shared/host_protocol_common.cc
 
 LOCAL_C_INCLUDES := \
     external/fastrpc/inc \
     system/chre/external/flatbuffers/include \
     system/chre/host/common/include \
-    system/chre/host/msm/daemon \
     system/chre/platform/shared/include \
     system/chre/platform/slpi/include \
     system/chre/util/include \
     system/libbase/include \
     system/core/libcutils/include \
     system/logging/liblog/include \
-    system/core/libutils/include \
+    system/core/libutils/include
 
 LOCAL_SHARED_LIBRARIES := \
     libjsoncpp \
@@ -91,6 +119,21 @@ LOCAL_SHARED_LIBRARIES := \
     pixelatoms-cpp \
     android.frameworks.stats-V1-ndk \
     libbinder_ndk
+
+# The CHRE_DAEMON_IS_QSH flag should be set to true somewhere in the build
+# chain (in boardconfig.mk for example) if the CHRE daemon is to be of the
+# QSH variant.
+ifeq ($(CHRE_DAEMON_IS_QSH), true)
+LOCAL_CFLAGS += -DCHRE_DAEMON_IS_QSH
+LOCAL_SRC_FILES += $(QSH_SRC_FILES)
+LOCAL_C_INCLUDES += $(QSH_INCLUDES)
+LOCAL_SHARED_LIBRARIES += $(QSH_SHARED_LIBRARIES)
+LOCAL_STATIC_LIBRARIES += $(QSH_STATIC_LIBRARIES)
+LOCAL_HEADER_LIBRARIES += $(QSH_LIBRARY_HEADERS)
+else
+LOCAL_SRC_FILES += $(MSM_SRC_FILES)
+LOCAL_C_INCLUDES += $(MSM_INCLUDES)
+endif
 
 LOCAL_CPPFLAGS += -std=c++20
 LOCAL_CFLAGS += -Wno-sign-compare
