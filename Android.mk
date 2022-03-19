@@ -53,6 +53,7 @@ LOCAL_CFLAGS += -DCHRE_DAEMON_LOAD_INTO_SENSORSPD
 endif
 
 MSM_SRC_FILES := \
+    host/common/fbs_daemon_base.cc \
     host/msm/daemon/fastrpc_daemon.cc \
     host/msm/daemon/main.cc \
     host/msm/daemon/generated/chre_slpi_stub.c
