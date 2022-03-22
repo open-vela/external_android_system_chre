@@ -59,9 +59,8 @@ class MemoryManager : public NonCopyable {
    * Free all allocated heap blocks for the nanoapp.
    *
    * @param app The pointer to the nanoapp.
-   * @return The number of heap blocks freed.
    */
-  uint32_t nanoappFreeAll(Nanoapp *app);
+  void nanoappFreeAll(Nanoapp *app);
 
   /**
    * @return current total allocated memory in bytes.
