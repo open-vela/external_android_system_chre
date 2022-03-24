@@ -6,12 +6,8 @@ ifndef NANOAPP_SRC_FILES
 $(error NANOAPP_SRC_FILES unset)
 endif
 
-ifndef CHRE_PREFIX
 ifndef ANDROID_BUILD_TOP
-$(error Must supply CHRE_PREFIX or set Android build environment first)
-else
-CHRE_PREFIX = $(ANDROID_BUILD_TOP)/system/chre
-endif
+$(error Must set Android build environment first)
 endif
 
 NANOAPP_DIR_NAME ?= $(NANOAPP_NAME)
@@ -49,4 +45,4 @@ CHRE_NANOAPP_USES_GNSS = true
 CHRE_NANOAPP_USES_WIFI = true
 CHRE_NANOAPP_USES_WWAN = true
 
-include $(CHRE_PREFIX)/build/nanoapp/app.mk
+include ${ANDROID_BUILD_TOP}/system/chre/build/nanoapp/app.mk

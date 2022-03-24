@@ -14,20 +14,15 @@
  * limitations under the License.
  */
 
-// Note that to avoid always polluting the include paths of nanoapps, we use
-// symlinks under the chre_nsl_internal include path to the "real" files, e.g.
-// chre_nsl_internal/platform/shared maps to the same files that would normally
-// be included via chre/platform/shared
-
-#include "chre_nsl_internal/platform/shared/nanoapp_support_lib_dso.h"
+#include "chre/platform/shared/nanoapp_support_lib_dso.h"
 
 #include <chre.h>
 
-#include "chre_nsl_internal/platform/shared/debug_dump.h"
-#include "chre_nsl_internal/util/macros.h"
-#include "chre_nsl_internal/util/system/napp_permissions.h"
+#include "chre/platform/shared/debug_dump.h"
+#include "chre/util/macros.h"
+#include "chre/util/system/napp_permissions.h"
 #ifdef CHRE_NANOAPP_USES_WIFI
-#include "chre_nsl_internal/util/system/wifi_util.h"
+#include "chre/util/system/wifi_util.h"
 #endif
 
 /**
@@ -47,19 +42,24 @@ constexpr uint32_t kNanoappPermissions = 0
                                          | CHRE_TEST_NANOAPP_PERMS
 #else
 #ifdef CHRE_NANOAPP_USES_AUDIO
-    | static_cast<uint32_t>(chre::NanoappPermissions::CHRE_PERMS_AUDIO)
-#endif
-#ifdef CHRE_NANOAPP_USES_BLE
-    | static_cast<uint32_t>(chre::NanoappPermissions::CHRE_PERMS_BLE)
+                                         | static_cast<uint32_t>(
+                                               chre::NanoappPermissions::
+                                                   CHRE_PERMS_AUDIO)
 #endif
 #ifdef CHRE_NANOAPP_USES_GNSS
-    | static_cast<uint32_t>(chre::NanoappPermissions::CHRE_PERMS_GNSS)
+                                         | static_cast<uint32_t>(
+                                               chre::NanoappPermissions::
+                                                   CHRE_PERMS_GNSS)
 #endif
 #ifdef CHRE_NANOAPP_USES_WIFI
-    | static_cast<uint32_t>(chre::NanoappPermissions::CHRE_PERMS_WIFI)
+                                         | static_cast<uint32_t>(
+                                               chre::NanoappPermissions::
+                                                   CHRE_PERMS_WIFI)
 #endif
 #ifdef CHRE_NANOAPP_USES_WWAN
-    | static_cast<uint32_t>(chre::NanoappPermissions::CHRE_PERMS_WWAN)
+                                         | static_cast<uint32_t>(
+                                               chre::NanoappPermissions::
+                                                   CHRE_PERMS_WWAN)
 #endif
 #endif  // CHRE_TEST_NANOAPP_PERMS
     ;
@@ -169,13 +169,13 @@ DLL_EXPORT extern "C" const struct chreNslNanoappInfo _chreNslDsoNanoappInfo = {
 #define CHRE_NSL_LAZY_LOOKUP(functionName)            \
   ({                                                  \
     static bool lookupPerformed = false;              \
-    static decltype(functionName) *funcPtr = nullptr; \
+    static decltype(functionName) *fptr = nullptr;    \
     if (!lookupPerformed) {                           \
-      funcPtr = reinterpret_cast<decltype(funcPtr)>(  \
+      fptr = reinterpret_cast<decltype(fptr)>(        \
           dlsym(RTLD_NEXT, STRINGIFY(functionName))); \
       lookupPerformed = true;                         \
     }                                                 \
-    funcPtr;                                          \
+    fptr;                                             \
   })
 
 #ifdef CHRE_NANOAPP_USES_AUDIO
@@ -203,35 +203,6 @@ bool chreAudioGetStatus(uint32_t handle, struct chreAudioSourceStatus *status) {
 }
 
 #endif /* CHRE_NANOAPP_USES_AUDIO */
-
-#ifdef CHRE_NANOAPP_USES_BLE
-
-WEAK_SYMBOL
-uint32_t chreBleGetCapabilities() {
-  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreBleGetCapabilities);
-  return (fptr != nullptr) ? fptr() : CHRE_BLE_CAPABILITIES_NONE;
-}
-
-WEAK_SYMBOL
-uint32_t chreBleGetFilterCapabilities() {
-  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreBleGetFilterCapabilities);
-  return (fptr != nullptr) ? fptr() : CHRE_BLE_FILTER_CAPABILITIES_NONE;
-}
-
-WEAK_SYMBOL
-bool chreBleStartScanAsync(chreBleScanMode mode, uint32_t reportDelayMs,
-                           const struct chreBleScanFilter *filter) {
-  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreBleStartScanAsync);
-  return (fptr != nullptr) ? fptr(mode, reportDelayMs, filter) : false;
-}
-
-WEAK_SYMBOL
-bool chreBleStopScanAsync() {
-  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreBleStopScanAsync);
-  return (fptr != nullptr) ? fptr() : false;
-}
-
-#endif /* CHRE_NANOAPP_USES_BLE */
 
 WEAK_SYMBOL
 void chreConfigureHostSleepStateEvents(bool enable) {
@@ -281,26 +252,6 @@ bool chreWifiRequestRangingAsync(const struct chreWifiRangingParams *params,
                                  const void *cookie) {
   auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreWifiRequestRangingAsync);
   return (fptr != nullptr) ? fptr(params, cookie) : false;
-}
-
-WEAK_SYMBOL
-bool chreWifiNanRequestRangingAsync(
-    const struct chreWifiNanRangingParams *params, const void *cookie) {
-  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreWifiNanRequestRangingAsync);
-  return (fptr != nullptr) ? fptr(params, cookie) : false;
-}
-
-WEAK_SYMBOL
-bool chreWifiNanSubscribe(struct chreWifiNanSubscribeConfig *config,
-                          const void *cookie) {
-  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreWifiNanSubscribe);
-  return (fptr != nullptr) ? fptr(config, cookie) : false;
-}
-
-WEAK_SYMBOL
-bool chreWifiNanSubscribeCancel(uint32_t subscriptionID) {
-  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreWifiNanSubscribeCancel);
-  return (fptr != nullptr) ? fptr(subscriptionID) : false;
 }
 
 #endif /* CHRE_NANOAPP_USES_WIFI */
@@ -386,27 +337,6 @@ void chreUserSettingConfigureEvents(uint8_t setting, bool enable) {
   if (fptr != nullptr) {
     fptr(setting, enable);
   }
-}
-
-WEAK_SYMBOL
-bool chreConfigureHostEndpointNotifications(uint16_t hostEndpointId,
-                                            bool enable) {
-  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreConfigureHostEndpointNotifications);
-  return (fptr != nullptr) ? fptr(hostEndpointId, enable) : false;
-}
-
-WEAK_SYMBOL
-bool chrePublishRpcServices(struct chreNanoappRpcService *services,
-                            size_t numServices) {
-  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chrePublishRpcServices);
-  return (fptr != nullptr) ? fptr(services, numServices) : false;
-}
-
-WEAK_SYMBOL
-bool chreGetHostEndpointInfo(uint16_t hostEndpointId,
-                             struct chreHostEndpointInfo *info) {
-  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreGetHostEndpointInfo);
-  return (fptr != nullptr) ? fptr(hostEndpointId, info) : false;
 }
 
 #endif  // CHRE_NANOAPP_DISABLE_BACKCOMPAT
