@@ -110,18 +110,6 @@ extern "C" {
 #define CHRE_API_VERSION_1_5 UINT32_C(0x01050000)
 
 /**
- * Value for version 1.6 of the Context Hub Runtime Environment API interface.
- *
- * This version of the CHRE API is shipped with the Android T release.
- *
- * @note This version of the CHRE API has not been finalized yet, and is
- * currently considered a preview that is subject to change.
- *
- * @see CHRE_API_VERSION
- */
-#define CHRE_API_VERSION_1_6 UINT32_C(0x01060000)
-
-/**
  * Major and Minor Version of this Context Hub Runtime Environment API.
  *
  * The major version changes when there is an incompatible API change.
@@ -138,7 +126,7 @@ extern "C" {
  * Note that version numbers can always be numerically compared with
  * expected results, so 1.0.0 < 1.0.4 < 1.1.0 < 2.0.300 < 3.5.0.
  */
-#define CHRE_API_VERSION CHRE_API_VERSION_1_6
+#define CHRE_API_VERSION CHRE_API_VERSION_1_5
 
 /**
  * Utility macro to extract only the API major version of a composite CHRE
@@ -150,7 +138,7 @@ extern "C" {
  * @return The API major version in the least significant byte, e.g. 0x01
  */
 #define CHRE_EXTRACT_MAJOR_VERSION(version) \
-  (((version)&UINT32_C(0xFF000000)) >> 24)
+  (uint32_t)(((version) & UINT32_C(0xFF000000)) >> 24)
 
 /**
  * Utility macro to extract only the API minor version of a composite CHRE
@@ -161,7 +149,7 @@ extern "C" {
  * @return The API minor version in the least significant byte, e.g. 0x01
  */
 #define CHRE_EXTRACT_MINOR_VERSION(version) \
-  (((version)&UINT32_C(0x00FF0000)) >> 16)
+  (uint32_t)(((version) & UINT32_C(0x00FF0000)) >> 16)
 
 /**
  * Utility macro to extract only the API minor version of a composite CHRE
@@ -173,7 +161,7 @@ extern "C" {
  * @return The implementation patch version in the least significant two bytes,
  *     e.g. 0x0123, with all other bytes set to 0
  */
-#define CHRE_EXTRACT_PATCH_VERSION(version) ((version)&UINT32_C(0xFFFF))
+#define CHRE_EXTRACT_PATCH_VERSION(version) (uint32_t)((version) & UINT32_C(0xFFFF))
 
 /**
  * Get the API version the CHRE implementation was compiled against.
