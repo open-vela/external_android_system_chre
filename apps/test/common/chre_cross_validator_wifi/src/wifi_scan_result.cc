@@ -23,6 +23,8 @@
 #include <stdio.h>
 #include <cstring>
 
+#define LOG_TAG "ChreCrossValidatorWifi"
+
 WifiScanResult::WifiScanResult(pb_istream_t *apWifiScanResultStream) {
   memset(mSsid, 0, CHRE_WIFI_SSID_MAX_LEN);
   chre_cross_validation_wifi_WifiScanResult wifiScanResultProto =

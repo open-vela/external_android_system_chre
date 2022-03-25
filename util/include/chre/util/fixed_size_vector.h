@@ -27,8 +27,6 @@ namespace chre {
 template <typename ElementType, size_t kCapacity>
 class FixedSizeVector : public NonCopyable {
  public:
-  typedef ElementType value_type;
-
   /**
    * Destructs the objects
    */

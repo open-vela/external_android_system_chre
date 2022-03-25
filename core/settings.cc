@@ -44,15 +44,14 @@ bool getIndexForSetting(Setting setting, size_t *index) {
   return false;
 }
 
-void sendSettingChangedNotification(Setting setting, bool enabled) {
+void sendSettingChangedNotification(Setting setting, SettingState state) {
   auto *eventData = memoryAlloc<struct chreUserSettingChangedEvent>();
   auto settingAsInt = static_cast<uint8_t>(setting);
   uint16_t eventType = CHRE_EVENT_SETTING_CHANGED_FIRST_EVENT + settingAsInt;
 
   if (eventData != nullptr) {
     eventData->setting = settingAsInt;
-    eventData->settingState = enabled ? CHRE_USER_SETTING_STATE_ENABLED
-                                      : CHRE_USER_SETTING_STATE_DISABLED;
+    eventData->settingState = static_cast<int8_t>(state);
 
     EventLoopManagerSingleton::get()->getEventLoop().postEventOrDie(
         eventType, eventData, freeEventDataCallback, kBroadcastInstanceId);
@@ -68,105 +67,100 @@ SettingManager::SettingManager() {
   // nanoapps can begin work during boot which will get canceled if the user has
   // disabled the feature.
   for (size_t i = 0; i < ARRAY_SIZE(mSettingStateList); ++i) {
-    mSettingStateList[i] = true;
+    mSettingStateList[i] = SettingState::ENABLED;
   }
 
   // Airplane mode should be disabled since it being enabled causes API usage
   // restrictions.
   auto airplaneIndex = static_cast<uint8_t>(Setting::AIRPLANE_MODE);
-  mSettingStateList[airplaneIndex] = false;
+  mSettingStateList[airplaneIndex] = SettingState::DISABLED;
 }
 
-void SettingManager::postSettingChange(Setting setting, bool enabled) {
-  LOGD("Posting setting change: setting type %" PRIu8 " enabled %d",
-       static_cast<uint8_t>(setting), enabled);
+void SettingManager::postSettingChange(Setting setting, SettingState state) {
+  LOGD("Posting setting change: setting type %" PRIu8 " state %" PRIu8,
+       static_cast<uint8_t>(setting), static_cast<uint8_t>(state));
 
   EventLoopManagerSingleton::get()->deferCallback(
       SystemCallbackType::SettingChangeEvent, NestedDataPtr<Setting>(setting),
-      settingChangedCallback, NestedDataPtr<bool>(enabled));
+      settingChangedCallback, NestedDataPtr<SettingState>(state));
 }
 
-bool SettingManager::getSettingEnabled(Setting setting) {
+SettingState SettingManager::getSettingState(Setting setting) {
   size_t index;
   if (getIndexForSetting(setting, &index)) {
     return mSettingStateList[index];
   }
 
   LOGE("Unknown setting %" PRIu8, static_cast<uint8_t>(setting));
-  return false;
+  return SettingState::UNKNOWN;
 }
 
 int8_t SettingManager::getSettingStateAsInt8(uint8_t setting) {
   int8_t state = CHRE_USER_SETTING_STATE_UNKNOWN;
   if (setting < static_cast<uint8_t>(Setting::SETTING_MAX)) {
     auto settingEnum = static_cast<Setting>(setting);
-    state = static_cast<int8_t>(getSettingEnabled(settingEnum));
+    state = static_cast<int8_t>(getSettingState(settingEnum));
   }
   return state;
 }
 
 void SettingManager::logStateToBuffer(DebugDumpWrapper &debugDump) {
   debugDump.print("\nSettings:");
-  debugDump.print("\n Location %s", getSettingEnabledString(Setting::LOCATION));
+  debugDump.print("\n Location %s", getSettingStateString(Setting::LOCATION));
   debugDump.print("\n WiFi available %s",
-                  getSettingEnabledString(Setting::WIFI_AVAILABLE));
+                  getSettingStateString(Setting::WIFI_AVAILABLE));
   debugDump.print("\n Airplane mode %s",
-                  getSettingEnabledString(Setting::AIRPLANE_MODE));
+                  getSettingStateString(Setting::AIRPLANE_MODE));
   debugDump.print("\n Microphone Access %s",
-                  getSettingEnabledString(Setting::MICROPHONE));
-  debugDump.print("\n BLE available %s",
-                  getSettingEnabledString(Setting::BLE_AVAILABLE));
+                  getSettingStateString(Setting::MICROPHONE));
 }
 
 void SettingManager::settingChangedCallback(uint16_t /* type */, void *data,
                                             void *extraData) {
   Setting setting = NestedDataPtr<Setting>(data);
-  bool settingEnabled = NestedDataPtr<bool>(extraData);
+  SettingState settingState = NestedDataPtr<SettingState>(extraData);
 
   EventLoopManagerSingleton::get()->getSettingManager().setSettingState(
-      setting, settingEnabled);
+      setting, settingState);
 
-  LOGD("Setting changed callback called for setting %u enabled %d",
-       static_cast<uint8_t>(setting), settingEnabled);
+  LOGD("Setting changed callback called for setting %u state %u",
+       static_cast<uint8_t>(setting), static_cast<uint8_t>(settingState));
 
 #ifdef CHRE_GNSS_SUPPORT_ENABLED
   EventLoopManagerSingleton::get()->getGnssManager().onSettingChanged(
-      setting, settingEnabled);
+      setting, settingState);
 #endif  // CHRE_GNSS_SUPPORT_ENABLED
 
 #ifdef CHRE_AUDIO_SUPPORT_ENABLED
   EventLoopManagerSingleton::get()->getAudioRequestManager().onSettingChanged(
-      setting, settingEnabled);
+      setting, settingState);
 #endif  // CHRE_AUDIO_SUPPORT_ENABLED
 
-#ifdef CHRE_BLE_SUPPORT_ENABLED
-  EventLoopManagerSingleton::get()->getBleRequestManager().onSettingChanged(
-      setting, settingEnabled);
-#endif  // CHRE_BLE_SUPPORT_ENABLED
-
-#ifdef CHRE_WIFI_SUPPORT_ENABLED
-  EventLoopManagerSingleton::get()->getWifiRequestManager().onSettingChanged(
-      setting, settingEnabled);
-#endif  // CHRE_WIFI_SUPPORT_ENABLED
-
-  sendSettingChangedNotification(setting, settingEnabled);
+  sendSettingChangedNotification(setting, settingState);
 }
 
-void SettingManager::setSettingState(Setting setting, bool enabled) {
+void SettingManager::setSettingState(Setting setting, SettingState state) {
   size_t index;
   if (!getIndexForSetting(setting, &index)) {
     LOGE("Unknown setting %" PRId8, static_cast<int8_t>(setting));
   } else {
-    mSettingStateList[index] = enabled;
+    mSettingStateList[index] = state;
   }
 }
 
-const char *SettingManager::getSettingEnabledString(Setting setting) {
-  if (getSettingEnabled(setting)) {
-    return "enabled";
-  } else {
-    return "disabled";
+const char *SettingManager::getSettingStateString(Setting setting) {
+  switch (getSettingState(setting)) {
+    case SettingState::ENABLED:
+      return "enabled";
+      break;
+    case SettingState::DISABLED:
+      return "disabled";
+      break;
+    default:
+      break;
   }
+
+  return "unknown";
 }
 
 }  // namespace chre

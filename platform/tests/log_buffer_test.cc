@@ -35,6 +35,7 @@ class TestLogBufferCallback : public LogBufferCallbackInterface {
 };
 
 static constexpr size_t kDefaultBufferSize = 1024;
+static constexpr size_t kBytesBeforeLogData = 5;
 
 // Helpers
 void copyStringWithOffset(char *destination, const char *source,
@@ -58,8 +59,9 @@ TEST(LogBuffer, HandleOneLogAndCopy) {
   size_t bytesCopied =
       logBuffer.copyLogs(outBuffer, kOutBufferSize, &numLogsDropped);
 
-  EXPECT_EQ(bytesCopied, strlen(testLogStr) + LogBuffer::kLogDataOffset + 1);
-  copyStringWithOffset(testedBuffer, outBuffer, LogBuffer::kLogDataOffset);
+  EXPECT_EQ(bytesCopied, strlen(testLogStr) +
+                             kBytesBeforeLogData /*loglevel, timestamp*/ + 1);
+  copyStringWithOffset(testedBuffer, outBuffer, strlen(testLogStr) + 1);
   EXPECT_TRUE(strcmp(testedBuffer, testLogStr) == 0);
 }
 
@@ -80,11 +82,12 @@ TEST(LogBuffer, HandleTwoLogsAndCopy) {
       logBuffer.copyLogs(outBuffer, kOutBufferSize, &numLogsDropped);
 
   EXPECT_EQ(bytesCopied, strlen(testLogStr) + strlen(testLogStr2) +
-                             2 * LogBuffer::kLogDataOffset + 2);
-  copyStringWithOffset(testedBuffer, outBuffer, LogBuffer::kLogDataOffset);
+                             2 * kBytesBeforeLogData /*loglevel, timestamp*/ +
+                             2);
+  copyStringWithOffset(testedBuffer, outBuffer, kBytesBeforeLogData);
   EXPECT_TRUE(strcmp(testedBuffer, testLogStr) == 0);
   copyStringWithOffset(testedBuffer, outBuffer,
-                       2 * LogBuffer::kLogDataOffset + strlen(testLogStr) + 1);
+                       2 * kBytesBeforeLogData + strlen(testLogStr) + 1);
   EXPECT_TRUE(strcmp(testedBuffer, testLogStr2) == 0);
 }
 
@@ -143,12 +146,12 @@ TEST(LogBuffer, LogOverwritten) {
   size_t numLogsDropped;
   size_t bytesCopied =
       logBuffer.copyLogs(outBuffer, kOutBufferSize, &numLogsDropped);
-  memcpy(testedBuffer, outBuffer + LogBuffer::kLogDataOffset, 101);
+  memcpy(testedBuffer, outBuffer + kBytesBeforeLogData, 101);
 
   // Should have read out the second from front test log string which is 'a' + 1
   // = 'b'
   EXPECT_TRUE(strcmp(testedBuffer, std::string(100, 'b').c_str()) == 0);
-  EXPECT_EQ(bytesCopied, LogBuffer::kLogDataOffset + 100 + 1);
+  EXPECT_EQ(bytesCopied, kBytesBeforeLogData + 100 + 1);
   // Should have dropped the first log
   EXPECT_EQ(numLogsDropped, 1);
 }
@@ -268,11 +271,11 @@ TEST(LogBuffer, TransferTest) {
   // The logs should have the text of each of the logs pushed onto the From
   // buffer in FIFO ordering.
   logBufferTo.copyLogs(outBuffer, kOutBufferSize, &numLogsDropped);
-  ASSERT_TRUE(strcmp(outBuffer + LogBuffer::kLogDataOffset, str1) == 0);
+  ASSERT_TRUE(strcmp(outBuffer + kBytesBeforeLogData, str1) == 0);
   logBufferTo.copyLogs(outBuffer, kOutBufferSize, &numLogsDropped);
-  ASSERT_TRUE(strcmp(outBuffer + LogBuffer::kLogDataOffset, str2) == 0);
+  ASSERT_TRUE(strcmp(outBuffer + kBytesBeforeLogData, str2) == 0);
   logBufferTo.copyLogs(outBuffer, kOutBufferSize, &numLogsDropped);
-  ASSERT_TRUE(strcmp(outBuffer + LogBuffer::kLogDataOffset, str3) == 0);
+  ASSERT_TRUE(strcmp(outBuffer + kBytesBeforeLogData, str3) == 0);
 
   size_t bytesCopied =
       logBufferTo.copyLogs(outBuffer, kOutBufferSize, &numLogsDropped);
