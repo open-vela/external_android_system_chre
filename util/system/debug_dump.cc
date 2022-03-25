@@ -16,7 +16,6 @@
 
 #include "chre/util/system/debug_dump.h"
 
-#include <cinttypes>
 #include <cstdio>
 
 #include "chre/platform/log.h"
@@ -96,18 +95,6 @@ bool DebugDumpWrapper::insertString(const char *formatStr, va_list argList,
 
   *sizeOfStr = strSize;
   return success;
-}
-
-void DebugDumpWrapper::logErrorHistogram(const uint32_t *histogram,
-                                         uint8_t histogramLength) {
-  print("     [");
-  for (int i = 0; i < histogramLength; i++) {
-    print("%" PRIu32, histogram[i]);
-    if (i < histogramLength - 1) {
-      print(",");
-    }
-  }
-  print("]\n");
 }
 
 }  // namespace chre
