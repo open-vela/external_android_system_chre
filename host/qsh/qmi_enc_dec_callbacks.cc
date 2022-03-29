@@ -35,13 +35,15 @@ void QmiCallbacks::onError(qmi_client_type handle, qmi_client_error_type error,
   LOGE("QmiErrCB: hdl %p err %u", handle, error);
 }
 
-void QmiCallbacks::onResponse(qmi_client_type /* handle */, unsigned int msgId,
-                              void *responseData, unsigned int responseLen,
-                              void * /* onResponseData */,
-                              qmi_client_error_type err) {
-  auto *response = static_cast<sns_client_resp_msg_v01 *>(responseData);
+void QmiCallbacks::onSnsClientResponse(qmi_client_type /* handle */,
+                                       unsigned int msgId, void *responseData,
+                                       unsigned int responseLen,
+                                       void * /* responseData */,
+                                       qmi_client_error_type err) {
+  auto response = std::unique_ptr<sns_client_resp_msg_v01>(
+      static_cast<sns_client_resp_msg_v01 *>(responseData));
   if (response == nullptr) {
-    LOGE("Got null response for msg ID %s, responseLen: %u, err: %d", msgId,
+    LOGE("Got null response for msg ID %u, responseLen: %u, err: %d", msgId,
          responseLen, err);
     return;
   }
@@ -53,7 +55,6 @@ void QmiCallbacks::onResponse(qmi_client_type /* handle */, unsigned int msgId,
   qmi_response_type_v01 &resp = response->resp;
   LOGD("Embedded response qmi_result: %u, qmi_err: %u", resp.result,
        resp.error);
-  delete[] response;
 }
 
 void QmiCallbacks::onIndication(qmi_client_type /*handle*/, unsigned int msgId,
@@ -129,26 +130,32 @@ bool QmiCallbacks::decodeFloatData(pb_istream_t *stream,
   return success;
 }
 
-bool QmiCallbacks::decodeAttr(pb_istream_t *stream, const pb_field_t *field,
-                              void **arg) {
+bool QmiCallbacks::decodeAttr(pb_istream_t *stream,
+                              const pb_field_t * /* field */, void **arg) {
   auto *decodeCbData = static_cast<DecodeCbData *>(*arg);
-  auto *qmiClientInstance = decodeCbData->qmiClientInstance;
   sns_std_attr attribute = sns_std_attr_init_default;
+  sns_std_attr attributeCopy = sns_std_attr_init_default;
   pb_istream_t streamCopy = *stream;
 
-  if (!pb_decode(&streamCopy, sns_std_attr_fields, &attribute)) {
+  if (!pb_decode(&streamCopy, sns_std_attr_fields, &attributeCopy)) {
     LOGE("event: %s", PB_GET_ERROR(stream));
     return false;
   }
-  return qmiClientInstance->handleAttribute(attribute.attr_id, stream, field,
-                                            arg);
+
+  decodeCbData->attributeId = attributeCopy.attr_id;
+  attribute.value.values.funcs.decode = decodeAttrValue;
+  attribute.value.values.arg = decodeCbData;
+
+  return pb_decode(stream, sns_std_attr_fields, &attribute);
 }
 
 bool QmiCallbacks::decodeAttrValue(pb_istream_t *stream,
                                    const pb_field_t * /*field*/, void **arg) {
+  bool success = true;
+  auto *decodeCbData = static_cast<DecodeCbData *>(*arg);
+  QmiClientBase *qmiClientInstance = decodeCbData->qmiClientInstance;
   sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
-  QmiClientBase::SnsArg strData =
-      (QmiClientBase::SnsArg){.buf = nullptr, .bufLen = 0};
+  QmiClientBase::SnsArg strData = {.buf = nullptr, .bufLen = 0};
 
   value.str.funcs.decode = QmiCallbacks::decodePayload;
   value.str.arg = &strData;
@@ -160,24 +167,24 @@ bool QmiCallbacks::decodeAttrValue(pb_istream_t *stream,
     return false;
   }
 
-  if (value.has_flt)
-    LOGD("Attribute float: %f", value.flt);
-  else if (value.has_sint) {
-    if (*arg != nullptr) {
-      auto *val = static_cast<int64_t *>(*arg);
-      *val = value.sint;
-    }
-    LOGD("Attribute int: %" PRIi64, value.sint);
-  } else if (value.has_boolean)
-    LOGD("Attribute boolean: %i", value.boolean);
-  else if (strData.buf != nullptr)
-    LOGD("Attribute string: %s", static_cast<const char *>(strData.buf));
-  else if (value.has_subtype)
-    LOGD("Attribute nested");
-  else
+  if (value.has_flt) {
+    qmiClientInstance->handleAttribute(decodeCbData->attributeId, value.flt);
+  } else if (value.has_sint) {
+    qmiClientInstance->handleAttribute(decodeCbData->attributeId, value.sint);
+  } else if (value.has_boolean) {
+    qmiClientInstance->handleAttribute(decodeCbData->attributeId,
+                                       value.boolean);
+  } else if (strData.buf != nullptr) {
+    qmiClientInstance->handleAttribute(decodeCbData->attributeId,
+                                       static_cast<const char *>(strData.buf));
+  } else if (value.has_subtype) {
+    LOGW("Nested attribute handling unimplemented");
+  } else {
     LOGE("Unknown attribute type");
+    success = false;
+  }
 
-  return true;
+  return success;
 }
 
 uint32_t QmiCallbacks::getMsgId(pb_istream_t *stream) {
@@ -200,7 +207,6 @@ bool QmiCallbacks::decodeEvents(pb_istream_t *stream,
                                 const pb_field_t * /*field*/, void **arg) {
   bool success = true;
   auto *decodeCbData = static_cast<DecodeCbData *>(*arg);
-  auto *qmiClientInstance = decodeCbData->qmiClientInstance;
   sns_client_event_msg_sns_client_event event =
       sns_client_event_msg_sns_client_event_init_default;
   pb_istream_t streamCopy = *stream;
@@ -213,9 +219,8 @@ bool QmiCallbacks::decodeEvents(pb_istream_t *stream,
     event.payload.funcs.decode =
         reinterpret_cast<PbDecodeCallback>(QmiCallbacks::decodeSuidEvent);
   } else {
-    qmiClientInstance->setSuid(suid);
-    event.payload.funcs.decode = reinterpret_cast<PbDecodeCallback>(
-        QmiCallbacks::decodeGenericSuidEvent);
+    event.payload.funcs.decode =
+        reinterpret_cast<PbDecodeCallback>(QmiCallbacks::decodeMessageStream);
   }
   event.payload.arg = decodeCbData;
 
@@ -231,6 +236,9 @@ bool QmiCallbacks::decodeAttrEvent(pb_istream_t *stream,
                                    const pb_field_t * /*field*/, void **arg) {
   sns_std_attr_event event = sns_std_attr_event_init_default;
   auto *decodeCbData = static_cast<DecodeCbData *>(*arg);
+  QmiClientBase *qmiClientInstance = decodeCbData->qmiClientInstance;
+
+  qmiClientInstance->setCurrentAttributeNanoappId(decodeCbData->suid);
 
   event.attributes.funcs.decode = QmiCallbacks::decodeAttr;
   event.attributes.arg = decodeCbData;
@@ -240,26 +248,25 @@ bool QmiCallbacks::decodeAttrEvent(pb_istream_t *stream,
     return false;
   }
 
+  LOGD("Attr event decode complete!");
+  qmiClientInstance->onAttrEventDecodeComplete();
   return true;
 }
 
 bool QmiCallbacks::decodeSuid(pb_istream_t *stream,
                               const pb_field_t * /*field*/, void **arg) {
+  bool success = true;
   sns_std_suid uid;
   auto *decodeCbData = static_cast<DecodeCbData *>(*arg);
+  QmiClientBase *qmiClientInstance = decodeCbData->qmiClientInstance;
 
   if (!pb_decode(stream, sns_std_suid_fields, &uid)) {
     LOGE("Error decoding SUID: %s", PB_GET_ERROR(stream));
-    return false;
+    success = false;
+  } else {
+    qmiClientInstance->addReceivedSuid(uid);
   }
-
-  LOGD("send attr req after receiving SUID Event with SUID %" PRIx64
-       " %" PRIx64,
-       uid.suid_low, uid.suid_high);
-
-  decodeCbData->qmiClientInstance->sendAttrReq(&uid);
-
-  return true;
+  return success;
 }
 
 bool QmiCallbacks::decodeSuidEvent(pb_istream_t *stream,
@@ -267,25 +274,27 @@ bool QmiCallbacks::decodeSuidEvent(pb_istream_t *stream,
   bool success = true;
   sns_suid_event event;
   QmiClientBase::SnsArg data;
-  auto *cbdata = static_cast<DecodeCbData *>(*arg);
+  auto *cbData = static_cast<DecodeCbData *>(*arg);
+  QmiClientBase *qmiClientInstance = cbData->qmiClientInstance;
 
   event.suid.funcs.decode = QmiCallbacks::decodeSuid;
-  event.suid.arg = cbdata;
+  event.suid.arg = cbData;
   event.data_type.funcs.decode = QmiCallbacks::decodePayload;
   event.data_type.arg = &data;
 
   if (!pb_decode(stream, sns_suid_event_fields, &event)) {
     LOGE("Error decoding SUID Event: %s", PB_GET_ERROR(stream));
     success = false;
+  } else {
+    qmiClientInstance->onSuidDecodeEventComplete();
   }
-
   return success;
 }
 
-bool QmiCallbacks::decodeGenericSuidEvent(pb_istream_t *stream,
-                                          const pb_field_t *field, void **arg) {
+bool QmiCallbacks::decodeMessageStream(pb_istream_t *stream,
+                                       const pb_field_t *field, void **arg) {
   auto *decodeCbData = static_cast<QmiCallbacks::DecodeCbData *>(*arg);
-  auto *qmiClientInstance = decodeCbData->qmiClientInstance;
+  QmiClientBase *qmiClientInstance = decodeCbData->qmiClientInstance;
   auto msgId = decodeCbData->msgId;
 
   LOGD("Begin decoding generic SUID event %u", msgId);
