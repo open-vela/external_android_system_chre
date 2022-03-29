@@ -18,7 +18,6 @@
 
 #include "chre_api/chre/event.h"
 #include "chre_host/fragmented_load_transaction.h"
-#include "chre_host/host_protocol_host.h"
 #include "permissions_util.h"
 
 namespace aidl {
@@ -27,7 +26,6 @@ namespace hardware {
 namespace contexthub {
 
 using ::android::chre::FragmentedLoadTransaction;
-using ::android::chre::getStringFromByteVector;
 using ::android::hardware::contexthub::common::implementation::
     chreToAndroidPermissions;
 using ::android::hardware::contexthub::common::implementation::
@@ -39,9 +37,26 @@ constexpr uint32_t kDefaultHubId = 0;
 
 }  // anonymous namespace
 
+ContextHub::ContextHub()
+    : mDeathRecipient(AIBinder_DeathRecipient_new(ContextHub::onServiceDied)) {}
+
 ScopedAStatus ContextHub::getContextHubs(
-    std::vector<ContextHubInfo> * /*out_contextHubInfos*/) {
-  ALOGW("%s is yet to be implemented", __FUNCTION__);
+    std::vector<ContextHubInfo> *out_contextHubInfos) {
+  // TODO(b/220195756): Currently has hardcoded info for testing.
+  ContextHubInfo info;
+  uint32_t chreVersion = 0x01060000;
+
+  info.name = "CHRE on QSH";
+  info.vendor = "Google";
+  info.toolchain = "Hexagon Clang";
+  info.id = kDefaultHubId;
+  info.chrePlatformId = 0x476f6f676c000005;
+  info.chreApiMajorVersion = static_cast<uint8_t>(chreVersion >> 24);
+  info.chreApiMinorVersion = static_cast<uint8_t>(chreVersion >> 16);
+  info.chrePatchVersion = static_cast<char16_t>(chreVersion);
+  info.supportedPermissions = kSupportedPermissions;
+
+  out_contextHubInfos->push_back(info);
 
   return ScopedAStatus::ok();
 }
@@ -49,14 +64,14 @@ ScopedAStatus ContextHub::getContextHubs(
 ScopedAStatus ContextHub::loadNanoapp(int32_t /*contextHubId*/,
                                       const NanoappBinary & /*appBinary*/,
                                       int32_t /*transactionId*/) {
-  ALOGW("%s is yet to be implemented", __FUNCTION__);
+  // TODO(b/220195756): Implement this.
   return ScopedAStatus::ok();
 }
 
 ScopedAStatus ContextHub::unloadNanoapp(int32_t /*contextHubId*/,
                                         int64_t /*appId*/,
                                         int32_t /*transactionId*/) {
-  ALOGW("%s is yet to be implemented", __FUNCTION__);
+  // TODO(b/220195756): Implement this.
   return ScopedAStatus::ok();
 }
 
@@ -78,13 +93,17 @@ ScopedAStatus ContextHub::enableNanoapp(int32_t /* contextHubId */,
 
 ScopedAStatus ContextHub::onSettingChanged(Setting /*setting*/,
                                            bool /*enabled*/) {
-  ALOGW("%s is yet to be implemented", __FUNCTION__);
+  // TODO(b/220195756): Implement this.
   return ScopedAStatus::ok();
 }
 
 ScopedAStatus ContextHub::queryNanoapps(int32_t /*contextHubId*/) {
-  ALOGW("%s is yet to be implemented", __FUNCTION__);
-  return ScopedAStatus::ok();
+  bool success =
+      mQmiQshNanoappClient.sendSuidReq(onSuidAttributesReceived, this);
+  return success ? ScopedAStatus::ok()
+                 : ScopedAStatus::fromServiceSpecificErrorWithMessage(
+                       BnContextHub::EX_CONTEXT_HUB_UNSPECIFIED,
+                       "Failed to send SUID request");
 }
 
 ScopedAStatus ContextHub::registerCallback(
@@ -119,19 +138,19 @@ ScopedAStatus ContextHub::registerCallback(
 
 ScopedAStatus ContextHub::sendMessageToHub(
     int32_t /*contextHubId*/, const ContextHubMessage & /*message*/) {
-  ALOGW("%s is yet to be implemented", __FUNCTION__);
+  // TODO(b/220195756): Implement this.
   return ScopedAStatus::ok();
 }
 
 ScopedAStatus ContextHub::onHostEndpointConnected(
     const HostEndpointInfo & /*in_info*/) {
-  ALOGW("%s is yet to be implemented", __FUNCTION__);
+  // TODO(b/220195756): Implement this.
   return ScopedAStatus::ok();
 }
 
 ScopedAStatus ContextHub::onHostEndpointDisconnected(
     char16_t /*in_hostEndpointId*/) {
-  ALOGW("%s is yet to be implemented", __FUNCTION__);
+  // TODO(b/220195756): Implement this.
   return ScopedAStatus::ok();
 }
 
@@ -154,8 +173,26 @@ void ContextHub::onServiceDied(void *cookie) {
 
 binder_status_t ContextHub::dump(int /*fd*/, const char ** /* args */,
                                  uint32_t /* numArgs */) {
-  ALOGW("%s is yet to be implemented", __FUNCTION__);
+  // TODO(b/220195756): Implement this.
   return STATUS_OK;
+}
+
+void ContextHub::onSuidAttributesReceived(
+    const SuidAttributeList &attributeList, void *ctx) {
+  std::vector<NanoappInfo> appInfoList;
+  auto *instance = static_cast<ContextHub *>(ctx);
+  for (const auto &attr : attributeList) {
+    NanoappInfo info;
+    ALOGV("processing attribute with name %s, nappID %" PRIx64,
+          attr.name.c_str(), attr.nanoappId);
+    info.nanoappId = attr.nanoappId;
+    info.nanoappVersion = attr.version;
+    info.enabled = attr.isAvailable;
+
+    appInfoList.push_back(info);
+  }
+
+  instance->getCallback()->handleNanoappInfo(appInfoList);
 }
 
 }  // namespace contexthub

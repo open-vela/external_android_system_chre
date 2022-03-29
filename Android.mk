@@ -61,30 +61,6 @@ MSM_SRC_FILES := \
 MSM_INCLUDES := \
     system/chre/host/msm/daemon
 
-QSH_SRC_FILES := \
-    host/qsh/main.cc \
-    host/qsh/qmi_client_base.cc \
-    host/qsh/qmi_enc_dec_callbacks.cc \
-    host/qsh/qmi_qsh_nanoapp_client.cc \
-    host/qsh/qsh_daemon.cc
-
-QSH_INCLUDES := \
-    system/chre/host/qsh
-
-QSH_SHARED_LIBRARIES := \
-    libsns_api \
-    libqmi_cci \
-    libqmi_encdec \
-    libqmi_common_so \
-    libnanopb
-
-QSH_LIBRARY_HEADERS := \
-    libnanopb_headers \
-    libqmi_cci_headers \
-    libqmi_common_headers \
-    libqmi_encdec_headers \
-    libssc_headers
-
 LOCAL_SRC_FILES := \
     host/common/daemon_base.cc \
     host/common/fragmented_load_transaction.cc \
@@ -121,20 +97,8 @@ LOCAL_SHARED_LIBRARIES := \
     android.frameworks.stats-V1-ndk \
     libbinder_ndk
 
-# The CHRE_DAEMON_IS_QSH flag should be set to true somewhere in the build
-# chain (in boardconfig.mk for example) if the CHRE daemon is to be of the
-# QSH variant.
-ifeq ($(CHRE_DAEMON_IS_QSH), true)
-LOCAL_CFLAGS += -DCHRE_DAEMON_IS_QSH
-LOCAL_SRC_FILES += $(QSH_SRC_FILES)
-LOCAL_C_INCLUDES += $(QSH_INCLUDES)
-LOCAL_SHARED_LIBRARIES += $(QSH_SHARED_LIBRARIES)
-LOCAL_STATIC_LIBRARIES += $(QSH_STATIC_LIBRARIES)
-LOCAL_HEADER_LIBRARIES += $(QSH_LIBRARY_HEADERS)
-else
 LOCAL_SRC_FILES += $(MSM_SRC_FILES)
 LOCAL_C_INCLUDES += $(MSM_INCLUDES)
-endif
 
 LOCAL_CPPFLAGS += -std=c++20
 LOCAL_CFLAGS += -Wno-sign-compare
@@ -162,5 +126,62 @@ endif
 
 include $(BUILD_EXECUTABLE)
 
-endif
-endif
+endif   # CHRE_DAEMON_ENABLED
+
+include $(CLEAR_VARS)
+
+# Only build the module for platforms which have access to the required vendor
+# libraries.
+ifeq ($(CHRE_QMI_CONTEXTHUB_SERVICE_ENABLED),true)
+LOCAL_MODULE := android.hardware.contexthub-service.qmi
+LOCAL_LICENSE_KINDS := SPDX-license-identifier-Apache-2.0 SPDX-license-identifier-BSD
+LOCAL_MODULE_OWNER := google
+LOCAL_MODULE_PATH := $(TARGET_OUT_VENDOR)/bin/hw
+LOCAL_MODULE_TAGS := optional
+LOCAL_VENDOR_MODULE := true
+LOCAL_INIT_RC := host/hal_generic/aidl_qmi/android.hardware.contexthub-service.qmi.rc
+LOCAL_VINTF_FRAGMENTS := host/hal_generic/aidl_qmi/android.hardware.contexthub-service.qmi.xml
+
+LOCAL_CPP_EXTENSION := .cc
+LOCAL_CFLAGS += -Wall -Werror -Wextra
+
+LOCAL_CFLAGS += -DCHRE_MESSAGE_TO_HOST_MAX_SIZE=4000 # Needed to import CHRE APIs.
+
+LOCAL_SRC_FILES := \
+    host/hal_generic/common/permissions_util.cc \
+    host/hal_generic/aidl_qmi/service.cc \
+    host/hal_generic/aidl_qmi/qmi_context_hub_aidl.cc \
+    host/qsh/qmi_client_base.cc \
+    host/qsh/qmi_enc_dec_callbacks.cc \
+    host/qsh/qmi_qsh_nanoapp_client.cc
+
+LOCAL_C_INCLUDES := \
+    system/chre/chre_api/include/chre_api \
+    system/chre/chre_api/include \
+    system/chre/host/common/include \
+    system/chre/host/hal_generic/common \
+    system/chre/host/qsh \
+    system/chre/util/include
+
+LOCAL_HEADER_LIBRARIES := \
+    libnanopb_headers \
+    libqmi_cci_headers \
+    libqmi_common_headers \
+    libqmi_encdec_headers \
+    libssc_headers
+
+LOCAL_SHARED_LIBRARIES := \
+    android.hardware.contexthub-V1-ndk \
+    libbase \
+    libbinder_ndk \
+    liblog \
+    libnanopb \
+    libsns_api \
+    libqmi_cci \
+    libqmi_common_so \
+    libqmi_encdec
+
+include $(BUILD_EXECUTABLE)
+
+endif   # CHRE_QMI_CONTEXTHUB_SERVICE_ENABLED
+endif   # BUILDING_VENDOR_IMAGE
