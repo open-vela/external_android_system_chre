@@ -18,22 +18,18 @@
 #define CHRE_QSH_NANOAPP_CLIENT_H_
 
 #include "qmi_client_base.h"
-#include "qmi_enc_dec_callbacks.h"
 
 namespace android {
 namespace chre {
 
 class QmiQshNanoappClient : public QmiClientBase {
  public:
-  QmiQshNanoappClient(const char *type) : QmiClientBase(type) {}
+  static constexpr char kSensorType[] = "chre_qsh_nanoapp";
 
-  bool enable() override;
-  bool enableStream() override;
-  void disable() override;
-  bool handleMessageStream(uint32_t msgId, pb_istream_t *stream,
-                           const pb_field_t *field, void **arg) override;
-  bool handleAttribute(uint32_t attributeId, pb_istream_t *stream,
-                       const pb_field_t *field, void **arg) override;
+  QmiQshNanoappClient() : QmiClientBase(kSensorType) {}
+
+  void onAttrEventDecodeComplete() override;
+  void onSuidDecodeEventComplete() override;
 };
 
 }  // namespace chre

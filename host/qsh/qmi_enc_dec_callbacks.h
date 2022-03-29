@@ -47,8 +47,9 @@ class QmiCallbacks {
    */
   struct DecodeCbData {
     QmiClientBase *qmiClientInstance;
-    sns_std_suid suid;
-    uint32_t msgId;
+    sns_std_suid suid;     // SUID being decoded
+    uint32_t msgId;        // Current message ID that's being handled.
+    uint32_t attributeId;  // Current Attribute being decoded.
   };
 
   /**
@@ -77,9 +78,10 @@ class QmiCallbacks {
    * processing. The actual result of the request is delivered asynchronously
    * via the onIndication callback.
    */
-  static void onResponse(qmi_client_type handle, unsigned int msgId,
-                         void *responseData, unsigned int responseLen,
-                         void *onResponseData, qmi_client_error_type err);
+  static void onSnsClientResponse(qmi_client_type handle, unsigned int msgId,
+                                  void *responseData, unsigned int responseLen,
+                                  void *onResponseData,
+                                  qmi_client_error_type err);
 
   /**
    * QMI indication callback, invoked when the result of a successful request
@@ -159,8 +161,8 @@ class QmiCallbacks {
   /**
    * Decode an SUID specific events.
    */
-  static bool decodeGenericSuidEvent(pb_istream_t *stream,
-                                     const pb_field_t *field, void **arg);
+  static bool decodeMessageStream(pb_istream_t *stream, const pb_field_t *field,
+                                  void **arg);
 };
 
 }  // namespace chre
