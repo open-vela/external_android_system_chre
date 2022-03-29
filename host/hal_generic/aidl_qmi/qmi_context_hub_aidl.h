@@ -25,18 +25,22 @@
 #include <optional>
 #include <unordered_set>
 
-#include "hal_chre_socket_connection.h"
+#include "qmi_client.h"
+#include "qmi_qsh_nanoapp_client.h"
 
 namespace aidl {
 namespace android {
 namespace hardware {
 namespace contexthub {
 
+/**
+ * Class that implements the ContextHub interface, aimed at piping request-
+ * response communications between the Context Hub HAL and the CHRE QSH
+ * nanoapp sensor.
+ */
 class ContextHub : public BnContextHub {
  public:
-  ContextHub()
-      : mDeathRecipient(
-            AIBinder_DeathRecipient_new(ContextHub::onServiceDied)) {}
+  ContextHub();
 
   ::ndk::ScopedAStatus getContextHubs(
       std::vector<ContextHubInfo> *out_contextHubInfos) override;
@@ -66,7 +70,18 @@ class ContextHub : public BnContextHub {
 
   binder_status_t dump(int fd, const char **args, uint32_t numArgs) override;
 
+  inline std::shared_ptr<IContextHubCallback> getCallback() {
+    return mCallback;
+  }
+
+  using SuidAttributeList =
+      std::vector<::android::chre::QmiQshNanoappClient::SuidAttributes>;
+  static void onSuidAttributesReceived(const SuidAttributeList &list,
+                                       void *ctx);
+
  private:
+  ::android::chre::QmiQshNanoappClient mQmiQshNanoappClient;
+
   // A mutex to protect concurrent modifications to the callback pointer and
   // access (invocations).
   std::mutex mCallbackMutex;
