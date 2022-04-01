@@ -21,14 +21,14 @@
 namespace chre {
 
 const SensorRequest *SensorRequestMultiplexer::findRequest(
-    uint16_t instanceId, size_t *index) const {
+    uint32_t instanceId, size_t *index) const {
+  CHRE_ASSERT(index);
+
   const DynamicVector<SensorRequest> &requests = getRequests();
   for (size_t i = 0; i < requests.size(); i++) {
     const SensorRequest &sensorRequest = requests[i];
     if (sensorRequest.getInstanceId() == instanceId) {
-      if (index != nullptr) {
-        *index = i;
-      }
+      *index = i;
       return &sensorRequest;
     }
   }

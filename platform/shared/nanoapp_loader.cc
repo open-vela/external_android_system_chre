@@ -32,10 +32,6 @@
 #include "chre/util/dynamic_vector.h"
 #include "chre/util/macros.h"
 
-#ifdef CHRE_LOG_ATOM_EXTENSION_ENABLED
-#include "chrex_log_atom.h"
-#endif
-
 #ifndef CHRE_LOADER_ARCH
 #define CHRE_LOADER_ARCH EM_ARM
 #endif  // CHRE_LOADER_ARCH
@@ -62,17 +58,6 @@ bool gStaticInitFailure = false;
 // a nanoapp actually tries to use the operator.
 void deleteOverride(void *ptr) {
   FATAL_ERROR("Nanoapp tried to free %p through delete operator", ptr);
-}
-
-// From C++17, a call to the overloaded delete operator aimed at safely freeing
-// over-aligned allocations maybe present in the nanoapp binary even though it
-// is unused. Since all memory allocations/deallocations are managed by CHRE,
-// signal a fatal error if the nanoapp tries to use this version of the delete
-// operator.
-void deleteAlignedOverride(void *ptr, std::align_val_t alignment) {
-  UNUSED_VAR(alignment);
-
-  FATAL_ERROR("Nanoapp tried to free aligned %p via the delte operator", ptr);
 }
 
 // atexit is used to register functions that must be called when a binary is
@@ -146,13 +131,12 @@ void __cxa_pure_virtual(void) {
 // TODO(karthikmb/stange): While this array was hand-coded for simple
 // "hello-world" prototyping, the list of exported symbols must be
 // generated to minimize runtime errors and build breaks.
-// TODO(b/226455808): Allow extensions to this list via an external file
 // clang-format off
 // Disable deprecation warning so that deprecated symbols in the array
 // can be exported for older nanoapps and tests.
 CHRE_DEPRECATED_PREAMBLE
 const ExportedData gExportedData[] = {
-    /* libmath overrides and symbols */
+    /* libmath overrrides and symbols */
     ADD_EXPORTED_SYMBOL(asinOverride, "asin"),
     ADD_EXPORTED_SYMBOL(atan2Override, "atan2"),
     ADD_EXPORTED_SYMBOL(cosOverride, "cos"),
@@ -177,7 +161,6 @@ const ExportedData gExportedData[] = {
     ADD_EXPORTED_C_SYMBOL(log1pf),
     ADD_EXPORTED_C_SYMBOL(logf),
     ADD_EXPORTED_C_SYMBOL(lroundf),
-    ADD_EXPORTED_C_SYMBOL(powf),
     ADD_EXPORTED_C_SYMBOL(roundf),
     ADD_EXPORTED_C_SYMBOL(sinf),
     ADD_EXPORTED_C_SYMBOL(sqrtf),
@@ -186,9 +169,7 @@ const ExportedData gExportedData[] = {
     ADD_EXPORTED_C_SYMBOL(__cxa_pure_virtual),
     ADD_EXPORTED_SYMBOL(atexitOverride, "atexit"),
     ADD_EXPORTED_SYMBOL(deleteOverride, "_ZdlPv"),
-    ADD_EXPORTED_SYMBOL(deleteAlignedOverride, "_ZdlPvSt11align_val_t"),
     ADD_EXPORTED_C_SYMBOL(dlsym),
-    ADD_EXPORTED_C_SYMBOL(isgraph),
     ADD_EXPORTED_C_SYMBOL(memcmp),
     ADD_EXPORTED_C_SYMBOL(memcpy),
     ADD_EXPORTED_C_SYMBOL(memmove),
@@ -212,10 +193,6 @@ const ExportedData gExportedData[] = {
     ADD_EXPORTED_C_SYMBOL(chreAbort),
     ADD_EXPORTED_C_SYMBOL(chreAudioConfigureSource),
     ADD_EXPORTED_C_SYMBOL(chreAudioGetSource),
-    ADD_EXPORTED_C_SYMBOL(chreBleGetCapabilities),
-    ADD_EXPORTED_C_SYMBOL(chreBleGetFilterCapabilities),
-    ADD_EXPORTED_C_SYMBOL(chreBleStartScanAsync),
-    ADD_EXPORTED_C_SYMBOL(chreBleStopScanAsync),
     ADD_EXPORTED_C_SYMBOL(chreConfigureDebugDumpEvent),
     ADD_EXPORTED_C_SYMBOL(chreConfigureHostSleepStateEvents),
     ADD_EXPORTED_C_SYMBOL(chreConfigureNanoappInfoEvents),
@@ -259,18 +236,9 @@ const ExportedData gExportedData[] = {
     ADD_EXPORTED_C_SYMBOL(chreWifiGetCapabilities),
     ADD_EXPORTED_C_SYMBOL(chreWifiRequestScanAsync),
     ADD_EXPORTED_C_SYMBOL(chreWifiRequestRangingAsync),
-    ADD_EXPORTED_C_SYMBOL(chreWifiNanRequestRangingAsync),
-    ADD_EXPORTED_C_SYMBOL(chreWifiNanSubscribe),
-    ADD_EXPORTED_C_SYMBOL(chreWifiNanSubscribeCancel),
     ADD_EXPORTED_C_SYMBOL(chreWwanGetCapabilities),
     ADD_EXPORTED_C_SYMBOL(chreWwanGetCellInfoAsync),
     ADD_EXPORTED_C_SYMBOL(platform_chreDebugDumpVaLog),
-    ADD_EXPORTED_C_SYMBOL(chreConfigureHostEndpointNotifications),
-    ADD_EXPORTED_C_SYMBOL(chrePublishRpcServices),
-    ADD_EXPORTED_C_SYMBOL(chreGetHostEndpointInfo),
-#ifdef CHRE_LOG_ATOM_EXTENSION_ENABLED
-    ADD_EXPORTED_C_SYMBOL(chrexLogAtom),
-#endif
 };
 CHRE_DEPRECATED_EPILOGUE
 // clang-format on
@@ -425,9 +393,8 @@ bool NanoappLoader::callInitArray() {
   return success;
 }
 
-uintptr_t NanoappLoader::roundDownToAlign(uintptr_t virtualAddr,
-                                          size_t alignment) {
-  return virtualAddr & -alignment;
+uintptr_t NanoappLoader::roundDownToAlign(uintptr_t virtualAddr) {
+  return virtualAddr & -kBinaryAlignment;
 }
 
 void NanoappLoader::freeAllocatedData() {
@@ -705,16 +672,15 @@ bool NanoappLoader::createMappings() {
       // Get the last load segment
       while (last > first && last->p_type != PT_LOAD) --last;
 
-      size_t alignment = first->p_align;
       size_t memorySpan = last->p_vaddr + last->p_memsz - first->p_vaddr;
       LOGV("Nanoapp image Memory Span: %u", memorySpan);
 
       if (mIsTcmBinary) {
-        mMapping =
-            static_cast<uint8_t *>(nanoappBinaryAlloc(memorySpan, alignment));
+        mMapping = static_cast<uint8_t *>(
+            nanoappBinaryAlloc(memorySpan, kBinaryAlignment));
       } else {
         mMapping = static_cast<uint8_t *>(
-            nanoappBinaryDramAlloc(memorySpan, alignment));
+            nanoappBinaryDramAlloc(memorySpan, kBinaryAlignment));
       }
 
       if (mMapping == nullptr) {
@@ -723,8 +689,7 @@ bool NanoappLoader::createMappings() {
         LOGV("Starting location of mappings %p", mMapping);
 
         // Calculate the load bias using the first load segment.
-        uintptr_t adjustedFirstLoadSegAddr =
-            roundDownToAlign(first->p_vaddr, alignment);
+        uintptr_t adjustedFirstLoadSegAddr = roundDownToAlign(first->p_vaddr);
         mLoadBias =
             reinterpret_cast<uintptr_t>(mMapping) - adjustedFirstLoadSegAddr;
         LOGV("Load bias is %" PRIu32, mLoadBias);
@@ -841,7 +806,6 @@ bool NanoappLoader::fixRelocations() {
     size_t nRelocs = relocSize / sizeof(ElfRel);
     LOGV("Relocation %zu entries in DT_REL table", nRelocs);
 
-    bool resolvedAllSymbols = true;
     size_t i;
     for (i = 0; i < nRelocs; ++i) {
       ElfRel *curr = &reloc[i];
@@ -877,7 +841,7 @@ bool NanoappLoader::fixRelocations() {
           if (resolved == nullptr) {
             LOGV("Failed to resolve global symbol(%d) at offset 0x%x", i,
                  curr->r_offset);
-            resolvedAllSymbols = false;
+            return false;
           }
           // TODO: When we move to DRAM allocations, we need to check if the
           // above address is in a Read-Only section of memory, and give it
@@ -895,7 +859,7 @@ bool NanoappLoader::fixRelocations() {
       }
     }
 
-    if (!resolvedAllSymbols) {
+    if (i != nRelocs) {
       LOGE("Unable to resolve all symbols in the binary");
     } else {
       success = true;
