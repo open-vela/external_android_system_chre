@@ -29,7 +29,6 @@
  */
 
 #include <chre/audio.h>
-#include <chre/ble.h>
 #include <chre/common.h>
 #include <chre/event.h>
 #include <chre/gnss.h>
