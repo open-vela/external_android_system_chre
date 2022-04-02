@@ -16,7 +16,6 @@
 
 #include <chre.h>
 
-#include "chre/util/macros.h"
 #include "chre/util/nanoapp/log.h"
 
 #define LOG_TAG "[HostAwakeWorld]"
@@ -59,8 +58,6 @@ void handleTimerEvent(const void *eventData) {
 
 void nanoappHandleEvent(uint32_t senderInstanceId, uint16_t eventType,
                         const void *eventData) {
-  UNUSED_VAR(senderInstanceId);
-
   switch (eventType) {
     case CHRE_EVENT_TIMER:
       handleTimerEvent(eventData);

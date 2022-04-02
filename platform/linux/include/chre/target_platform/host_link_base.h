@@ -20,16 +20,7 @@
 namespace chre {
 
 class HostLinkBase {
- public:
-  /**
-   * Enqueues a NAN configuration request to be sent to the host.
-   * For Linux, the request is simply echoed back via a NAN configuration
-   * update event since there's no actual host to send the request to.
-   *
-   * @param enable Requests that NAN be enabled or disabled based on the
-   *        boolean's value.
-   */
-  void sendNanConfiguration(bool enable);
+  // Currently unused
 };
 
 }  // namespace chre
