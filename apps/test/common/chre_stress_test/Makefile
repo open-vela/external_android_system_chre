@@ -17,7 +17,7 @@ endif
 NANOAPP_NAME = chre_stress_test
 NANOAPP_ID = 0x476f6f675400000a
 NANOAPP_NAME_STRING = \"CHRE\ Stress\ Test\"
-NANOAPP_VERSION = 0x00000004
+NANOAPP_VERSION = 0x00000003
 
 NANOAPP_PATH = $(CHRE_PREFIX)/apps/test/common/chre_stress_test
 TEST_SHARED_PATH = $(CHRE_PREFIX)/apps/test/common/shared
@@ -28,7 +28,9 @@ NANOPB_EXTENSION = nanopb
 
 NANOPB_SRCS += $(NANOAPP_PATH)/../proto/chre_test_common.proto
 NANOPB_SRCS += $(NANOAPP_PATH)/../proto/chre_stress_test.proto
-NANOPB_INCLUDES = $(NANOAPP_PATH)/../proto
+NANOPB_PROTO_PATH = $(NANOAPP_PATH)/../proto
+NANOPB_INCLUDES = $(NANOPB_PROTO_PATH)
+NANOPB_FLAGS += --proto_path=$(NANOPB_PROTO_PATH)
 
 # Source Code ##################################################################
 
