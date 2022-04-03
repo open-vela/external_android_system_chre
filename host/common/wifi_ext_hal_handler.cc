@@ -22,7 +22,7 @@ namespace android {
 namespace chre {
 
 WifiExtHalHandler::~WifiExtHalHandler() {
-  notifyThreadToExit();
+  wifiExtHandlerThreadNotifyToExit();
   mThread.join();
 }
 
@@ -109,7 +109,7 @@ void WifiExtHalHandler::wifiExtHandlerThreadEntry() {
   }
 }
 
-void WifiExtHalHandler::notifyThreadToExit() {
+void WifiExtHalHandler::wifiExtHandlerThreadNotifyToExit() {
   std::lock_guard<std::mutex> lock(mMutex);
   mThreadRunning = false;
   mCondVar.notify_one();
