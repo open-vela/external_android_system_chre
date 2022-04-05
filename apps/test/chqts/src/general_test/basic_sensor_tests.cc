@@ -18,8 +18,6 @@
 
 #include <shared/send_message.h>
 
-#include "chre/util/macros.h"
-
 using nanoapp_testing::sendFatalFailureToHost;
 
 namespace general_test {
@@ -69,12 +67,10 @@ void BasicAccelerometerTest::confirmDataIsSane(const void *eventData) {
 }
 
 void BasicInstantMotionDetectTest::confirmDataIsSane(const void *eventData) {
-  UNUSED_VAR(eventData);
   // Nothing to check.
 }
 
 void BasicStationaryDetectTest::confirmDataIsSane(const void *eventData) {
-  UNUSED_VAR(eventData);
   // Nothing to check.
 }
 
