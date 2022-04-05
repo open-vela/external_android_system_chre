@@ -39,9 +39,9 @@ LOCAL_INIT_RC := chre_daemon.rc
 
 LOCAL_CPP_EXTENSION := .cc
 LOCAL_CFLAGS += -Wall -Werror -Wextra
-LOCAL_CFLAGS += -DCHRE_DAEMON_METRIC_ENABLED
 
 LOCAL_TIDY_CHECKS := -google-runtime-int
+# bug:205155753, external/pigweed/pw_tokenizer/decode.cc:161 has this warning as error
 
 # Enable the LPMA feature for devices that support audio
 ifeq ($(CHRE_DAEMON_LPMA_ENABLED),true)
@@ -52,36 +52,33 @@ ifeq ($(CHRE_DAEMON_LOAD_INTO_SENSORSPD),true)
 LOCAL_CFLAGS += -DCHRE_DAEMON_LOAD_INTO_SENSORSPD
 endif
 
-MSM_SRC_FILES := \
-    host/common/fbs_daemon_base.cc \
-    host/msm/daemon/fastrpc_daemon.cc \
-    host/msm/daemon/main.cc \
-    host/msm/daemon/generated/chre_slpi_stub.c
-
-MSM_INCLUDES := \
-    system/chre/host/msm/daemon
+# Disable Tokenized Logging
+CHRE_USE_TOKENIZED_LOGGING := false
 
 LOCAL_SRC_FILES := \
     host/common/daemon_base.cc \
     host/common/fragmented_load_transaction.cc \
     host/common/host_protocol_host.cc \
-    host/common/log_message_parser.cc \
+    host/common/log_message_parser_base.cc \
     host/common/socket_server.cc \
     host/common/st_hal_lpma_handler.cc \
-    host/common/wifi_ext_hal_handler.cc \
+    host/msm/daemon/fastrpc_daemon.cc \
+    host/msm/daemon/main.cc \
+    host/msm/daemon/generated/chre_slpi_stub.c \
     platform/shared/host_protocol_common.cc
 
 LOCAL_C_INCLUDES := \
     external/fastrpc/inc \
     system/chre/external/flatbuffers/include \
     system/chre/host/common/include \
+    system/chre/host/msm/daemon \
     system/chre/platform/shared/include \
     system/chre/platform/slpi/include \
     system/chre/util/include \
     system/libbase/include \
     system/core/libcutils/include \
     system/logging/liblog/include \
-    system/core/libutils/include
+    system/core/libutils/include \
 
 LOCAL_SHARED_LIBRARIES := \
     libjsoncpp \
@@ -91,32 +88,25 @@ LOCAL_SHARED_LIBRARIES := \
     libhidlbase \
     libbase \
     android.hardware.soundtrigger@2.0 \
-    libpower \
-    libprotobuf-cpp-lite \
-    pixelatoms-cpp \
-    android.frameworks.stats-V1-ndk \
-    libbinder_ndk
+    libpower
 
-LOCAL_SRC_FILES += $(MSM_SRC_FILES)
-LOCAL_C_INCLUDES += $(MSM_INCLUDES)
+# Enable tokenized logging
+ifeq ($(CHRE_USE_TOKENIZED_LOGGING),true)
+LOCAL_CFLAGS += -DCHRE_USE_TOKENIZED_LOGGING
+PIGWEED_TOKENIZER_DIR = vendor/google_contexthub/chre/external/pigweed
+PIGWEED_TOKENIZER_DIR_RELPATH = ../../$(PIGWEED_TOKENIZER_DIR)
+LOCAL_CFLAGS += -I$(PIGWEED_TOKENIZER_DIR)/pw_polyfill/public
+LOCAL_CFLAGS += -I$(PIGWEED_TOKENIZER_DIR)/pw_polyfill/public_overrides
+LOCAL_CFLAGS += -I$(PIGWEED_TOKENIZER_DIR)/pw_polyfill/standard_library_public
+LOCAL_CFLAGS += -I$(PIGWEED_TOKENIZER_DIR)/pw_preprocessor/public
+LOCAL_CFLAGS += -I$(PIGWEED_TOKENIZER_DIR)/pw_tokenizer/public
+LOCAL_CFLAGS += -I$(PIGWEED_TOKENIZER_DIR)/pw_varint/public
+LOCAL_CFLAGS += -I$(PIGWEED_TOKENIZER_DIR)/pw_span/public
 
-LOCAL_CPPFLAGS += -std=c++20
-LOCAL_CFLAGS += -Wno-sign-compare
-LOCAL_CFLAGS += -Wno-c++11-narrowing
-LOCAL_CFLAGS += -Wno-deprecated-volatile
-PIGWEED_DIR = external/pigweed
-PIGWEED_DIR_RELPATH = ../../$(PIGWEED_DIR)
-LOCAL_CFLAGS += -I$(PIGWEED_DIR)/pw_polyfill/public
-LOCAL_CFLAGS += -I$(PIGWEED_DIR)/pw_polyfill/public_overrides
-LOCAL_CFLAGS += -I$(PIGWEED_DIR)/pw_polyfill/standard_library_public
-LOCAL_CFLAGS += -I$(PIGWEED_DIR)/pw_preprocessor/public
-LOCAL_CFLAGS += -I$(PIGWEED_DIR)/pw_tokenizer/public
-LOCAL_CFLAGS += -I$(PIGWEED_DIR)/pw_varint/public
-LOCAL_CFLAGS += -I$(PIGWEED_DIR)/pw_span/public
-
-LOCAL_SRC_FILES += $(PIGWEED_DIR_RELPATH)/pw_tokenizer/detokenize.cc
-LOCAL_SRC_FILES += $(PIGWEED_DIR_RELPATH)/pw_tokenizer/decode.cc
-LOCAL_SRC_FILES += $(PIGWEED_DIR_RELPATH)/pw_varint/varint.cc
+LOCAL_SRC_FILES += $(PIGWEED_TOKENIZER_DIR_RELPATH)/pw_tokenizer/detokenize.cc
+LOCAL_SRC_FILES += $(PIGWEED_TOKENIZER_DIR_RELPATH)/pw_tokenizer/decode.cc
+LOCAL_SRC_FILES += $(PIGWEED_TOKENIZER_DIR_RELPATH)/pw_varint/varint.cc
+endif
 
 ifeq ($(CHRE_DAEMON_USE_SDSPRPC),true)
 LOCAL_SHARED_LIBRARIES += libsdsprpc
@@ -126,62 +116,5 @@ endif
 
 include $(BUILD_EXECUTABLE)
 
-endif   # CHRE_DAEMON_ENABLED
-
-include $(CLEAR_VARS)
-
-# Only build the module for platforms which have access to the required vendor
-# libraries.
-ifeq ($(CHRE_QMI_CONTEXTHUB_SERVICE_ENABLED),true)
-LOCAL_MODULE := android.hardware.contexthub-service.qmi
-LOCAL_LICENSE_KINDS := SPDX-license-identifier-Apache-2.0 SPDX-license-identifier-BSD
-LOCAL_MODULE_OWNER := google
-LOCAL_MODULE_PATH := $(TARGET_OUT_VENDOR)/bin/hw
-LOCAL_MODULE_TAGS := optional
-LOCAL_VENDOR_MODULE := true
-LOCAL_INIT_RC := host/hal_generic/aidl_qmi/android.hardware.contexthub-service.qmi.rc
-LOCAL_VINTF_FRAGMENTS := host/hal_generic/aidl_qmi/android.hardware.contexthub-service.qmi.xml
-
-LOCAL_CPP_EXTENSION := .cc
-LOCAL_CFLAGS += -Wall -Werror -Wextra
-
-LOCAL_CFLAGS += -DCHRE_MESSAGE_TO_HOST_MAX_SIZE=4000 # Needed to import CHRE APIs.
-
-LOCAL_SRC_FILES := \
-    host/hal_generic/common/permissions_util.cc \
-    host/hal_generic/aidl_qmi/service.cc \
-    host/hal_generic/aidl_qmi/qmi_context_hub_aidl.cc \
-    host/qsh/qmi_client_base.cc \
-    host/qsh/qmi_enc_dec_callbacks.cc \
-    host/qsh/qmi_qsh_nanoapp_client.cc
-
-LOCAL_C_INCLUDES := \
-    system/chre/chre_api/include/chre_api \
-    system/chre/chre_api/include \
-    system/chre/host/common/include \
-    system/chre/host/hal_generic/common \
-    system/chre/host/qsh \
-    system/chre/util/include
-
-LOCAL_HEADER_LIBRARIES := \
-    libnanopb_headers \
-    libqmi_cci_headers \
-    libqmi_common_headers \
-    libqmi_encdec_headers \
-    libssc_headers
-
-LOCAL_SHARED_LIBRARIES := \
-    android.hardware.contexthub-V1-ndk \
-    libbase \
-    libbinder_ndk \
-    liblog \
-    libnanopb \
-    libsns_api \
-    libqmi_cci \
-    libqmi_common_so \
-    libqmi_encdec
-
-include $(BUILD_EXECUTABLE)
-
-endif   # CHRE_QMI_CONTEXTHUB_SERVICE_ENABLED
-endif   # BUILDING_VENDOR_IMAGE
+endif
+endif
