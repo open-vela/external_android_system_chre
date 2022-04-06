@@ -14,25 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CHRE_QSH_NANOAPP_CLIENT_H_
-#define CHRE_QSH_NANOAPP_CLIENT_H_
+SECTION_DATA_PROLOGUE(_CHRE_SECTION,,)
+{
+	KEEP(*(".unstable_id"));
+} GROUP_DATA_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)
 
-#include "qmi_client_base.h"
-
-namespace android {
-namespace chre {
-
-class QmiQshNanoappClient : public QmiClientBase {
- public:
-  static constexpr char kSensorType[] = "chre_qsh_nanoapp";
-
-  QmiQshNanoappClient() : QmiClientBase(kSensorType) {}
-
-  void onAttrEventDecodeComplete() override;
-  void onSuidDecodeEventComplete() override;
-};
-
-}  // namespace chre
-}  // namespace android
-
-#endif  // CHRE_QSH_NANOAPP_CLIENT_H_

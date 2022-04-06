@@ -20,27 +20,25 @@
 namespace android {
 namespace chre {
 
-bool QmiClientBase::sendQmiReq(sns_client_req_msg_v01 *reqMsg) {
+bool QmiClientBase::sendSnsClientReq(sns_client_req_msg_v01 &reqMsg) {
   bool success = false;
-  size_t respLen = sizeof(sns_client_resp_msg_v01);
-  auto *resp = new pb_byte_t[respLen];
+  auto resp = std::make_unique<sns_client_resp_msg_v01>();
 
-  LOGD("Sending request payload len %i hdl %p", reqMsg->payload_len,
-       mQmiHandle);
+  LOGD("Sending request payload len %i hdl %p", reqMsg.payload_len, mQmiHandle);
 
   if (resp == nullptr) {
     LOGE("Unable to allocate sns_client_resp_msg_v01");
   } else {
     qmi_txn_handle txnHandle;
-
     qmi_client_error_type qmi_err = qmi_client_send_msg_async(
-        mQmiHandle, SNS_CLIENT_REQ_V01, reqMsg, sizeof(*reqMsg), resp, respLen,
-        QmiCallbacks::onResponse, resp, &txnHandle);
+        mQmiHandle, SNS_CLIENT_REQ_V01, &reqMsg, sizeof(reqMsg), resp.get(),
+        sizeof(*resp), QmiCallbacks::onSnsClientResponse,
+        nullptr /* responseCbData */, &txnHandle);
 
     if (qmi_err != QMI_NO_ERR) {
       LOGE("qmi_client_send_msg_async error %i", qmi_err);
-      delete[] resp;
     } else {
+      resp.release();
       success = true;
     }
   }
@@ -67,7 +65,7 @@ bool QmiClientBase::sendReq(SnsArg *payload, sns_std_suid suid,
     LOGE("Error Encoding request: %s", PB_GET_ERROR(&stream));
   } else {
     reqMsg.payload_len = stream.bytes_written;
-    success = sendQmiReq(&reqMsg);
+    success = sendSnsClientReq(reqMsg);
   }
   return success;
 }
@@ -94,14 +92,14 @@ bool QmiClientBase::getEncodedAttrReq(std::vector<pb_byte_t> &encodedReq) {
   return success;
 }
 
-bool QmiClientBase::sendAttrReq(sns_std_suid *suid) {
+bool QmiClientBase::sendAttrReq(sns_std_suid &suid) {
   bool success = false;
   std::vector<pb_byte_t> encodedReq;
   if (getEncodedAttrReq(encodedReq)) {
     SnsArg payload = {.buf = encodedReq.data(), .bufLen = encodedReq.size()};
-    LOGD("sending attr req for suid %" PRIu64 " %" PRIu64, suid->suid_high,
-         suid->suid_low);
-    success = sendReq(&payload, *suid, SNS_STD_MSGID_SNS_STD_ATTR_REQ);
+    LOGD("sending attr req for suid %" PRIu64 " %" PRIu64, suid.suid_high,
+         suid.suid_low);
+    success = sendReq(&payload, suid, SNS_STD_MSGID_SNS_STD_ATTR_REQ);
   }
 
   return success;
@@ -135,15 +133,27 @@ bool QmiClientBase::getEncodedSuidReq(std::vector<pb_byte_t> &encodedReq) {
   return success;
 }
 
-bool QmiClientBase::sendSuidReq() {
-  bool success = false;
+bool QmiClientBase::sendSuidReq(SuidAttrCallback callback, void *callbackData) {
+  bool success = true;
 
-  if (mQmiHandle != nullptr) {
+  if (!isConnected()) {
+    success = connect();
+  } else if (!mSuidRequestCompleted) {
+    LOGE("An SUID request is already in process, rejecting this request.");
+    success = false;
+  } else if (success) {
     std::vector<pb_byte_t> encodedReq;
     if (getEncodedSuidReq(encodedReq)) {
       SnsArg payload =
           (SnsArg){.buf = encodedReq.data(), .bufLen = encodedReq.size()};
       success = sendReq(&payload, mLookupSuid, SNS_SUID_MSGID_SNS_SUID_REQ);
+      if (!success) {
+        LOGE("Failed to send SUID request");
+      } else {
+        mSuidAttrCallbackData.callback = callback;
+        mSuidAttrCallbackData.data = callbackData;
+        mSuidRequestCompleted = false;
+      }
     }
   }
 
@@ -167,6 +177,153 @@ bool QmiClientBase::handleEvent(void const *eventMsg, size_t eventMsgLen,
     LOGE("Error decoding event list: %s", PB_GET_ERROR(&stream));
   }
   return true;
+}
+
+bool QmiClientBase::handleMessageStream(uint32_t msgId, pb_istream_t *stream,
+                                        const pb_field_t *field, void **arg) {
+  bool success = false;
+  switch (msgId) {
+    case SNS_STD_MSGID_SNS_STD_ATTR_EVENT: {
+      LOGD("SNS_STD_MSGID_SNS_STD_ATTR_EVENT");
+      success = QmiCallbacks::decodeAttrEvent(stream, field, arg);
+      break;
+    }
+
+    case SNS_STD_MSGID_SNS_STD_ERROR_EVENT: {
+      LOGE("Received an error event");
+      break;
+    }
+
+    default: {
+      success = handleMessageStreamExtended(msgId, stream, field, arg);
+    }
+  }
+  return success;
+}
+
+bool QmiClientBase::handleMessageStreamExtended(uint32_t msgId,
+                                                pb_istream_t * /* stream */,
+                                                const pb_field_t * /* field */,
+                                                void ** /* arg */) {
+  LOGE("Unknown message id %" PRIu32 " received", msgId);
+  return false;
+}
+
+bool QmiClientBase::handleAttribute(uint32_t attributeId, const char *value) {
+  bool success = true;
+  switch (attributeId) {
+    case SNS_STD_SENSOR_ATTRID_NAME: {
+      // The name attribute signifies the start of a new set of attributes:
+      // push the current one to our attribute list before proceeding to
+      // process the new set of attributes.
+      updateAttributes();
+      mCurrentSuidAttribute.name = std::string(value);
+      LOGD("%s SNS_STD_SENSOR_ATTRID_NAME %s", __FUNCTION__,
+           mCurrentSuidAttribute.name.c_str());
+      break;
+    }
+
+    case SNS_STD_SENSOR_ATTRID_VENDOR: {
+      mCurrentSuidAttribute.vendor = std::string(value);
+      LOGD("%s SNS_STD_SENSOR_ATTRID_VENDOR %s", __FUNCTION__,
+           mCurrentSuidAttribute.vendor.c_str());
+      break;
+    }
+
+    case SNS_STD_SENSOR_ATTRID_TYPE: {
+      mCurrentSuidAttribute.type = std::string(value);
+      LOGD("%s SNS_STD_SENSOR_ATTRID_TYPE %s", __FUNCTION__,
+           mCurrentSuidAttribute.vendor.c_str());
+      break;
+    }
+
+    case SNS_STD_SENSOR_ATTRID_API: {
+      mCurrentSuidAttribute.api = std::string(value);
+      LOGD("%s SNS_STD_SENSOR_ATTRID_API %s", __FUNCTION__,
+           mCurrentSuidAttribute.api.c_str());
+      break;
+    }
+
+    default: {
+      LOGE("Unknown string attribute ID: %" PRIu32, attributeId);
+      success = false;
+    }
+  }
+  return success;
+}
+
+void QmiClientBase::updateAttributes() {
+  if (!mCurrentSuidAttribute.name.empty()) {
+    const auto &currentName = mCurrentSuidAttribute.name;
+    mSuidAttributesList.erase(
+        std::remove_if(mSuidAttributesList.begin(), mSuidAttributesList.end(),
+                       [&currentName](const SuidAttributes &x) {
+                         return x.name == currentName;
+                       }),
+        mSuidAttributesList.end());
+    mSuidAttributesList.push_back(mCurrentSuidAttribute);
+    mCurrentSuidAttribute.reset();
+  }
+}
+
+bool QmiClientBase::handleAttribute(uint32_t attributeId, float value) {
+  bool success = true;
+  switch (attributeId) {
+    default: {
+      LOGE("Unknown float attribute %f for ID: %" PRIu32, value, attributeId);
+    }
+  }
+  return success;
+}
+
+bool QmiClientBase::handleAttribute(uint32_t attributeId, bool value) {
+  bool success = true;
+  switch (attributeId) {
+    case SNS_STD_SENSOR_ATTRID_AVAILABLE: {
+      mCurrentSuidAttribute.isAvailable = value;
+      LOGD("%s SNS_STD_SENSOR_ATTRID_AVAILABLE %d", __FUNCTION__,
+           mCurrentSuidAttribute.isAvailable);
+      break;
+    }
+
+    default: {
+      LOGE("Unknown uint32 attribute ID: %" PRIu32, attributeId);
+      success = false;
+    }
+  }
+  return success;
+}
+
+bool QmiClientBase::handleAttribute(uint32_t attributeId, int64_t value) {
+  bool success = false;
+  switch (attributeId) {
+    case SNS_STD_SENSOR_ATTRID_STREAM_TYPE: {
+      mCurrentSuidAttribute.streamType =
+          static_cast<sns_std_sensor_stream_type>(value);
+      LOGD("%s SNS_STD_SENSOR_ATTRID_STREAM_TYPE %" PRIu32, __FUNCTION__,
+           mCurrentSuidAttribute.streamType);
+      break;
+    }
+
+    case SNS_STD_SENSOR_ATTRID_VERSION: {
+      mCurrentSuidAttribute.version = value;
+      LOGD("%s SNS_STD_SENSOR_ATTRID_VERSION %" PRIu32, __FUNCTION__,
+           mCurrentSuidAttribute.version);
+      break;
+    }
+
+    default: {
+      LOGE("Unknown int64 attribute ID: %" PRIu32, attributeId);
+      success = false;
+    }
+  }
+  return success;
+}
+
+bool QmiClientBase::handleAttribute(uint32_t attributeId, uint32_t value) {
+  LOGE("Unknown uint32 attribute ID %" PRIu32 " with value 0x%" PRIx32,
+       attributeId, value);
+  return false;
 }
 
 bool QmiClientBase::connect() {
@@ -252,6 +409,20 @@ bool QmiClientBase::waitForService() {
 
   qmi_client_release(notifierHandle);
   return success;
+}
+
+uint64_t QmiClientBase::getNanoappId(const sns_std_suid &suid) {
+  uint64_t nanoappId = 0;
+  uint64_t suidHigh = suid.suid_high;
+  for (size_t i = 0; i < 8; i++) {
+    nanoappId += suidHigh & 0xff;
+    suidHigh >>= 8;
+    if (i < 7) {
+      nanoappId <<= 8;
+    }
+  }
+
+  return nanoappId;
 }
 
 }  // namespace chre

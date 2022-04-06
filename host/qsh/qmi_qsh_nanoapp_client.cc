@@ -15,60 +15,36 @@
  */
 
 #include "qmi_qsh_nanoapp_client.h"
+#include "qmi_enc_dec_callbacks.h"
 
 namespace android {
 namespace chre {
 
-bool QmiQshNanoappClient::enable() {
-  return sendSuidReq();
-}
-
-bool QmiQshNanoappClient::enableStream() {
-  LOGE("Unimplemented");
-  return false;
-}
-
-void QmiQshNanoappClient::disable() {
-  disconnect();
-}
-
-bool QmiQshNanoappClient::handleMessageStream(uint32_t msgId,
-                                              pb_istream_t *stream,
-                                              const pb_field_t *field,
-                                              void **arg) {
-  bool success = false;
-  switch (msgId) {
-    case SNS_STD_MSGID_SNS_STD_ATTR_EVENT: {
-      success = QmiCallbacks::decodeAttrEvent(stream, field, arg);
-      break;
+void QmiQshNanoappClient::onSuidDecodeEventComplete() {
+  // TODO(b/220195756): Consider refactoring SUID request + attr related
+  // functionality out for easier reuse (eg: getting attributes from the shim).
+  LOGD("Sending SUID attr requests for %zu SUIDs", mReceivedSuids.size());
+  mNumPendingSuidAttrRequests = mReceivedSuids.size();
+  mSuidAttributesList.clear();
+  while (!mReceivedSuids.empty()) {
+    auto &suid = mReceivedSuids.front();
+    if (!sendAttrReq(suid)) {
+      LOGE("Failed to send SUID request for %" PRIx64 " %" PRIx64,
+           suid.suid_high, suid.suid_low);
     }
-
-    case SNS_STD_MSGID_SNS_STD_ERROR_EVENT: {
-      LOGE("Received an error event");
-      break;
-    }
-
-    default: {
-      LOGE("Unknown message id %" PRIu32 " received", msgId);
-    }
+    mReceivedSuids.pop();
   }
-  return success;
 }
 
-bool QmiQshNanoappClient::handleAttribute(uint32_t /*attributeId*/,
-                                          pb_istream_t *stream,
-                                          const pb_field_t * /*field*/,
-                                          void ** /*arg*/) {
-  bool success = false;
-  sns_std_attr attribute = sns_std_attr_init_default;
-  attribute.value.values.funcs.decode = QmiCallbacks::decodeAttrValue;
-  attribute.value.values.arg = nullptr;
-
-  if (!(success = pb_decode(stream, sns_std_attr_fields, &attribute))) {
-    LOGE("Error decoding attribute: %s", PB_GET_ERROR(stream));
+void QmiQshNanoappClient::onAttrEventDecodeComplete() {
+  // TODO(b/220195756): Consider adding a timeout (or other recovery mechanism
+  // like clearing stale requests if the previous request timed out) if we end
+  // up never receiving attributes.
+  --mNumPendingSuidAttrRequests;
+  if (mNumPendingSuidAttrRequests == 0) {
+    mSuidAttrCallbackData.callAndReset(mSuidAttributesList);
+    mSuidRequestCompleted = true;
   }
-
-  return success;
 }
 
 }  // namespace chre
