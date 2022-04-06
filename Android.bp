@@ -168,20 +168,24 @@ cc_library_shared {
     static_libs: ["chre_client"],
 }
 
-cc_binary {
-    name: "android.hardware.contexthub@1.1-service.generic",
-    defaults: ["hidl_defaults"],
+cc_library_static {
+    name: "android.hardware.contexthub@1.1-common-impl",
     vendor: true,
-    relative_install_path: "hw",
     srcs: [
         "host/hal_generic/V1_1/generic_context_hub_v1_1.cc",
-        "host/hal_generic/V1_1/service.cc",
         "host/hal_generic/common/context_hub_settings_util.cc",
         "host/hal_generic/common/hal_chre_socket_connection.cc",
         "host/hal_generic/common/permissions_util.cc",
     ],
-    init_rc: ["host/hal_generic/V1_1/android.hardware.contexthub@1.1-service-generic.rc"],
     cflags: ["-Wall", "-Werror"],
+    export_header_lib_headers: [
+        "android.hardware.contexthub@1.X-shared-impl",
+        "android.hardware.contexthub@1.X-common-utils",
+    ],
+    export_static_lib_headers: [
+        "chre_client",
+    ],
+    export_include_dirs: ["host/hal_generic/V1_1/"],
     header_libs: [
         "android.hardware.contexthub@1.X-shared-impl",
         "android.hardware.contexthub@1.X-common-utils",
@@ -196,6 +200,31 @@ cc_binary {
         "android.hardware.contexthub@1.2",
     ],
     static_libs: ["chre_client"],
+}
+
+cc_binary {
+    name: "android.hardware.contexthub@1.1-service.generic",
+    defaults: ["hidl_defaults"],
+    vendor: true,
+    relative_install_path: "hw",
+    srcs: [
+        "host/hal_generic/V1_1/service.cc",
+    ],
+    init_rc: ["host/hal_generic/V1_1/android.hardware.contexthub@1.1-service-generic.rc"],
+    cflags: ["-Wall", "-Werror"],
+    shared_libs: [
+        "libcutils",
+        "liblog",
+        "libhidlbase",
+        "libutils",
+        "android.hardware.contexthub@1.0",
+        "android.hardware.contexthub@1.1",
+        "android.hardware.contexthub@1.2",
+    ],
+    static_libs: [
+        "android.hardware.contexthub@1.1-common-impl",
+        "chre_client",
+    ],
     vintf_fragments: ["host/hal_generic/V1_1/android.hardware.contexthub@1.1-generic.xml"],
 }
 
