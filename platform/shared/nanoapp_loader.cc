@@ -32,6 +32,10 @@
 #include "chre/util/dynamic_vector.h"
 #include "chre/util/macros.h"
 
+#ifdef CHRE_LOG_ATOM_EXTENSION_ENABLED
+#include "chrex_log_atom.h"
+#endif
+
 #ifndef CHRE_LOADER_ARCH
 #define CHRE_LOADER_ARCH EM_ARM
 #endif  // CHRE_LOADER_ARCH
@@ -52,24 +56,6 @@ struct ExportedData {
 NanoappLoader *gCurrentlyLoadingNanoapp = nullptr;
 //! Indicates whether a failure occurred during static initialization.
 bool gStaticInitFailure = false;
-
-// The new operator is used by singleton.h which causes the delete operator to
-// be undefined in nanoapp binaries even though it's unused. Define this in case
-// a nanoapp actually tries to use the operator.
-void deleteOverride(void *ptr) {
-  FATAL_ERROR("Nanoapp tried to free %p through delete operator", ptr);
-}
-
-// From C++17, a call to the overloaded delete operator aimed at safely freeing
-// over-aligned allocations maybe present in the nanoapp binary even though it
-// is unused. Since all memory allocations/deallocations are managed by CHRE,
-// signal a fatal error if the nanoapp tries to use this version of the delete
-// operator.
-void deleteAlignedOverride(void *ptr, std::align_val_t alignment) {
-  UNUSED_VAR(alignment);
-
-  FATAL_ERROR("Nanoapp tried to free aligned %p via the delte operator", ptr);
-}
 
 // atexit is used to register functions that must be called when a binary is
 // removed from the system.
@@ -142,6 +128,7 @@ void __cxa_pure_virtual(void) {
 // TODO(karthikmb/stange): While this array was hand-coded for simple
 // "hello-world" prototyping, the list of exported symbols must be
 // generated to minimize runtime errors and build breaks.
+// TODO(b/226455808): Allow extensions to this list via an external file
 // clang-format off
 // Disable deprecation warning so that deprecated symbols in the array
 // can be exported for older nanoapps and tests.
@@ -151,10 +138,10 @@ const ExportedData gExportedData[] = {
     ADD_EXPORTED_SYMBOL(asinOverride, "asin"),
     ADD_EXPORTED_SYMBOL(atan2Override, "atan2"),
     ADD_EXPORTED_SYMBOL(cosOverride, "cos"),
-    ADD_EXPORTED_SYMBOL(floorOverride, "floor"),
+    ADD_EXPORTED_SYMBOL(frexpOverride, "frexp"),
     ADD_EXPORTED_SYMBOL(fmaxOverride, "fmax"),
     ADD_EXPORTED_SYMBOL(fminOverride, "fmin"),
-    ADD_EXPORTED_SYMBOL(frexpOverride, "frexp"),
+    ADD_EXPORTED_SYMBOL(floorOverride, "floor"),
     ADD_EXPORTED_SYMBOL(roundOverride, "round"),
     ADD_EXPORTED_SYMBOL(sinOverride, "sin"),
     ADD_EXPORTED_SYMBOL(sqrtOverride, "sqrt"),
@@ -164,28 +151,23 @@ const ExportedData gExportedData[] = {
     ADD_EXPORTED_C_SYMBOL(ceilf),
     ADD_EXPORTED_C_SYMBOL(cosf),
     ADD_EXPORTED_C_SYMBOL(expf),
-    ADD_EXPORTED_C_SYMBOL(fabsf),
     ADD_EXPORTED_C_SYMBOL(floorf),
     ADD_EXPORTED_C_SYMBOL(fmaxf),
     ADD_EXPORTED_C_SYMBOL(fminf),
     ADD_EXPORTED_C_SYMBOL(fmodf),
     ADD_EXPORTED_C_SYMBOL(log10f),
     ADD_EXPORTED_C_SYMBOL(log1pf),
-    ADD_EXPORTED_C_SYMBOL(log2f),
     ADD_EXPORTED_C_SYMBOL(logf),
     ADD_EXPORTED_C_SYMBOL(lroundf),
     ADD_EXPORTED_C_SYMBOL(powf),
-    ADD_EXPORTED_C_SYMBOL(remainderf),
     ADD_EXPORTED_C_SYMBOL(roundf),
     ADD_EXPORTED_C_SYMBOL(sinf),
     ADD_EXPORTED_C_SYMBOL(sqrtf),
-    ADD_EXPORTED_C_SYMBOL(tanf),
     ADD_EXPORTED_C_SYMBOL(tanhf),
     /* libc overrides and symbols */
     ADD_EXPORTED_C_SYMBOL(__cxa_pure_virtual),
     ADD_EXPORTED_SYMBOL(atexitOverride, "atexit"),
-    ADD_EXPORTED_SYMBOL(deleteOverride, "_ZdlPv"),
-    ADD_EXPORTED_SYMBOL(deleteAlignedOverride, "_ZdlPvSt11align_val_t"),
+
     ADD_EXPORTED_C_SYMBOL(dlsym),
     ADD_EXPORTED_C_SYMBOL(isgraph),
     ADD_EXPORTED_C_SYMBOL(memcmp),
@@ -267,6 +249,9 @@ const ExportedData gExportedData[] = {
     ADD_EXPORTED_C_SYMBOL(chreConfigureHostEndpointNotifications),
     ADD_EXPORTED_C_SYMBOL(chrePublishRpcServices),
     ADD_EXPORTED_C_SYMBOL(chreGetHostEndpointInfo),
+#ifdef CHRE_LOG_ATOM_EXTENSION_ENABLED
+    ADD_EXPORTED_C_SYMBOL(chrexLogAtom),
+#endif
 };
 CHRE_DEPRECATED_EPILOGUE
 // clang-format on
