@@ -119,7 +119,7 @@ class WifiExtHalHandler {
   /**
    * Notifies the WifiExtHalHandler processing thread of a daemon shutdown.
    */
-  void notifyThreadToExit();
+  void wifiExtHandlerThreadNotifyToExit();
 
   /**
    * Checks for a valid connection to the Wifi ext HAL service, reconnects if
