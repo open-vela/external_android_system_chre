@@ -410,8 +410,7 @@ bool GnssSession::configure(Nanoapp *nanoapp, bool enable,
   uint16_t instanceId = nanoapp->getInstanceId();
   size_t requestIndex = 0;
   bool hasRequest = nanoappHasRequest(instanceId, &requestIndex);
-
-  if (asyncResponsePending()) {
+  if (!mStateTransitions.empty()) {
     success = addRequestToQueue(instanceId, enable, minInterval, cookie);
   } else if (stateTransitionIsRequired(enable, minInterval, hasRequest,
                                        requestIndex)) {
