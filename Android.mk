@@ -68,7 +68,6 @@ LOCAL_SRC_FILES := \
     host/common/log_message_parser.cc \
     host/common/socket_server.cc \
     host/common/st_hal_lpma_handler.cc \
-    host/common/wifi_ext_hal_handler.cc \
     platform/shared/host_protocol_common.cc
 
 LOCAL_C_INCLUDES := \

@@ -147,11 +147,6 @@ void ChreDaemonBase::handleNanConfigurationRequest(
   LOGE("NAN is unsupported on this platform");
 }
 
-bool ChreDaemonBase::sendNanConfigurationUpdate(bool /*nanEnabled*/) {
-  LOGE("NAN is unsupported on this platform");
-  return false;
-}
-
 #ifdef CHRE_DAEMON_METRIC_ENABLED
 void ChreDaemonBase::handleMetricLog(const ::chre::fbs::MetricLogT *metricMsg) {
   const std::vector<int8_t> &encodedMetric = metricMsg->encoded_metric;
