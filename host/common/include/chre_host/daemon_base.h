@@ -17,14 +17,6 @@
 #ifndef CHRE_DAEMON_H_
 #define CHRE_DAEMON_H_
 
-/**
- * @file daemon_base.h
- * This header defines the CHRE daemon base class, off of which all supported
- * CHRE daemon variants are expected to derive from. The goal is to provide
- * common (abstract or implemented) interfaces that all CHRE daemons must
- * implement.
- */
-
 #include <atomic>
 #include <cstdint>
 #include <map>
@@ -35,10 +27,14 @@
 #include "chre_host/log_message_parser.h"
 #include "chre_host/socket_server.h"
 
+#ifdef WIFI_EXT_V_1_3_HAS_MERGED
+#include "chre_host/wifi_ext_hal_handler.h"
+#endif  // WIFI_EXT_V_1_3_HAS_MERGED
+
 #ifdef CHRE_DAEMON_METRIC_ENABLED
 #include <aidl/android/frameworks/stats/IStats.h>
 #include <android/binder_manager.h>
-#endif  // CHRE_DAEMON_METRIC_ENABLED
+#endif
 
 namespace android {
 namespace chre {
@@ -72,8 +68,7 @@ class ChreDaemonBase {
    * @param length The size of the data to send.
    * @return true if successful, false otherwise.
    */
-  virtual bool sendMessageToChre(uint16_t clientId, void *data,
-                                 size_t dataLen) = 0;
+  bool sendMessageToChre(uint16_t clientId, void *data, size_t dataLen);
 
   /**
    * Function to query if a graceful shutdown of CHRE was requested
@@ -120,6 +115,9 @@ class ChreDaemonBase {
    * ]}
    *
    * The napp_header and so files will both be loaded. All errors are logged.
+   *
+   * TODO: This is SLPI specific right now, and needs to be revisited to
+   * implement platform specific loading.
    */
   void loadPreloadedNanoapps();
 
@@ -161,10 +159,10 @@ class ChreDaemonBase {
    * @param transactionId The transaction ID to use when loading.
    * @return true if a request was successfully sent, false otherwise.
    */
-  virtual bool sendNanoappLoad(uint64_t appId, uint32_t appVersion,
-                               uint32_t appTargetApiVersion,
-                               const std::string &appBinaryName,
-                               uint32_t transactionId) = 0;
+  bool sendNanoappLoad(uint64_t appId, uint32_t appVersion,
+                       uint32_t appTargetApiVersion,
+                       const std::string &appBinaryName,
+                       uint32_t transactionId);
 
   /**
    * Send a time sync message to CHRE
@@ -173,15 +171,7 @@ class ChreDaemonBase {
    *
    * @return true if the time sync message was successfully sent to CHRE.
    */
-  virtual bool sendTimeSync(bool logOnError) = 0;
-
-  /**
-   * Computes and returns the clock drift between the system clock
-   * and the processor timer registers
-   *
-   * @return offset in nanoseconds
-   */
-  virtual int64_t getTimeOffset(bool *success) = 0;
+  bool sendTimeSync(bool logOnError);
 
   /**
    * Sends a time sync message to CHRE, retrying a specified time until success.
@@ -193,21 +183,28 @@ class ChreDaemonBase {
   bool sendTimeSyncWithRetry(size_t numRetries, useconds_t retryDelayUs,
                              bool logOnError);
 
+  bool sendNanConfigurationUpdate(bool nanEnabled);
+
   /**
    * Interface to a callback that is called when the Daemon receives a message.
    *
    * @param message A buffer containing the message
    * @param messageLen size of the message buffer in bytes
    */
-  virtual void onMessageReceived(const unsigned char *message,
-                                 size_t messageLen) = 0;
+  void onMessageReceived(const unsigned char *message, size_t messageLen);
 
   /**
    * Handles a message that is directed towards the daemon.
    *
    * @param message The message sent to the daemon.
    */
-  virtual void handleDaemonMessage(const uint8_t *message) = 0;
+  virtual void handleDaemonMessage(const uint8_t *message);
+
+  /**
+   * Platform-specific method to actually do the message sending requested by
+   * sendMessageToChre.
+   */
+  virtual bool doSendMessage(void *data, size_t dataLen) = 0;
 
   /**
    * Enables or disables LPMA (low power microphone access).
@@ -217,25 +214,18 @@ class ChreDaemonBase {
 #ifdef CHRE_DAEMON_METRIC_ENABLED
   /**
    * Handles a metric log message sent from CHRE
-   *
    */
   virtual void handleMetricLog(const ::chre::fbs::MetricLogT *metric_msg);
+#endif  // CHRE_DAEMON_METRIC_ENABLED
 
-#ifdef CHRE_LOG_ATOM_EXTENSION_ENABLED
-  /**
-   * Handles additional metrics that aren't logged by the common CHRE code.
-   *
-   */
-  virtual void handleVendorMetricLog(
-      const ::chre::fbs::MetricLogT *metric_msg) = 0;
-#endif  // CHRE_LOG_ATOM_EXTENSION_ENABLED
-
+#ifdef CHRE_DAEMON_METRIC_ENABLED
   /**
    * Create and report CHRE vendor atom and send it to stats_client
    *
    * @param atom the vendor atom to be reported
    */
-  void reportMetric(const aidl::android::frameworks::stats::VendorAtom &atom);
+  virtual void reportMetric(
+      const aidl::android::frameworks::stats::VendorAtom &atom);
 #endif  // CHRE_DAEMON_METRIC_ENABLED
 
   /**
@@ -262,6 +252,22 @@ class ChreDaemonBase {
 
   //! Set to true when we request a graceful shutdown of CHRE
   std::atomic<bool> mChreShutdownRequested;
+
+  //! Contains a set of transaction IDs and app IDs used to load the preloaded
+  //! nanoapps. The IDs are stored in the order they are sent.
+  std::queue<Transaction> mPreloadedNanoappPendingTransactions;
+
+  /**
+   * Computes and returns the clock drift between the system clock
+   * and the processor timer registers
+   *
+   * @return offset in nanoseconds
+   */
+  virtual int64_t getTimeOffset(bool *success) = 0;
+
+#ifdef WIFI_EXT_V_1_3_HAS_MERGED
+  WifiExtHalHandler mWifiExtHalHandler;
+#endif  // WIFI_EXT_V_1_3_HAS_MERGED
 };
 
 }  // namespace chre
