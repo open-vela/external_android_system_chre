@@ -193,8 +193,6 @@ class ChreDaemonBase {
   bool sendTimeSyncWithRetry(size_t numRetries, useconds_t retryDelayUs,
                              bool logOnError);
 
-  virtual bool sendNanConfigurationUpdate(bool nanEnabled);
-
   /**
    * Interface to a callback that is called when the Daemon receives a message.
    *
@@ -264,10 +262,6 @@ class ChreDaemonBase {
 
   //! Set to true when we request a graceful shutdown of CHRE
   std::atomic<bool> mChreShutdownRequested;
-
-#ifdef WIFI_EXT_V_1_3_HAS_MERGED
-  WifiExtHalHandler mWifiExtHalHandler;
-#endif  // WIFI_EXT_V_1_3_HAS_MERGED
 };
 
 }  // namespace chre
