@@ -14,7 +14,7 @@ $(PRINT_CURRENT_CHRE_API_VERSION_BIN): $(PRINT_CURRENT_CHRE_API_VERSION_SRCS)
 	$(CHRE_HOST_CC) -I$(CHRE_PREFIX)/chre_api/include/chre_api $^ -o $@
 
 $(CURRENT_CHRE_API_VERSION_MK): $(PRINT_CURRENT_CHRE_API_VERSION_BIN)
-	./$< > $@
+	$< > $@
 
 # Only include default version if this is not a clean operation.
 ifeq ($(filter clean, $(MAKECMDGOALS)),)
