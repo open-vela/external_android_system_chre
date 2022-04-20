@@ -1206,7 +1206,7 @@ void WifiRequestManager::cancelNanPendingRequestsAndInformNanoapps() {
   mPendingNanSubscribeRequests.clear();
 }
 
-void WifiRequestManager::handleNanAvailabilitySync(bool available) {
+void WifiRequestManager::updateNanAvailability(bool available) {
   PendingNanConfigType nanState =
       available ? PendingNanConfigType::ENABLE : PendingNanConfigType::DISABLE;
   mNanIsAvailable = available;
@@ -1222,19 +1222,6 @@ void WifiRequestManager::handleNanAvailabilitySync(bool available) {
     cancelNanPendingRequestsAndInformNanoapps();
     cancelNanSubscriptionsAndInformNanoapps();
   }
-}
-
-void WifiRequestManager::updateNanAvailability(bool available) {
-  auto callback = [](uint16_t /*type*/, void *data, void * /*extraData*/) {
-    bool cbAvail = NestedDataPtr<bool>(data);
-    EventLoopManagerSingleton::get()
-        ->getWifiRequestManager()
-        .handleNanAvailabilitySync(cbAvail);
-  };
-
-  EventLoopManagerSingleton::get()->deferCallback(
-      SystemCallbackType::WifiNanAvailabilityEvent,
-      NestedDataPtr<bool>(available), callback);
 }
 
 void WifiRequestManager::sendNanConfiguration(bool enable) {
