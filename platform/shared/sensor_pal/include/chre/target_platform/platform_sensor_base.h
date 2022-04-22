@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-#ifndef CHRE_PLATFORM_LINUX_PLATFORM_SENSOR_BASE_H_
-#define CHRE_PLATFORM_LINUX_PLATFORM_SENSOR_BASE_H_
+#ifndef CHRE_PLATFORM_SHARED_SENSOR_PAL_PLATFORM_SENSOR_BASE_H_
+#define CHRE_PLATFORM_SHARED_SENSOR_PAL_PLATFORM_SENSOR_BASE_H_
 
 #include "chre_api/chre/sensor.h"
 
 namespace chre {
 
 /**
- * Storage for the Linux implementation of the PlatformSensor class.
+ * Platform sensor base class.
  */
 class PlatformSensorBase {
  public:
@@ -61,4 +61,4 @@ class PlatformSensorBase {
 
 }  // namespace chre
 
-#endif  // CHRE_PLATFORM_LINUX_PLATFORM_SENSOR_BASE_H_
+#endif  // CHRE_PLATFORM_SHARED_SENSOR_PAL_PLATFORM_SENSOR_BASE_H_
