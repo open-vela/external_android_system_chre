@@ -731,7 +731,7 @@ bool NanoappLoader::createMappings() {
             roundDownToAlign(first->p_vaddr, alignment);
         mLoadBias =
             reinterpret_cast<uintptr_t>(mMapping) - adjustedFirstLoadSegAddr;
-        LOGV("Load bias is %" PRIu32, mLoadBias);
+        LOGV("Load bias is %lu", static_cast<long unsigned int>(mLoadBias));
 
         success = true;
       }
@@ -852,7 +852,8 @@ bool NanoappLoader::fixRelocations() {
       int relocType = ELFW_R_TYPE(curr->r_info);
       switch (relocType) {
         case R_ARM_RELATIVE:
-          LOGV("Resolving ARM_RELATIVE at offset %" PRIx32, curr->r_offset);
+          LOGV("Resolving ARM_RELATIVE at offset %lx",
+               static_cast<long unsigned int>(curr->r_offset));
           addr = reinterpret_cast<ElfAddr *>(mMapping + curr->r_offset);
           // TODO: When we move to DRAM allocations, we need to check if the
           // above address is in a Read-Only section of memory, and give it
@@ -861,7 +862,8 @@ bool NanoappLoader::fixRelocations() {
           break;
 
         case R_ARM_ABS32: {
-          LOGV("Resolving ARM_ABS32 at offset %" PRIx32, curr->r_offset);
+          LOGV("Resolving ARM_ABS32 at offset %lx",
+               static_cast<long unsigned int>(curr->r_offset));
           addr = reinterpret_cast<ElfAddr *>(mMapping + curr->r_offset);
           size_t posInSymbolTable = ELFW_R_SYM(curr->r_info);
           auto *dynamicSymbolTable =
@@ -873,14 +875,14 @@ bool NanoappLoader::fixRelocations() {
         }
 
         case R_ARM_GLOB_DAT: {
-          LOGV("Resolving type ARM_GLOB_DAT at offset %" PRIx32,
-               curr->r_offset);
+          LOGV("Resolving type ARM_GLOB_DAT at offset %lx",
+               static_cast<long unsigned int>(curr->r_offset));
           addr = reinterpret_cast<ElfAddr *>(mMapping + curr->r_offset);
           size_t posInSymbolTable = ELFW_R_SYM(curr->r_info);
           void *resolved = resolveData(posInSymbolTable);
           if (resolved == nullptr) {
-            LOGV("Failed to resolve global symbol(%d) at offset 0x%x", i,
-                 curr->r_offset);
+            LOGV("Failed to resolve global symbol(%d) at offset 0x%lx", i,
+                 static_cast<long unsigned int>(curr->r_offset));
             resolvedAllSymbols = false;
           }
           // TODO: When we move to DRAM allocations, we need to check if the
@@ -923,7 +925,8 @@ bool NanoappLoader::resolveGot() {
 
     switch (relocType) {
       case R_ARM_JUMP_SLOT: {
-        LOGV("Resolving ARM_JUMP_SLOT at offset %" PRIx32, curr->r_offset);
+        LOGV("Resolving ARM_JUMP_SLOT at offset %lx",
+             static_cast<long unsigned int>(curr->r_offset));
         addr = reinterpret_cast<ElfAddr *>(mMapping + curr->r_offset);
         size_t posInSymbolTable = ELFW_R_SYM(curr->r_info);
         void *resolved = resolveData(posInSymbolTable);
