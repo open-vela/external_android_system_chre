@@ -21,6 +21,8 @@ NANOAPP_VERSION = 0x00000001
 
 NANOAPP_PATH = $(CHRE_PREFIX)/apps/test/common/chre_cross_validator_wifi
 
+CHRE_STD_OVERRIDES_ALLOWED = true
+
 # Protobuf Sources #############################################################
 
 NANOPB_EXTENSION = nanopb
