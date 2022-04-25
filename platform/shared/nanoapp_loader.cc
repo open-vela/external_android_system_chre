@@ -21,8 +21,11 @@
 
 #include "chre/platform/shared/nanoapp_loader.h"
 
+#ifdef CHRE_ASH_API_SUPPORTED
 #include "ash.h"
 #include "ash/profile.h"
+#endif  // CHRE_ASH_API_SUPPORTED
+
 #include "chre.h"
 #include "chre/platform/assert.h"
 #include "chre/platform/fatal_error.h"
@@ -203,6 +206,7 @@ const ExportedData gExportedData[] = {
     ADD_EXPORTED_C_SYMBOL(strncmp),
     ADD_EXPORTED_C_SYMBOL(tolower),
     /* ash symbols */
+#ifdef CHRE_ASH_API_SUPPORTED
     ADD_EXPORTED_C_SYMBOL(ashProfileInit),
     ADD_EXPORTED_C_SYMBOL(ashProfileBegin),
     ADD_EXPORTED_C_SYMBOL(ashProfileEnd),
@@ -212,6 +216,7 @@ const ExportedData gExportedData[] = {
     ADD_EXPORTED_C_SYMBOL(ashLoadMultiCalibrationParams),
     ADD_EXPORTED_C_SYMBOL(ashSaveMultiCalibrationParams),
     ADD_EXPORTED_C_SYMBOL(ashSetMultiCalibration),
+#endif
     /* CHRE symbols */
     ADD_EXPORTED_C_SYMBOL(chreAbort),
     ADD_EXPORTED_C_SYMBOL(chreAudioConfigureSource),
