@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#include "chre/platform/linux/pal_gnss.h"
 #include "chre/pal/gnss.h"
 
 #include "chre/util/memory.h"
@@ -35,9 +34,6 @@ const struct chrePalGnssCallbacks *gCallbacks = nullptr;
 //! Thread to deliver asynchronous location data after a CHRE request.
 std::thread gLocationEventsThread;
 std::promise<void> gStopLocationEventsThread;
-std::promise<void> gStartLocationEvents;
-bool gDelaySendingLocationEvents = false;
-bool gIsLocationEnabled = false;
 
 //! Thead to use when delivering a location status update.
 std::thread gLocationStatusThread;
@@ -45,15 +41,11 @@ std::thread gLocationStatusThread;
 //! Thread to deliver asynchronous measurement data after a CHRE request.
 std::thread gMeasurementEventsThread;
 std::promise<void> gStopMeasurementEventsThread;
-bool gIsMeasurementEnabled = false;
 
 //! Thead to use when delivering a measurement status update.
 std::thread gMeasurementStatusThread;
 
 void sendLocationEvents(uint32_t minIntervalMs) {
-  if (gDelaySendingLocationEvents) {
-    gStartLocationEvents.get_future().wait();
-  }
   gCallbacks->locationStatusChangeCallback(true, CHRE_ERROR_NONE);
 
   std::future<void> signal = gStopLocationEventsThread.get_future();
@@ -111,8 +103,7 @@ void stopMeasurementThreads() {
 }
 
 uint32_t chrePalGnssGetCapabilities() {
-  return CHRE_GNSS_CAPABILITIES_LOCATION | CHRE_GNSS_CAPABILITIES_MEASUREMENTS |
-         CHRE_GNSS_CAPABILITIES_GNSS_ENGINE_BASED_PASSIVE_LISTENER;
+  return CHRE_GNSS_CAPABILITIES_LOCATION | CHRE_GNSS_CAPABILITIES_MEASUREMENTS;
 }
 
 bool chrePalControlLocationSession(bool enable, uint32_t minIntervalMs,
@@ -120,14 +111,11 @@ bool chrePalControlLocationSession(bool enable, uint32_t minIntervalMs,
   stopLocationThreads();
 
   if (enable) {
-    gStartLocationEvents = std::promise<void>();
     gStopLocationEventsThread = std::promise<void>();
     gLocationEventsThread = std::thread(sendLocationEvents, minIntervalMs);
   } else {
     gLocationStatusThread = std::thread(stopLocation);
   }
-
-  gIsLocationEnabled = enable;
 
   return true;
 }
@@ -146,8 +134,6 @@ bool chrePalControlMeasurementSession(bool enable, uint32_t minIntervalMs) {
   } else {
     gMeasurementStatusThread = std::thread(stopMeasurement);
   }
-
-  gIsMeasurementEnabled = enable;
 
   return true;
 }
@@ -177,35 +163,7 @@ bool chrePalGnssApiOpen(const struct chrePalSystemApi *systemApi,
   return success;
 }
 
-bool gIsPassiveListenerEnabled = false;
-
-bool chrePalGnssconfigurePassiveLocationListener(bool enable) {
-  gIsPassiveListenerEnabled = enable;
-  return true;
-}
-
 }  // anonymous namespace
-
-bool chrePalGnssIsLocationEnabled() {
-  return gIsLocationEnabled;
-}
-
-bool chrePalGnssIsMeasurementEnabled() {
-  return gIsMeasurementEnabled;
-}
-
-bool chrePalGnssIsPassiveLocationListenerEnabled() {
-  return gIsPassiveListenerEnabled;
-}
-
-void chrePalGnssDelaySendingLocationEvents(bool enabled) {
-  gDelaySendingLocationEvents = enabled;
-}
-
-void chrePalGnssStartSendingLocationEvents() {
-  CHRE_ASSERT(gDelaySendingLocationEvents);
-  gStartLocationEvents.set_value();
-}
 
 const struct chrePalGnssApi *chrePalGnssGetApi(uint32_t requestedApiVersion) {
   static const struct chrePalGnssApi kApi = {
@@ -217,8 +175,6 @@ const struct chrePalGnssApi *chrePalGnssGetApi(uint32_t requestedApiVersion) {
       .releaseLocationEvent = chrePalGnssReleaseLocationEvent,
       .controlMeasurementSession = chrePalControlMeasurementSession,
       .releaseMeasurementDataEvent = chrePalGnssReleaseMeasurementDataEvent,
-      .configurePassiveLocationListener =
-          chrePalGnssconfigurePassiveLocationListener,
   };
 
   if (!CHRE_PAL_VERSIONS_ARE_COMPATIBLE(kApi.moduleVersion,
