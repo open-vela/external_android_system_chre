@@ -27,7 +27,9 @@ NANOAPP_PATH = $(CHRE_PREFIX)/apps/test/pts/audio_enable_disable_test
 NANOPB_EXTENSION = nanopb
 
 NANOPB_SRCS += $(NANOAPP_PATH)/../proto/pts_chre.proto
-NANOPB_INCLUDES = $(NANOAPP_PATH)/../proto
+NANOPB_PROTO_PATH = $(NANOAPP_PATH)/../proto
+NANOPB_INCLUDES = $(NANOPB_PROTO_PATH)
+NANOPB_FLAGS += --proto_path=$(NANOPB_PROTO_PATH)
 
 # Source Code ##################################################################
 

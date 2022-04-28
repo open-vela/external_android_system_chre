@@ -70,7 +70,6 @@ class TransportTests : public testing::TestWithParam<int> {
     memset(&mTransportContext.linkParams, 0,
            sizeof(mTransportContext.linkParams));
     mTransportContext.linkParams.linkEstablished = true;
-    mTransportContext.linkParams.isLinkActive = true;
     chppTransportInit(&mTransportContext, &mAppContext);
     chppAppInit(&mAppContext, &mTransportContext);
 
@@ -912,8 +911,7 @@ TEST_F(TransportTests, WifiOpen) {
   uint32_t capabilitySet = CHRE_WIFI_CAPABILITIES_SCAN_MONITORING |
                            CHRE_WIFI_CAPABILITIES_ON_DEMAND_SCAN |
                            CHRE_WIFI_CAPABILITIES_RADIO_CHAIN_PREF |
-                           CHRE_WIFI_CAPABILITIES_RTT_RANGING |
-                           CHRE_WIFI_CAPABILITIES_NAN_SUB;
+                           CHRE_WIFI_CAPABILITIES_RTT_RANGING;
   EXPECT_EQ((*capabilities) & ~(capabilitySet), 0);
 
   // Check total length

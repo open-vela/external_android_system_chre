@@ -29,13 +29,6 @@ void chrePlatformLogToBuffer(chreLogLevel chreLogLevel, const char *format,
   va_end(args);
 }
 
-void chrePlatformEncodedLogToBuffer(chreLogLevel level, const uint8_t *msg,
-                                    size_t msgSize) {
-  if (chre::LogBufferManagerSingleton::isInitialized()) {
-    chre::LogBufferManagerSingleton::get()->logEncoded(level, msg, msgSize);
-  }
-}
-
 namespace chre {
 
 void LogBufferManager::onLogsReady() {
@@ -113,12 +106,18 @@ void LogBufferManager::log(chreLogLevel logLevel, const char *formatStr, ...) {
   va_end(args);
 }
 
-uint32_t LogBufferManager::getTimestampMs() {
+void LogBufferManager::logVa(chreLogLevel logLevel, const char *formatStr,
+                             va_list args) {
+  LogBufferLogLevel logBufLogLevel = chreToLogBufferLogLevel(logLevel);
   uint64_t timeNs = SystemTime::getMonotonicTime().toRawNanoseconds();
-  return static_cast<uint32_t>(timeNs / kOneMillisecondInNanoseconds);
-}
-
-void LogBufferManager::bufferOverflowGuard(size_t logSize) {
+  uint32_t timeMs =
+      static_cast<uint32_t>(timeNs / kOneMillisecondInNanoseconds);
+  // Copy the va_list before getting size from vsnprintf so that the next
+  // argument that will be accessed in buffer.handleLogVa is the starting one.
+  va_list getSizeArgs;
+  va_copy(getSizeArgs, args);
+  size_t logSize = vsnprintf(nullptr, 0, formatStr, getSizeArgs);
+  va_end(getSizeArgs);
   if (mPrimaryLogBuffer.logWouldCauseOverflow(logSize)) {
     LockGuard<Mutex> lockGuard(mFlushLogsMutex);
     if (!mLogFlushToHostPending) {
@@ -126,28 +125,7 @@ void LogBufferManager::bufferOverflowGuard(size_t logSize) {
       mPrimaryLogBuffer.transferTo(mSecondaryLogBuffer);
     }
   }
-}
-
-void LogBufferManager::logVa(chreLogLevel logLevel, const char *formatStr,
-                             va_list args) {
-  // Copy the va_list before getting size from vsnprintf so that the next
-  // argument that will be accessed in buffer.handleLogVa is the starting one.
-  va_list getSizeArgs;
-  va_copy(getSizeArgs, args);
-  size_t logSize = vsnprintf(nullptr, 0, formatStr, getSizeArgs);
-  va_end(getSizeArgs);
-  bufferOverflowGuard(logSize);
-  mPrimaryLogBuffer.handleLogVa(chreToLogBufferLogLevel(logLevel),
-                                getTimestampMs(), formatStr, args);
-}
-
-void LogBufferManager::logEncoded(chreLogLevel logLevel,
-                                  const uint8_t *encodedLog,
-                                  size_t encodedLogSize) {
-  bufferOverflowGuard(encodedLogSize);
-  mPrimaryLogBuffer.handleEncodedLog(chreToLogBufferLogLevel(logLevel),
-                                     getTimestampMs(), encodedLog,
-                                     encodedLogSize);
+  mPrimaryLogBuffer.handleLogVa(logBufLogLevel, timeMs, formatStr, args);
 }
 
 LogBufferLogLevel LogBufferManager::chreToLogBufferLogLevel(
