@@ -21,11 +21,8 @@
 
 #include "chre/platform/shared/nanoapp_loader.h"
 
-#ifdef CHRE_ASH_API_SUPPORTED
 #include "ash.h"
 #include "ash/profile.h"
-#endif  // CHRE_ASH_API_SUPPORTED
-
 #include "chre.h"
 #include "chre/platform/assert.h"
 #include "chre/platform/fatal_error.h"
@@ -34,10 +31,6 @@
 #include "chre/target_platform/platform_cache_management.h"
 #include "chre/util/dynamic_vector.h"
 #include "chre/util/macros.h"
-
-#ifdef CHRE_LOG_ATOM_EXTENSION_ENABLED
-#include "chrex_log_atom.h"
-#endif
 
 #ifndef CHRE_LOADER_ARCH
 #define CHRE_LOADER_ARCH EM_ARM
@@ -149,7 +142,6 @@ void __cxa_pure_virtual(void) {
 // TODO(karthikmb/stange): While this array was hand-coded for simple
 // "hello-world" prototyping, the list of exported symbols must be
 // generated to minimize runtime errors and build breaks.
-// TODO(b/226455808): Allow extensions to this list via an external file
 // clang-format off
 // Disable deprecation warning so that deprecated symbols in the array
 // can be exported for older nanoapps and tests.
@@ -206,7 +198,6 @@ const ExportedData gExportedData[] = {
     ADD_EXPORTED_C_SYMBOL(strncmp),
     ADD_EXPORTED_C_SYMBOL(tolower),
     /* ash symbols */
-#ifdef CHRE_ASH_API_SUPPORTED
     ADD_EXPORTED_C_SYMBOL(ashProfileInit),
     ADD_EXPORTED_C_SYMBOL(ashProfileBegin),
     ADD_EXPORTED_C_SYMBOL(ashProfileEnd),
@@ -216,7 +207,6 @@ const ExportedData gExportedData[] = {
     ADD_EXPORTED_C_SYMBOL(ashLoadMultiCalibrationParams),
     ADD_EXPORTED_C_SYMBOL(ashSaveMultiCalibrationParams),
     ADD_EXPORTED_C_SYMBOL(ashSetMultiCalibration),
-#endif
     /* CHRE symbols */
     ADD_EXPORTED_C_SYMBOL(chreAbort),
     ADD_EXPORTED_C_SYMBOL(chreAudioConfigureSource),
@@ -277,9 +267,6 @@ const ExportedData gExportedData[] = {
     ADD_EXPORTED_C_SYMBOL(chreConfigureHostEndpointNotifications),
     ADD_EXPORTED_C_SYMBOL(chrePublishRpcServices),
     ADD_EXPORTED_C_SYMBOL(chreGetHostEndpointInfo),
-#ifdef CHRE_LOG_ATOM_EXTENSION_ENABLED
-    ADD_EXPORTED_C_SYMBOL(chrexLogAtom),
-#endif
 };
 CHRE_DEPRECATED_EPILOGUE
 // clang-format on
@@ -736,7 +723,7 @@ bool NanoappLoader::createMappings() {
             roundDownToAlign(first->p_vaddr, alignment);
         mLoadBias =
             reinterpret_cast<uintptr_t>(mMapping) - adjustedFirstLoadSegAddr;
-        LOGV("Load bias is %lu", static_cast<long unsigned int>(mLoadBias));
+        LOGV("Load bias is %" PRIu32, mLoadBias);
 
         success = true;
       }
@@ -857,8 +844,7 @@ bool NanoappLoader::fixRelocations() {
       int relocType = ELFW_R_TYPE(curr->r_info);
       switch (relocType) {
         case R_ARM_RELATIVE:
-          LOGV("Resolving ARM_RELATIVE at offset %lx",
-               static_cast<long unsigned int>(curr->r_offset));
+          LOGV("Resolving ARM_RELATIVE at offset %" PRIx32, curr->r_offset);
           addr = reinterpret_cast<ElfAddr *>(mMapping + curr->r_offset);
           // TODO: When we move to DRAM allocations, we need to check if the
           // above address is in a Read-Only section of memory, and give it
@@ -867,8 +853,7 @@ bool NanoappLoader::fixRelocations() {
           break;
 
         case R_ARM_ABS32: {
-          LOGV("Resolving ARM_ABS32 at offset %lx",
-               static_cast<long unsigned int>(curr->r_offset));
+          LOGV("Resolving ARM_ABS32 at offset %" PRIx32, curr->r_offset);
           addr = reinterpret_cast<ElfAddr *>(mMapping + curr->r_offset);
           size_t posInSymbolTable = ELFW_R_SYM(curr->r_info);
           auto *dynamicSymbolTable =
@@ -880,14 +865,14 @@ bool NanoappLoader::fixRelocations() {
         }
 
         case R_ARM_GLOB_DAT: {
-          LOGV("Resolving type ARM_GLOB_DAT at offset %lx",
-               static_cast<long unsigned int>(curr->r_offset));
+          LOGV("Resolving type ARM_GLOB_DAT at offset %" PRIx32,
+               curr->r_offset);
           addr = reinterpret_cast<ElfAddr *>(mMapping + curr->r_offset);
           size_t posInSymbolTable = ELFW_R_SYM(curr->r_info);
           void *resolved = resolveData(posInSymbolTable);
           if (resolved == nullptr) {
-            LOGV("Failed to resolve global symbol(%d) at offset 0x%lx", i,
-                 static_cast<long unsigned int>(curr->r_offset));
+            LOGV("Failed to resolve global symbol(%d) at offset 0x%x", i,
+                 curr->r_offset);
             resolvedAllSymbols = false;
           }
           // TODO: When we move to DRAM allocations, we need to check if the
@@ -930,8 +915,7 @@ bool NanoappLoader::resolveGot() {
 
     switch (relocType) {
       case R_ARM_JUMP_SLOT: {
-        LOGV("Resolving ARM_JUMP_SLOT at offset %lx",
-             static_cast<long unsigned int>(curr->r_offset));
+        LOGV("Resolving ARM_JUMP_SLOT at offset %" PRIx32, curr->r_offset);
         addr = reinterpret_cast<ElfAddr *>(mMapping + curr->r_offset);
         size_t posInSymbolTable = ELFW_R_SYM(curr->r_info);
         void *resolved = resolveData(posInSymbolTable);
