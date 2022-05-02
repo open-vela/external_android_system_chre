@@ -66,7 +66,8 @@ void DramVoteClient::decrementDramVoteCount() {
     // TODO(b/181172259): Change back to LOGW once buffered logging path is
     // refactored.
     // LOGW("DRAM vote count ends: %" PRIu64 " ms", checkDramDuration());
-    printf("CHRE: DRAM vote count ends: %" PRIu64 " ms", checkDramDuration());
+    printf("CHRE: DRAM vote count ends: %" PRIu64 " ms",
+           checkDramDuration().getMilliseconds());
 
     // There's no DRAM activity now, remove CHRE's DRAM access vote.
     if (!mLastDramRequest) {
