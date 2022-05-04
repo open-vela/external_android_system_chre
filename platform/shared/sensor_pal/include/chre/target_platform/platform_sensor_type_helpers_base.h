@@ -14,18 +14,13 @@
  * limitations under the License.
  */
 
-#ifndef CHRE_TARGET_PLATFORM_SENSOR_TYPE_HELPERS_BASE_H_
-#define CHRE_TARGET_PLATFORM_SENSOR_TYPE_HELPERS_BASE_H_
+#ifndef CHRE_PLATFORM_SHARED_SENSOR_PAL_PLATFORM_SENSOR_TYPE_HELPERS_BASE_H_
+#define CHRE_PLATFORM_SHARED_SENSOR_PAL_PLATFORM_SENSOR_TYPE_HELPERS_BASE_H_
 
 namespace chre {
 
-/**
- * Can be used to expose static methods to the PlatformSensorTypeHelpers class
- * for use in working with vendor sensor types. Currently, this is unused in the
- * Linux implementation as sensors are not supported.
- */
 class PlatformSensorTypeHelpersBase {};
 
 }  // namespace chre
 
-#endif  // CHRE_TARGET_PLATFORM_SENSOR_TYPE_HELPERS_BASE_H_
+#endif  // CHRE_PLATFORM_SHARED_SENSOR_PAL_PLATFORM_SENSOR_TYPE_HELPERS_BASE_H_

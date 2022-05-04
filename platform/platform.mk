@@ -244,8 +244,9 @@ endif
 
 # Optional sensor support.
 ifeq ($(CHRE_SENSORS_SUPPORT_ENABLED), true)
+SIM_CFLAGS += -I$(CHRE_PREFIX)/platform/shared/sensor_pal/include
 SIM_SRCS += platform/linux/pal_sensor.cc
-SIM_SRCS += platform/shared/platform_sensor_manager.cc
+SIM_SRCS += platform/shared/sensor_pal/platform_sensor_manager.cc
 endif
 
 # Optional Wi-Fi support.
