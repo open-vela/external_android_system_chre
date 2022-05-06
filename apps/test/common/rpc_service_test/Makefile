@@ -25,6 +25,8 @@ TEST_SHARED_PATH = $(CHRE_PREFIX)/apps/test/common/shared
 # TODO(b/210138227) Enable PW RPC by default once build system is fixed
 NANOAPP_PW_RPC_ENABLED = false
 
+CHRE_STD_OVERRIDES_ALLOWED = true
+
 # Source Code ##################################################################
 
 COMMON_SRCS += $(NANOAPP_PATH)/src/rpc_service_manager.cc
