@@ -224,6 +224,8 @@ typedef struct elf32_sym {
 #define R_ARM_GLOB_DAT 21
 #define R_ARM_JUMP_SLOT 22
 #define R_ARM_RELATIVE 23
+// Undefined symbol.
+#define SHN_UNDEF 0
 
 // The following (legal values for segment flags) are copied from
 // bionic's elf.h
