@@ -319,7 +319,6 @@ void *NanoappLoader::findExportedSymbol(const char *name) {
     }
   }
 
-  LOGE("Unable to find %s", name);
   return nullptr;
 }
 
@@ -360,20 +359,15 @@ void NanoappLoader::close() {
 }
 
 void *NanoappLoader::findSymbolByName(const char *name) {
-  void *symbol = nullptr;
-  uint8_t *index = mSymbolTablePtr;
-  while (index < (mSymbolTablePtr + mSymbolTableSize)) {
-    ElfSym *currSym = reinterpret_cast<ElfSym *>(index);
+  for (size_t offset = 0; offset < mSymbolTableSize; offset += sizeof(ElfSym)) {
+    ElfSym *currSym = reinterpret_cast<ElfSym *>(mSymbolTablePtr + offset);
     const char *symbolName = &mStringTablePtr[currSym->st_name];
 
     if (strncmp(symbolName, name, strlen(name)) == 0) {
-      symbol = mMapping + currSym->st_value;
-      break;
+      return getSymbolTarget(currSym);
     }
-
-    index += sizeof(ElfSym);
   }
-  return symbol;
+  return nullptr;
 }
 
 void NanoappLoader::registerAtexitFunction(void (*function)(void)) {
@@ -767,29 +761,49 @@ bool NanoappLoader::createMappings() {
   return success;
 }
 
-const char *NanoappLoader::getDataName(size_t posInSymbolTable) {
+NanoappLoader::ElfSym *NanoappLoader::getDynamicSymbol(
+    size_t posInSymbolTable) {
   size_t sectionSize = getDynamicSymbolTableSize();
   uint8_t *dynamicSymbolTable = getDynamicSymbolTable();
   size_t numElements = sectionSize / sizeof(ElfSym);
   CHRE_ASSERT(posInSymbolTable < numElements);
-  char *dataName = nullptr;
   if (posInSymbolTable < numElements) {
-    ElfSym *sym = reinterpret_cast<ElfSym *>(
+    return reinterpret_cast<ElfSym *>(
         &dynamicSymbolTable[posInSymbolTable * sizeof(ElfSym)]);
-    dataName = &getDynamicStringTable()[sym->st_name];
   }
-  return dataName;
+  return nullptr;
+}
+
+const char *NanoappLoader::getDataName(const ElfSym *symbol) {
+  return symbol == nullptr ? nullptr
+                           : &getDynamicStringTable()[symbol->st_name];
+}
+
+void *NanoappLoader::getSymbolTarget(const ElfSym *symbol) {
+  if (symbol == nullptr || symbol->st_shndx == SHN_UNDEF) {
+    return nullptr;
+  }
+
+  return mMapping + symbol->st_value;
 }
 
 void *NanoappLoader::resolveData(size_t posInSymbolTable) {
-  const char *dataName = getDataName(posInSymbolTable);
+  const ElfSym *symbol = getDynamicSymbol(posInSymbolTable);
+  const char *dataName = getDataName(symbol);
+  void *target = nullptr;
 
   if (dataName != nullptr) {
     LOGV("Resolving %s", dataName);
-    return findExportedSymbol(dataName);
+    target = findExportedSymbol(dataName);
+    if (target == nullptr) {
+      target = getSymbolTarget(symbol);
+    }
+    if (target == nullptr) {
+      LOGE("Unable to find %s", dataName);
+    }
   }
 
-  return nullptr;
+  return target;
 }
 
 NanoappLoader::DynamicHeader *NanoappLoader::getDynamicHeader() {
@@ -946,7 +960,7 @@ bool NanoappLoader::resolveGot() {
 
       default:
         LOGE("Unsupported relocation type: %u for symbol %s", relocType,
-             getDataName(ELFW_R_SYM(curr->r_info)));
+             getDataName(getDynamicSymbol(ELFW_R_SYM(curr->r_info))));
         return false;
     }
   }
