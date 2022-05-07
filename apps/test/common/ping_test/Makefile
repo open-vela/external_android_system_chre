@@ -22,6 +22,8 @@ NANOAPP_VERSION = 0x00000001
 NANOAPP_PATH = $(CHRE_PREFIX)/apps/test/common/ping_test
 TEST_SHARED_PATH = $(CHRE_PREFIX)/apps/test/common/shared
 
+CHRE_STD_OVERRIDES_ALLOWED = true
+
 # Protobuf Sources #############################################################
 
 NANOPB_EXTENSION = nanopb
