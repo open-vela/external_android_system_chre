@@ -21,11 +21,6 @@
 
 #include "chre/platform/shared/nanoapp_loader.h"
 
-#ifdef CHRE_ASH_API_SUPPORTED
-#include "ash.h"
-#include "ash/profile.h"
-#endif  // CHRE_ASH_API_SUPPORTED
-
 #include "chre.h"
 #include "chre/platform/assert.h"
 #include "chre/platform/fatal_error.h"
@@ -35,8 +30,8 @@
 #include "chre/util/dynamic_vector.h"
 #include "chre/util/macros.h"
 
-#ifdef CHRE_LOG_ATOM_EXTENSION_ENABLED
-#include "chrex_log_atom.h"
+#ifdef CHREX_SYMBOL_EXTENSIONS
+#include "chre/extensions/platform/symbol_list.h"
 #endif
 
 #ifndef CHRE_LOADER_ARCH
@@ -123,20 +118,14 @@ void __cxa_pure_virtual(void) {
   chreAbort(CHRE_ERROR /* abortCode */);
 }
 
-#define ADD_EXPORTED_SYMBOL(function_name, function_string) \
-  { reinterpret_cast<void *>(function_name), function_string }
-#define ADD_EXPORTED_C_SYMBOL(function_name) \
-  ADD_EXPORTED_SYMBOL(function_name, STRINGIFY(function_name))
-
 // TODO(karthikmb/stange): While this array was hand-coded for simple
 // "hello-world" prototyping, the list of exported symbols must be
 // generated to minimize runtime errors and build breaks.
-// TODO(b/226455808): Allow extensions to this list via an external file
 // clang-format off
 // Disable deprecation warning so that deprecated symbols in the array
 // can be exported for older nanoapps and tests.
 CHRE_DEPRECATED_PREAMBLE
-const ExportedData gExportedData[] = {
+const ExportedData kExportedData[] = {
     /* libmath overrides and symbols */
     ADD_EXPORTED_SYMBOL(asinOverride, "asin"),
     ADD_EXPORTED_SYMBOL(atan2Override, "atan2"),
@@ -185,18 +174,6 @@ const ExportedData gExportedData[] = {
     ADD_EXPORTED_C_SYMBOL(strlen),
     ADD_EXPORTED_C_SYMBOL(strncmp),
     ADD_EXPORTED_C_SYMBOL(tolower),
-    /* ash symbols */
-#ifdef CHRE_ASH_API_SUPPORTED
-    ADD_EXPORTED_C_SYMBOL(ashProfileInit),
-    ADD_EXPORTED_C_SYMBOL(ashProfileBegin),
-    ADD_EXPORTED_C_SYMBOL(ashProfileEnd),
-    ADD_EXPORTED_C_SYMBOL(ashLoadCalibrationParams),
-    ADD_EXPORTED_C_SYMBOL(ashSaveCalibrationParams),
-    ADD_EXPORTED_C_SYMBOL(ashSetCalibration),
-    ADD_EXPORTED_C_SYMBOL(ashLoadMultiCalibrationParams),
-    ADD_EXPORTED_C_SYMBOL(ashSaveMultiCalibrationParams),
-    ADD_EXPORTED_C_SYMBOL(ashSetMultiCalibration),
-#endif
     /* CHRE symbols */
     ADD_EXPORTED_C_SYMBOL(chreAbort),
     ADD_EXPORTED_C_SYMBOL(chreAudioConfigureSource),
@@ -257,9 +234,6 @@ const ExportedData gExportedData[] = {
     ADD_EXPORTED_C_SYMBOL(chreConfigureHostEndpointNotifications),
     ADD_EXPORTED_C_SYMBOL(chrePublishRpcServices),
     ADD_EXPORTED_C_SYMBOL(chreGetHostEndpointInfo),
-#ifdef CHRE_LOG_ATOM_EXTENSION_ENABLED
-    ADD_EXPORTED_C_SYMBOL(chrexLogAtom),
-#endif
 };
 CHRE_DEPRECATED_EPILOGUE
 // clang-format on
@@ -292,12 +266,21 @@ void NanoappLoader::destroy(NanoappLoader *loader) {
 
 void *NanoappLoader::findExportedSymbol(const char *name) {
   size_t nameLen = strlen(name);
-  for (size_t i = 0; i < ARRAY_SIZE(gExportedData); i++) {
-    if (nameLen == strlen(gExportedData[i].dataName) &&
-        strncmp(name, gExportedData[i].dataName, nameLen) == 0) {
-      return gExportedData[i].data;
+  for (size_t i = 0; i < ARRAY_SIZE(kExportedData); i++) {
+    if (nameLen == strlen(kExportedData[i].dataName) &&
+        strncmp(name, kExportedData[i].dataName, nameLen) == 0) {
+      return kExportedData[i].data;
     }
   }
+
+#ifdef CHREX_SYMBOL_EXTENSIONS
+  for (size_t i = 0; i < ARRAY_SIZE(kVendorExportedData); i++) {
+    if (nameLen == strlen(kVendorExportedData[i].dataName) &&
+        strncmp(name, kVendorExportedData[i].dataName, nameLen) == 0) {
+      return kVendorExportedData[i].data;
+    }
+  }
+#endif
 
   return nullptr;
 }
