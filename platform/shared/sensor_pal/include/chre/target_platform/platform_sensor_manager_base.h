@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CHRE_PLATFORM_LINUX_PLATFORM_SENSOR_MANAGER_BASE_H_
-#define CHRE_PLATFORM_LINUX_PLATFORM_SENSOR_MANAGER_BASE_H_
+#ifndef CHRE_PLATFORM_SHARED_SENSOR_PAL_PLATFORM_SENSOR_MANAGER_BASE_H_
+#define CHRE_PLATFORM_SHARED_SENSOR_PAL_PLATFORM_SENSOR_MANAGER_BASE_H_
 
 #include <cstdint>
 
@@ -24,7 +24,7 @@
 namespace chre {
 
 /**
- * Storage for the Linux implementation of the PlatformSensorManager class.
+ * Platform sensor manager base class.
  */
 class PlatformSensorManagerBase {
  public:
@@ -48,4 +48,4 @@ class PlatformSensorManagerBase {
 
 }  // namespace chre
 
-#endif  // CHRE_PLATFORM_LINUX_PLATFORM_SENSOR_MANAGER_BASE_H_
+#endif  // CHRE_PLATFORM_SHARED_SENSOR_PAL_PLATFORM_SENSOR_MANAGER_BASE_H_
