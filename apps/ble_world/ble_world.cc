@@ -93,7 +93,7 @@ void makeBleScanRequest() {
     LOGI("  mode=%" PRIu8, kScanModes[scanModeIndex]);
     LOGI("  reportDelayMs=%" PRIu32, reportDelayMs);
     if (filter != nullptr) {
-      LOGI("  rssiThreshold=%" PRIu32, filter->rssiThreshold);
+      LOGI("  rssiThreshold=%" PRId8, filter->rssiThreshold);
       LOGI("  scanFilterType=%" PRIx8, filter->scanFilters[0].type);
       LOGI("  scanFilterLen=%" PRIu8, filter->scanFilters[0].len);
       LOGI("  scanFilterData=%s", filter->scanFilters[0].data);
