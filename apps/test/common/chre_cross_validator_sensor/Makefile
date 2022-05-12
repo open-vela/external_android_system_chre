@@ -22,6 +22,8 @@ NANOAPP_VERSION = 0x00000002
 
 NANOAPP_PATH = $(CHRE_PREFIX)/apps/test/common/chre_cross_validator_sensor
 
+CHRE_STD_OVERRIDES_ALLOWED = true
+
 # Protobuf Sources #############################################################
 
 NANOPB_EXTENSION = nanopb
