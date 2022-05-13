@@ -21,6 +21,7 @@ NANOAPP_NAME_STRING = \"Chre\ Settings\ Test\"
 NANOAPP_VERSION = 0x00000001
 
 NANOAPP_PATH = $(CHRE_PREFIX)/apps/test/common/chre_settings_test
+TEST_SHARED_PATH = $(CHRE_PREFIX)/apps/test/common/shared
 
 CHRE_STD_OVERRIDES_ALLOWED = true
 
@@ -29,13 +30,14 @@ CHRE_STD_OVERRIDES_ALLOWED = true
 NANOPB_EXTENSION = nanopb
 
 NANOPB_SRCS += $(NANOAPP_PATH)/../proto/chre_settings_test.proto
+NANOPB_SRCS += $(NANOAPP_PATH)/../proto/chre_test_common.proto
 NANOPB_INCLUDES = $(NANOAPP_PATH)/../proto
 
 # Source Code ##################################################################
 
 COMMON_SRCS += $(NANOAPP_PATH)/src/chre_settings_test.cc
 COMMON_SRCS += $(NANOAPP_PATH)/src/chre_settings_test_manager.cc
-COMMON_SRCS += $(NANOAPP_PATH)/src/chre_settings_test_util.cc
+COMMON_SRCS += $(TEST_SHARED_PATH)/src/send_message.cc
 COMMON_SRCS += $(CHRE_PREFIX)/util/nanoapp/callbacks.cc
 
 # Compiler Flags ###############################################################
@@ -45,6 +47,7 @@ COMMON_CFLAGS += -DNANOAPP_MINIMUM_LOG_LEVEL=CHRE_LOG_LEVEL_INFO
 
 # Includes
 COMMON_CFLAGS += -I$(NANOAPP_PATH)/inc
+COMMON_CFLAGS += -I$(TEST_SHARED_PATH)/inc
 
 # Permission declarations ######################################################
 
