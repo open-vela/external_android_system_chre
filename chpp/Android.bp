@@ -113,6 +113,8 @@ cc_library_static {
 
 cc_test_host {
     name: "chre_chpp_linux_tests",
+    // TODO(b/232537107): Evaluate if isolated can be turned on
+    isolated: false,
     cflags: [
         "-DCHPP_CLIENT_ENABLED_TRANSPORT_LOOPBACK",
         "-DCHPP_CHECKSUM_ENABLED",
