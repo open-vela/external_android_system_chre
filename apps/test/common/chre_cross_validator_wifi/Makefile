@@ -20,6 +20,7 @@ NANOAPP_NAME_STRING = \"CHRE\ Cross\ Validator\ WiFi\"
 NANOAPP_VERSION = 0x00000001
 
 NANOAPP_PATH = $(CHRE_PREFIX)/apps/test/common/chre_cross_validator_wifi
+TEST_SHARED_PATH = $(CHRE_PREFIX)/apps/test/common/shared
 
 CHRE_STD_OVERRIDES_ALLOWED = true
 
@@ -36,6 +37,7 @@ NANOPB_INCLUDES = $(NANOAPP_PATH)/../proto
 COMMON_SRCS += $(NANOAPP_PATH)/src/chre_cross_validator_wifi.cc
 COMMON_SRCS += $(NANOAPP_PATH)/src/chre_cross_validator_wifi_manager.cc
 COMMON_SRCS += $(NANOAPP_PATH)/src/wifi_scan_result.cc
+COMMON_SRCS += $(TEST_SHARED_PATH)/src/send_message.cc
 COMMON_SRCS += $(CHRE_PREFIX)/util/nanoapp/callbacks.cc
 COMMON_SRCS += $(CHRE_PREFIX)/util/nanoapp/wifi.cc
 
@@ -47,6 +49,7 @@ COMMON_CFLAGS += -DLOG_TAG=\"[ChreCrossValidatorWifi]\"
 
 # Includes
 COMMON_CFLAGS += -I$(NANOAPP_PATH)/inc
+COMMON_CFLAGS += -I$(TEST_SHARED_PATH)/inc
 
 # Permission declarations ######################################################
 
