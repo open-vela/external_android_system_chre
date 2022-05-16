@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CHRE_PLATFORM_LINUX_PLATFORM_AUDIO_BASE_H_
-#define CHRE_PLATFORM_LINUX_PLATFORM_AUDIO_BASE_H_
+#ifndef CHRE_PLATFORM_SHARED_AUDIO_PAL_PLATFORM_AUDIO_BASE_H_
+#define CHRE_PLATFORM_SHARED_AUDIO_PAL_PLATFORM_AUDIO_BASE_H_
 
 #include "chre/pal/audio.h"
 #include "chre/platform/shared/platform_pal.h"
@@ -41,4 +41,4 @@ class PlatformAudioBase : public PlatformPal {
 
 }  // namespace chre
 
-#endif  // CHRE_PLATFORM_LINUX_PLATFORM_AUDIO_BASE_H_
+#endif  // CHRE_PLATFORM_SHARED_AUDIO_PAL_PLATFORM_AUDIO_BASE_H_
