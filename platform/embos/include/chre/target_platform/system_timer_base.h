@@ -31,12 +31,14 @@ namespace chre {
  * being stopped. In this scenario, if a lock were to be held by the CHRE (or
  * another) thread, it would execute until releasing the lock (possibly setting
  * or canceling the same timer). But since this can only happen prior to a call
- * to OS_TIMER_StopEx() returning, we know that the callback will be the one
+ * to OS_StopTimerEx() returning, we know that the callback will be the one
  * provided for the previous timer and not a mismatch.
  *
- * Note: A side effect of this is that there still exists a possible race
- * between getting the status of a timer (via OS_TIMER_GetStatusEx()) and
- * stopping a timer (via OS_TIMER_StopEx()) which probably needs guarantees
+ * @note
+ * 1: This implementation is aimed at EmbOS v4.22.
+ * 2: A side effect of this is that there still exists a possible race
+ * between getting the status of a timer (via OS_GetTimerStatusEx()) and
+ * stopping a timer (via OS_StopTimerEx()) which probably needs guarantees
  * at the OS implementation level - which means that the return value of the
  * system timer cancel call is not guaranteed to always be accurate.
  */

@@ -14,24 +14,34 @@
  * limitations under the License.
  */
 
-#ifndef CHRE_PLATFORM_EMBOS_CONDITION_VARIABLE_BASE_H_
-#define CHRE_PLATFORM_EMBOS_CONDITION_VARIABLE_BASE_H_
+#ifndef CHRE_PLATFORM_EMBOS_INIT_H_
+#define CHRE_PLATFORM_EMBOS_INIT_H_
 
-#include "RTOS.h"
+#include <stddef.h>
 
-namespace chre {
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /**
- * The EmbOS implementation of ConditionVariableBase.
- *
- * Note that this implementation is aimed at EmbOS v4.22.
+ * The init function spawns an EmbOS task that initializes the CHRE core,
+ * loads any static nanoapps, and starts the CHRE event loop.
+ * Note that this function should be called before starting the EmbOS
+ * scheduler via OS_START.
  */
+void chreEmbosInit();
 
-class ConditionVariableBase {
- protected:
-  OS_CSEMA mCvSemaphore;
-};
+/**
+ * Stops the CHRE event loop, and cleans up the CHRE EmbOS task.
+ */
+void chreEmbosDeinit();
 
-}  // namespace chre
+const char *getChreTaskName();
 
-#endif  // CHRE_PLATFORM_EMBOS_CONDITION_VARIABLE_BASE_H_
+size_t getChreTaskNameLen();
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
+
+#endif  // CHRE_PLATFORM_EMBOS_INIT_H_

@@ -24,19 +24,19 @@
 namespace chre {
 
 void *memoryAlloc(size_t size) {
-  return OS_HEAP_malloc(size);
+  return OS_malloc(size);
 }
 
 void *palSystemApiMemoryAlloc(size_t size) {
-  return OS_HEAP_malloc(size);
+  return OS_malloc(size);
 }
 
 void memoryFree(void *pointer) {
-  OS_HEAP_free(pointer);
+  OS_free(pointer);
 }
 
 void palSystemApiMemoryFree(void *pointer) {
-  OS_HEAP_free(pointer);
+  OS_free(pointer);
 }
 
 }  // namespace chre
