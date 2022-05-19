@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,18 +14,18 @@
  * limitations under the License.
  */
 
-#ifndef CHRE_TARGET_PLATFORM_SENSOR_TYPE_HELPERS_BASE_H_
-#define CHRE_TARGET_PLATFORM_SENSOR_TYPE_HELPERS_BASE_H_
+#ifndef CHRE_PLATFORM_EMBOS_CONDITION_VARIABLE_BASE_H_
+#define CHRE_PLATFORM_EMBOS_CONDITION_VARIABLE_BASE_H_
+
+#include "RTOS.h"
 
 namespace chre {
 
-/**
- * Can be used to expose static methods to the PlatformSensorTypeHelpers class
- * for use in working with vendor sensor types. Currently, this is unused in the
- * Linux implementation as sensors are not supported.
- */
-class PlatformSensorTypeHelpersBase {};
+class ConditionVariableBase {
+ protected:
+  OS_SEMAPHORE mCvSemaphore;
+};
 
 }  // namespace chre
 
-#endif  // CHRE_TARGET_PLATFORM_SENSOR_TYPE_HELPERS_BASE_H_
+#endif  // CHRE_PLATFORM_EMBOS_CONDITION_VARIABLE_BASE_H_
