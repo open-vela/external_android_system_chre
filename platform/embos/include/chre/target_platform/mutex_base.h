@@ -17,19 +17,20 @@
 #ifndef CHRE_PLATFORM_EMBOS_MUTEX_BASE_H_
 #define CHRE_PLATFORM_EMBOS_MUTEX_BASE_H_
 
-#include "chre/platform/fatal_error.h"
-#include "chre/platform/log.h"
-
 #include "RTOS.h"
 
 namespace chre {
 
 /**
- * The EmbOS implementation of MutexBase
+ * The EmbOS implementation of MutexBase.
+ *
+ * Note that the current implementation is aimed at EmbOS v4.22.
+ * A 'resource semaphore' is used to implement the mutex. It is not safe to
+ * do any Mutex operations from within an ISR.
  */
 class MutexBase {
  protected:
-  OS_MUTEX mMutex;
+  OS_RSEMA mResourceSemaphore;
 };
 
 }  // namespace chre

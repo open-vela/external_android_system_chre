@@ -23,20 +23,20 @@
 namespace chre {
 
 inline ConditionVariable::ConditionVariable() {
-  OS_SEMAPHORE_CREATE(&mCvSemaphore);
+  OS_CREATECSEMA(&mCvSemaphore);
 }
 
 inline ConditionVariable::~ConditionVariable() {
-  OS_SEMAPHORE_Delete(&mCvSemaphore);
+  OS_DeleteCSema(&mCvSemaphore);
 }
 
 inline void ConditionVariable::notify_one() {
-  OS_SEMAPHORE_Give(&mCvSemaphore);
+  OS_SignalCSema(&mCvSemaphore);
 }
 
 inline void ConditionVariable::wait(Mutex &mutex) {
   mutex.unlock();
-  OS_SEMAPHORE_TakeBlocked(&mCvSemaphore);
+  OS_WaitCSema(&mCvSemaphore);
   mutex.lock();
 }
 
@@ -46,7 +46,7 @@ inline bool ConditionVariable::wait_for(Mutex &mutex, Nanoseconds timeout) {
       static_cast<OS_TIME>(Milliseconds(timeout).getMilliseconds());
   if (timeoutTicks > 0) {
     mutex.unlock();
-    success = OS_SEMAPHORE_TakeTimed(&mCvSemaphore, timeoutTicks);
+    success = OS_WaitCSemaTimed(&mCvSemaphore, timeoutTicks);
     mutex.lock();
   }
   return success;

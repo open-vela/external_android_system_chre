@@ -22,23 +22,31 @@
 namespace chre {
 
 inline Mutex::Mutex() {
-  OS_MUTEX_Create(&mMutex);
+  OS_CREATERSEMA(&mResourceSemaphore);
 }
 
 inline Mutex::~Mutex() {
-  OS_MUTEX_Delete(&mMutex);
+  OS_DeleteRSema(&mResourceSemaphore);
 }
 
 inline void Mutex::lock() {
-  OS_MUTEX_LockBlocked(&mMutex);
+  OS_Use(&mResourceSemaphore);
 }
 
 inline bool Mutex::try_lock() {
-  return OS_MUTEX_Lock(&mMutex) != 0;
+  // The return value of OS_Request indicates the availability: a value of 1
+  // indicates that the resource was available and is now in use by the calling
+  // task.
+  return OS_Request(&mResourceSemaphore) == 1;
 }
 
+// Note: Calling this function from a task that doesn't own the resource being
+// released or if called before a call to OS_Use leads to undefined behavior.
+// The EmbOS error handler (if enabled) OS_Error is invoked with code
+// `OS_ERR_UNUSE_BEFORE_USE` in the former case, and with code
+// `OS_ERR_RESOURCE_OWNER` for the latter.
 inline void Mutex::unlock() {
-  OS_MUTEX_Unlock(&mMutex);
+  OS_Unuse(&mResourceSemaphore);
 }
 
 }  // namespace chre
