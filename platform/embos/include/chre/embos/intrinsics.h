@@ -14,28 +14,13 @@
  * limitations under the License.
  */
 
-#ifndef CHRE_PLATFORM_EMBOS_INIT_H_
-#define CHRE_PLATFORM_EMBOS_INIT_H_
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /**
- * The init function spawns an EmbOS task that initializes the CHRE core,
- * loads any static nanoapps, and starts the CHRE event loop.
- * Note that this function should be called before starting the EmbOS
- * scheduler via OS_START.
+ * @file intrinsics.h
+ *
+ * The IAR (ARM) flavor of EmbOS includes an 'intrinsics.h' header provided by
+ * the IAR runtime library for optimized low level operations
+ * (__enable_interrupts(), __disable_interrupts(), __no_operation(), etc.).
+ * Since CHRE is currently being built as an archive, an empty header is added
+ * to enable compilation, while the linker deals with finding and linking the
+ * appropriate symbols.
  */
-void chreEmbosInit();
-
-/**
- * Stops the CHRE event loop, and cleans up the CHRE EmbOS task.
- */
-void chreEmbosDeinit();
-
-#ifdef __cplusplus
-}  // extern "C"
-#endif
-
-#endif  // CHRE_PLATFORM_EMBOS_INIT_H_

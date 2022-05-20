@@ -14,29 +14,13 @@
  * limitations under the License.
  */
 
-#include "chre/platform/memory.h"
-#include "chre/platform/shared/pal_system_api.h"
-
-#include <cstdlib>
-
-#include "RTOS.h"
+#include "chre/platform/system_time.h"
+#include "system_Device.h"
 
 namespace chre {
 
-void *memoryAlloc(size_t size) {
-  return OS_malloc(size);
-}
-
-void *palSystemApiMemoryAlloc(size_t size) {
-  return OS_malloc(size);
-}
-
-void memoryFree(void *pointer) {
-  OS_free(pointer);
-}
-
-void palSystemApiMemoryFree(void *pointer) {
-  OS_free(pointer);
+Nanoseconds SystemTime::getMonotonicTime() {
+  return Nanoseconds(getTimeStampNS());
 }
 
 }  // namespace chre

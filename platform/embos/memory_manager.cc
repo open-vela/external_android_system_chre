@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-#include "chre/platform/memory.h"
-#include "chre/platform/shared/pal_system_api.h"
+#include "chre/platform/memory_manager.h"
 
 #include <cstdlib>
 
@@ -23,20 +22,12 @@
 
 namespace chre {
 
-void *memoryAlloc(size_t size) {
-  return OS_malloc(size);
+void *MemoryManager::doAlloc(Nanoapp * /* app */, uint32_t bytes) {
+  return OS_malloc(bytes);
 }
 
-void *palSystemApiMemoryAlloc(size_t size) {
-  return OS_malloc(size);
-}
-
-void memoryFree(void *pointer) {
-  OS_free(pointer);
-}
-
-void palSystemApiMemoryFree(void *pointer) {
-  OS_free(pointer);
+void MemoryManager::doFree(Nanoapp * /* app */, void *ptr) {
+  OS_free(ptr);
 }
 
 }  // namespace chre

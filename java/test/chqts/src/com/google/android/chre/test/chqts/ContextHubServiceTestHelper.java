@@ -36,7 +36,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/** The helper class to facilitate CHQTS test. */
+/**
+ * The helper class to facilitate CHQTS test.
+ *
+ * <p> A test class using this helper should run {@link #init()} before starting any test and run
+ * {@link #deinit()} after any test.</p>
+ */
 public class ContextHubServiceTestHelper {
     private static final long TIMEOUT_SECONDS_QUERY = 5;
     public static final long TIMEOUT_SECONDS_LOAD = 30;
@@ -53,6 +58,22 @@ public class ContextHubServiceTestHelper {
     public ContextHubServiceTestHelper(ContextHubInfo info, ContextHubManager manager) {
         mContextHubInfo = info;
         mContextHubManager = manager;
+    }
+
+    public void init() throws InterruptedException, TimeoutException {
+        // Registers a client to record a hub reset.
+        registerHubResetClient();
+    }
+
+    public void initAndUnloadAllNanoApps() throws InterruptedException, TimeoutException {
+        init();
+        // Unload all nanoapps to ensure test starts at a clean state.
+        unloadAllNanoApps();
+    }
+
+    public void deinit() {
+        // unregister to detect any hub reset.
+        unregisterHubResetClient();
     }
 
     /** Creates a registered callback-based ContextHubClient. */

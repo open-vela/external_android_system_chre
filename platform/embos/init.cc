@@ -24,6 +24,7 @@
 namespace {
 
 constexpr char kChreTaskName[] = "CHRE";
+constexpr size_t kChreTaskNameLen = sizeof(kChreTaskName) - 1;
 
 // The CHRE task priority was requested to be between the sub_task (prio=60),
 // and the main task (prio=100).
@@ -54,7 +55,15 @@ void chreEmbosInit() {
 }
 
 void chreEmbosDeinit() {
-  if (OS_TASK_IsTask(&gChreTcb)) {
+  if (OS_IsTask(&gChreTcb)) {
     chre::EventLoopManagerSingleton::get()->getEventLoop().stop();
   }
+}
+
+const char *getChreTaskName() {
+  return kChreTaskName;
+}
+
+size_t getChreTaskNameLen() {
+  return kChreTaskNameLen;
 }

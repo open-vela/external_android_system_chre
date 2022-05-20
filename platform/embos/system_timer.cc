@@ -28,16 +28,18 @@ void SystemTimerBase::invokeCallback(void *instance) {
   timer->mCallback(timer->mData);
 }
 
+SystemTimer::SystemTimer() {}
+
 SystemTimer::~SystemTimer() {
   // cancel an existing timer if any, and delete the timer instance.
   cancel();
-  OS_TIMER_DeleteEx(&mTimer);
+  OS_DeleteTimerEx(&mTimer);
 }
 
 bool SystemTimer::init() {
   constexpr uint32_t kSomeInitialPeriod = 100;
-  OS_TIMER_CreateEx(&mTimer, SystemTimerBase::invokeCallback,
-                    kSomeInitialPeriod, this /*context*/);
+  OS_CreateTimerEx(&mTimer, SystemTimerBase::invokeCallback, kSomeInitialPeriod,
+                   this /*context*/);
   return true;
 }
 
@@ -52,13 +54,13 @@ bool SystemTimer::set(SystemTimerCallback *callback, void *data,
   uint64_t delayMs = Milliseconds(delay).getMilliseconds();
   delayMs = std::min(std::max(delayMs, kMinDelayMs), kMaxDelayMs);
 
-  OS_TIMER_StopEx(&mTimer);
-  OS_TIMER_SetPeriodEx(&mTimer, static_cast<OS_TIME>(delayMs));
+  OS_StopTimerEx(&mTimer);
+  OS_SetTimerPeriodEx(&mTimer, static_cast<OS_TIME>(delayMs));
 
   mCallback = callback;
   mData = data;
 
-  OS_TIMER_RestartEx(&mTimer);
+  OS_RetriggerTimerEx(&mTimer);
   return true;
 }
 
@@ -67,14 +69,14 @@ bool SystemTimer::set(SystemTimerCallback *callback, void *data,
 bool SystemTimer::cancel() {
   bool success = false;
   if (isActive()) {
-    OS_TIMER_StopEx(&mTimer);
+    OS_StopTimerEx(&mTimer);
     success = true;
   }
   return success;
 }
 
 bool SystemTimer::isActive() {
-  return (OS_TIMER_GetStatusEx(&mTimer) != 0);
+  return (OS_GetTimerStatusEx(&mTimer) != 0);
 }
 
 }  // namespace chre

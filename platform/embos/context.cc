@@ -14,29 +14,30 @@
  * limitations under the License.
  */
 
-#include "chre/platform/memory.h"
-#include "chre/platform/shared/pal_system_api.h"
+#include "chre/platform/context.h"
+#include "chre/embos/init.h"
 
-#include <cstdlib>
+#include <string.h>
 
 #include "RTOS.h"
 
 namespace chre {
 
-void *memoryAlloc(size_t size) {
-  return OS_malloc(size);
-}
+bool inEventLoopThread() {
+  bool rv = false;
 
-void *palSystemApiMemoryAlloc(size_t size) {
-  return OS_malloc(size);
-}
+  OS_TASK *currentTask = OS_GetTaskID();
+  if (currentTask != nullptr) {
+    // Some task is executing or the scheduler has started.
+    const char *currentTaskName = OS_GetTaskName(currentTask);
+    if (currentTaskName != nullptr) {
+      // Current task has a name.
+      rv = strncmp(getChreTaskName(), currentTaskName, getChreTaskNameLen()) ==
+           0;
+    }
+  }
 
-void memoryFree(void *pointer) {
-  OS_free(pointer);
-}
-
-void palSystemApiMemoryFree(void *pointer) {
-  OS_free(pointer);
+  return rv;
 }
 
 }  // namespace chre
