@@ -16,6 +16,8 @@
 
 package com.google.android.chre.test.chqts;
 
+import static com.google.common.truth.Truth.assertWithMessage;
+
 import android.app.PendingIntent;
 import android.hardware.location.ContextHubClient;
 import android.hardware.location.ContextHubClientCallback;
@@ -24,8 +26,6 @@ import android.hardware.location.ContextHubManager;
 import android.hardware.location.ContextHubTransaction;
 import android.hardware.location.NanoAppBinary;
 import android.hardware.location.NanoAppState;
-
-import org.junit.Assert;
 
 import java.util.HashMap;
 import java.util.List;
@@ -60,7 +60,7 @@ public class ContextHubServiceTestHelper {
         mContextHubManager = manager;
     }
 
-    public void init() throws InterruptedException, TimeoutException {
+    public void init() {
         // Registers a client to record a hub reset.
         registerHubResetClient();
     }
@@ -110,7 +110,8 @@ public class ContextHubServiceTestHelper {
 
     /** Unregisters the hub reset client after the test. */
     public void unregisterHubResetClient() {
-        Assert.assertFalse("Context Hub reset unexpectedly while testing", mChreReset.get());
+        assertWithMessage("Context Hub reset unexpectedly while testing").that(
+                mChreReset.get()).isFalse();
         if (mHubResetClient != null) {
             mHubResetClient.close();
             mHubResetClient = null;
@@ -172,8 +173,8 @@ public class ContextHubServiceTestHelper {
                 unloadedApps.append(Long.toHexString(entry.getKey())).append(";");
             }
         }
-        Assert.assertEquals("Did not find following nanoapps: " + unloadedApps, 0,
-                unloadedApps.length());
+        assertWithMessage("Did not find following nanoapps: " + unloadedApps).that(
+                unloadedApps.length()).isEqualTo(0);
     }
 
     /** Asserts that a list of nanoapps are not loaded at the hub. */
@@ -185,8 +186,8 @@ public class ContextHubServiceTestHelper {
                 loadedApps.append(Long.toHexString(entry.getKey())).append(";");
             }
         }
-        Assert.assertEquals("Following nanoapps are loaded: " + loadedApps, 0,
-                loadedApps.length());
+        assertWithMessage("Following nanoapps are loaded: " + loadedApps).that(
+                loadedApps.length()).isEqualTo(0);
     }
 
     /**
@@ -205,8 +206,9 @@ public class ContextHubServiceTestHelper {
         for (NanoAppState nanoAppState : nanoAppStateList) {
             Long nanoAppId = nanoAppState.getNanoAppId();
             if (foundNanoApps.containsKey(nanoAppId)) {
-                Assert.assertFalse("Nanoapp 0x" + Long.toHexString(nanoAppState.getNanoAppId())
-                        + " was found twice in query response", foundNanoApps.get(nanoAppId));
+                assertWithMessage("Nanoapp 0x" + Long.toHexString(nanoAppState.getNanoAppId())
+                        + " was found twice in query response").that(
+                        foundNanoApps.get(nanoAppId)).isFalse();
                 foundNanoApps.put(nanoAppId, true);
             }
         }
@@ -222,17 +224,18 @@ public class ContextHubServiceTestHelper {
      */
     public void assertTransactionSuccessSync(ContextHubTransaction<?> transaction, long timeout,
             TimeUnit unit) {
-        Assert.assertNotNull("ContextHubTransaction cannot be null", transaction);
+        assertWithMessage("ContextHubTransaction cannot be null").that(transaction).isNotNull();
         String type = ContextHubTransaction.typeToString(transaction.getType(),
                 true /* upperCase */);
-        ContextHubTransaction.Response<?> response = null;
+        ContextHubTransaction.Response<?> response;
         try {
             response = transaction.waitForResponse(timeout, unit);
         } catch (InterruptedException | TimeoutException e) {
             throw new AssertionError("Failed to get a response for " + type + " transaction", e);
         }
-        Assert.assertEquals(type + " transaction failed with error code " + response.getResult(),
-                ContextHubTransaction.RESULT_SUCCESS, response.getResult());
+        assertWithMessage(
+                type + " transaction failed with error code " + response.getResult()).that(
+                response.getResult()).isEqualTo(ContextHubTransaction.RESULT_SUCCESS);
     }
 
     /**
