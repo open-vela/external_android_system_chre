@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,18 +14,13 @@
  * limitations under the License.
  */
 
-#ifndef CHRE_TARGET_PLATFORM_SENSOR_TYPE_HELPERS_BASE_H_
-#define CHRE_TARGET_PLATFORM_SENSOR_TYPE_HELPERS_BASE_H_
-
-namespace chre {
-
 /**
- * Can be used to expose static methods to the PlatformSensorTypeHelpers class
- * for use in working with vendor sensor types. Currently, this is unused in the
- * Linux implementation as sensors are not supported.
+ * @file intrinsics.h
+ *
+ * The IAR (ARM) flavor of EmbOS includes an 'intrinsics.h' header provided by
+ * the IAR runtime library for optimized low level operations
+ * (__enable_interrupts(), __disable_interrupts(), __no_operation(), etc.).
+ * Since CHRE is currently being built as an archive, an empty header is added
+ * to enable compilation, while the linker deals with finding and linking the
+ * appropriate symbols.
  */
-class PlatformSensorTypeHelpersBase {};
-
-}  // namespace chre
-
-#endif  // CHRE_TARGET_PLATFORM_SENSOR_TYPE_HELPERS_BASE_H_
