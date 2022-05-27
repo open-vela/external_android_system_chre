@@ -52,6 +52,8 @@ message TestCommand {
     WIFI_SCAN_MONITOR = 5;
     // Enables sensor test (accel/gyro/instant motion) only.
     SENSORS = 6;
+    // Audio stress testing.
+    AUDIO = 7;
   }
 
   // The feature to test.

@@ -116,6 +116,7 @@ class Manager {
   void handleWwanStartCommand(bool start);
   void handleWifiScanMonitoringCommand(bool start);
   void handleSensorStartCommand(bool start);
+  void handleAudioStartCommand(bool start);
 
   /**
    * @param result The WiFi async result from CHRE.
@@ -204,6 +205,17 @@ class Manager {
    */
   void makeSensorRequest();
 
+  /**
+   * @param event The audio event from CHRE.
+   */
+  void handleAudioDataEvent(const chreAudioDataEvent *event);
+  void handleAudioSamplingChangeEvent(const chreAudioSourceStatusEvent *event);
+
+  /**
+   * Makes the next audio request.
+   */
+  void makeAudioRequest();
+
   //! The host endpoint of the current test host.
   Optional<uint16_t> mHostEndpoint;
 
@@ -217,6 +229,7 @@ class Manager {
   uint32_t mWwanTimerHandle = CHRE_TIMER_INVALID;
   uint32_t mWifiScanMonitorAsyncTimerHandle = CHRE_TIMER_INVALID;
   uint32_t mSensorTimerHandle = CHRE_TIMER_INVALID;
+  uint32_t mAudioTimerHandle = CHRE_TIMER_INVALID;
 
   //! true if the test has been started for the feature.
   bool mWifiTestStarted = false;
@@ -224,9 +237,13 @@ class Manager {
   bool mGnssMeasurementTestStarted = false;
   bool mWwanTestStarted = false;
   bool mSensorTestStarted = false;
+  bool mAudioTestStarted = false;
 
   //! true if scan monitor is enabled for the nanoapp.
   bool mWifiScanMonitorEnabled = false;
+
+  //! True if audio is enabled for the nanoapp.
+  bool mAudioEnabled = false;
 
   //! The cookie to use for requests.
   const uint32_t kOnDemandWifiScanCookie = 0xface;
@@ -248,6 +265,7 @@ class Manager {
   uint64_t mPrevAccelEventTimestampNs = 0;
   uint64_t mPrevGyroEventTimestampNs = 0;
   uint64_t mPrevInstantMotionEventTimestampNs = 0;
+  uint64_t mPrevAudioEventTimestampMs = 0;
 
   //! Current number of sensors tested.
   static constexpr uint32_t kNumSensors = 3;
