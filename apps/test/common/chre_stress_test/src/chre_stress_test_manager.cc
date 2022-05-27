@@ -20,6 +20,7 @@
 #include <pb_encode.h>
 
 #include "chre/util/macros.h"
+#include "chre/util/nanoapp/audio.h"
 #include "chre/util/nanoapp/callbacks.h"
 #include "chre/util/nanoapp/log.h"
 #include "chre_stress_test.nanopb.h"
@@ -45,6 +46,7 @@ constexpr chre::Nanoseconds kSensorRequestInterval = chre::Seconds(5);
 constexpr uint64_t kSensorSamplingIntervalNs =
     chre::Milliseconds(200).toRawNanoseconds();
 constexpr uint64_t kSensorSamplingDelayNs = 0;
+constexpr chre::Nanoseconds kAudioRequestInterval = chre::Seconds(5);
 
 bool isRequestTypeForLocation(uint8_t requestType) {
   return (requestType == CHRE_GNSS_REQUEST_TYPE_LOCATION_SESSION_START) ||
@@ -132,6 +134,10 @@ void Manager::handleMessageFromHost(uint32_t senderInstanceId,
           handleSensorStartCommand(testCommand.start);
           break;
         }
+        case chre_stress_test_TestCommand_Feature_AUDIO: {
+          handleAudioStartCommand(testCommand.start);
+          break;
+        }
         default: {
           LOGE("Unknown feature %d", testCommand.feature);
           success = false;
@@ -182,18 +188,31 @@ void Manager::handleDataFromChre(uint16_t eventType, const void *eventData) {
       handleCellInfoResult(
           static_cast<const chreWwanCellInfoResult *>(eventData));
       break;
+
     case CHRE_EVENT_SENSOR_ACCELEROMETER_DATA:
       handleAccelSensorDataEvent(
           static_cast<const chreSensorThreeAxisData *>(eventData));
       break;
+
     case CHRE_EVENT_SENSOR_GYROSCOPE_DATA:
       handleGyroSensorDataEvent(
           static_cast<const chreSensorThreeAxisData *>(eventData));
       break;
+
     case CHRE_EVENT_SENSOR_INSTANT_MOTION_DETECT_DATA:
       handleInstantMotionSensorDataEvent(
           static_cast<const chreSensorOccurrenceData *>(eventData));
       break;
+
+    case CHRE_EVENT_AUDIO_DATA:
+      handleAudioDataEvent(static_cast<const chreAudioDataEvent *>(eventData));
+      break;
+
+    case CHRE_EVENT_AUDIO_SAMPLING_CHANGE:
+      handleAudioSamplingChangeEvent(
+          static_cast<const chreAudioSourceStatusEvent *>(eventData));
+      break;
+
     default:
       LOGW("Unknown event type %" PRIu16, eventType);
       break;
@@ -221,6 +240,8 @@ void Manager::handleTimerEvent(const uint32_t *handle) {
     makeWwanCellInfoRequest();
   } else if (*handle == mWifiScanMonitorAsyncTimerHandle) {
     sendFailure("WiFi scan monitor request timed out");
+  } else if (*handle == mAudioTimerHandle) {
+    makeAudioRequest();
   } else {
     sendFailure("Unknown timer handle");
   }
@@ -291,6 +312,19 @@ void Manager::handleGnssAsyncResult(const chreAsyncResult *result) {
   } else {
     sendFailure("Unknown GNSS async result type");
   }
+}
+
+void Manager::handleAudioDataEvent(const chreAudioDataEvent *event) {
+  uint64_t timestamp = event->timestamp;
+
+  checkTimestamp(timestamp, mPrevAudioEventTimestampMs);
+  mPrevAudioEventTimestampMs = timestamp;
+}
+
+void Manager::handleAudioSamplingChangeEvent(
+    const chreAudioSourceStatusEvent *event) {
+  LOGI("Received audio sampling change event - suspended: %d",
+       event->status.suspended);
 }
 
 void Manager::validateGnssAsyncResult(const chreAsyncResult *result,
@@ -541,6 +575,17 @@ void Manager::handleSensorStartCommand(bool start) {
   }
 }
 
+void Manager::handleAudioStartCommand(bool start) {
+  mAudioTestStarted = start;
+  mAudioEnabled = true;
+
+  if (mAudioTestStarted) {
+    makeAudioRequest();
+  } else {
+    cancelTimer(&mAudioTimerHandle);
+  }
+}
+
 void Manager::setTimer(uint64_t delayNs, bool oneShot, uint32_t *timerHandle) {
   *timerHandle = chreTimerSet(delayNs, timerHandle, oneShot);
   if (*timerHandle == CHRE_TIMER_INVALID) {
@@ -691,6 +736,39 @@ void Manager::makeWwanCellInfoRequest() {
         mWwanCellInfoAsyncRequest = AsyncRequest(&kWwanCellInfoCookie);
       }
     }
+  }
+}
+
+void Manager::makeAudioRequest() {
+  bool success = false;
+  struct chreAudioSource source;
+  if (mAudioEnabled) {
+    for (uint32_t i = 0; chreAudioGetSource(i, &source); i++) {
+      if (chreAudioConfigureSource(i, true, source.minBufferDuration,
+                                   source.minBufferDuration)) {
+        LOGI("Successfully enabled audio for source %" PRIu32, i);
+        success = true;
+      } else {
+        LOGE("Failed to enable audio");
+      }
+    }
+  } else {
+    for (uint32_t i = 0; chreAudioGetSource(i, &source); i++) {
+      if (chreAudioConfigureSource(i, false, 0, 0)) {
+        LOGI("Successfully disabled audio for source %" PRIu32, i);
+        success = true;
+      } else {
+        LOGE("Failed to disable audio");
+      }
+    }
+  }
+
+  if (success) {
+    mAudioEnabled = !mAudioEnabled;
+    setTimer(kAudioRequestInterval.toRawNanoseconds(), true /* oneShot */,
+             &mAudioTimerHandle);
+  } else {
+    sendFailure("Failed to make audio request");
   }
 }
 
