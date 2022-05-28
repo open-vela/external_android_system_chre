@@ -51,6 +51,20 @@ class Manager {
     const void *cookie;
   };
 
+  struct SensorState {
+    //! Corresponds to types defined in chre_api/sensor_types.h.
+    const uint8_t type;
+
+    //! The sensor handle obtained from chreSensorFindDefault().
+    uint32_t handle;
+
+    //! Indicate if the sensor is already configured.
+    bool enabled;
+
+    //! Information about this sensor.
+    chreSensorInfo info;
+  };
+
   /**
    * Handles a message from the host.
    *
@@ -82,6 +96,16 @@ class Manager {
   void checkTimestamp(uint64_t timestamp, uint64_t pastTimestamp);
 
   /**
+   * Validates the difference between timestamps is below a certain interval
+   *
+   * @param timestamp The timestamp.
+   * @param pastTimestamp The previous timestamp.
+   * @param maxInterval The max interval allowed between the two timestamps.
+   */
+  void checkTimestampInterval(uint64_t timestamp, uint64_t pastTimestamp,
+                              uint64_t maxInterval);
+
+  /**
    * Handles a start command from the host.
    *
    * @param start true to start the test, stop otherwise.
@@ -91,6 +115,7 @@ class Manager {
   void handleGnssMeasurementStartCommand(bool start);
   void handleWwanStartCommand(bool start);
   void handleWifiScanMonitoringCommand(bool start);
+  void handleSensorStartCommand(bool start);
 
   /**
    * @param result The WiFi async result from CHRE.
@@ -166,6 +191,19 @@ class Manager {
    */
   void handleCellInfoResult(const chreWwanCellInfoResult *event);
 
+  /**
+   * @param eventData The sensor data from CHRE.
+   */
+  void handleAccelSensorDataEvent(const chreSensorThreeAxisData *eventData);
+  void handleGyroSensorDataEvent(const chreSensorThreeAxisData *eventData);
+  void handleInstantMotionSensorDataEvent(
+      const chreSensorOccurrenceData *eventData);
+
+  /**
+   * Makes the next sensor request.
+   */
+  void makeSensorRequest();
+
   //! The host endpoint of the current test host.
   Optional<uint16_t> mHostEndpoint;
 
@@ -178,12 +216,14 @@ class Manager {
   uint32_t mGnssMeasurementAsyncTimerHandle = CHRE_TIMER_INVALID;
   uint32_t mWwanTimerHandle = CHRE_TIMER_INVALID;
   uint32_t mWifiScanMonitorAsyncTimerHandle = CHRE_TIMER_INVALID;
+  uint32_t mSensorTimerHandle = CHRE_TIMER_INVALID;
 
   //! true if the test has been started for the feature.
   bool mWifiTestStarted = false;
   bool mGnssLocationTestStarted = false;
   bool mGnssMeasurementTestStarted = false;
   bool mWwanTestStarted = false;
+  bool mSensorTestStarted = false;
 
   //! true if scan monitor is enabled for the nanoapp.
   bool mWifiScanMonitorEnabled = false;
@@ -205,6 +245,33 @@ class Manager {
   uint64_t mPrevGnssMeasurementEventTimestampNs = 0;
   uint64_t mPrevWifiScanEventTimestampNs = 0;
   uint64_t mPrevWwanCellInfoEventTimestampNs = 0;
+  uint64_t mPrevAccelEventTimestampNs = 0;
+  uint64_t mPrevGyroEventTimestampNs = 0;
+  uint64_t mPrevInstantMotionEventTimestampNs = 0;
+
+  //! Current number of sensors tested.
+  static constexpr uint32_t kNumSensors = 3;
+
+  //! List of sensors.
+  SensorState mSensors[kNumSensors] = {
+      {
+          .type = CHRE_SENSOR_TYPE_ACCELEROMETER,
+          .handle = 0,
+          .enabled = true,
+          .info = {},
+      },
+      {
+          .type = CHRE_SENSOR_TYPE_INSTANT_MOTION_DETECT,
+          .handle = 0,
+          .enabled = true,
+          .info = {},
+      },
+      {
+          .type = CHRE_SENSOR_TYPE_GYROSCOPE,
+          .handle = 0,
+          .enabled = true,
+          .info = {},
+      }};
 };
 
 // The stress test manager singleton.

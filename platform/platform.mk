@@ -202,13 +202,10 @@ SIM_SRCS += platform/linux/memory_manager.cc
 SIM_SRCS += platform/linux/platform_debug_dump_manager.cc
 SIM_SRCS += platform/linux/platform_log.cc
 SIM_SRCS += platform/linux/platform_pal.cc
-SIM_SRCS += platform/linux/platform_sensor.cc
-SIM_SRCS += platform/linux/platform_sensor_type_helpers.cc
 SIM_SRCS += platform/linux/power_control_manager.cc
 SIM_SRCS += platform/linux/system_time.cc
 SIM_SRCS += platform/linux/system_timer.cc
 SIM_SRCS += platform/linux/platform_nanoapp.cc
-SIM_SRCS += platform/linux/platform_sensor.cc
 SIM_SRCS += platform/shared/chre_api_audio.cc
 SIM_SRCS += platform/shared/chre_api_ble.cc
 SIM_SRCS += platform/shared/chre_api_core.cc
@@ -246,7 +243,9 @@ endif
 ifeq ($(CHRE_SENSORS_SUPPORT_ENABLED), true)
 SIM_CFLAGS += -I$(CHRE_PREFIX)/platform/shared/sensor_pal/include
 SIM_SRCS += platform/linux/pal_sensor.cc
+SIM_SRCS += platform/shared/sensor_pal/platform_sensor.cc
 SIM_SRCS += platform/shared/sensor_pal/platform_sensor_manager.cc
+SIM_SRCS += platform/shared/sensor_pal/platform_sensor_type_helpers.cc
 endif
 
 # Optional Wi-Fi support.
@@ -385,13 +384,20 @@ EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/nanoapp_loader.cc
 
 # Exynos specific compiler flags
 EXYNOS_CFLAGS += -I$(CHRE_PREFIX)/platform/exynos/include
-EXYNOS_CFLAGS += -I$(CHRE_PREFIX)/platform/shared/sensor_pal/include
 EXYNOS_CFLAGS += -I$(CHRE_PREFIX)/platform/shared/audio_pal/include
 
 EXYNOS_SRCS += $(CHRE_PREFIX)/platform/exynos/platform_nanoapp.cc
 EXYNOS_SRCS += $(CHRE_PREFIX)/platform/exynos/power_control_manager.cc
 EXYNOS_SRCS += $(CHRE_PREFIX)/platform/exynos/system_time.cc
 EXYNOS_SRCS += $(CHRE_PREFIX)/platform/exynos/host_link.cc
+
+# Optional sensors support
+ifeq ($(CHRE_SENSORS_SUPPORT_ENABLED), true)
+EXYNOS_CFLAGS += -I$(CHRE_PREFIX)/platform/shared/sensor_pal/include
+EXYNOS_SRCS += $(CHRE_PREFIX)/platform/shared/sensor_pal/platform_sensor_manager.cc
+EXYNOS_SRCS += $(CHRE_PREFIX)/platform/shared/sensor_pal/platform_sensor.cc
+EXYNOS_SRCS += $(CHRE_PREFIX)/platform/shared/sensor_pal/platform_sensor_type_helpers.cc
+endif
 
 # ARM specific compiler flags
 ARM_CFLAGS += -I$(CHRE_PREFIX)/platform/arm/include
