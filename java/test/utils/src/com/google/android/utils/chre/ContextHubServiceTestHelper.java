@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.google.android.chre.test.chqts;
+package com.google.android.utils.chre;
 
 import static com.google.common.truth.Truth.assertWithMessage;
 
@@ -47,8 +47,6 @@ public class ContextHubServiceTestHelper {
     public static final long TIMEOUT_SECONDS_LOAD = 30;
     public static final long TIMEOUT_SECONDS_UNLOAD = 5;
     public static final long TIMEOUT_SECONDS_MESSAGE = 1;
-    public static final int MESSAGE_TYPE =
-            ContextHubTestConstants.MessageType.SERVICE_MESSAGE.asInt();
 
     private ContextHubClient mHubResetClient = null;
     private final ContextHubInfo mContextHubInfo;
