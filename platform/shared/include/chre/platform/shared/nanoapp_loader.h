@@ -119,8 +119,6 @@ class NanoappLoader {
   static constexpr const char *kStrTableName = ".strtab";
   static constexpr const char *kInitArrayName = ".init_array";
   static constexpr const char *kFiniArrayName = ".fini_array";
-  // For now, assume all segments are 4K aligned.
-  static constexpr size_t kBinaryAlignment = 4096;
 
   //! Pointer to the table of all the section names.
   char *mSectionNamesPtr = nullptr;
@@ -221,21 +219,36 @@ class NanoappLoader {
   bool verifySectionHeaders();
 
   /**
-   * Retrieves the symbol name of data located at the given position in the
-   * symbol table.
+   * Retrieves the symbol at the given position in the symbol table.
    *
    * @param posInSymbolTable The position in the symbol table where information
    *     about the symbol can be found.
-   * @return The symbol's name or nullptr if not found.
+   * @return The symbol or nullptr if not found.
    */
-  const char *getDataName(size_t posInSymbolTable);
+  ElfSym *getDynamicSymbol(size_t posInSymbolTable);
 
   /**
-   * Retrieves the name of the section header located at the given offset in the
-   * section name table.
+   * Retrieves the symbol name.
    *
-   * @param headerOffset The offset in the section names table where the header
-   *     is located.
+   * @param symbol A pointer to the symbol.
+   * @return The symbol's name or nullptr if not found.
+   */
+  const char *getDataName(const ElfSym *symbol);
+
+  /**
+   * Retrieves the target address of the symbol.
+   *
+   * @param symbol A pointer to the symbol.
+   * @return The target address or nullptr if the symbol is not defined.
+   */
+  void *getSymbolTarget(const ElfSym *symbol);
+
+  /**
+   * Retrieves the name of the section header located at the given offset in
+   * the section name table.
+   *
+   * @param headerOffset The offset in the section names table where the
+   * header is located.
    * @return The section's name or the empty string if the offset is 0.
    */
   const char *getSectionHeaderName(size_t headerOffset);
@@ -244,10 +257,11 @@ class NanoappLoader {
    * Rounds the given address down to the closest alignment boundary.
    *
    * @param virtualAddr The address to be rounded.
+   * @param alignment Alignment to which the address is rounded to.
    * @return An address that is a multiple of the platform's alignment and is
    *     less than or equal to virtualAddr.
    */
-  uintptr_t roundDownToAlign(uintptr_t virtualAddr);
+  uintptr_t roundDownToAlign(uintptr_t virtualAddr, size_t alignment);
 
   /**
    * Frees any data that was allocated as part of loading the ELF into memory.
