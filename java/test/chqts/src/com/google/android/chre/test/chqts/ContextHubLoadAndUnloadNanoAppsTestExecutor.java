@@ -27,10 +27,12 @@ import android.hardware.location.NanoAppBinary;
 
 import com.google.android.utils.chre.ContextHubServiceTestHelper;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 public class ContextHubLoadAndUnloadNanoAppsTestExecutor {
     private static final int NUM_TEST_CYCLES = 10;
@@ -101,6 +103,33 @@ public class ContextHubLoadAndUnloadNanoAppsTestExecutor {
             transaction = mTestHelper.unloadNanoApp(nanoAppBinary.getNanoAppId());
             waitForCompleteAsync(transaction);
             mTestHelper.assertNanoAppsLoaded(Collections.emptyList());
+        }
+    }
+
+    /** Load and unload 2 nanoapps concurrently and verify that we can find them through a query. */
+    public void loadUnloadConcurrentTest(
+            NanoAppBinary nanoAppBinary1, NanoAppBinary nanoAppBinary2, int numOfTestCycles)
+            throws InterruptedException, TimeoutException {
+        long nanoAppId1 = nanoAppBinary1.getNanoAppId();
+        long nanoAppId2 = nanoAppBinary2.getNanoAppId();
+        List<Long> nanoAppIdList = Arrays.asList(nanoAppId1, nanoAppId2);
+        List<Runnable> loadRunnables =
+                Arrays.asList(
+                        () -> mTestHelper.loadNanoAppAssertSuccess(nanoAppBinary1),
+                        () -> mTestHelper.loadNanoAppAssertSuccess(nanoAppBinary2));
+        List<Runnable> unloadRunnables =
+                Arrays.asList(
+                        () -> mTestHelper.unloadNanoAppAssertSuccess(nanoAppId1),
+                        () -> mTestHelper.unloadNanoAppAssertSuccess(nanoAppId2));
+
+        for (int i = 0; i < numOfTestCycles; i++) {
+            mTestHelper.runConcurrentTasks(
+                    loadRunnables, 2 * TIMEOUT_SECONDS_LOAD, TimeUnit.SECONDS);
+            mTestHelper.assertNanoAppsLoaded(nanoAppIdList);
+
+            mTestHelper.runConcurrentTasks(
+                    unloadRunnables, 2 * TIMEOUT_SECONDS_UNLOAD, TimeUnit.SECONDS);
+            mTestHelper.assertNanoAppsNotLoaded(nanoAppIdList);
         }
     }
 
