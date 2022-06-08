@@ -34,9 +34,6 @@ import java.util.concurrent.TimeUnit;
 
 public class ContextHubLoadAndUnloadNanoAppsTestExecutor {
     private static final int NUM_TEST_CYCLES = 10;
-
-    private final NanoAppBinary mNanoAppBinary;
-    private final List<Long> mNanoAppIdList;
     private final ContextHubServiceTestHelper mTestHelper;
 
     private static class OnLoadUnloadCompleteListener
@@ -62,12 +59,8 @@ public class ContextHubLoadAndUnloadNanoAppsTestExecutor {
     }
 
     public ContextHubLoadAndUnloadNanoAppsTestExecutor(
-            ContextHubManager contextHubManager,
-            ContextHubInfo contextHubInfo,
-            NanoAppBinary nanoAppBinary) {
+            ContextHubManager contextHubManager, ContextHubInfo contextHubInfo) {
         mTestHelper = new ContextHubServiceTestHelper(contextHubInfo, contextHubManager);
-        mNanoAppBinary = nanoAppBinary;
-        mNanoAppIdList = Collections.singletonList(mNanoAppBinary.getNanoAppId());
     }
 
     public void init() throws Exception {
@@ -82,13 +75,14 @@ public class ContextHubLoadAndUnloadNanoAppsTestExecutor {
      * Repeatedly loads and unloads a nanoapp synchronously, and verifies that the naonapp is loaded
      * successfully.
      */
-    public void loadUnloadSyncTest() throws Exception {
+    public void loadUnloadSyncTest(NanoAppBinary nanoAppBinary) throws Exception {
+        List<Long> nanoAppIds = Collections.singletonList(nanoAppBinary.getNanoAppId());
         for (int i = 0; i < NUM_TEST_CYCLES; i++) {
-            mTestHelper.loadNanoAppAssertSuccess(mNanoAppBinary);
-            mTestHelper.assertNanoAppsLoaded(mNanoAppIdList);
+            mTestHelper.loadNanoAppAssertSuccess(nanoAppBinary);
+            mTestHelper.assertNanoAppsLoaded(nanoAppIds);
 
-            mTestHelper.unloadNanoAppAssertSuccess(mNanoAppBinary.getNanoAppId());
-            mTestHelper.assertNanoAppsNotLoaded(mNanoAppIdList);
+            mTestHelper.unloadNanoAppAssertSuccess(nanoAppBinary.getNanoAppId());
+            mTestHelper.assertNanoAppsNotLoaded(nanoAppIds);
         }
     }
 
@@ -96,14 +90,15 @@ public class ContextHubLoadAndUnloadNanoAppsTestExecutor {
      * Repeatedly loads and unloads a nanoapp asynchronously, and verifies that the naonapp is
      * loaded successfully.
      */
-    public void loadUnloadAsyncTest() throws Exception {
+    public void loadUnloadAsyncTest(NanoAppBinary nanoAppBinary) throws Exception {
+        List<Long> nanoAppIds = Collections.singletonList(nanoAppBinary.getNanoAppId());
         ContextHubTransaction<Void> transaction;
         for (int i = 0; i < NUM_TEST_CYCLES; i++) {
-            transaction = mTestHelper.loadNanoApp(mNanoAppBinary);
+            transaction = mTestHelper.loadNanoApp(nanoAppBinary);
             waitForCompleteAsync(transaction);
-            mTestHelper.assertNanoAppsLoaded(mNanoAppIdList);
+            mTestHelper.assertNanoAppsLoaded(nanoAppIds);
 
-            transaction = mTestHelper.unloadNanoApp(mNanoAppBinary.getNanoAppId());
+            transaction = mTestHelper.unloadNanoApp(nanoAppBinary.getNanoAppId());
             waitForCompleteAsync(transaction);
             mTestHelper.assertNanoAppsLoaded(Collections.emptyList());
         }
