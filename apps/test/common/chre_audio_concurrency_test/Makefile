@@ -23,15 +23,15 @@ NANOAPP_VERSION = 0x00000002
 NANOAPP_PATH = $(CHRE_PREFIX)/apps/test/common/chre_audio_concurrency_test
 TEST_SHARED_PATH = $(CHRE_PREFIX)/apps/test/common/shared
 
+CHRE_STD_OVERRIDES_ALLOWED = true
+
 # Protobuf Sources #############################################################
 
 NANOPB_EXTENSION = nanopb
 
 NANOPB_SRCS += $(NANOAPP_PATH)/../proto/chre_audio_concurrency_test.proto
 NANOPB_SRCS += $(NANOAPP_PATH)/../proto/chre_test_common.proto
-NANOPB_PROTO_PATH = $(NANOAPP_PATH)/../proto
-NANOPB_INCLUDES = $(NANOPB_PROTO_PATH)
-NANOPB_FLAGS += --proto_path=$(NANOPB_PROTO_PATH)
+NANOPB_INCLUDES = $(NANOAPP_PATH)/../proto
 
 # Source Code ##################################################################
 

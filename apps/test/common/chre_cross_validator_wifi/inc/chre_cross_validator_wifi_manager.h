@@ -70,6 +70,9 @@ class Manager {
   //! result comes in.
   uint8_t mChreScanResultsI = 0;
 
+  // The max chre scan results to be validated
+  uint8_t mMaxChreResultSize = 100;
+
   uint8_t mChreScanResultsSize = 0;
   uint8_t mApScanResultsSize = 0;
 
@@ -130,15 +133,6 @@ class Manager {
   chre_cross_validation_wifi_WifiCapabilities makeWifiCapabilitiesMessage(
       uint32_t capabilitiesFromChre);
 
-  /**
-   * Encode the proto message and send to host.
-   *
-   * @param message The proto message struct pointer.
-   * @param fields The fields descriptor of the proto message to encode.
-   * @param messageType The message type of the message.
-   */
-  void encodeAndSendMessageToHost(const void *message, const pb_field_t *fields,
-                                  uint32_t messageType);
   /**
    * Handle a wifi scan result data message sent from AP.
    *

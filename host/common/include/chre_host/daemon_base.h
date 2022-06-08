@@ -17,6 +17,14 @@
 #ifndef CHRE_DAEMON_H_
 #define CHRE_DAEMON_H_
 
+/**
+ * @file daemon_base.h
+ * This header defines the CHRE daemon base class, off of which all supported
+ * CHRE daemon variants are expected to derive from. The goal is to provide
+ * common (abstract or implemented) interfaces that all CHRE daemons must
+ * implement.
+ */
+
 #include <atomic>
 #include <cstdint>
 #include <map>
@@ -24,15 +32,20 @@
 #include <string>
 
 #include "chre_host/host_protocol_host.h"
-#include "chre_host/log_message_parser_base.h"
+#include "chre_host/log_message_parser.h"
 #include "chre_host/socket_server.h"
+
+#ifdef CHRE_DAEMON_METRIC_ENABLED
+#include <aidl/android/frameworks/stats/IStats.h>
+#include <android/binder_manager.h>
+#endif  // CHRE_DAEMON_METRIC_ENABLED
 
 namespace android {
 namespace chre {
 
 class ChreDaemonBase {
  public:
-  ChreDaemonBase() : mChreShutdownRequested(false) {}
+  ChreDaemonBase();
   virtual ~ChreDaemonBase() {}
 
   /**
@@ -59,7 +72,8 @@ class ChreDaemonBase {
    * @param length The size of the data to send.
    * @return true if successful, false otherwise.
    */
-  bool sendMessageToChre(uint16_t clientId, void *data, size_t dataLen);
+  virtual bool sendMessageToChre(uint16_t clientId, void *data,
+                                 size_t dataLen) = 0;
 
   /**
    * Function to query if a graceful shutdown of CHRE was requested
@@ -86,6 +100,12 @@ class ChreDaemonBase {
   //! with any clients after the server starts.
   static constexpr uint16_t kHostClientIdDaemon = UINT16_MAX;
 
+  //! Contains the transaction ID and app ID used to preload nanoapps.
+  struct Transaction {
+    uint32_t transactionId;
+    uint64_t nanoappId;
+  };
+
   void setShutdownRequested(bool request) {
     mChreShutdownRequested = request;
   }
@@ -100,9 +120,6 @@ class ChreDaemonBase {
    * ]}
    *
    * The napp_header and so files will both be loaded. All errors are logged.
-   *
-   * TODO: This is SLPI specific right now, and needs to be revisited to
-   * implement platform specific loading.
    */
   void loadPreloadedNanoapps();
 
@@ -144,10 +161,10 @@ class ChreDaemonBase {
    * @param transactionId The transaction ID to use when loading.
    * @return true if a request was successfully sent, false otherwise.
    */
-  bool sendNanoappLoad(uint64_t appId, uint32_t appVersion,
-                       uint32_t appTargetApiVersion,
-                       const std::string &appBinaryName,
-                       uint32_t transactionId);
+  virtual bool sendNanoappLoad(uint64_t appId, uint32_t appVersion,
+                               uint32_t appTargetApiVersion,
+                               const std::string &appBinaryName,
+                               uint32_t transactionId) = 0;
 
   /**
    * Send a time sync message to CHRE
@@ -156,7 +173,15 @@ class ChreDaemonBase {
    *
    * @return true if the time sync message was successfully sent to CHRE.
    */
-  bool sendTimeSync(bool logOnError);
+  virtual bool sendTimeSync(bool logOnError) = 0;
+
+  /**
+   * Computes and returns the clock drift between the system clock
+   * and the processor timer registers
+   *
+   * @return offset in nanoseconds
+   */
+  virtual int64_t getTimeOffset(bool *success) = 0;
 
   /**
    * Sends a time sync message to CHRE, retrying a specified time until success.
@@ -174,49 +199,69 @@ class ChreDaemonBase {
    * @param message A buffer containing the message
    * @param messageLen size of the message buffer in bytes
    */
-  void onMessageReceived(const unsigned char *message, size_t messageLen);
+  virtual void onMessageReceived(const unsigned char *message,
+                                 size_t messageLen) = 0;
 
   /**
    * Handles a message that is directed towards the daemon.
    *
    * @param message The message sent to the daemon.
    */
-  virtual void handleDaemonMessage(const uint8_t *message);
-
-  /**
-   * Platform-specific method to actually do the message sending requested by
-   * sendMessageToChre.
-   */
-  virtual bool doSendMessage(void *data, size_t dataLen) = 0;
+  virtual void handleDaemonMessage(const uint8_t *message) = 0;
 
   /**
    * Enables or disables LPMA (low power microphone access).
    */
   virtual void configureLpma(bool enabled) = 0;
 
+#ifdef CHRE_DAEMON_METRIC_ENABLED
   /**
-   * @return logger used by the underlying platform.
+   * Handles a metric log message sent from CHRE
+   *
    */
-  virtual ChreLogMessageParserBase *getLogger() = 0;
+  virtual void handleMetricLog(const ::chre::fbs::MetricLogT *metric_msg);
+
+#ifdef CHRE_LOG_ATOM_EXTENSION_ENABLED
+  /**
+   * Handles additional metrics that aren't logged by the common CHRE code.
+   *
+   */
+  virtual void handleVendorMetricLog(
+      const ::chre::fbs::MetricLogT *metric_msg) = 0;
+#endif  // CHRE_LOG_ATOM_EXTENSION_ENABLED
+
+  /**
+   * Create and report CHRE vendor atom and send it to stats_client
+   *
+   * @param atom the vendor atom to be reported
+   */
+  void reportMetric(const aidl::android::frameworks::stats::VendorAtom &atom);
+#endif  // CHRE_DAEMON_METRIC_ENABLED
+
+  /**
+   * Handles a NAN configuration request sent from CHRE.
+   *
+   * @param request NAN configuration request.
+   */
+  virtual void handleNanConfigurationRequest(
+      const ::chre::fbs::NanConfigurationRequestT *request);
+
+  /**
+   * Returns the CHRE log message parser instance.
+   * @return log message parser instance.
+   */
+  LogMessageParser &getLogger() {
+    return mLogger;
+  }
 
   //! Server used to communicate with daemon clients
   SocketServer mServer;
 
  private:
+  LogMessageParser mLogger;
+
   //! Set to true when we request a graceful shutdown of CHRE
   std::atomic<bool> mChreShutdownRequested;
-
-  //! Contains a set of transaction IDs used to load the preloaded nanoapps.
-  //! The IDs are stored in the order they are sent.
-  std::queue<uint32_t> mPreloadedNanoappPendingTransactionIds;
-
-  /**
-   * Computes and returns the clock drift between the system clock
-   * and the processor timer registers
-   *
-   * @return offset in nanoseconds
-   */
-  virtual int64_t getTimeOffset(bool *success) = 0;
 };
 
 }  // namespace chre
