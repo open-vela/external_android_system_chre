@@ -649,3 +649,55 @@ cc_defaults {
 subdirs = [
     "apps/wifi_offload",
 ]
+
+cc_defaults {
+    name: "chre_daemon_common",
+    local_include_dirs: [
+        "external/flatbuffers/include",
+        "host/common/include",
+        "platform/shared/include",
+        "util/include",
+    ],
+    srcs: [
+        "host/common/daemon_base.cc",
+        "host/common/fbs_daemon_base.cc",
+        "host/common/file_stream.cc",
+        "host/common/fragmented_load_transaction.cc",
+        "host/common/host_protocol_host.cc",
+        "host/common/log_message_parser.cc",
+        "host/common/socket_server.cc",
+        "host/common/st_hal_lpma_handler.cc",
+        "platform/shared/host_protocol_common.cc",
+    ],
+    shared_libs: [
+        "libbase",
+        "libbinder_ndk",
+        "libcutils",
+        "libutils",
+        "liblog",
+    ],
+}
+
+cc_binary {
+    name: "chre_daemon_exynos",
+    cpp_std: "c++20",
+    defaults: ["chre_daemon_common"],
+    soc_specific: true,
+    local_include_dirs: [
+        "host/exynos",
+    ],
+    srcs: [
+        "host/exynos/exynos_daemon.cc",
+        "host/exynos/main.cc",
+    ],
+    static_libs: [
+        "pw_detokenizer",
+        "pw_varint",
+    ],
+    shared_libs: [
+        "libjsoncpp",
+        "libpower",
+        "android.hardware.soundtrigger@2.0",
+    ],
+    init_rc: ["host/exynos/chre_daemon_exynos.rc"],
+}
