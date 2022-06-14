@@ -29,7 +29,6 @@ extern MockAssert *gMockAssert;
 
 class AssertInterface {
  public:
-  virtual ~AssertInterface() {}
   virtual void doAssert() = 0;
 };
 

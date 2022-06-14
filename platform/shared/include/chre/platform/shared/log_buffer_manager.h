@@ -64,9 +64,6 @@ class LogBufferManager : public LogBufferCallbackInterface {
    */
   void log(chreLogLevel logLevel, const char *formatStr, ...);
 
-  void logEncoded(chreLogLevel logLevel, const uint8_t *encodedLog,
-                  size_t encodedLogSize);
-
   /**
    * Logs message with printf-style arguments. No trailing newline is required
    * for this method. Uses va_list parameter instead of ...
@@ -121,10 +118,6 @@ class LogBufferManager : public LogBufferCallbackInterface {
    * @param success true if the logs were successfully delivered to the host.
    */
   void onLogsSentToHostLocked(bool success);
-
-  uint32_t getTimestampMs();
-
-  void bufferOverflowGuard(size_t logSize);
 
   LogBuffer mPrimaryLogBuffer;
   LogBuffer mSecondaryLogBuffer;

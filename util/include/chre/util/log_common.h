@@ -29,11 +29,10 @@
 
 /**
  * An inline stub function to direct log messages to when logging is disabled.
- * This avoids unused variable warnings and will result in no overhead if
- * passing the arguments doesn't have additional side effects.
+ * This avoids unused variable warnings and will result in no overhead.
  */
 CHRE_PRINTF_ATTR(1, 2)
-static inline void chreLogNull(const char *fmt, ...) {
+inline void chreLogNull(const char *fmt, ...) {
   (void)fmt;
 }
 
