@@ -6,7 +6,6 @@
 #include <vector>
 
 using chre::ArrayQueue;
-using chre::ArrayQueueExt;
 
 namespace {
 constexpr int kMaxTestCapacity = 10;
@@ -251,9 +250,15 @@ TEST(ArrayQueueTest, ElementsDestructedWhenQueueDestructed) {
       q.push(e);
       q[i].setValue(i);
     }
+
+    q.~ArrayQueue();
+
+    for (size_t i = 0; i < 3; ++i) {
+      EXPECT_EQ(1, destructor_count[i]);
+    }
   }
 
-  // q should now be destroyed - check destructor count.
+  // Check destructor count.
   for (size_t i = 0; i < 3; ++i) {
     EXPECT_EQ(1, destructor_count[i]);
   }
@@ -524,21 +529,4 @@ TEST(ArrayQueueTest, ElementsDestructedArrayClear) {
     EXPECT_EQ(1, destructor_count[i]);
   }
   EXPECT_EQ(3, total_destructor_count);
-}
-
-TEST(ArrayQueueExtTest, BasicTest) {
-  constexpr size_t kNumElements = 32;
-  int32_t array[kNumElements];
-  ArrayQueueExt<int32_t> q(array, kNumElements);
-
-  ASSERT_EQ(q.data(), array);
-  EXPECT_EQ(q.capacity(), kNumElements);
-
-  for (int i = 0; i < kNumElements; i++) {
-    q.push(i);
-  }
-
-  for (int i = 0; i < kNumElements; i++) {
-    EXPECT_EQ(array[i], q[i]);
-  }
 }

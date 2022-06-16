@@ -19,12 +19,11 @@
 #include <pb_decode.h>
 #include <pb_encode.h>
 
-#include "chre/util/macros.h"
 #include "chre/util/nanoapp/callbacks.h"
 #include "chre/util/nanoapp/log.h"
 #include "chre/util/time.h"
 #include "chre_settings_test.nanopb.h"
-#include "send_message.h"
+#include "chre_settings_test_util.h"
 
 #define LOG_TAG "[ChreSettingsTest]"
 
@@ -217,9 +216,7 @@ void Manager::handleMessageFromHost(uint32_t senderInstanceId,
   }
 
   if (!success) {
-    test_shared::sendTestResultToHost(
-        hostData->hostEndpoint, chre_settings_test_MessageType_TEST_RESULT,
-        false /* success */);
+    sendTestResultToHost(hostData->hostEndpoint, false /* success */);
   }
 }
 
@@ -432,7 +429,7 @@ void Manager::handleWifiScanResult(const chreWifiScanEvent *result) {
       chreWifiRangingTargetFromScanResult(&result->results[index], &target);
       mCachedRangingTarget = target;
 
-      test_shared::sendEmptyMessageToHost(
+      sendEmptyMessageToHost(
           mTestSession->hostEndpointId,
           chre_settings_test_MessageType_TEST_SETUP_COMPLETE);
     }
@@ -549,8 +546,6 @@ void Manager::handleAudioSourceStatusEvent(
 }
 
 void Manager::handleAudioDataEvent(const struct chreAudioDataEvent *event) {
-  UNUSED_VAR(event);
-
   bool success = false;
   if (mTestSession.has_value()) {
     if (mTestSession->featureState == FeatureState::ENABLED) {
@@ -576,8 +571,7 @@ void Manager::handleTimeout() {
 }
 
 void Manager::sendTestResult(uint16_t hostEndpointId, bool success) {
-  test_shared::sendTestResultToHost(
-      hostEndpointId, chre_settings_test_MessageType_TEST_RESULT, success);
+  sendTestResultToHost(hostEndpointId, success);
   mTestSession.reset();
   mCachedRangingTarget.reset();
 }

@@ -15,7 +15,6 @@
 
 #include "chre_cross_validator_wifi_manager.h"
 
-#include <chre.h>
 #include <stdio.h>
 #include <algorithm>
 #include <cinttypes>
@@ -24,10 +23,10 @@
 #include "chre/util/nanoapp/assert.h"
 #include "chre/util/nanoapp/callbacks.h"
 #include "chre/util/nanoapp/log.h"
-#include "chre/util/nanoapp/wifi.h"
 #include "chre_cross_validation_wifi.nanopb.h"
 #include "chre_test_common.nanopb.h"
-#include "send_message.h"
+
+#define LOG_TAG "ChreCrossValidatorWifi"
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
@@ -95,12 +94,13 @@ void Manager::handleStepStartMessage(
   switch (stepStartCommand.step) {
     case chre_cross_validation_wifi_Step_INIT:
       LOGE("Received StepStartCommand for INIT step");
+      CHRE_ASSERT(false);
       break;
     case chre_cross_validation_wifi_Step_CAPABILITIES: {
       chre_cross_validation_wifi_WifiCapabilities wifiCapabilities =
           makeWifiCapabilitiesMessage(chreWifiGetCapabilities());
-      test_shared::sendMessageToHost(
-          mCrossValidatorState.hostEndpoint, &wifiCapabilities,
+      encodeAndSendMessageToHost(
+          static_cast<void *>(&wifiCapabilities),
           chre_cross_validation_wifi_WifiCapabilities_fields,
           chre_cross_validation_wifi_MessageType_WIFI_CAPABILITIES);
       break;
@@ -109,20 +109,19 @@ void Manager::handleStepStartMessage(
       if (!chreWifiConfigureScanMonitorAsync(true /* enable */,
                                              &kScanMonitoringCookie)) {
         LOGE("chreWifiConfigureScanMonitorAsync() failed");
-        test_shared::sendTestResultWithMsgToHost(
-            mCrossValidatorState.hostEndpoint,
-            chre_cross_validation_wifi_MessageType_STEP_RESULT,
-            false /*success*/, "setupWifiScanMonitoring failed",
-            false /*abortOnFailure*/);
+        chre_test_common_TestResult testResult =
+            makeTestResultProtoMessage(false, "setupWifiScanMonitoring failed");
+        encodeAndSendMessageToHost(
+            static_cast<void *>(&testResult),
+            chre_test_common_TestResult_fields,
+            chre_cross_validation_wifi_MessageType_STEP_RESULT);
       } else {
         LOGD("chreWifiConfigureScanMonitorAsync() succeeded");
-        if (stepStartCommand.has_chreScanCapacity) {
-          mMaxChreResultSize = stepStartCommand.chreScanCapacity;
-        }
       }
       break;
     }
     case chre_cross_validation_wifi_Step_VALIDATE:
+      LOGE("start message received in VALIDATE phase");
       break;
   }
   mStep = stepStartCommand.step;
@@ -165,26 +164,19 @@ void Manager::handleWifiScanResult(const chreWifiScanEvent *event) {
 
 void Manager::compareAndSendResultToHost() {
   chre_test_common_TestResult testResult;
-  bool belowMaxSizeCheck = (mApScanResultsSize <= mMaxChreResultSize) &&
-                           (mApScanResultsSize != mChreScanResultsSize);
-  bool aboveMaxSizeCheck = (mApScanResultsSize > mMaxChreResultSize) &&
-                           (mApScanResultsSize < mChreScanResultsSize);
   // TODO(b/185188753): Log info about all scan results so that it is easier
   // to figure out which AP or CHRE scan results are missing or corrupted.
-  if (belowMaxSizeCheck || aboveMaxSizeCheck) {
-    test_shared::sendTestResultWithMsgToHost(
-        mCrossValidatorState.hostEndpoint,
-        chre_cross_validation_wifi_MessageType_STEP_RESULT, false /*success*/,
-        "There is a different number of AP and CHRE scan results.",
-        false /*abortOnFailure*/);
+  if (mApScanResultsSize != mChreScanResultsSize) {
+    testResult = makeTestResultProtoMessage(
+        false, "There is a different number of AP and CHRE scan results.");
     LOGE("AP and CHRE wifi scan result counts differ, AP = %" PRIu8
          ", CHRE = %" PRIu8,
          mApScanResultsSize, mChreScanResultsSize);
   } else {
     verifyScanResults(&testResult);
   }
-  test_shared::sendMessageToHost(
-      mCrossValidatorState.hostEndpoint, &testResult,
+  encodeAndSendMessageToHost(
+      static_cast<const void *>(&testResult),
       chre_test_common_TestResult_fields,
       chre_cross_validation_wifi_MessageType_STEP_RESULT);
 }
@@ -196,22 +188,15 @@ void Manager::verifyScanResults(chre_test_common_TestResult *testResultOut) {
     uint8_t apScanResultIndex;
     bool didFind = getMatchingScanResult(mApScanResults, mApScanResultsSize,
                                          chreScanResult, &apScanResultIndex);
-
-    const char *bssidStr = "<non-printable>";
-    char bssidBuffer[chre::kBssidStrLen];
-    if (chre::parseBssidToStr(chreScanResult.getBssid(), bssidBuffer,
-                              sizeof(bssidBuffer))) {
-      bssidStr = bssidBuffer;
-    }
-
+    // TODO(b/185188753): Log info about each result iterated through here and
+    // do not just break at the first error.
     if (didFind) {
       WifiScanResult &apScanResult = mApScanResults[apScanResultIndex];
       if (apScanResult.getSeen()) {
         *testResultOut = makeTestResultProtoMessage(
             false, "Saw a CHRE scan result with a duplicate BSSID.");
         allResultsValid = false;
-        LOGE("Chre Scan Result with bssid: %s has a dupplicate BSSID",
-             bssidStr);
+        break;
       }
       if (!WifiScanResult::areEqual(chreScanResult, apScanResult)) {
         *testResultOut =
@@ -219,10 +204,7 @@ void Manager::verifyScanResults(chre_test_common_TestResult *testResultOut) {
                                        "Fields differ between an AP and "
                                        "CHRE scan result with same Bssid.");
         allResultsValid = false;
-        LOGE(
-            "Chre Scan Result with bssid: %s found fields differ with "
-            "an AP scan result with same Bssid",
-            bssidStr);
+        break;
       }
       apScanResult.didSee();
     } else {
@@ -232,10 +214,7 @@ void Manager::verifyScanResults(chre_test_common_TestResult *testResultOut) {
           "Could not find an AP scan result with the same Bssid as a CHRE "
           "result");
       allResultsValid = false;
-      LOGE(
-          "Chre Scan Result with bssid: %s fail to find an AP scan "
-          "with same Bssid",
-          bssidStr);
+      break;
     }
   }
   if (allResultsValid) {
@@ -294,6 +273,30 @@ Manager::makeWifiCapabilitiesMessage(uint32_t capabilitiesFromChre) {
   return capabilities;
 }
 
+void Manager::encodeAndSendMessageToHost(const void *message,
+                                         const pb_field_t *fields,
+                                         uint32_t messageType) {
+  size_t encodedSize;
+  if (!pb_get_encoded_size(&encodedSize, fields, message)) {
+    LOGE("Could not get encoded size of test result message");
+  } else {
+    pb_byte_t *buffer = static_cast<pb_byte_t *>(chreHeapAlloc(encodedSize));
+    if (buffer == nullptr) {
+      LOG_OOM();
+    } else {
+      pb_ostream_t ostream = pb_ostream_from_buffer(buffer, encodedSize);
+      if (!pb_encode(&ostream, fields, message)) {
+        LOGE("Could not encode data proto message");
+      } else if (!chreSendMessageToHostEndpoint(
+                     static_cast<void *>(buffer), encodedSize, messageType,
+                     mCrossValidatorState.hostEndpoint,
+                     heapFreeMessageCallback)) {
+        LOGE("Could not send message to host");
+      }
+    }
+  }
+}
+
 void Manager::handleWifiAsyncResult(const chreAsyncResult *result) {
   chre_test_common_TestResult testResult;
   bool sendMessage = false;
@@ -322,9 +325,8 @@ void Manager::handleWifiAsyncResult(const chreAsyncResult *result) {
     sendMessage = true;
   }
   if (sendMessage) {
-    test_shared::sendMessageToHost(
-        mCrossValidatorState.hostEndpoint, &testResult,
-        chre_test_common_TestResult_fields,
+    encodeAndSendMessageToHost(
+        static_cast<void *>(&testResult), chre_test_common_TestResult_fields,
         chre_cross_validation_wifi_MessageType_STEP_RESULT);
   }
 }
