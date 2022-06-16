@@ -70,8 +70,6 @@ struct ChppGnssClientState {
   uint32_t capabilities;           // Cached GetCapabilities result
   bool requestStateResyncPending;  // requestStateResync() is waiting to be
                                    // processed
-  bool capabilitiesValid;  // Flag to indicate if the capabilities result
-                           // is valid
 };
 
 // Note: This global definition of gGnssClientContext supports only one
@@ -385,7 +383,8 @@ static void chppGnssCloseResult(struct ChppGnssClientState *clientContext,
 static void chppGnssGetCapabilitiesResult(
     struct ChppGnssClientState *clientContext, uint8_t *buf, size_t len) {
   if (len < sizeof(struct ChppGnssGetCapabilitiesResponse)) {
-    CHPP_LOGE("Bad GNSS capabilities len=%" PRIuSIZE, len);
+    struct ChppAppHeader *rxHeader = (struct ChppAppHeader *)buf;
+    CHPP_LOGE("GetCapabilities resp. too short. err=%" PRIu8, rxHeader->error);
 
   } else {
     struct ChppGnssGetCapabilitiesParameters *result =
@@ -394,14 +393,12 @@ static void chppGnssGetCapabilitiesResult(
     CHPP_LOGD("chppGnssGetCapabilitiesResult received capabilities=0x%" PRIx32,
               result->capabilities);
 
-    CHPP_ASSERT((result->capabilities & CHPP_GNSS_DEFAULT_CAPABILITIES) ==
-                CHPP_GNSS_DEFAULT_CAPABILITIES);
-    if (result->capabilities != CHPP_GNSS_DEFAULT_CAPABILITIES) {
-      CHPP_LOGE("GNSS capabilities 0x%" PRIx32 " != 0x%" PRIx32,
-                result->capabilities, CHPP_GNSS_DEFAULT_CAPABILITIES);
-    }
+#ifdef CHPP_GNSS_DEFAULT_CAPABILITIES
+    CHPP_ASSERT_LOG((result->capabilities == CHPP_GNSS_DEFAULT_CAPABILITIES),
+                    "Unexpected capability 0x%" PRIx32 " != 0x%" PRIx32,
+                    result->capabilities, CHPP_GNSS_DEFAULT_CAPABILITIES);
+#endif
 
-    clientContext->capabilitiesValid = true;
     clientContext->capabilities = result->capabilities;
   }
 }
@@ -421,8 +418,15 @@ static void chppGnssControlLocationSessionResult(
 
   if (len < sizeof(struct ChppGnssControlLocationSessionResponse)) {
     // Short response length indicates an error
+
+    struct ChppAppHeader *rxHeader = (struct ChppAppHeader *)buf;
+    CHPP_LOGE("ControlLocation resp. too short. err=%" PRIu8, rxHeader->error);
+
+    if (rxHeader->error == CHPP_APP_ERROR_NONE) {
+      rxHeader->error = CHPP_APP_ERROR_INVALID_LENGTH;
+    }
     gCallbacks->locationStatusChangeCallback(
-        false, chppAppShortResponseErrorHandler(buf, len, "ControlLocation"));
+        false, chppAppErrorToChreError(rxHeader->error));
 
   } else {
     struct ChppGnssControlLocationSessionResponse *result =
@@ -454,8 +458,15 @@ static void chppGnssControlMeasurementSessionResult(
 
   if (len < sizeof(struct ChppGnssControlMeasurementSessionResponse)) {
     // Short response length indicates an error
+
+    struct ChppAppHeader *rxHeader = (struct ChppAppHeader *)buf;
+    CHPP_LOGE("Measurement resp. too short. err=%" PRIu8, rxHeader->error);
+
+    if (rxHeader->error == CHPP_APP_ERROR_NONE) {
+      rxHeader->error = CHPP_APP_ERROR_INVALID_LENGTH;
+    }
     gCallbacks->measurementStatusChangeCallback(
-        false, chppAppShortResponseErrorHandler(buf, len, "Measurement"));
+        false, chppAppErrorToChreError(rxHeader->error));
 
   } else {
     struct ChppGnssControlMeasurementSessionResponse *result =
@@ -489,7 +500,8 @@ static void chppGnssConfigurePassiveLocationListenerResult(
   struct ChppAppHeader *rxHeader = (struct ChppAppHeader *)buf;
 
   if (rxHeader->error != CHPP_APP_ERROR_NONE) {
-    CHPP_DEBUG_ASSERT_LOG(false, "Passive scan failed at service");
+    CHPP_LOGE("Passive scan failed at service err=%" PRIu8, rxHeader->error);
+    CHPP_DEBUG_ASSERT(false);
 
   } else {
     CHPP_LOGD(
@@ -597,22 +609,19 @@ static bool chppGnssClientOpen(const struct chrePalSystemApi *systemApi,
   gCallbacks = callbacks;
 
   CHPP_LOGD("GNSS client opening");
-  if (gGnssClientContext.client.appContext == NULL) {
-    CHPP_LOGE("GNSS client app is null");
-  } else {
-    if (chppWaitForDiscoveryComplete(gGnssClientContext.client.appContext,
-                                     CHPP_GNSS_DISCOVERY_TIMEOUT_MS)) {
-      result = chppClientSendOpenRequest(
-          &gGnssClientContext.client,
-          &gGnssClientContext.rRState[CHPP_GNSS_OPEN], CHPP_GNSS_OPEN,
-          /*blocking=*/true);
-    }
 
-    // Since CHPP_GNSS_DEFAULT_CAPABILITIES is mandatory, we can always
-    // pseudo-open and return true. Otherwise, these should have been gated.
-    chppClientPseudoOpen(&gGnssClientContext.client);
-    result = true;
+  if (chppWaitForDiscoveryComplete(gGnssClientContext.client.appContext,
+                                   CHPP_GNSS_DISCOVERY_TIMEOUT_MS)) {
+    result = chppClientSendOpenRequest(
+        &gGnssClientContext.client, &gGnssClientContext.rRState[CHPP_GNSS_OPEN],
+        CHPP_GNSS_OPEN,
+        /*blocking=*/true);
   }
+
+#ifdef CHPP_GNSS_CLIENT_OPEN_ALWAYS_SUCCESS
+  chppClientPseudoOpen(&gGnssClientContext.client);
+  result = true;
+#endif
 
   return result;
 }
@@ -633,7 +642,6 @@ static void chppGnssClientClose(void) {
                  sizeof(*request))) {
     gGnssClientContext.client.openState = CHPP_OPEN_STATE_CLOSED;
     gGnssClientContext.capabilities = CHRE_GNSS_CAPABILITIES_NONE;
-    gGnssClientContext.capabilitiesValid = false;
     chppClientCloseOpenRequests(&gGnssClientContext.client, &kGnssClientConfig,
                                 true /* clearOnly */);
   }
@@ -646,9 +654,13 @@ static void chppGnssClientClose(void) {
  * @return Capabilities flags.
  */
 static uint32_t chppGnssClientGetCapabilities(void) {
+#ifdef CHPP_GNSS_DEFAULT_CAPABILITIES
   uint32_t capabilities = CHPP_GNSS_DEFAULT_CAPABILITIES;
+#else
+  uint32_t capabilities = CHRE_GNSS_CAPABILITIES_NONE;
+#endif
 
-  if (gGnssClientContext.capabilitiesValid) {
+  if (gGnssClientContext.capabilities != CHRE_GNSS_CAPABILITIES_NONE) {
     // Result already cached
     capabilities = gGnssClientContext.capabilities;
 
@@ -664,9 +676,7 @@ static uint32_t chppGnssClientGetCapabilities(void) {
               &gGnssClientContext.rRState[CHPP_GNSS_GET_CAPABILITIES], request,
               sizeof(*request))) {
         // Success. gGnssClientContext.capabilities is now populated
-        if (gGnssClientContext.capabilitiesValid) {
-          capabilities = gGnssClientContext.capabilities;
-        }
+        capabilities = gGnssClientContext.capabilities;
       }
     }
   }

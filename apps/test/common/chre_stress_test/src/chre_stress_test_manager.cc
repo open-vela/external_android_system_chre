@@ -17,7 +17,6 @@
 #include "chre_stress_test_manager.h"
 
 #include <pb_decode.h>
-#include <pb_encode.h>
 
 #include "chre/util/macros.h"
 #include "chre/util/nanoapp/callbacks.h"
@@ -27,24 +26,13 @@
 
 #define LOG_TAG "[ChreStressTest]"
 
-using chre::kOneMicrosecondInNanoseconds;
-using chre::kOneMillisecondInNanoseconds;
-
 namespace chre {
 
 namespace stress_test {
 
 namespace {
 
-//! Additional duration to handle request timeout over the specified
-//! CHRE API timeout (to account for processing delay).
-#define TIMEOUT_BUFFER_DELAY_NS (1 * CHRE_NSEC_PER_SEC)
-
 constexpr chre::Nanoseconds kWifiScanInterval = chre::Seconds(5);
-constexpr chre::Nanoseconds kSensorRequestInterval = chre::Seconds(5);
-constexpr uint64_t kSensorSamplingIntervalNs =
-    chre::Milliseconds(200).toRawNanoseconds();
-constexpr uint64_t kSensorSamplingDelayNs = 0;
 
 bool isRequestTypeForLocation(uint8_t requestType) {
   return (requestType == CHRE_GNSS_REQUEST_TYPE_LOCATION_SESSION_START) ||
@@ -82,9 +70,6 @@ void Manager::handleMessageFromHost(uint32_t senderInstanceId,
   } else if (messageType == chre_stress_test_MessageType_TEST_HOST_RESTARTED) {
     // Do nothing and only update the host endpoint
     mHostEndpoint = hostData->hostEndpoint;
-    success = true;
-  } else if (messageType == chre_stress_test_MessageType_GET_CAPABILITIES) {
-    sendCapabilitiesMessage();
     success = true;
   } else if (messageType != chre_stress_test_MessageType_TEST_COMMAND) {
     LOGE("Invalid message type %" PRIu32, messageType);
@@ -126,10 +111,6 @@ void Manager::handleMessageFromHost(uint32_t senderInstanceId,
         }
         case chre_stress_test_TestCommand_Feature_WIFI_SCAN_MONITOR: {
           handleWifiScanMonitoringCommand(testCommand.start);
-          break;
-        }
-        case chre_stress_test_TestCommand_Feature_SENSORS: {
-          handleSensorStartCommand(testCommand.start);
           break;
         }
         default: {
@@ -182,18 +163,7 @@ void Manager::handleDataFromChre(uint16_t eventType, const void *eventData) {
       handleCellInfoResult(
           static_cast<const chreWwanCellInfoResult *>(eventData));
       break;
-    case CHRE_EVENT_SENSOR_ACCELEROMETER_DATA:
-      handleAccelSensorDataEvent(
-          static_cast<const chreSensorThreeAxisData *>(eventData));
-      break;
-    case CHRE_EVENT_SENSOR_GYROSCOPE_DATA:
-      handleGyroSensorDataEvent(
-          static_cast<const chreSensorThreeAxisData *>(eventData));
-      break;
-    case CHRE_EVENT_SENSOR_INSTANT_MOTION_DETECT_DATA:
-      handleInstantMotionSensorDataEvent(
-          static_cast<const chreSensorOccurrenceData *>(eventData));
-      break;
+
     default:
       LOGW("Unknown event type %" PRIu16, eventType);
       break;
@@ -209,8 +179,6 @@ void Manager::handleTimerEvent(const uint32_t *handle) {
     makeGnssLocationRequest();
   } else if (*handle == mGnssMeasurementTimerHandle) {
     makeGnssMeasurementRequest();
-  } else if (*handle == mSensorTimerHandle) {
-    makeSensorRequest();
   } else if (*handle == mGnssLocationAsyncTimerHandle &&
              mGnssLocationAsyncRequest.has_value()) {
     sendFailure("GNSS location async result timed out");
@@ -245,8 +213,8 @@ void Manager::handleDelayedWifiTimer() {
     sendFailure("Failed to make WiFi scan request");
   } else {
     mWifiScanAsyncRequest = AsyncRequest(&kOnDemandWifiScanCookie);
-    setTimer(CHRE_WIFI_SCAN_RESULT_TIMEOUT_NS + TIMEOUT_BUFFER_DELAY_NS,
-             true /* oneShot */, &mWifiScanAsyncTimerHandle);
+    setTimer(CHRE_WIFI_SCAN_RESULT_TIMEOUT_NS, true /* oneShot */,
+             &mWifiScanAsyncTimerHandle);
   }
 }
 
@@ -316,14 +284,6 @@ void Manager::checkTimestamp(uint64_t timestamp, uint64_t pastTimestamp) {
   }
 }
 
-void Manager::checkTimestampInterval(uint64_t timestamp, uint64_t pastTimestamp,
-                                     uint64_t maxInterval) {
-  checkTimestamp(timestamp, pastTimestamp);
-  if (timestamp - pastTimestamp > maxInterval) {
-    LOGE("Timestamp is later than expected");
-  }
-}
-
 void Manager::handleGnssLocationEvent(const chreGnssLocationEvent *event) {
   LOGI("Received GNSS location event at %" PRIu64 " ms", event->timestamp);
 
@@ -362,45 +322,6 @@ void Manager::handleWifiScanEvent(const chreWifiScanEvent *event) {
         chre_stress_test_MessageType_TEST_WIFI_SCAN_MONITOR_TRIGGERED,
         mHostEndpoint.value(), nullptr /* freeCallback */);
   }
-}
-
-void Manager::handleAccelSensorDataEvent(
-    const chreSensorThreeAxisData *eventData) {
-  const auto &header = eventData->header;
-  uint64_t timestamp = header.baseTimestamp;
-
-  // Note: The interval is selected 1 microsecond higher than the sensor
-  // sampling interval (200ms) to account for processing delays.
-  if (mPrevAccelEventTimestampNs != 0) {
-    checkTimestampInterval(
-        timestamp, mPrevAccelEventTimestampNs,
-        kSensorSamplingIntervalNs + kOneMillisecondInNanoseconds);
-  }
-  mPrevAccelEventTimestampNs = timestamp;
-}
-
-void Manager::handleGyroSensorDataEvent(
-    const chreSensorThreeAxisData *eventData) {
-  const auto &header = eventData->header;
-  uint64_t timestamp = header.baseTimestamp;
-
-  // Note: The interval is selected 1ms higher than the sensor
-  // sampling interval (200ms) to account for processing delays.
-  if (mPrevGyroEventTimestampNs) {
-    checkTimestampInterval(
-        timestamp, mPrevGyroEventTimestampNs,
-        kSensorSamplingIntervalNs + kOneMillisecondInNanoseconds);
-  }
-  mPrevGyroEventTimestampNs = timestamp;
-}
-
-void Manager::handleInstantMotionSensorDataEvent(
-    const chreSensorOccurrenceData *eventData) {
-  const auto &header = eventData->header;
-  uint64_t timestamp = header.baseTimestamp;
-
-  checkTimestamp(timestamp, mPrevInstantMotionEventTimestampNs);
-  mPrevInstantMotionEventTimestampNs = timestamp;
 }
 
 void Manager::handleCellInfoResult(const chreWwanCellInfoResult *event) {
@@ -467,8 +388,7 @@ void Manager::handleGnssMeasurementStartCommand(bool start) {
 }
 
 void Manager::handleWwanStartCommand(bool start) {
-  constexpr uint64_t kTimerDelayNs =
-      CHRE_ASYNC_RESULT_TIMEOUT_NS + TIMEOUT_BUFFER_DELAY_NS;
+  constexpr uint64_t kTimerDelayNs = CHRE_ASYNC_RESULT_TIMEOUT_NS;
 
   if (chreWwanGetCapabilities() & CHRE_WWAN_GET_CELL_INFO) {
     mWwanTestStarted = start;
@@ -494,50 +414,11 @@ void Manager::handleWifiScanMonitoringCommand(bool start) {
     if (!success) {
       sendFailure("Scan monitor request failed");
     } else {
-      setTimer(CHRE_ASYNC_RESULT_TIMEOUT_NS + TIMEOUT_BUFFER_DELAY_NS,
-               true /* oneShot */, &mWifiScanMonitorAsyncTimerHandle);
+      setTimer(CHRE_ASYNC_RESULT_TIMEOUT_NS, true /* oneShot */,
+               &mWifiScanMonitorAsyncTimerHandle);
     }
   } else {
     sendFailure("Platform has no WiFi scan monitoring capability");
-  }
-}
-
-void Manager::handleSensorStartCommand(bool start) {
-  mSensorTestStarted = start;
-  bool sensorsFound = true;
-
-  for (size_t i = 0; i < ARRAY_SIZE(mSensors); i++) {
-    SensorState &sensor = mSensors[i];
-    bool isInitialized = chreSensorFindDefault(sensor.type, &sensor.handle);
-    if (!isInitialized) {
-      sensorsFound = false;
-    } else {
-      chreSensorInfo &info = sensor.info;
-      bool infoStatus = chreGetSensorInfo(sensor.handle, &info);
-      if (infoStatus) {
-        LOGI("SensorInfo: %s, Type=%" PRIu8
-             " OnChange=%d OneShot=%d Passive=%d "
-             "minInterval=%" PRIu64 "nsec",
-             info.sensorName, info.sensorType, info.isOnChange, info.isOneShot,
-             info.supportsPassiveMode, info.minInterval);
-      } else {
-        LOGE("chreGetSensorInfo failed");
-      }
-    }
-    LOGI("Sensor %zu initialized: %s with handle %" PRIu32, i,
-         isInitialized ? "true" : "false", sensor.handle);
-  }
-  makeSensorRequest();
-
-  if (sensorsFound) {
-    if (start) {
-      setTimer(kSensorRequestInterval.toRawNanoseconds(), true /* oneShot */,
-               &mSensorTimerHandle);
-    } else {
-      cancelTimer(&mSensorTimerHandle);
-    }
-  } else {
-    sendFailure("Platform has no sensor capability");
   }
 }
 
@@ -557,40 +438,6 @@ void Manager::cancelTimer(uint32_t *timerHandle) {
       LOGW("Failed to cancel timer");
     }
     *timerHandle = CHRE_TIMER_INVALID;
-  }
-}
-
-void Manager::makeSensorRequest() {
-  bool anySensorConfigured = false;
-  for (size_t i = 0; i < ARRAY_SIZE(mSensors); i++) {
-    SensorState &sensor = mSensors[i];
-    bool status = false;
-    if (!sensor.enabled) {
-      if (sensor.info.isOneShot) {
-        status = chreSensorConfigure(
-            sensor.handle, CHRE_SENSOR_CONFIGURE_MODE_ONE_SHOT,
-            CHRE_SENSOR_INTERVAL_DEFAULT, kSensorSamplingDelayNs);
-      } else {
-        status = chreSensorConfigure(
-            sensor.handle, CHRE_SENSOR_CONFIGURE_MODE_CONTINUOUS,
-            kSensorSamplingIntervalNs, kSensorSamplingDelayNs);
-      }
-    } else {
-      status = chreSensorConfigureModeOnly(sensor.handle,
-                                           CHRE_SENSOR_CONFIGURE_MODE_DONE);
-    }
-    LOGI("Configure [enable %d, status %d]: %s", sensor.enabled, status,
-         sensor.info.sensorName);
-    if (status) {
-      sensor.enabled = !sensor.enabled;
-    }
-    anySensorConfigured = anySensorConfigured || status;
-  }
-  if (anySensorConfigured) {
-    setTimer(kSensorRequestInterval.toRawNanoseconds(), true /* oneShot */,
-             &mSensorTimerHandle);
-  } else {
-    sendFailure("Failed to make sensor request");
   }
 }
 
@@ -622,8 +469,8 @@ void Manager::makeGnssLocationRequest() {
     sendFailure("Failed to make location request");
   } else {
     mGnssLocationAsyncRequest = AsyncRequest(&kGnssLocationCookie);
-    setTimer(CHRE_GNSS_ASYNC_RESULT_TIMEOUT_NS + TIMEOUT_BUFFER_DELAY_NS,
-             true /* oneShot */, &mGnssLocationAsyncTimerHandle);
+    setTimer(CHRE_GNSS_ASYNC_RESULT_TIMEOUT_NS, true /* oneShot */,
+             &mGnssLocationAsyncTimerHandle);
   }
 }
 
@@ -657,8 +504,8 @@ void Manager::makeGnssMeasurementRequest() {
     sendFailure("Failed to make measurement request");
   } else {
     mGnssMeasurementAsyncRequest = AsyncRequest(&kGnssMeasurementCookie);
-    setTimer(CHRE_GNSS_ASYNC_RESULT_TIMEOUT_NS + TIMEOUT_BUFFER_DELAY_NS,
-             true /* oneShot */, &mGnssMeasurementAsyncTimerHandle);
+    setTimer(CHRE_GNSS_ASYNC_RESULT_TIMEOUT_NS, true /* oneShot */,
+             &mGnssMeasurementAsyncTimerHandle);
   }
 }
 
@@ -698,41 +545,7 @@ void Manager::sendFailure(const char *errorMessage) {
   test_shared::sendTestResultWithMsgToHost(
       mHostEndpoint.value(),
       chre_stress_test_MessageType_TEST_RESULT /* messageType */,
-      false /* success */, errorMessage, false /* abortOnFailure */);
-}
-
-void Manager::sendCapabilitiesMessage() {
-  if (!mHostEndpoint.has_value()) {
-    LOGE("mHostEndpoint is not initialized");
-    return;
-  }
-
-  chre_stress_test_Capabilities capabilities =
-      chre_stress_test_Capabilities_init_default;
-  capabilities.wifi = chreWifiGetCapabilities();
-
-  size_t size;
-  if (!pb_get_encoded_size(&size, chre_stress_test_Capabilities_fields,
-                           &capabilities)) {
-    LOGE("Failed to get message size");
-    return;
-  }
-
-  pb_byte_t *bytes = static_cast<pb_byte_t *>(chreHeapAlloc(size));
-  if (size > 0 && bytes == nullptr) {
-    LOG_OOM();
-  } else {
-    pb_ostream_t stream = pb_ostream_from_buffer(bytes, size);
-    if (!pb_encode(&stream, chre_stress_test_Capabilities_fields,
-                   &capabilities)) {
-      LOGE("Failed to encode capabilities error %s", PB_GET_ERROR(&stream));
-      chreHeapFree(bytes);
-    } else {
-      chreSendMessageToHostEndpoint(
-          bytes, size, chre_stress_test_MessageType_CAPABILITIES,
-          mHostEndpoint.value(), heapFreeMessageCallback);
-    }
-  }
+      false /* success */, errorMessage);
 }
 
 }  // namespace stress_test

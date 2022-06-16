@@ -21,6 +21,8 @@
 
 #include "chre/platform/shared/nanoapp_loader.h"
 
+#include "ash.h"
+#include "ash/profile.h"
 #include "chre.h"
 #include "chre/platform/assert.h"
 #include "chre/platform/fatal_error.h"
@@ -29,10 +31,6 @@
 #include "chre/target_platform/platform_cache_management.h"
 #include "chre/util/dynamic_vector.h"
 #include "chre/util/macros.h"
-
-#ifdef CHREX_SYMBOL_EXTENSIONS
-#include "chre/extensions/platform/symbol_list.h"
-#endif
 
 #ifndef CHRE_LOADER_ARCH
 #define CHRE_LOADER_ARCH EM_ARM
@@ -54,6 +52,13 @@ struct ExportedData {
 NanoappLoader *gCurrentlyLoadingNanoapp = nullptr;
 //! Indicates whether a failure occurred during static initialization.
 bool gStaticInitFailure = false;
+
+// The new operator is used by singleton.h which causes the delete operator to
+// be undefined in nanoapp binaries even though it's unused. Define this in case
+// a nanoapp actually tries to use the operator.
+void deleteOverride(void *ptr) {
+  FATAL_ERROR("Nanoapp tried to free %p through delete operator", ptr);
+}
 
 // atexit is used to register functions that must be called when a binary is
 // removed from the system.
@@ -118,6 +123,11 @@ void __cxa_pure_virtual(void) {
   chreAbort(CHRE_ERROR /* abortCode */);
 }
 
+#define ADD_EXPORTED_SYMBOL(function_name, function_string) \
+  { reinterpret_cast<void *>(function_name), function_string }
+#define ADD_EXPORTED_C_SYMBOL(function_name) \
+  ADD_EXPORTED_SYMBOL(function_name, STRINGIFY(function_name))
+
 // TODO(karthikmb/stange): While this array was hand-coded for simple
 // "hello-world" prototyping, the list of exported symbols must be
 // generated to minimize runtime errors and build breaks.
@@ -125,15 +135,15 @@ void __cxa_pure_virtual(void) {
 // Disable deprecation warning so that deprecated symbols in the array
 // can be exported for older nanoapps and tests.
 CHRE_DEPRECATED_PREAMBLE
-const ExportedData kExportedData[] = {
-    /* libmath overrides and symbols */
+const ExportedData gExportedData[] = {
+    /* libmath overrrides and symbols */
     ADD_EXPORTED_SYMBOL(asinOverride, "asin"),
     ADD_EXPORTED_SYMBOL(atan2Override, "atan2"),
     ADD_EXPORTED_SYMBOL(cosOverride, "cos"),
-    ADD_EXPORTED_SYMBOL(floorOverride, "floor"),
+    ADD_EXPORTED_SYMBOL(frexpOverride, "frexp"),
     ADD_EXPORTED_SYMBOL(fmaxOverride, "fmax"),
     ADD_EXPORTED_SYMBOL(fminOverride, "fmin"),
-    ADD_EXPORTED_SYMBOL(frexpOverride, "frexp"),
+    ADD_EXPORTED_SYMBOL(floorOverride, "floor"),
     ADD_EXPORTED_SYMBOL(roundOverride, "round"),
     ADD_EXPORTED_SYMBOL(sinOverride, "sin"),
     ADD_EXPORTED_SYMBOL(sqrtOverride, "sqrt"),
@@ -143,28 +153,23 @@ const ExportedData kExportedData[] = {
     ADD_EXPORTED_C_SYMBOL(ceilf),
     ADD_EXPORTED_C_SYMBOL(cosf),
     ADD_EXPORTED_C_SYMBOL(expf),
-    ADD_EXPORTED_C_SYMBOL(fabsf),
     ADD_EXPORTED_C_SYMBOL(floorf),
     ADD_EXPORTED_C_SYMBOL(fmaxf),
     ADD_EXPORTED_C_SYMBOL(fminf),
     ADD_EXPORTED_C_SYMBOL(fmodf),
     ADD_EXPORTED_C_SYMBOL(log10f),
     ADD_EXPORTED_C_SYMBOL(log1pf),
-    ADD_EXPORTED_C_SYMBOL(log2f),
     ADD_EXPORTED_C_SYMBOL(logf),
     ADD_EXPORTED_C_SYMBOL(lroundf),
-    ADD_EXPORTED_C_SYMBOL(powf),
-    ADD_EXPORTED_C_SYMBOL(remainderf),
     ADD_EXPORTED_C_SYMBOL(roundf),
     ADD_EXPORTED_C_SYMBOL(sinf),
     ADD_EXPORTED_C_SYMBOL(sqrtf),
-    ADD_EXPORTED_C_SYMBOL(tanf),
     ADD_EXPORTED_C_SYMBOL(tanhf),
     /* libc overrides and symbols */
     ADD_EXPORTED_C_SYMBOL(__cxa_pure_virtual),
     ADD_EXPORTED_SYMBOL(atexitOverride, "atexit"),
+    ADD_EXPORTED_SYMBOL(deleteOverride, "_ZdlPv"),
     ADD_EXPORTED_C_SYMBOL(dlsym),
-    ADD_EXPORTED_C_SYMBOL(isgraph),
     ADD_EXPORTED_C_SYMBOL(memcmp),
     ADD_EXPORTED_C_SYMBOL(memcpy),
     ADD_EXPORTED_C_SYMBOL(memmove),
@@ -174,14 +179,20 @@ const ExportedData kExportedData[] = {
     ADD_EXPORTED_C_SYMBOL(strlen),
     ADD_EXPORTED_C_SYMBOL(strncmp),
     ADD_EXPORTED_C_SYMBOL(tolower),
+    /* ash symbols */
+    ADD_EXPORTED_C_SYMBOL(ashProfileInit),
+    ADD_EXPORTED_C_SYMBOL(ashProfileBegin),
+    ADD_EXPORTED_C_SYMBOL(ashProfileEnd),
+    ADD_EXPORTED_C_SYMBOL(ashLoadCalibrationParams),
+    ADD_EXPORTED_C_SYMBOL(ashSaveCalibrationParams),
+    ADD_EXPORTED_C_SYMBOL(ashSetCalibration),
+    ADD_EXPORTED_C_SYMBOL(ashLoadMultiCalibrationParams),
+    ADD_EXPORTED_C_SYMBOL(ashSaveMultiCalibrationParams),
+    ADD_EXPORTED_C_SYMBOL(ashSetMultiCalibration),
     /* CHRE symbols */
     ADD_EXPORTED_C_SYMBOL(chreAbort),
     ADD_EXPORTED_C_SYMBOL(chreAudioConfigureSource),
     ADD_EXPORTED_C_SYMBOL(chreAudioGetSource),
-    ADD_EXPORTED_C_SYMBOL(chreBleGetCapabilities),
-    ADD_EXPORTED_C_SYMBOL(chreBleGetFilterCapabilities),
-    ADD_EXPORTED_C_SYMBOL(chreBleStartScanAsync),
-    ADD_EXPORTED_C_SYMBOL(chreBleStopScanAsync),
     ADD_EXPORTED_C_SYMBOL(chreConfigureDebugDumpEvent),
     ADD_EXPORTED_C_SYMBOL(chreConfigureHostSleepStateEvents),
     ADD_EXPORTED_C_SYMBOL(chreConfigureNanoappInfoEvents),
@@ -225,15 +236,9 @@ const ExportedData kExportedData[] = {
     ADD_EXPORTED_C_SYMBOL(chreWifiGetCapabilities),
     ADD_EXPORTED_C_SYMBOL(chreWifiRequestScanAsync),
     ADD_EXPORTED_C_SYMBOL(chreWifiRequestRangingAsync),
-    ADD_EXPORTED_C_SYMBOL(chreWifiNanRequestRangingAsync),
-    ADD_EXPORTED_C_SYMBOL(chreWifiNanSubscribe),
-    ADD_EXPORTED_C_SYMBOL(chreWifiNanSubscribeCancel),
     ADD_EXPORTED_C_SYMBOL(chreWwanGetCapabilities),
     ADD_EXPORTED_C_SYMBOL(chreWwanGetCellInfoAsync),
     ADD_EXPORTED_C_SYMBOL(platform_chreDebugDumpVaLog),
-    ADD_EXPORTED_C_SYMBOL(chreConfigureHostEndpointNotifications),
-    ADD_EXPORTED_C_SYMBOL(chrePublishRpcServices),
-    ADD_EXPORTED_C_SYMBOL(chreGetHostEndpointInfo),
 };
 CHRE_DEPRECATED_EPILOGUE
 // clang-format on
@@ -266,22 +271,14 @@ void NanoappLoader::destroy(NanoappLoader *loader) {
 
 void *NanoappLoader::findExportedSymbol(const char *name) {
   size_t nameLen = strlen(name);
-  for (size_t i = 0; i < ARRAY_SIZE(kExportedData); i++) {
-    if (nameLen == strlen(kExportedData[i].dataName) &&
-        strncmp(name, kExportedData[i].dataName, nameLen) == 0) {
-      return kExportedData[i].data;
+  for (size_t i = 0; i < ARRAY_SIZE(gExportedData); i++) {
+    if (nameLen == strlen(gExportedData[i].dataName) &&
+        strncmp(name, gExportedData[i].dataName, nameLen) == 0) {
+      return gExportedData[i].data;
     }
   }
 
-#ifdef CHREX_SYMBOL_EXTENSIONS
-  for (size_t i = 0; i < ARRAY_SIZE(kVendorExportedData); i++) {
-    if (nameLen == strlen(kVendorExportedData[i].dataName) &&
-        strncmp(name, kVendorExportedData[i].dataName, nameLen) == 0) {
-      return kVendorExportedData[i].data;
-    }
-  }
-#endif
-
+  LOGE("Unable to find %s", name);
   return nullptr;
 }
 
@@ -322,15 +319,20 @@ void NanoappLoader::close() {
 }
 
 void *NanoappLoader::findSymbolByName(const char *name) {
-  for (size_t offset = 0; offset < mSymbolTableSize; offset += sizeof(ElfSym)) {
-    ElfSym *currSym = reinterpret_cast<ElfSym *>(mSymbolTablePtr + offset);
+  void *symbol = nullptr;
+  uint8_t *index = mSymbolTablePtr;
+  while (index < (mSymbolTablePtr + mSymbolTableSize)) {
+    ElfSym *currSym = reinterpret_cast<ElfSym *>(index);
     const char *symbolName = &mStringTablePtr[currSym->st_name];
 
     if (strncmp(symbolName, name, strlen(name)) == 0) {
-      return getSymbolTarget(currSym);
+      symbol = mMapping + currSym->st_value;
+      break;
     }
+
+    index += sizeof(ElfSym);
   }
-  return nullptr;
+  return symbol;
 }
 
 void NanoappLoader::registerAtexitFunction(void (*function)(void)) {
@@ -391,9 +393,8 @@ bool NanoappLoader::callInitArray() {
   return success;
 }
 
-uintptr_t NanoappLoader::roundDownToAlign(uintptr_t virtualAddr,
-                                          size_t alignment) {
-  return virtualAddr & -alignment;
+uintptr_t NanoappLoader::roundDownToAlign(uintptr_t virtualAddr) {
+  return virtualAddr & -kBinaryAlignment;
 }
 
 void NanoappLoader::freeAllocatedData() {
@@ -671,16 +672,15 @@ bool NanoappLoader::createMappings() {
       // Get the last load segment
       while (last > first && last->p_type != PT_LOAD) --last;
 
-      size_t alignment = first->p_align;
       size_t memorySpan = last->p_vaddr + last->p_memsz - first->p_vaddr;
       LOGV("Nanoapp image Memory Span: %u", memorySpan);
 
       if (mIsTcmBinary) {
-        mMapping =
-            static_cast<uint8_t *>(nanoappBinaryAlloc(memorySpan, alignment));
+        mMapping = static_cast<uint8_t *>(
+            nanoappBinaryAlloc(memorySpan, kBinaryAlignment));
       } else {
         mMapping = static_cast<uint8_t *>(
-            nanoappBinaryDramAlloc(memorySpan, alignment));
+            nanoappBinaryDramAlloc(memorySpan, kBinaryAlignment));
       }
 
       if (mMapping == nullptr) {
@@ -689,11 +689,10 @@ bool NanoappLoader::createMappings() {
         LOGV("Starting location of mappings %p", mMapping);
 
         // Calculate the load bias using the first load segment.
-        uintptr_t adjustedFirstLoadSegAddr =
-            roundDownToAlign(first->p_vaddr, alignment);
+        uintptr_t adjustedFirstLoadSegAddr = roundDownToAlign(first->p_vaddr);
         mLoadBias =
             reinterpret_cast<uintptr_t>(mMapping) - adjustedFirstLoadSegAddr;
-        LOGV("Load bias is %lu", static_cast<long unsigned int>(mLoadBias));
+        LOGV("Load bias is %" PRIu32, mLoadBias);
 
         success = true;
       }
@@ -724,49 +723,29 @@ bool NanoappLoader::createMappings() {
   return success;
 }
 
-NanoappLoader::ElfSym *NanoappLoader::getDynamicSymbol(
-    size_t posInSymbolTable) {
+const char *NanoappLoader::getDataName(size_t posInSymbolTable) {
   size_t sectionSize = getDynamicSymbolTableSize();
   uint8_t *dynamicSymbolTable = getDynamicSymbolTable();
   size_t numElements = sectionSize / sizeof(ElfSym);
   CHRE_ASSERT(posInSymbolTable < numElements);
+  char *dataName = nullptr;
   if (posInSymbolTable < numElements) {
-    return reinterpret_cast<ElfSym *>(
+    ElfSym *sym = reinterpret_cast<ElfSym *>(
         &dynamicSymbolTable[posInSymbolTable * sizeof(ElfSym)]);
+    dataName = &getDynamicStringTable()[sym->st_name];
   }
-  return nullptr;
-}
-
-const char *NanoappLoader::getDataName(const ElfSym *symbol) {
-  return symbol == nullptr ? nullptr
-                           : &getDynamicStringTable()[symbol->st_name];
-}
-
-void *NanoappLoader::getSymbolTarget(const ElfSym *symbol) {
-  if (symbol == nullptr || symbol->st_shndx == SHN_UNDEF) {
-    return nullptr;
-  }
-
-  return mMapping + symbol->st_value;
+  return dataName;
 }
 
 void *NanoappLoader::resolveData(size_t posInSymbolTable) {
-  const ElfSym *symbol = getDynamicSymbol(posInSymbolTable);
-  const char *dataName = getDataName(symbol);
-  void *target = nullptr;
+  const char *dataName = getDataName(posInSymbolTable);
 
   if (dataName != nullptr) {
     LOGV("Resolving %s", dataName);
-    target = findExportedSymbol(dataName);
-    if (target == nullptr) {
-      target = getSymbolTarget(symbol);
-    }
-    if (target == nullptr) {
-      LOGE("Unable to find %s", dataName);
-    }
+    return findExportedSymbol(dataName);
   }
 
-  return target;
+  return nullptr;
 }
 
 NanoappLoader::DynamicHeader *NanoappLoader::getDynamicHeader() {
@@ -827,15 +806,13 @@ bool NanoappLoader::fixRelocations() {
     size_t nRelocs = relocSize / sizeof(ElfRel);
     LOGV("Relocation %zu entries in DT_REL table", nRelocs);
 
-    bool resolvedAllSymbols = true;
     size_t i;
     for (i = 0; i < nRelocs; ++i) {
       ElfRel *curr = &reloc[i];
       int relocType = ELFW_R_TYPE(curr->r_info);
       switch (relocType) {
         case R_ARM_RELATIVE:
-          LOGV("Resolving ARM_RELATIVE at offset %lx",
-               static_cast<long unsigned int>(curr->r_offset));
+          LOGV("Resolving ARM_RELATIVE at offset %" PRIx32, curr->r_offset);
           addr = reinterpret_cast<ElfAddr *>(mMapping + curr->r_offset);
           // TODO: When we move to DRAM allocations, we need to check if the
           // above address is in a Read-Only section of memory, and give it
@@ -844,8 +821,7 @@ bool NanoappLoader::fixRelocations() {
           break;
 
         case R_ARM_ABS32: {
-          LOGV("Resolving ARM_ABS32 at offset %lx",
-               static_cast<long unsigned int>(curr->r_offset));
+          LOGV("Resolving ARM_ABS32 at offset %" PRIx32, curr->r_offset);
           addr = reinterpret_cast<ElfAddr *>(mMapping + curr->r_offset);
           size_t posInSymbolTable = ELFW_R_SYM(curr->r_info);
           auto *dynamicSymbolTable =
@@ -857,15 +833,15 @@ bool NanoappLoader::fixRelocations() {
         }
 
         case R_ARM_GLOB_DAT: {
-          LOGV("Resolving type ARM_GLOB_DAT at offset %lx",
-               static_cast<long unsigned int>(curr->r_offset));
+          LOGV("Resolving type ARM_GLOB_DAT at offset %" PRIx32,
+               curr->r_offset);
           addr = reinterpret_cast<ElfAddr *>(mMapping + curr->r_offset);
           size_t posInSymbolTable = ELFW_R_SYM(curr->r_info);
           void *resolved = resolveData(posInSymbolTable);
           if (resolved == nullptr) {
-            LOGV("Failed to resolve global symbol(%d) at offset 0x%lx", i,
-                 static_cast<long unsigned int>(curr->r_offset));
-            resolvedAllSymbols = false;
+            LOGV("Failed to resolve global symbol(%d) at offset 0x%x", i,
+                 curr->r_offset);
+            return false;
           }
           // TODO: When we move to DRAM allocations, we need to check if the
           // above address is in a Read-Only section of memory, and give it
@@ -883,7 +859,7 @@ bool NanoappLoader::fixRelocations() {
       }
     }
 
-    if (!resolvedAllSymbols) {
+    if (i != nRelocs) {
       LOGE("Unable to resolve all symbols in the binary");
     } else {
       success = true;
@@ -907,8 +883,7 @@ bool NanoappLoader::resolveGot() {
 
     switch (relocType) {
       case R_ARM_JUMP_SLOT: {
-        LOGV("Resolving ARM_JUMP_SLOT at offset %lx",
-             static_cast<long unsigned int>(curr->r_offset));
+        LOGV("Resolving ARM_JUMP_SLOT at offset %" PRIx32, curr->r_offset);
         addr = reinterpret_cast<ElfAddr *>(mMapping + curr->r_offset);
         size_t posInSymbolTable = ELFW_R_SYM(curr->r_info);
         void *resolved = resolveData(posInSymbolTable);
@@ -923,7 +898,7 @@ bool NanoappLoader::resolveGot() {
 
       default:
         LOGE("Unsupported relocation type: %u for symbol %s", relocType,
-             getDataName(getDynamicSymbol(ELFW_R_SYM(curr->r_info))));
+             getDataName(ELFW_R_SYM(curr->r_info)));
         return false;
     }
   }
