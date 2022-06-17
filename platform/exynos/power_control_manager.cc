@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,21 +14,16 @@
  * limitations under the License.
  */
 
-#ifndef CHRE_SETTINGS_TEST_UTIL_H_
-#define CHRE_SETTINGS_TEST_UTIL_H_
-
-#include <cinttypes>
+#include "chre/platform/power_control_manager.h"
 
 namespace chre {
 
-namespace settings_test {
+void PowerControlManager::preEventLoopProcess(size_t /* numPendingEvents */) {}
 
-void sendTestResultToHost(uint16_t hostEndpointId, bool success);
+void PowerControlManager::postEventLoopProcess(size_t /* numPendingEvents */) {}
 
-void sendEmptyMessageToHost(uint16_t hostEndpointId, uint32_t messageType);
-
-}  // namespace settings_test
+bool PowerControlManager::hostIsAwake() {
+  return true;
+}
 
 }  // namespace chre
-
-#endif  // CHRE_SETTINGS_TEST_UTIL_H_

@@ -52,6 +52,15 @@ ifeq ($(CHRE_DAEMON_LOAD_INTO_SENSORSPD),true)
 LOCAL_CFLAGS += -DCHRE_DAEMON_LOAD_INTO_SENSORSPD
 endif
 
+MSM_SRC_FILES := \
+    host/common/fbs_daemon_base.cc \
+    host/msm/daemon/fastrpc_daemon.cc \
+    host/msm/daemon/main.cc \
+    host/msm/daemon/generated/chre_slpi_stub.c
+
+MSM_INCLUDES := \
+    system/chre/host/msm/daemon
+
 LOCAL_SRC_FILES := \
     host/common/daemon_base.cc \
     host/common/fragmented_load_transaction.cc \
@@ -59,23 +68,19 @@ LOCAL_SRC_FILES := \
     host/common/log_message_parser.cc \
     host/common/socket_server.cc \
     host/common/st_hal_lpma_handler.cc \
-    host/msm/daemon/fastrpc_daemon.cc \
-    host/msm/daemon/main.cc \
-    host/msm/daemon/generated/chre_slpi_stub.c \
     platform/shared/host_protocol_common.cc
 
 LOCAL_C_INCLUDES := \
     external/fastrpc/inc \
     system/chre/external/flatbuffers/include \
     system/chre/host/common/include \
-    system/chre/host/msm/daemon \
     system/chre/platform/shared/include \
     system/chre/platform/slpi/include \
     system/chre/util/include \
     system/libbase/include \
     system/core/libcutils/include \
     system/logging/liblog/include \
-    system/core/libutils/include \
+    system/core/libutils/include
 
 LOCAL_SHARED_LIBRARIES := \
     libjsoncpp \
@@ -90,6 +95,9 @@ LOCAL_SHARED_LIBRARIES := \
     pixelatoms-cpp \
     android.frameworks.stats-V1-ndk \
     libbinder_ndk
+
+LOCAL_SRC_FILES += $(MSM_SRC_FILES)
+LOCAL_C_INCLUDES += $(MSM_INCLUDES)
 
 LOCAL_CPPFLAGS += -std=c++20
 LOCAL_CFLAGS += -Wno-sign-compare
@@ -117,5 +125,62 @@ endif
 
 include $(BUILD_EXECUTABLE)
 
-endif
-endif
+endif   # CHRE_DAEMON_ENABLED
+
+include $(CLEAR_VARS)
+
+# Only build the module for platforms which have access to the required vendor
+# libraries.
+ifeq ($(CHRE_QMI_CONTEXTHUB_SERVICE_ENABLED),true)
+LOCAL_MODULE := android.hardware.contexthub-service.qmi
+LOCAL_LICENSE_KINDS := SPDX-license-identifier-Apache-2.0 SPDX-license-identifier-BSD
+LOCAL_MODULE_OWNER := google
+LOCAL_MODULE_PATH := $(TARGET_OUT_VENDOR)/bin/hw
+LOCAL_MODULE_TAGS := optional
+LOCAL_VENDOR_MODULE := true
+LOCAL_INIT_RC := host/hal_generic/aidl_qmi/android.hardware.contexthub-service.qmi.rc
+LOCAL_VINTF_FRAGMENTS := host/hal_generic/aidl_qmi/android.hardware.contexthub-service.qmi.xml
+
+LOCAL_CPP_EXTENSION := .cc
+LOCAL_CFLAGS += -Wall -Werror -Wextra
+
+LOCAL_CFLAGS += -DCHRE_MESSAGE_TO_HOST_MAX_SIZE=4000 # Needed to import CHRE APIs.
+
+LOCAL_SRC_FILES := \
+    host/hal_generic/common/permissions_util.cc \
+    host/hal_generic/aidl_qmi/service.cc \
+    host/hal_generic/aidl_qmi/qmi_context_hub_aidl.cc \
+    host/qsh/qmi_client_base.cc \
+    host/qsh/qmi_enc_dec_callbacks.cc \
+    host/qsh/qmi_qsh_nanoapp_client.cc
+
+LOCAL_C_INCLUDES := \
+    system/chre/chre_api/include/chre_api \
+    system/chre/chre_api/include \
+    system/chre/host/common/include \
+    system/chre/host/hal_generic/common \
+    system/chre/host/qsh \
+    system/chre/util/include
+
+LOCAL_HEADER_LIBRARIES := \
+    libnanopb_headers \
+    libqmi_cci_headers \
+    libqmi_common_headers \
+    libqmi_encdec_headers \
+    libssc_headers
+
+LOCAL_SHARED_LIBRARIES := \
+    android.hardware.contexthub-V1-ndk \
+    libbase \
+    libbinder_ndk \
+    liblog \
+    libnanopb \
+    libsns_api \
+    libqmi_cci \
+    libqmi_common_so \
+    libqmi_encdec
+
+include $(BUILD_EXECUTABLE)
+
+endif   # CHRE_QMI_CONTEXTHUB_SERVICE_ENABLED
+endif   # BUILDING_VENDOR_IMAGE
