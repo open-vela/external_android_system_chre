@@ -18,13 +18,13 @@
 #define ANDROID_HARDWARE_CONTEXTHUB_AIDL_CONTEXTHUB_H
 
 #include <aidl/android/hardware/contexthub/BnContextHub.h>
-#include <android-base/file.h>
 #include <log/log.h>
 #include <map>
 #include <mutex>
 #include <optional>
 #include <unordered_set>
 
+#include "debug_dump_helper.h"
 #include "event_logger.h"
 #include "hal_chre_socket_connection.h"
 
@@ -34,6 +34,7 @@ namespace hardware {
 namespace contexthub {
 
 class ContextHub : public BnContextHub,
+                   public ::android::hardware::contexthub::DebugDumpHelper,
                    public ::android::hardware::contexthub::common::
                        implementation::IChreSocketCallback {
  public:
@@ -83,6 +84,14 @@ class ContextHub : public BnContextHub,
 
   binder_status_t dump(int fd, const char **args, uint32_t numArgs) override;
 
+  bool requestDebugDump() override {
+    return mConnection.requestDebugDump();
+  }
+
+  void debugDumpFinish() override;
+
+  void writeToDebugFile(const char *str) override;
+
  private:
   ::android::hardware::contexthub::common::implementation::
       HalChreSocketConnection mConnection{this};
@@ -101,13 +110,6 @@ class ContextHub : public BnContextHub,
   std::mutex mConnectedHostEndpointsMutex;
   std::unordered_set<char16_t> mConnectedHostEndpoints;
 
-  // Variables related to debug dump.
-  static constexpr int kInvalidFd = -1;
-  int mDebugFd = kInvalidFd;
-  bool mDebugDumpPending = false;
-  std::mutex mDebugDumpMutex;
-  std::condition_variable mDebugDumpCond;
-
   // Logs events to be reported in debug dumps.
   EventLogger mEventLogger;
 
@@ -119,22 +121,6 @@ class ContextHub : public BnContextHub,
   chre::fbs::SettingState toFbsSettingState(bool enabled) const {
     return enabled ? chre::fbs::SettingState::ENABLED
                    : chre::fbs::SettingState::DISABLED;
-  }
-
-  // Write a string to mDebugFd
-  void writeToDebugFile(const std::string &str) {
-    if (!::android::base::WriteStringToFd(str, mDebugFd)) {
-      ALOGW("Failed to write %zu bytes to debug dump fd", str.size());
-    }
-  }
-
-  void writeToDebugFile(const char *str) {
-    writeToDebugFile(str, strlen(str));
-  }
-
-  void writeToDebugFile(const char *str, size_t len) {
-    std::string s(str, len);
-    writeToDebugFile(s);
   }
 };
 
