@@ -76,13 +76,6 @@ class BasicWifiTest : public Test {
   void handleChreWifiAsyncEvent(const chreAsyncResult *result);
 
   /**
-   * Processes the result and move to the next action accordingly.
-   *
-   * @param result chreAsyncResult of an async request.
-   */
-  void processChreWifiAsyncResult(const chreAsyncResult *result);
-
-  /**
    * @param eventData received WiFi scan event data.
    * @return true if scanType is CHRE_WIFI_SCAN_TYPE_ACTIVE, false otherwise.
    */
