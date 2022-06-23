@@ -168,6 +168,12 @@ class BasicWifiTest : public Test {
   //! The remaining results of WiFi scan.
   //! Used to identify when all events have been received.
   uint32_t mWiFiScanResultRemaining = 0;
+
+  // Number of retries remained when an on demand wifi scan fails.
+  uint8_t mNumScanRetriesRemaining = 1;
+
+  // The handle to identify the timer event for restarting a wifi scan.
+  uint32_t mScanTimeoutTimerHandle = CHRE_TIMER_INVALID;
 };
 
 }  // namespace general_test
