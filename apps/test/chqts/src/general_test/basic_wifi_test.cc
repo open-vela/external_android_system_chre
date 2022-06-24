@@ -96,6 +96,7 @@ constexpr uint64_t kOnDemandScanTimeoutNs = 7 * chre::kOneSecondInNanoseconds;
  *        sent in relation to this request.
  */
 void testConfigureScanMonitorAsync(bool enable, const void *cookie) {
+  LOGI("Starts scan monitor configure test: %s", enable ? "enable" : "disable");
   if (!chreWifiConfigureScanMonitorAsync(enable, cookie)) {
     if (enable) {
       sendFatalFailureToHost("Failed to request to enable scan monitor.");
@@ -110,6 +111,7 @@ void testConfigureScanMonitorAsync(bool enable, const void *cookie) {
  * if API call fails.
  */
 void testRequestScanAsync() {
+  LOGI("Starts on demand scan test");
   // Request a fresh scan to ensure the correct scan type is performed.
   constexpr struct chreWifiScanParams kParams = {
       /*.scanType=*/CHRE_WIFI_SCAN_TYPE_ACTIVE,
@@ -120,7 +122,6 @@ void testRequestScanAsync() {
       /*.ssidList=*/NULL,
       /*.radioChainPref=*/CHRE_WIFI_RADIO_CHAIN_PREF_DEFAULT,
       /*.channelSet=*/CHRE_WIFI_CHANNEL_SET_NON_DFS};
-
   if (!chreWifiRequestScanAsync(&kParams, &kOnDemandScanCookie)) {
     sendFatalFailureToHost("Failed to request for on-demand WiFi scan.");
   }
@@ -132,6 +133,7 @@ void testRequestScanAsync() {
  */
 void testRequestRangingAsync(const struct chreWifiScanResult *aps,
                              uint8_t length) {
+  LOGI("Starts ranging test");
   // Sending an array larger than CHRE_WIFI_RANGING_LIST_MAX_LEN will cause
   // an immediate failure.
   uint8_t targetLength =
@@ -406,7 +408,6 @@ void BasicWifiTest::handleEvent(uint32_t /* senderInstanceId */,
       const uint32_t *timerHandle = static_cast<const uint32_t *>(eventData);
       if (mScanTimeoutTimerHandle != CHRE_TIMER_INVALID &&
           timerHandle == &mScanTimeoutTimerHandle) {
-        LOGI("Start async scan again triggered by CHRE_EVENT_TIMER");
         mScanTimeoutTimerHandle = CHRE_TIMER_INVALID;
         startScanAsyncTestStage();
       }
@@ -422,7 +423,6 @@ void BasicWifiTest::handleChreWifiAsyncEvent(const chreAsyncResult *result) {
   if (!mCurrentWifiRequest.has_value()) {
     nanoapp_testing::sendFailureToHost("Unexpected async result");
   }
-
   LOGI("Received a wifi async event. request type: %" PRIu8
        " error code: %" PRIu8,
        result->requestType, result->errorCode);
@@ -436,9 +436,11 @@ void BasicWifiTest::handleChreWifiAsyncEvent(const chreAsyncResult *result) {
         /* oneShot= */ true);
     return;
   }
-
   validateChreAsyncResult(result, mCurrentWifiRequest.value());
+  processChreWifiAsyncResult(result);
+}
 
+void BasicWifiTest::processChreWifiAsyncResult(const chreAsyncResult *result) {
   switch (result->requestType) {
     case CHRE_WIFI_REQUEST_TYPE_RANGING:
       // Reuse same start timestamp as the scan request since ranging fields
@@ -515,7 +517,6 @@ void BasicWifiTest::startRangingAsyncTestStage() {
   // mark it as a success.
   if (mWifiCapabilities & CHRE_WIFI_CAPABILITIES_RTT_RANGING &&
       mLatestWifiScanResults.size() != 0) {
-    LOGI("Starts ranging async test");
     testRequestRangingAsync(mLatestWifiScanResults.data(),
                             mLatestWifiScanResults.size());
     resetCurrentWifiRequest(&kRequestRangingCookie,
