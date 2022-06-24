@@ -53,6 +53,7 @@ cc_library_static {
         "util/include",
     ],
     srcs: [
+        "host/common/file_stream.cc",
         "host/common/fragmented_load_transaction.cc",
         "host/common/host_protocol_host.cc",
         "host/common/socket_client.cc",

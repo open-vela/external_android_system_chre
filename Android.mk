@@ -63,6 +63,7 @@ MSM_INCLUDES := \
 
 LOCAL_SRC_FILES := \
     host/common/daemon_base.cc \
+    host/common/file_stream.cc \
     host/common/fragmented_load_transaction.cc \
     host/common/host_protocol_host.cc \
     host/common/log_message_parser.cc \
