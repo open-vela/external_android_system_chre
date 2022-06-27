@@ -1368,8 +1368,6 @@ void chppTransportDeinit(struct ChppTransportState *transportContext) {
 
   chppClearTxDatagramQueue(transportContext);
 
-  CHPP_FREE_AND_NULLIFY(transportContext->rxDatagram.payload);
-
   transportContext->initialized = false;
 }
 
