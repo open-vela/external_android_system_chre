@@ -80,7 +80,7 @@ void ChreDaemonBase::loadPreloadedNanoapp(const std::string &directory,
   // within the directory its own binary resides in.
   std::string nanoappFilename = name + ".so";
 
-  if (readFileContents(headerFile.c_str(), &headerBuffer) &&
+  if (!readFileContents(headerFile.c_str(), &headerBuffer) ||
       !loadNanoapp(headerBuffer, nanoappFilename, transactionId)) {
     LOGE("Failed to load nanoapp: '%s'", name.c_str());
   }
