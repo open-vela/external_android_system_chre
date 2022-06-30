@@ -43,7 +43,7 @@ COMMON_CFLAGS += -I$(NANOAPP_PATH)/inc
 
 # PW RPC protos ################################################################
 
-ifeq (NANOAPP_PW_RPC_ENABLED, true)
+ifeq ($(NANOAPP_PW_RPC_ENABLED), true)
 PW_RPC_SRCS = $(ANDROID_BUILD_TOP)/external/pigweed/pw_rpc/echo.proto
 COMMON_CFLAGS += -DPW_RPC_SERVICE_ENABLED
 endif
