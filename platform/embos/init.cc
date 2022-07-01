@@ -15,9 +15,9 @@
  */
 
 #include "chre/core/init.h"
-
 #include "chre/core/event_loop_manager.h"
 #include "chre/core/static_nanoapps.h"
+#include "chre/embos/init.h"
 
 #include "RTOS.h"
 
