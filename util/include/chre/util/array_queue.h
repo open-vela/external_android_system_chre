@@ -355,9 +355,9 @@ class ArrayQueueIterator {
   typedef std::forward_iterator_tag iterator_category;
 
   ArrayQueueIterator() = default;
-  ArrayQueueIterator(ValueType *pointer, ValueType *base, size_t tail,
+  ArrayQueueIterator(ValueType *start, ValueType *base, size_t tail,
                      size_t capacity)
-      : mPointer(pointer), mBase(base), mTail(tail), mCapacity(capacity) {}
+      : mPointer(start), mBase(base), mTail(tail), mCapacity(capacity) {}
 
   bool operator==(const ArrayQueueIterator &right) const {
     return (mPointer == right.mPointer);
