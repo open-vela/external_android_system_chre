@@ -50,7 +50,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 public class ContextHubPendingIntentTestExecutor {
-    public static final String ACTION = "com.google.android.gts.locationcontext.ACTION";
+    public static final String ACTION = "com.google.android.chre.test.chqts.ACTION";
 
     private static final String TAG = "ContextHubPendingIntentTest";
     // Additional timeout to delay receiving Intent events.
@@ -101,8 +101,7 @@ public class ContextHubPendingIntentTestExecutor {
      * checks that Intent events are not received for the who_am_i nanoapp.
      */
     public void basicPendingIntentTest(long sampleNanoAppId) {
-        mContextHubClient = mTestHelper.createClient(mPendingIntent, mNanoAppId);
-        Assert.assertNotNull("Failed to register PendingIntent client", mContextHubClient);
+        createClient(mNanoAppId);
         checkLoadNanoApp();
 
         for (int i = 0; i < 10; i++) {
@@ -182,7 +181,9 @@ public class ContextHubPendingIntentTestExecutor {
     }
 
     public ContextHubClient createClient(long nanoAppId) {
-        return mTestHelper.createClient(mPendingIntent, nanoAppId);
+        mContextHubClient = mTestHelper.createClient(mPendingIntent, nanoAppId);
+        Assert.assertNotNull("Failed to register PendingIntent client", mContextHubClient);
+        return mContextHubClient;
     }
 
     /** Unloads a nanoapp and asserts that an unload Intent event is received. */
