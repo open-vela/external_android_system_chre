@@ -170,6 +170,7 @@ TEST_F(PalSensorTest, EnableAContinuousSensor) {
   EXPECT_EQ(gCallbacks->mStatusSensorIndex.value(), 0);
   EXPECT_TRUE(gCallbacks->mStatus.has_value());
   EXPECT_TRUE(gCallbacks->mStatus.value()->enabled);
+  mApi->releaseSamplingStatusEvent(gCallbacks->mStatus.value());
 
   gCallbacks->mCondVarEvents.wait_for(
       gCallbacks->mMutex,
@@ -197,6 +198,7 @@ TEST_F(PalSensorTest, DisableAContinuousSensor) {
   EXPECT_EQ(gCallbacks->mStatusSensorIndex.value(), 0);
   EXPECT_TRUE(gCallbacks->mStatus.has_value());
   EXPECT_FALSE(gCallbacks->mStatus.value()->enabled);
+  mApi->releaseSamplingStatusEvent(gCallbacks->mStatus.value());
 }
 
 }  // namespace

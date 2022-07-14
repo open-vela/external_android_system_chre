@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,21 +14,24 @@
  * limitations under the License.
  */
 
-#ifndef CHRE_SETTINGS_TEST_UTIL_H_
-#define CHRE_SETTINGS_TEST_UTIL_H_
+#ifndef CHRE_HOST_FILE_STREAM_H_
+#define CHRE_HOST_FILE_STREAM_H_
 
-#include <cinttypes>
+#include <vector>
 
+namespace android {
 namespace chre {
 
-namespace settings_test {
-
-void sendTestResultToHost(uint16_t hostEndpointId, bool success);
-
-void sendEmptyMessageToHost(uint16_t hostEndpointId, uint32_t messageType);
-
-}  // namespace settings_test
+/**
+ * Reads a file and stores it into a buffer.
+ *
+ * @param filename The name of the file.
+ * @param buffer The buffer to store the contents of the file into.
+ * @return true if successfully read and stored.
+ */
+bool readFileContents(const char *filename, std::vector<uint8_t> *buffer);
 
 }  // namespace chre
+}  // namespace android
 
-#endif  // CHRE_SETTINGS_TEST_UTIL_H_
+#endif  // CHRE_HOST_FILE_STREAM_H_
