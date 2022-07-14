@@ -17,13 +17,6 @@
 #ifndef CHRE_PLATFORM_EXYNOS_HOST_LINK_BASE_H_
 #define CHRE_PLATFORM_EXYNOS_HOST_LINK_BASE_H_
 
-#include "chre/platform/atomic.h"
-#include "chre/platform/mutex.h"
-#include "chre/platform/shared/host_protocol_chre.h"
-#include "chre/util/lock_guard.h"
-
-#include "mailbox.h"
-
 namespace chre {
 
 /**
@@ -38,24 +31,18 @@ void sendDebugDumpResultToHost(uint16_t hostClientId, const char *debugStr,
  */
 class HostLinkBase {
  public:
-  HostLinkBase();
-
   /**
-   * Implements the IPC message receive handler.
+   * Sends a message to the CHRE daemon.
    *
-   * @param cookie An opaque pointer that was provided to the IPC driver during
-   *        callback registration.
-   * @param message The host message sent to CHRE.
-   * @param messageLen The host message length in bytes.
+   * @param data data to be sent to the daemon
+   * @param dataLen length of the data being sent
+   * @param wakeUp whether to wake up the host
+   *
+   * @return true if the data was successfully queued for sending
    */
-  static void receive(void *cookie, void *message, int messageLen);
-
-  void setInitialized(bool initialized) {
-    mInitialized = initialized;
-  }
-
-  bool isInitialized() const {
-    return mInitialized;
+  bool send(uint8_t * /*data*/, size_t /*dataLen*/, bool /*wakeUp = true*/) {
+    // Implement this.
+    return false;
   }
 
   /**
@@ -80,12 +67,6 @@ class HostLinkBase {
                         uint32_t /*num_logs_dropped*/) {
     // Implement this.
   }
-
- private:
-  static constexpr uint32_t kMsgBufferSize = CHRE_MESSAGE_TO_HOST_MAX_SIZE;
-  uint8_t mMsgBuffer[kMsgBufferSize] = {0};
-  AtomicBool mInitialized = false;
-  Mutex mMutex;
 };
 
 }  // namespace chre
