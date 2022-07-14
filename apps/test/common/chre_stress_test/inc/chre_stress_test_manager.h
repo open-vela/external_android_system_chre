@@ -55,6 +55,9 @@ class Manager {
     //! Corresponds to types defined in chre_api/sensor_types.h.
     const uint8_t type;
 
+    //! The sampling interval for the next sensor request.
+    uint64_t samplingInterval;
+
     //! The sensor handle obtained from chreSensorFindDefault().
     uint32_t handle;
 
@@ -199,11 +202,18 @@ class Manager {
   void handleGyroSensorDataEvent(const chreSensorThreeAxisData *eventData);
   void handleInstantMotionSensorDataEvent(
       const chreSensorOccurrenceData *eventData);
+  void handleSensorSamplingChangeEvent(
+      const chreSensorSamplingStatusEvent *eventData);
 
   /**
    * Makes the next sensor request.
    */
-  void makeSensorRequest();
+  void makeSensorRequests();
+
+  /**
+   * Send a disable request to all sensors.
+   */
+  void stopSensorRequests();
 
   /**
    * @param event The audio event from CHRE.
@@ -267,6 +277,8 @@ class Manager {
   uint64_t mPrevInstantMotionEventTimestampNs = 0;
   uint64_t mPrevAudioEventTimestampMs = 0;
 
+  //! The sensor sampling status
+
   //! Current number of sensors tested.
   static constexpr uint32_t kNumSensors = 3;
 
@@ -275,17 +287,20 @@ class Manager {
       {
           .type = CHRE_SENSOR_TYPE_ACCELEROMETER,
           .handle = 0,
-          .enabled = true,
-          .info = {},
-      },
-      {
-          .type = CHRE_SENSOR_TYPE_INSTANT_MOTION_DETECT,
-          .handle = 0,
+          .samplingInterval = 0,
           .enabled = true,
           .info = {},
       },
       {
           .type = CHRE_SENSOR_TYPE_GYROSCOPE,
+          .samplingInterval = 0,
+          .handle = 0,
+          .enabled = true,
+          .info = {},
+      },
+      {
+          .type = CHRE_SENSOR_TYPE_INSTANT_MOTION_DETECT,
+          .samplingInterval = CHRE_SENSOR_INTERVAL_DEFAULT,
           .handle = 0,
           .enabled = true,
           .info = {},

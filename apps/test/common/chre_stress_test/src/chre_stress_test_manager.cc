@@ -43,10 +43,11 @@ namespace {
 
 constexpr chre::Nanoseconds kWifiScanInterval = chre::Seconds(5);
 constexpr chre::Nanoseconds kSensorRequestInterval = chre::Seconds(5);
-constexpr uint64_t kSensorSamplingIntervalNs =
-    chre::Milliseconds(200).toRawNanoseconds();
 constexpr uint64_t kSensorSamplingDelayNs = 0;
 constexpr chre::Nanoseconds kAudioRequestInterval = chre::Seconds(5);
+constexpr uint8_t kAccelSensorIndex = 0;
+constexpr uint8_t kGyroSensorIndex = 1;
+constexpr uint8_t kInstantMotionSensorIndex = 1;
 
 bool isRequestTypeForLocation(uint8_t requestType) {
   return (requestType == CHRE_GNSS_REQUEST_TYPE_LOCATION_SESSION_START) ||
@@ -204,6 +205,15 @@ void Manager::handleDataFromChre(uint16_t eventType, const void *eventData) {
           static_cast<const chreSensorOccurrenceData *>(eventData));
       break;
 
+    case CHRE_EVENT_SENSOR_SAMPLING_CHANGE:
+      handleSensorSamplingChangeEvent(
+          static_cast<const chreSensorSamplingStatusEvent *>(eventData));
+      break;
+
+    case CHRE_EVENT_SENSOR_GYROSCOPE_BIAS_INFO:
+      LOGI("Received gyro bias info");
+      break;
+
     case CHRE_EVENT_AUDIO_DATA:
       handleAudioDataEvent(static_cast<const chreAudioDataEvent *>(eventData));
       break;
@@ -229,7 +239,7 @@ void Manager::handleTimerEvent(const uint32_t *handle) {
   } else if (*handle == mGnssMeasurementTimerHandle) {
     makeGnssMeasurementRequest();
   } else if (*handle == mSensorTimerHandle) {
-    makeSensorRequest();
+    makeSensorRequests();
   } else if (*handle == mGnssLocationAsyncTimerHandle &&
              mGnssLocationAsyncRequest.has_value()) {
     sendFailure("GNSS location async result timed out");
@@ -355,6 +365,9 @@ void Manager::checkTimestampInterval(uint64_t timestamp, uint64_t pastTimestamp,
   checkTimestamp(timestamp, pastTimestamp);
   if (timestamp - pastTimestamp > maxInterval) {
     LOGE("Timestamp is later than expected");
+    LOGI("Current timestamp %" PRIu64, timestamp);
+    LOGI("past timestamp %" PRIu64, pastTimestamp);
+    LOGI("Timestamp difference %" PRIu64, timestamp - pastTimestamp);
   }
 }
 
@@ -403,14 +416,18 @@ void Manager::handleAccelSensorDataEvent(
   const auto &header = eventData->header;
   uint64_t timestamp = header.baseTimestamp;
 
-  // Note: The interval is selected 1 microsecond higher than the sensor
-  // sampling interval (200ms) to account for processing delays.
-  if (mPrevAccelEventTimestampNs != 0) {
-    checkTimestampInterval(
-        timestamp, mPrevAccelEventTimestampNs,
-        kSensorSamplingIntervalNs + kOneMillisecondInNanoseconds);
+  // Note: The stress test sends streaming data request for accel, so only
+  // non-batched data are checked for timestamp. The allowed interval between
+  // data events is selected 1 ms higher than the sensor sampling interval to
+  // account for processing delays.
+  if (header.readingCount == 1) {
+    if (mPrevAccelEventTimestampNs != 0) {
+      checkTimestampInterval(timestamp, mPrevAccelEventTimestampNs,
+                             mSensors[kAccelSensorIndex].samplingInterval +
+                                 kOneMillisecondInNanoseconds);
+    }
+    mPrevAccelEventTimestampNs = timestamp;
   }
-  mPrevAccelEventTimestampNs = timestamp;
 }
 
 void Manager::handleGyroSensorDataEvent(
@@ -418,14 +435,17 @@ void Manager::handleGyroSensorDataEvent(
   const auto &header = eventData->header;
   uint64_t timestamp = header.baseTimestamp;
 
-  // Note: The interval is selected 1ms higher than the sensor
-  // sampling interval (200ms) to account for processing delays.
-  if (mPrevGyroEventTimestampNs) {
-    checkTimestampInterval(
-        timestamp, mPrevGyroEventTimestampNs,
-        kSensorSamplingIntervalNs + kOneMillisecondInNanoseconds);
+  // Note: The stress test sends streaming data request for gyro, so only
+  // non-batched data are checked for timestamp. The interval is selected 1ms
+  // higher than the sensor sampling interval to account for processing delays.
+  if (header.readingCount == 1) {
+    if (mPrevGyroEventTimestampNs != 0) {
+      checkTimestampInterval(timestamp, mPrevGyroEventTimestampNs,
+                             mSensors[kGyroSensorIndex].samplingInterval +
+                                 kOneMillisecondInNanoseconds);
+    }
+    mPrevGyroEventTimestampNs = timestamp;
   }
-  mPrevGyroEventTimestampNs = timestamp;
 }
 
 void Manager::handleInstantMotionSensorDataEvent(
@@ -433,8 +453,26 @@ void Manager::handleInstantMotionSensorDataEvent(
   const auto &header = eventData->header;
   uint64_t timestamp = header.baseTimestamp;
 
+  mSensors[kInstantMotionSensorIndex].enabled = false;
   checkTimestamp(timestamp, mPrevInstantMotionEventTimestampNs);
   mPrevInstantMotionEventTimestampNs = timestamp;
+}
+
+void Manager::handleSensorSamplingChangeEvent(
+    const chreSensorSamplingStatusEvent *eventData) {
+  LOGI("Sampling Change: handle %" PRIu32 ", status: interval %" PRIu64
+       " latency %" PRIu64 " enabled %d",
+       eventData->sensorHandle, eventData->status.interval,
+       eventData->status.latency, eventData->status.enabled);
+  if (eventData->sensorHandle == mSensors[kAccelSensorIndex].handle &&
+      eventData->status.interval !=
+          mSensors[kAccelSensorIndex].samplingInterval) {
+    mSensors[kAccelSensorIndex].samplingInterval = eventData->status.interval;
+  } else if (eventData->sensorHandle == mSensors[kGyroSensorIndex].handle &&
+             eventData->status.interval !=
+                 mSensors[kGyroSensorIndex].samplingInterval) {
+    mSensors[kGyroSensorIndex].samplingInterval = eventData->status.interval;
+  }
 }
 
 void Manager::handleCellInfoResult(const chreWwanCellInfoResult *event) {
@@ -549,6 +587,7 @@ void Manager::handleSensorStartCommand(bool start) {
       chreSensorInfo &info = sensor.info;
       bool infoStatus = chreGetSensorInfo(sensor.handle, &info);
       if (infoStatus) {
+        sensor.samplingInterval = info.minInterval;
         LOGI("SensorInfo: %s, Type=%" PRIu8
              " OnChange=%d OneShot=%d Passive=%d "
              "minInterval=%" PRIu64 "nsec",
@@ -561,13 +600,12 @@ void Manager::handleSensorStartCommand(bool start) {
     LOGI("Sensor %zu initialized: %s with handle %" PRIu32, i,
          isInitialized ? "true" : "false", sensor.handle);
   }
-  makeSensorRequest();
 
   if (sensorsFound) {
     if (start) {
-      setTimer(kSensorRequestInterval.toRawNanoseconds(), true /* oneShot */,
-               &mSensorTimerHandle);
+      makeSensorRequests();
     } else {
+      stopSensorRequests();
       cancelTimer(&mSensorTimerHandle);
     }
   } else {
@@ -605,7 +643,7 @@ void Manager::cancelTimer(uint32_t *timerHandle) {
   }
 }
 
-void Manager::makeSensorRequest() {
+void Manager::makeSensorRequests() {
   bool anySensorConfigured = false;
   for (size_t i = 0; i < ARRAY_SIZE(mSensors); i++) {
     SensorState &sensor = mSensors[i];
@@ -618,17 +656,22 @@ void Manager::makeSensorRequest() {
       } else {
         status = chreSensorConfigure(
             sensor.handle, CHRE_SENSOR_CONFIGURE_MODE_CONTINUOUS,
-            kSensorSamplingIntervalNs, kSensorSamplingDelayNs);
+            sensor.samplingInterval, kSensorSamplingDelayNs);
       }
     } else {
       status = chreSensorConfigureModeOnly(sensor.handle,
                                            CHRE_SENSOR_CONFIGURE_MODE_DONE);
+      if (i == kAccelSensorIndex) {
+        mPrevAccelEventTimestampNs = 0;
+      } else if (i == kGyroSensorIndex) {
+        mPrevGyroEventTimestampNs = 0;
+      }
     }
-    LOGI("Configure [enable %d, status %d]: %s", sensor.enabled, status,
-         sensor.info.sensorName);
     if (status) {
       sensor.enabled = !sensor.enabled;
     }
+    LOGI("Configure [enable %d, status %d]: %s", sensor.enabled, status,
+         sensor.info.sensorName);
     anySensorConfigured = anySensorConfigured || status;
   }
   if (anySensorConfigured) {
@@ -636,6 +679,18 @@ void Manager::makeSensorRequest() {
              &mSensorTimerHandle);
   } else {
     sendFailure("Failed to make sensor request");
+  }
+}
+
+void Manager::stopSensorRequests() {
+  for (size_t i = 0; i < ARRAY_SIZE(mSensors); i++) {
+    SensorState &sensor = mSensors[i];
+    if (sensor.enabled) {
+      if (!chreSensorConfigureModeOnly(sensor.handle,
+                                       CHRE_SENSOR_CONFIGURE_MODE_DONE)) {
+        LOGE("Failed to disable sensor: %s", sensor.info.sensorName);
+      }
+    }
   }
 }
 
