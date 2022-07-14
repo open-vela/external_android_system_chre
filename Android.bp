@@ -46,7 +46,7 @@ license {
 
 cc_library_static {
     name: "chre_client",
-    vendor: true,
+    vendor_available: true,
     export_include_dirs: [
         "host/common/include",
         "platform/shared/include",
@@ -351,7 +351,7 @@ cc_library_headers {
 
 cc_library_headers {
     name: "chre_flatbuffers",
-    vendor: true,
+    vendor_available: true,
     host_supported: true,
     export_include_dirs: [
         "external/flatbuffers/include",
