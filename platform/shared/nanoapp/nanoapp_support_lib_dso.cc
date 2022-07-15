@@ -250,40 +250,6 @@ bool chreIsHostAwake(void) {
 #ifdef CHRE_NANOAPP_USES_GNSS
 
 WEAK_SYMBOL
-uint32_t chreGnssGetCapabilities(void) {
-  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreGnssGetCapabilities);
-  return (fptr != nullptr) ? fptr() : CHRE_GNSS_CAPABILITIES_NONE;
-}
-
-WEAK_SYMBOL
-bool chreGnssLocationSessionStartAsync(uint32_t minIntervalMs,
-                                       uint32_t minTimeToNextFixMs,
-                                       const void *cookie) {
-  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreGnssLocationSessionStartAsync);
-  return (fptr != nullptr) ? fptr(minIntervalMs, minTimeToNextFixMs, cookie)
-                           : false;
-}
-
-WEAK_SYMBOL
-bool chreGnssLocationSessionStopAsync(const void *cookie) {
-  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreGnssLocationSessionStopAsync);
-  return (fptr != nullptr) ? fptr(cookie) : false;
-}
-
-WEAK_SYMBOL
-bool chreGnssMeasurementSessionStartAsync(uint32_t minIntervalMs,
-                                          const void *cookie) {
-  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreGnssMeasurementSessionStartAsync);
-  return (fptr != nullptr) ? fptr(minIntervalMs, cookie) : false;
-}
-
-WEAK_SYMBOL
-bool chreGnssMeasurementSessionStopAsync(const void *cookie) {
-  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreGnssMeasurementSessionStopAsync);
-  return (fptr != nullptr) ? fptr(cookie) : false;
-}
-
-WEAK_SYMBOL
 bool chreGnssConfigurePassiveLocationListener(bool enable) {
   auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreGnssConfigurePassiveLocationListener);
   return (fptr != nullptr) ? fptr(enable) : false;
@@ -292,24 +258,6 @@ bool chreGnssConfigurePassiveLocationListener(bool enable) {
 #endif /* CHRE_NANOAPP_USES_GNSS */
 
 #ifdef CHRE_NANOAPP_USES_WIFI
-
-WEAK_SYMBOL
-uint32_t chreWifiGetCapabilities(void) {
-  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreWifiGetCapabilities);
-  return (fptr != nullptr) ? fptr() : CHRE_WIFI_CAPABILITIES_NONE;
-}
-
-WEAK_SYMBOL
-bool chreWifiNanGetCapabilities(struct chreWifiNanCapabilities *capabilities) {
-  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreWifiNanGetCapabilities);
-  return (fptr != nullptr) ? fptr(capabilities) : false;
-}
-
-WEAK_SYMBOL
-bool chreWifiConfigureScanMonitorAsync(bool enable, const void *cookie) {
-  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreWifiConfigureScanMonitorAsync);
-  return (fptr != nullptr) ? fptr(enable, cookie) : false;
-}
 
 WEAK_SYMBOL
 bool chreWifiRequestScanAsync(const struct chreWifiScanParams *params,
@@ -356,22 +304,6 @@ bool chreWifiNanSubscribeCancel(uint32_t subscriptionID) {
 }
 
 #endif /* CHRE_NANOAPP_USES_WIFI */
-
-#ifdef CHRE_NANOAPP_USES_WWAN
-
-WEAK_SYMBOL
-uint32_t chreWwanGetCapabilities(void) {
-  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreWwanGetCapabilities);
-  return (fptr != nullptr) ? fptr() : CHRE_WWAN_CAPABILITIES_NONE;
-}
-
-WEAK_SYMBOL
-bool chreWwanGetCellInfoAsync(const void *cookie) {
-  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreWwanGetCellInfoAsync);
-  return (fptr != nullptr) ? fptr(cookie) : false;
-}
-
-#endif /* CHRE_NANOAPP_USES_WWAN */
 
 WEAK_SYMBOL
 bool chreSensorFind(uint8_t sensorType, uint8_t sensorIndex, uint32_t *handle) {
