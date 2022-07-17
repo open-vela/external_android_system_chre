@@ -15,6 +15,7 @@
  */
 
 #include "chre/platform/platform_nanoapp.h"
+#include "chre/util/system/napp_permissions.h"
 
 namespace chre {
 
@@ -78,6 +79,18 @@ void PlatformNanoappBase::loadStatic(const struct chreNslNanoappInfo *appInfo) {
   CHRE_ASSERT(!isLoaded());
   mIsStatic = true;
   mAppInfo = appInfo;
+}
+
+bool PlatformNanoapp::supportsAppPermissions() const {
+  return (mAppInfo != nullptr) ? (mAppInfo->structMinorVersion >=
+                                  CHRE_NSL_NANOAPP_INFO_STRUCT_MINOR_VERSION)
+                               : false;
+}
+
+uint32_t PlatformNanoapp::getAppPermissions() const {
+  return (supportsAppPermissions())
+             ? mAppInfo->appPermissions
+             : static_cast<uint32_t>(chre::NanoappPermissions::CHRE_PERMS_NONE);
 }
 
 }  // namespace chre

@@ -306,6 +306,12 @@ bool chreWifiNanGetCapabilities(struct chreWifiNanCapabilities *capabilities) {
 }
 
 WEAK_SYMBOL
+bool chreWifiConfigureScanMonitorAsync(bool enable, const void *cookie) {
+  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreWifiConfigureScanMonitorAsync);
+  return (fptr != nullptr) ? fptr(enable, cookie) : false;
+}
+
+WEAK_SYMBOL
 bool chreWifiRequestScanAsync(const struct chreWifiScanParams *params,
                               const void *cookie) {
   auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreWifiRequestScanAsync);
