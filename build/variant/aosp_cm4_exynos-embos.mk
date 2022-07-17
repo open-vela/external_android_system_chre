@@ -26,16 +26,18 @@ TARGET_CFLAGS += $(ARM_CFLAGS)
 TARGET_CFLAGS += $(EMBOS_CFLAGS)
 TARGET_CFLAGS += $(EXYNOS_CFLAGS)
 TARGET_CFLAGS += -I$(RAINBOW_SDK_DIR)/OEM/LSI/exynos9925/firmware/os/platform/exynos/inc
-TARGET_CFLAGS += -I$(RAINBOW_SDK_DIR)/OEM/LSI/exynos9925/firmware/os/platform/exynos/inc/plat/csp
 TARGET_CFLAGS += -I$(RAINBOW_SDK_DIR)/OEM/LSI/exynos9925/firmware/os/platform/exynos/inc/plat
-TARGET_CFLAGS += -I$(RAINBOW_SDK_DIR)/OEM/LSI/exynos9925/embos/Project/erd9925/DeviceSupport
 TARGET_CFLAGS += -I$(RAINBOW_SDK_DIR)/OEM/LSI/exynos9925/firmware/os/platform/exynos/inc/plat/cmsis
+TARGET_CFLAGS += -I$(RAINBOW_SDK_DIR)/OEM/LSI/exynos9925/firmware/os/platform/exynos/inc/plat/csp
+TARGET_CFLAGS += -I$(RAINBOW_SDK_DIR)/OEM/LSI/exynos9925/firmware/os/platform/exynos/inc/plat/mailbox
+TARGET_CFLAGS += -I$(RAINBOW_SDK_DIR)/OEM/LSI/exynos9925/embos/Project/erd9925/DeviceSupport
 
 # IAR interlinking compatibility flags
-TARGET_CFLAGS += -fshort-wchar
 TARGET_CFLAGS += -D__ARM7EM__
 TARGET_CFLAGS += -D__CORE__=__ARM7EM__
 TARGET_CFLAGS += -D__FPU_PRESENT=1
+TARGET_CFLAGS += -fshort-wchar
+TARGET_SO_LDFLAGS += --no-wchar-size-warning
 
 # The Exynos lib has a macro that includes common headers based on a 'Chip' ID. Eg:
 # CSP_HEADER(csp_common) includes csp_common{CHIP}.h.
