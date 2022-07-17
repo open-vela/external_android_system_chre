@@ -22,7 +22,7 @@
 // TODO(b/230134803): Note that 'printf' currently redirects to dmesg: modify
 // the below macros when we have a platform implementation available that
 // redirects to logcat.
-#define CHRE_EXYNOS_LOG(logLevel, fmt, ...) printf(fmt, ##__VA_ARGS__)
+#define CHRE_EXYNOS_LOG(logLevel, fmt, ...) printf("[CHRE] " fmt, ##__VA_ARGS__)
 
 #define LOGE(fmt, ...) CHRE_EXYNOS_LOG(CHRE_LOG_ERROR, fmt, ##__VA_ARGS__)
 #define LOGW(fmt, ...) CHRE_EXYNOS_LOG(CHRE_LOG_WARN, fmt, ##__VA_ARGS__)

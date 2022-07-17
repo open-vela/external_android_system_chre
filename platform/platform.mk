@@ -346,6 +346,7 @@ endif
 
 # EmbOS specific compiler flags
 EMBOS_CFLAGS += -I$(CHRE_PREFIX)/platform/embos/include
+EMBOS_CFLAGS += -I$(CHRE_PREFIX)/platform/shared/aligned_alloc_unsupported/include
 EMBOS_CFLAGS += -I$(CHRE_PREFIX)/platform/shared/include
 EMBOS_CFLAGS += $(FLATBUFFERS_CFLAGS)
 
@@ -365,7 +366,6 @@ EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/chre_api_ble.cc
 EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/chre_api_core.cc
 EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/chre_api_gnss.cc
 EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/chre_api_re.cc
-EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/chre_api_sensor.cc
 EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/chre_api_user_settings.cc
 EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/chre_api_version.cc
 EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/chre_api_wifi.cc
@@ -388,6 +388,7 @@ EXYNOS_CFLAGS += -I$(CHRE_PREFIX)/platform/exynos/include
 EXYNOS_CFLAGS += -I$(CHRE_PREFIX)/platform/shared/audio_pal/include
 
 EXYNOS_SRCS += $(CHRE_PREFIX)/platform/exynos/platform_nanoapp.cc
+EXYNOS_SRCS += $(CHRE_PREFIX)/platform/exynos/platform_pal.cc
 EXYNOS_SRCS += $(CHRE_PREFIX)/platform/exynos/power_control_manager.cc
 EXYNOS_SRCS += $(CHRE_PREFIX)/platform/exynos/system_time.cc
 EXYNOS_SRCS += $(CHRE_PREFIX)/platform/exynos/host_link.cc
@@ -395,9 +396,15 @@ EXYNOS_SRCS += $(CHRE_PREFIX)/platform/exynos/host_link.cc
 # Optional sensors support
 ifeq ($(CHRE_SENSORS_SUPPORT_ENABLED), true)
 EXYNOS_CFLAGS += -I$(CHRE_PREFIX)/platform/shared/sensor_pal/include
+EXYNOS_SRCS += $(CHRE_PREFIX)/platform/shared/chre_api_sensor.cc
 EXYNOS_SRCS += $(CHRE_PREFIX)/platform/shared/sensor_pal/platform_sensor_manager.cc
 EXYNOS_SRCS += $(CHRE_PREFIX)/platform/shared/sensor_pal/platform_sensor.cc
 EXYNOS_SRCS += $(CHRE_PREFIX)/platform/shared/sensor_pal/platform_sensor_type_helpers.cc
+endif
+
+ifeq ($(CHRE_AUDIO_SUPPORT_ENABLED), true)
+EXYNOS_CFLAGS += -I$(CHRE_PREFIX)/platform/shared/audio_pal/include
+EXYNOS_SRCS += $(CHRE_PREFIX)/platform/shared/audio_pal/platform_audio.cc
 endif
 
 # ARM specific compiler flags
