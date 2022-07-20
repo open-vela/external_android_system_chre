@@ -17,7 +17,7 @@
 #ifndef CHRE_PLATFORM_ZEPHYR_CONDITION_VARIABLE_BASE_H_
 #define CHRE_PLATFORM_ZEPHYR_CONDITION_VARIABLE_BASE_H_
 
-#include <zephyr/kernel.h>
+#include <kernel.h>
 
 namespace chre {
 
