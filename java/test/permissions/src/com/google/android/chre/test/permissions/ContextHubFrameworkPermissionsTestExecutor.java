@@ -136,9 +136,8 @@ public class ContextHubFrameworkPermissionsTestExecutor extends ContextHubClient
                 "cmd contexthub deny " + mContextHubInfo.getId()
                 + " " + mContext.getPackageName() + " " + mNanoAppId);
 
-        Integer authorization = mAuthorizationUpdateQueue.poll(2, TimeUnit.SECONDS);
-        Assert.assertNotNull("Timed out waiting on denied authorization update", authorization);
-        Assert.assertEquals((int) authorization, ContextHubManager.AUTHORIZATION_DENIED);
+        int authorization = mAuthorizationUpdateQueue.poll(2, TimeUnit.SECONDS);
+        Assert.assertEquals(authorization, ContextHubManager.AUTHORIZATION_DENIED);
 
         try {
             mContextHubClient.sendMessageToNanoApp(message);
