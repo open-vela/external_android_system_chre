@@ -38,14 +38,19 @@ using nanoapp_testing::sendSuccessToHost;
 /*
  * Test to check expected functionality of the CHRE WiFi APIs.
  *
- * 1. If scan monitor is not supported, skip to 5;
+ * 1. If scan monitor is not supported, skips to 3;
  *    otherwise enables scan monitor.
  * 2. Checks async result of enabling scan monitor.
- * 3. Disables scan monitor.
- * 4. Checks async result of disabling scan monitor.
- * 5. If on demand WiFi scan is not supported, skip to end;
+ * 3. If on demand WiFi scan is not supported, skips to 5;
  *    otherwise sends default scan request.
- * 6. Checks the result of on demand WiFi scan.
+ * 4. Checks the result of on demand WiFi scan.
+ * 5. If scan monitor is supported then disables scan monitor;
+ *    otherwise go to step 7.
+ * 6. Checks async result of disabling scan monitor.
+ * 7. If a scan has ever happened runs the ranging test; otherwise
+ *    go to the end.
+ * 8. Checks the ranging test result.
+ * 9. end
  */
 namespace general_test {
 
@@ -78,6 +83,9 @@ constexpr uint32_t kWifiBandFreqOfChannel_14 = 2484;
 //! being deliverd to the test.
 constexpr uint32_t kTimeoutWiggleRoomNs = 2 * chre::kOneSecondInNanoseconds;
 
+// Number of seconds waited before retrying when an on demand wifi scan fails.
+constexpr uint64_t kOnDemandScanTimeoutNs = 7 * chre::kOneSecondInNanoseconds;
+
 /**
  * Calls API testConfigureScanMonitorAsync. Sends fatal failure to host
  * if API call fails.
@@ -88,6 +96,7 @@ constexpr uint32_t kTimeoutWiggleRoomNs = 2 * chre::kOneSecondInNanoseconds;
  *        sent in relation to this request.
  */
 void testConfigureScanMonitorAsync(bool enable, const void *cookie) {
+  LOGI("Starts scan monitor configure test: %s", enable ? "enable" : "disable");
   if (!chreWifiConfigureScanMonitorAsync(enable, cookie)) {
     if (enable) {
       sendFatalFailureToHost("Failed to request to enable scan monitor.");
@@ -102,6 +111,7 @@ void testConfigureScanMonitorAsync(bool enable, const void *cookie) {
  * if API call fails.
  */
 void testRequestScanAsync() {
+  LOGI("Starts on demand scan test");
   // Request a fresh scan to ensure the correct scan type is performed.
   constexpr struct chreWifiScanParams kParams = {
       /*.scanType=*/CHRE_WIFI_SCAN_TYPE_ACTIVE,
@@ -112,7 +122,6 @@ void testRequestScanAsync() {
       /*.ssidList=*/NULL,
       /*.radioChainPref=*/CHRE_WIFI_RADIO_CHAIN_PREF_DEFAULT,
       /*.channelSet=*/CHRE_WIFI_CHANNEL_SET_NON_DFS};
-
   if (!chreWifiRequestScanAsync(&kParams, &kOnDemandScanCookie)) {
     sendFatalFailureToHost("Failed to request for on-demand WiFi scan.");
   }
@@ -124,6 +133,7 @@ void testRequestScanAsync() {
  */
 void testRequestRangingAsync(const struct chreWifiScanResult *aps,
                              uint8_t length) {
+  LOGI("Starts ranging test");
   // Sending an array larger than CHRE_WIFI_RANGING_LIST_MAX_LEN will cause
   // an immediate failure.
   uint8_t targetLength =
@@ -339,6 +349,7 @@ void BasicWifiTest::setUp(uint32_t messageSize, const void * /* message */) {
 void BasicWifiTest::handleEvent(uint32_t /* senderInstanceId */,
                                 uint16_t eventType, const void *eventData) {
   ASSERT_NE(eventData, nullptr, "Received null eventData");
+  LOGI("Received event type %" PRIu16, eventType);
   switch (eventType) {
     case CHRE_EVENT_WIFI_ASYNC_RESULT:
       handleChreWifiAsyncEvent(static_cast<const chreAsyncResult *>(eventData));
@@ -348,6 +359,8 @@ void BasicWifiTest::handleEvent(uint32_t /* senderInstanceId */,
         sendFatalFailureToHost("WiFi scan event received when not requested");
       }
       const auto *result = static_cast<const chreWifiScanEvent *>(eventData);
+      LOGI("Received wifi scan result, result count: %" PRIu8,
+           result->resultCount);
 
       if (!isActiveWifiScanType(result)) {
         LOGW("Received unexpected scan type %" PRIu8, result->scanType);
@@ -391,6 +404,15 @@ void BasicWifiTest::handleEvent(uint32_t /* senderInstanceId */,
           BASIC_WIFI_TEST_STAGE_SCAN_RTT);
       break;
     }
+    case CHRE_EVENT_TIMER: {
+      const uint32_t *timerHandle = static_cast<const uint32_t *>(eventData);
+      if (mScanTimeoutTimerHandle != CHRE_TIMER_INVALID &&
+          timerHandle == &mScanTimeoutTimerHandle) {
+        mScanTimeoutTimerHandle = CHRE_TIMER_INVALID;
+        startScanAsyncTestStage();
+      }
+      break;
+    }
     default:
       unexpectedEvent(eventType);
       break;
@@ -401,28 +423,44 @@ void BasicWifiTest::handleChreWifiAsyncEvent(const chreAsyncResult *result) {
   if (!mCurrentWifiRequest.has_value()) {
     nanoapp_testing::sendFailureToHost("Unexpected async result");
   }
-
+  LOGI("Received a wifi async event. request type: %" PRIu8
+       " error code: %" PRIu8,
+       result->requestType, result->errorCode);
+  if (result->requestType == CHRE_WIFI_REQUEST_TYPE_REQUEST_SCAN &&
+      !result->success && mNumScanRetriesRemaining > 0) {
+    LOGI("Wait for %" PRIu64 " seconds and try again",
+         kOnDemandScanTimeoutNs / chre::kOneSecondInNanoseconds);
+    mNumScanRetriesRemaining--;
+    mScanTimeoutTimerHandle = chreTimerSet(
+        /* duration= */ kOnDemandScanTimeoutNs, &mScanTimeoutTimerHandle,
+        /* oneShot= */ true);
+    return;
+  }
   validateChreAsyncResult(result, mCurrentWifiRequest.value());
+  processChreWifiAsyncResult(result);
+}
 
+void BasicWifiTest::processChreWifiAsyncResult(const chreAsyncResult *result) {
   switch (result->requestType) {
     case CHRE_WIFI_REQUEST_TYPE_RANGING:
       // Reuse same start timestamp as the scan request since ranging fields
       // may be retrieved automatically as part of that scan.
       break;
     case CHRE_WIFI_REQUEST_TYPE_REQUEST_SCAN:
-      mStartTimestampNs = chreGetTime();
+      LOGI("Wifi scan result validated");
+      if (mScanTimeoutTimerHandle != CHRE_TIMER_INVALID) {
+        chreTimerCancel(mScanTimeoutTimerHandle);
+        mScanTimeoutTimerHandle = CHRE_TIMER_INVALID;
+      }
       break;
     case CHRE_WIFI_REQUEST_TYPE_CONFIGURE_SCAN_MONITOR:
       if (mCurrentWifiRequest->cookie == &kDisableScanMonitoringCookie) {
         mTestSuccessMarker.markStageAndSuccessOnFinish(
             BASIC_WIFI_TEST_STAGE_SCAN_MONITOR);
-        startScanAsyncTestStage();
+        mStartTimestampNs = chreGetTime();
+        startRangingAsyncTestStage();
       } else {
-        testConfigureScanMonitorAsync(false /* enable */,
-                                      &kDisableScanMonitoringCookie);
-        resetCurrentWifiRequest(&kDisableScanMonitoringCookie,
-                                CHRE_WIFI_REQUEST_TYPE_CONFIGURE_SCAN_MONITOR,
-                                CHRE_ASYNC_RESULT_TIMEOUT_NS);
+        startScanAsyncTestStage();
       }
       break;
     default:
@@ -437,6 +475,8 @@ bool BasicWifiTest::isActiveWifiScanType(const chreWifiScanEvent *eventData) {
 }
 
 void BasicWifiTest::startScanMonitorTestStage() {
+  LOGI("startScanMonitorTestStage - Wifi capabilities: %" PRIu32,
+       mWifiCapabilities);
   if (mWifiCapabilities & CHRE_WIFI_CAPABILITIES_SCAN_MONITORING) {
     testConfigureScanMonitorAsync(true /* enable */,
                                   &kEnableScanMonitoringCookie);
@@ -456,9 +496,18 @@ void BasicWifiTest::startScanAsyncTestStage() {
     resetCurrentWifiRequest(&kOnDemandScanCookie,
                             CHRE_WIFI_REQUEST_TYPE_REQUEST_SCAN,
                             CHRE_WIFI_SCAN_RESULT_TIMEOUT_NS);
+  } else if (mWifiCapabilities & CHRE_WIFI_CAPABILITIES_SCAN_MONITORING) {
+    mTestSuccessMarker.markStageAndSuccessOnFinish(
+        BASIC_WIFI_TEST_STAGE_SCAN_ASYNC);
+    testConfigureScanMonitorAsync(false /* enable */,
+                                  &kDisableScanMonitoringCookie);
+    resetCurrentWifiRequest(&kDisableScanMonitoringCookie,
+                            CHRE_WIFI_REQUEST_TYPE_CONFIGURE_SCAN_MONITOR,
+                            CHRE_ASYNC_RESULT_TIMEOUT_NS);
   } else {
     mTestSuccessMarker.markStageAndSuccessOnFinish(
         BASIC_WIFI_TEST_STAGE_SCAN_ASYNC);
+    mStartTimestampNs = chreGetTime();
     startRangingAsyncTestStage();
   }
 }
@@ -523,11 +572,22 @@ void BasicWifiTest::validateWifiScanEvent(const chreWifiScanEvent *eventData) {
                                       eventData->resultCount);
   }
 
+  LOGI("Remaining scan result is %" PRIu32, mWiFiScanResultRemaining);
+
   if (mWiFiScanResultRemaining == 0) {
     mNextExpectedIndex = 0;
     mTestSuccessMarker.markStageAndSuccessOnFinish(
         BASIC_WIFI_TEST_STAGE_SCAN_ASYNC);
-    startRangingAsyncTestStage();
+    if (mWifiCapabilities & CHRE_WIFI_CAPABILITIES_SCAN_MONITORING) {
+      testConfigureScanMonitorAsync(false /* enable */,
+                                    &kDisableScanMonitoringCookie);
+      resetCurrentWifiRequest(&kDisableScanMonitoringCookie,
+                              CHRE_WIFI_REQUEST_TYPE_CONFIGURE_SCAN_MONITOR,
+                              CHRE_ASYNC_RESULT_TIMEOUT_NS);
+    } else {
+      mStartTimestampNs = chreGetTime();
+      startRangingAsyncTestStage();
+    }
   }
 }
 
@@ -565,17 +625,14 @@ void BasicWifiTest::validateRangingEvent(
 
   for (uint8_t i = 0; i < eventData->resultCount; i++) {
     auto &result = eventData->results[i];
-
+    auto currentTime = chreGetTime();
     if (result.timestamp < mStartTimestampNs ||
-        result.timestamp > chreGetTime()) {
+        result.timestamp > currentTime) {
       LOGE("Invalid Ranging result timestamp = %" PRIu64 " (%" PRIu64
            ", %" PRIu64 "). Status = %" PRIu8,
-           result.timestamp, mStartTimestampNs, chreGetTime(), result.status);
+           result.timestamp, mStartTimestampNs, currentTime, result.status);
+      sendFatalFailureToHost("Invalid ranging result timestamp");
     }
-
-    ASSERT_IN_RANGE(result.timestamp, mStartTimestampNs, chreGetTime(),
-                    "Ranging result timestamp isn't between the ranging "
-                    "request start time and the current time");
 
     if (result.status != CHRE_WIFI_RANGING_STATUS_SUCCESS) {
       if (result.rssi != 0 || result.distance != 0 ||
@@ -613,8 +670,15 @@ bool BasicWifiTest::rangingEventExpected() {
 }
 
 bool BasicWifiTest::scanEventExpected() {
-  return mTestSuccessMarker.isStageMarked(BASIC_WIFI_TEST_STAGE_SCAN_MONITOR) &&
-         !mTestSuccessMarker.isStageMarked(BASIC_WIFI_TEST_STAGE_SCAN_ASYNC);
+  bool scanMonitoringFinished =
+      mTestSuccessMarker.isStageMarked(BASIC_WIFI_TEST_STAGE_SCAN_MONITOR);
+  bool onDemandScanFinished =
+      mTestSuccessMarker.isStageMarked(BASIC_WIFI_TEST_STAGE_SCAN_ASYNC);
+  if (mWifiCapabilities & CHRE_WIFI_CAPABILITIES_SCAN_MONITORING) {
+    return !scanMonitoringFinished && !onDemandScanFinished;
+  } else {
+    return scanMonitoringFinished && !onDemandScanFinished;
+  }
 }
 
 }  // namespace general_test
