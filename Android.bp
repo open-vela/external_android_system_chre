@@ -108,6 +108,26 @@ cc_binary {
     static_libs: ["chre_client"],
 }
 
+cc_binary {
+    name: "chre_aidl_hal_client",
+    vendor: true,
+    local_include_dirs: [
+        "host/common/include",
+    ],
+    srcs: [
+        "host/common/file_stream.cc",
+        "host/common/chre_aidl_hal_client.cc",
+    ],
+    shared_libs: [
+        "android.hardware.contexthub-V1-ndk",
+        "libbase",
+        "libbinder_ndk",
+        "liblog",
+        "libutils",
+    ],
+    cflags: ["-Wall", "-Werror"],
+}
+
 cc_test {
     name: "audio_stress_test",
     vendor: true,
