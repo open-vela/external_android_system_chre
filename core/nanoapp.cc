@@ -123,10 +123,20 @@ void Nanoapp::configureUserSettingEvent(uint8_t setting, bool enable) {
 }
 
 void Nanoapp::processEvent(Event *event) {
+  Nanoseconds eventStartTime = SystemTime::getMonotonicTime();
   if (event->eventType == CHRE_EVENT_GNSS_DATA) {
     handleGnssMeasurementDataEvent(event);
   } else {
     handleEvent(event->senderInstanceId, event->eventType, event->eventData);
+  }
+
+  Nanoseconds eventProcessTime =
+      SystemTime::getMonotonicTime() - eventStartTime;
+  if (Milliseconds(eventProcessTime) >= Milliseconds(100)) {
+    LOGE("Nanoapp 0x%" PRIx64 " took %" PRIu64
+         " ms to process event type %" PRIu16,
+         getAppId(), Milliseconds(eventProcessTime).getMilliseconds(),
+         event->eventType);
   }
 }
 
