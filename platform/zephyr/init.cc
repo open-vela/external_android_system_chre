@@ -17,7 +17,7 @@
 
 #include <errno.h>
 #include <zephyr/sys/printk.h>
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 
 #include "chre/core/event_loop_manager.h"
 #include "chre/core/static_nanoapps.h"
