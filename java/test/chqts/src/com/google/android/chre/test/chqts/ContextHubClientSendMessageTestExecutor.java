@@ -64,7 +64,7 @@ public class ContextHubClientSendMessageTestExecutor {
     }
 
     public void init() throws InterruptedException, TimeoutException {
-        mTestHelper.initAndUnloadAllNanoApps();
+        mTestHelper.init();
     }
 
     public void deinit() {
