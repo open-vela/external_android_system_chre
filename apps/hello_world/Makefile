@@ -25,6 +25,7 @@ NANOAPP_NAME_STRING = \"Hello\ World\"
 # Common Compiler Flags ########################################################
 
 COMMON_CFLAGS += -I.
+COMMON_CFLAGS += -DNANOAPP_MINIMUM_LOG_LEVEL=CHRE_LOG_LEVEL_DEBUG
 
 # Common Source Files ##########################################################
 
