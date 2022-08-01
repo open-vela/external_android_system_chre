@@ -686,6 +686,7 @@ cc_binary {
     local_include_dirs: [
         "host/exynos",
     ],
+    cflags: [ "-DCHRE_LPMA_REQUEST_START_RECOGNITION" ],
     srcs: [
         "host/exynos/exynos_daemon.cc",
         "host/exynos/main.cc",
