@@ -99,10 +99,10 @@ class SystemTimer : public SystemTimerBase, public NonCopyable {
   friend class SystemTimerBase;
 
   //! The callback to invoke when the timer has elapsed.
-  SystemTimerCallback *mCallback = nullptr;
+  SystemTimerCallback *mCallback;
 
   //! The data to pass to the callback when invoked.
-  void *mData = nullptr;
+  void *mData;
 };
 
 }  // namespace chre

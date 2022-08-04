@@ -365,14 +365,23 @@ void ContextHub::onContextHubRestarted() {
 }
 
 void ContextHub::onDebugDumpData(const ::chre::fbs::DebugDumpDataT &data) {
-  auto str = std::string(reinterpret_cast<const char *>(data.debug_str.data()),
-                         data.debug_str.size());
-  debugDumpAppend(str);
+  if (mDebugFd == kInvalidFd) {
+    ALOGW("Got unexpected debug dump data message");
+  } else {
+    writeToDebugFile(reinterpret_cast<const char *>(data.debug_str.data()),
+                     data.debug_str.size());
+  }
 }
 
 void ContextHub::onDebugDumpComplete(
     const ::chre::fbs::DebugDumpResponseT & /* response */) {
-  debugDumpComplete();
+  std::lock_guard<std::mutex> lock(mDebugDumpMutex);
+  if (!mDebugDumpPending) {
+    ALOGI("Ignoring duplicate/unsolicited debug dump response");
+  } else {
+    mDebugDumpPending = false;
+    mDebugDumpCond.notify_all();
+  }
 }
 
 void ContextHub::handleServiceDeath() {
@@ -394,24 +403,38 @@ void ContextHub::onServiceDied(void *cookie) {
 
 binder_status_t ContextHub::dump(int fd, const char ** /* args */,
                                  uint32_t /* numArgs */) {
-  debugDumpStart(fd);
-  debugDumpFinish();
-  return STATUS_OK;
-}
+  // Timeout inside CHRE is typically 5 seconds, grant 500ms extra here to let
+  // the data reach us
+  constexpr auto kDebugDumpTimeout = std::chrono::milliseconds(5500);
 
-void ContextHub::debugDumpFinish() {
-  if (checkDebugFd()) {
-    const std::string &dump = mEventLogger.dump();
-    writeToDebugFile(dump.c_str());
+  mDebugFd = fd;
+  if (mDebugFd < 0) {
+    ALOGW("Can't dump debug info to invalid fd %d", mDebugFd);
+  } else {
+    writeToDebugFile("-- Dumping CHRE/ASH debug info --\n");
+
+    ALOGV("Sending debug dump request");
+    std::unique_lock<std::mutex> lock(mDebugDumpMutex);
+    mDebugDumpPending = true;
+    if (!mConnection.requestDebugDump()) {
+      ALOGW("Couldn't send debug dump request");
+    } else {
+      mDebugDumpCond.wait_for(lock, kDebugDumpTimeout,
+                              [this]() { return !mDebugDumpPending; });
+      if (mDebugDumpPending) {
+        ALOGE("Timed out waiting on debug dump data");
+        mDebugDumpPending = false;
+      }
+    }
+
+    writeToDebugFile(mEventLogger.dump());
     writeToDebugFile("\n-- End of CHRE/ASH debug info --\n");
-    invalidateDebugFd();
-  }
-}
 
-void ContextHub::writeToDebugFile(const char *str) {
-  if (!::android::base::WriteStringToFd(std::string(str), getDebugFd())) {
-    ALOGW("Failed to write %zu bytes to debug dump fd", strlen(str));
+    mDebugFd = kInvalidFd;
+    ALOGV("Debug dump complete");
   }
+
+  return STATUS_OK;
 }
 
 }  // namespace contexthub
