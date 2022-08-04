@@ -44,7 +44,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-/** An executor running tests by sending messages to the nanoapp in different ways. */
+/**
+ * An executor running tests by sending messages to the nanoapp in different ways.
+ *
+ * <p>To use this executor, a test should run {@link #init()} as part of the set-up annotated by
+ * {@code @Before} and {@link #deinit()} as part of tearing down annotated by {@code @After}.
+ */
 public class ContextHubClientSendMessageTestExecutor {
     private static final String TAG = "ContextHubClientSendMessageExecutor";
     private static final int MESSAGE_TYPE =
@@ -65,9 +70,11 @@ public class ContextHubClientSendMessageTestExecutor {
 
     public void init() throws InterruptedException, TimeoutException {
         mTestHelper.init();
+        mTestHelper.loadNanoAppAssertSuccess(mNanoAppBinary);
     }
 
     public void deinit() {
+        mTestHelper.unloadNanoAppAssertSuccess(mNanoAppBinary.getNanoAppId());
         mTestHelper.deinit();
     }
 
@@ -119,7 +126,6 @@ public class ContextHubClientSendMessageTestExecutor {
      * message back.
      */
     public void testSingleMessage(int numOfTestCycles) throws InterruptedException {
-        mTestHelper.loadNanoAppAssertSuccess(mNanoAppBinary);
         NanoAppMessage mNanoAppMessage = createNanoAppMessage();
         for (int i = 0; i < numOfTestCycles; i++) {
             CountDownLatch latch = new CountDownLatch(1);
@@ -137,7 +143,6 @@ public class ContextHubClientSendMessageTestExecutor {
             Log.d(TAG, String.format("RTT = %s ms for round %s", roundTripTime, i));
             unregisterMessageClient(contextHubClient);
         }
-        mTestHelper.unloadNanoAppAssertSuccess(mNanoAppBinary.getNanoAppId());
     }
 
     /**
@@ -149,8 +154,6 @@ public class ContextHubClientSendMessageTestExecutor {
      */
     public void testBurstMessages(int numofTestCycles, int numOfMessages)
             throws InterruptedException {
-        mTestHelper.loadNanoAppAssertSuccess(mNanoAppBinary);
-
         for (int i = 0; i < numofTestCycles; i++) {
             List<NanoAppMessage> messagesToNanoapp = createNanoAppMessages(numOfMessages);
             CountDownLatch latch = new CountDownLatch(1);
@@ -171,7 +174,6 @@ public class ContextHubClientSendMessageTestExecutor {
                             numOfMessages, SystemClock.elapsedRealtime() - startTimeMillis, i));
             unregisterMessageClient(client);
         }
-        mTestHelper.unloadNanoAppAssertSuccess(mNanoAppBinary.getNanoAppId());
     }
 
     /**
@@ -203,7 +205,6 @@ public class ContextHubClientSendMessageTestExecutor {
      */
     public void testConcurrentMessages(int numofTestCycles, int numOfClients, int numOfMessages)
             throws InterruptedException {
-        mTestHelper.loadNanoAppAssertSuccess(mNanoAppBinary);
         for (int i = 0; i < numofTestCycles; i++) {
             CountDownLatch latch = new CountDownLatch(numOfClients);
             ExecutorService executorService = Executors.newCachedThreadPool();
@@ -238,7 +239,6 @@ public class ContextHubClientSendMessageTestExecutor {
                 unregisterMessageClient(client);
             }
         }
-        mTestHelper.unloadNanoAppAssertSuccess(mNanoAppBinary.getNanoAppId());
     }
 
     private void unregisterMessageClient(ContextHubClient client) {
