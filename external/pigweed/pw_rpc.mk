@@ -101,6 +101,7 @@ COMMON_SRCS += $(PIGWEED_DIR)/pw_protobuf/decoder.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_protobuf/encoder.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/call.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/channel.cc
+COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/channel_list.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/client.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/client_call.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/client_server.cc

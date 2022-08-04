@@ -174,7 +174,7 @@ bool BleRequest::isEnabled() const {
 void BleRequest::logStateToBuffer(DebugDumpWrapper &debugDump,
                                   bool isPlatformRequest) const {
   if (!isPlatformRequest) {
-    debugDump.print("  instanceId=%" PRIu32 " status=%" PRIu8, mInstanceId,
+    debugDump.print("  instanceId=%" PRIu16 " status=%" PRIu8, mInstanceId,
                     static_cast<uint8_t>(mStatus));
   }
   debugDump.print(" %s", mEnabled ? " enable" : " disable\n");
