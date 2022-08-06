@@ -57,7 +57,7 @@ StHalLpmaHandler::StHalLpmaHandler(bool allowed) : mIsLpmaAllowed(allowed) {
 
 void StHalLpmaHandler::init() {
   if (mIsLpmaAllowed) {
-    mThread = std::thread(&StHalLpmaHandler::StHalLpmaHandlerThreadEntry, this);
+    mThread = std::thread(&StHalLpmaHandler::stHalLpmaHandlerThreadEntry, this);
   }
 }
 
@@ -127,6 +127,51 @@ void StHalLpmaHandler::unload() {
   }
 }
 
+bool StHalLpmaHandler::start() {
+#ifdef CHRE_LPMA_REQUEST_START_RECOGNITION
+  // mLpmaHandle
+  ISoundTriggerHw::RecognitionConfig config = {};
+
+  Return<int32_t> hidlResult = mStHalService->startRecognition(
+      mLpmaHandle, config, nullptr /* callback */, 0 /* cookie */);
+
+  int32_t result = hidlResult.withDefault(-EPIPE);
+  if (result != 0) {
+    LOGE("Failed to start LPMA: %" PRId32, result);
+  }
+  return (result == 0);
+#else
+  return true;
+#endif  // CHRE_LPMA_REQUEST_START_RECOGNITION
+}
+
+void StHalLpmaHandler::stop() {
+#ifdef CHRE_LPMA_REQUEST_START_RECOGNITION
+  Return<int32_t> hidlResult = mStHalService->stopRecognition(mLpmaHandle);
+
+  int32_t result = hidlResult.withDefault(-EPIPE);
+  if (result != 0) {
+    LOGW("Failed to stop LPMA: %" PRId32, result);
+  }
+#endif
+}
+
+bool StHalLpmaHandler::loadAndStart() {
+  if (load()) {
+    if (start()) {
+      return true;
+    } else {
+      unload();
+    }
+  }
+  return false;
+}
+
+void StHalLpmaHandler::stopAndUnload() {
+  stop();
+  unload();
+}
+
 void StHalLpmaHandler::checkConnectionToStHalServiceLocked() {
   if (mStHalService == nullptr) {
     mStHalService = ISoundTriggerHw::getService();
@@ -148,14 +193,14 @@ bool StHalLpmaHandler::waitOnStHalRequestAndProcess() {
     mCondVar.wait(lock, [this] { return mCondVarPredicate; });
     mCondVarPredicate = false;
     acquireWakeLock();  // Ensure the system stays up while retrying.
-  } else if (mTargetLpmaEnabled && load()) {
+  } else if (mTargetLpmaEnabled && loadAndStart()) {
     mCurrentLpmaEnabled = mTargetLpmaEnabled;
   } else if (!mTargetLpmaEnabled) {
     // Regardless of whether the use case fails to unload, set the
     // currentLpmaEnabled to the targetLpmaEnabled. This will allow the next
     // enable request to proceed. After a failure to unload occurs, the
     // supplied handle is invalid and should not be unloaded again.
-    unload();
+    stopAndUnload();
     mCurrentLpmaEnabled = mTargetLpmaEnabled;
   } else {
     noDelayNeeded = false;
@@ -182,7 +227,7 @@ void StHalLpmaHandler::delay() {
   }
 }
 
-void StHalLpmaHandler::StHalLpmaHandlerThreadEntry() {
+void StHalLpmaHandler::stHalLpmaHandlerThreadEntry() {
   LOGD("Starting LPMA thread");
 
   while (true) {
