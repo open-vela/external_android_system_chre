@@ -184,20 +184,18 @@ void testRequestRangingAsync(const struct chreWifiScanResult *aps,
 void validatePrimaryChannel(uint32_t primaryChannel, uint32_t startFrequency,
                             uint8_t maxChannelNumber) {
   if ((primaryChannel - startFrequency) % 5 != 0) {
-    chreLog(CHRE_LOG_ERROR,
-            "primaryChannel - %" PRIu32
-            " must be a multiple of 5,"
-            "got primaryChannel: %" PRIu32,
-            startFrequency, primaryChannel);
+    LOGE("primaryChannel - %" PRIu32
+         " must be a multiple of 5,"
+         "got primaryChannel: %" PRIu32,
+         startFrequency, primaryChannel);
   }
 
   uint32_t primaryChannelNumber = (primaryChannel - startFrequency) / 5;
   if (primaryChannelNumber < 1 || primaryChannelNumber > maxChannelNumber) {
-    chreLog(CHRE_LOG_ERROR,
-            "primaryChannelNumber must be between 1 and %" PRIu8
-            ","
-            "got primaryChannel: %" PRIu32,
-            maxChannelNumber, primaryChannel);
+    LOGE("primaryChannelNumber must be between 1 and %" PRIu8
+         ","
+         "got primaryChannel: %" PRIu32,
+         maxChannelNumber, primaryChannel);
   }
 }
 
@@ -545,9 +543,8 @@ void BasicWifiTest::validateWifiScanEvent(const chreWifiScanEvent *eventData) {
   }
 
   if (mNextExpectedIndex != eventData->eventIndex) {
-    chreLog(CHRE_LOG_ERROR,
-            "Expected index: %" PRIu32 ", received index: %" PRIu8,
-            mNextExpectedIndex, eventData->eventIndex);
+    LOGE("Expected index: %" PRIu32 ", received index: %" PRIu8,
+         mNextExpectedIndex, eventData->eventIndex);
     sendFatalFailureToHost("Received out-of-order events");
   }
   mNextExpectedIndex++;
@@ -556,9 +553,8 @@ void BasicWifiTest::validateWifiScanEvent(const chreWifiScanEvent *eventData) {
     mWiFiScanResultRemaining = eventData->resultTotal;
   }
   if (mWiFiScanResultRemaining < eventData->resultCount) {
-    chreLog(CHRE_LOG_ERROR,
-            "Remaining scan results %" PRIu32 ", received %" PRIu8,
-            mWiFiScanResultRemaining, eventData->resultCount);
+    LOGE("Remaining scan results %" PRIu32 ", received %" PRIu8,
+         mWiFiScanResultRemaining, eventData->resultCount);
     sendFatalFailureToHost("Received too many WiFi scan results");
   }
   mWiFiScanResultRemaining -= eventData->resultCount;
@@ -603,7 +599,7 @@ void BasicWifiTest::validateWifiScanResult(uint8_t count,
     //       validations when proper error waiver is implemented in CHQTS.
     if (results[i].band != CHRE_WIFI_BAND_2_4_GHZ &&
         results[i].band != CHRE_WIFI_BAND_5_GHZ) {
-      chreLog(CHRE_LOG_ERROR, "Got unexpected band %d", results[i].band);
+      LOGE("Got unexpected band %d", results[i].band);
     }
 
     validateRssi(results[i].rssi);
