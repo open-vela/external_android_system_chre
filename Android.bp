@@ -695,6 +695,7 @@ cc_binary {
         "pw_varint",
     ],
     shared_libs: [
+        "libhidlbase",
         "libjsoncpp",
         "libpower",
         "android.hardware.soundtrigger@2.0",
