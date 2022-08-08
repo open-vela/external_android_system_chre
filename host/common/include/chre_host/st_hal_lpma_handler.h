@@ -50,12 +50,7 @@ class StHalLpmaHandler {
   StHalLpmaHandler() = delete;
   explicit StHalLpmaHandler(bool allowed);
 
-  ~StHalLpmaHandler() {
-    if (mThread.has_value()) {
-      // TODO(b/241015054): Change this to join after adding proper handler
-      mThread->detach();
-    }
-  }
+  ~StHalLpmaHandler();
 
   /**
    * If LPMA is enabled, starts a worker thread to load/unload models.
@@ -96,6 +91,8 @@ class StHalLpmaHandler {
   bool mCurrentLpmaEnabled;
   bool mTargetLpmaEnabled;
   bool mCondVarPredicate;
+  bool mStThreadShouldExit = false;
+
   SoundModelHandle mLpmaHandle = 0;
 
   int mRetryCount;
@@ -165,22 +162,13 @@ class StHalLpmaHandler {
   void onStHalServiceDeath();
 
   /**
-   * This function blocks on a condition variable and when notified, based
-   * on its current state and as notified by enable(), performs a load or
-   * unload. The function also resets the delay and retry counts if the current
-   * and next states match
+   * Invoke Hal to load or unload LPMA depending on the status of
+   * mTargetLpmaEnabled and mCurrentLpmaEnabled
    *
-   * @return true if the state update succeeded, and we don't need to retry with
-   * a delay
+   * @param locked lock that holds the mutex that guards mTargetLpmaEnabled
    */
-  bool waitOnStHalRequestAndProcess();
-
-  /**
-   * Delay retrying a load if a state update failed
-   */
-  void delay();
+  void stHalRequestAndProcessLocked(std::unique_lock<std::mutex> const &locked);
 };
-
 }  // namespace chre
 }  // namespace android
 
