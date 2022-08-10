@@ -118,4 +118,38 @@ TEST_F(FakeLinkSyncTests, CheckRetryOnTimeout) {
   EXPECT_EQ(pkt1, pkt2);
 }
 
+TEST_F(FakeLinkSyncTests, NoRetryAfterAck) {
+  txPacket();
+  ASSERT_TRUE(mFakeLink->waitForTxPacket());
+  EXPECT_EQ(mFakeLink->getTxPacketCount(), 1);
+
+  // Generate and reply back with an ACK
+  std::vector<uint8_t> pkt = mFakeLink->popTxPacket();
+  ChppEmptyPacket ack = generateAck(pkt);
+  chppRxDataCb(&mTransportContext, reinterpret_cast<uint8_t *>(&ack),
+               sizeof(ack));
+
+  // We shouldn't get that packet again
+  EXPECT_FALSE(mFakeLink->waitForTxPacket());
+}
+
+TEST_F(FakeLinkSyncTests, MultipleNotifications) {
+  constexpr int kNumPackets = 5;
+  for (int i = 0; i < kNumPackets; i++) {
+    txPacket();
+  }
+
+  for (int i = 0; i < kNumPackets; i++) {
+    ASSERT_TRUE(mFakeLink->waitForTxPacket());
+
+    // Generate and reply back with an ACK
+    std::vector<uint8_t> pkt = mFakeLink->popTxPacket();
+    ChppEmptyPacket ack = generateAck(pkt);
+    chppRxDataCb(&mTransportContext, reinterpret_cast<uint8_t *>(&ack),
+                 sizeof(ack));
+  }
+
+  EXPECT_FALSE(mFakeLink->waitForTxPacket());
+}
+
 }  // namespace chpp::test
