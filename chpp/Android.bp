@@ -185,11 +185,24 @@ cc_test_host {
 cc_test_host {
     name: "chre_chpp_fake_link_sync_tests",
     defaults: ["chre_chpp_core_without_link"],
+    cflags: [
+        // Speed up tests by setting timeouts to 10 ms
+        "-DCHPP_TRANSPORT_TX_TIMEOUT_NS=10000000",
+        "-DCHPP_TRANSPORT_RX_TIMEOUT_NS=10000000",
+    ],
     local_include_dirs: [
         "include",
+
+        // Note: this needs to come before platform/linux/include
+        "test/include/fake_link",
         "platform/linux/include",
     ],
     srcs: [
+        "test/fake_link.cpp",
         "test/fake_link_sync_test.cpp",
+        "test/packet_util.cpp",
+    ],
+    header_libs: [
+        "libbase_headers",
     ]
 }
