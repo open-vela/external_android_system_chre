@@ -603,6 +603,12 @@ static void chppProcessRxPacket(struct ChppTransportState *context) {
   } else if (context->rxHeader.length > 0) {
     // Process payload and send ACK
     chppProcessRxPayload(context);
+  } else if (!context->txStatus.hasPacketsToSend) {
+    // Nothing to send and nothing to receive, i.e. this is an ACK before an
+    // indefinite period of inactivity. Kick the work thread so it recalculates
+    // the notifier timeout.
+    chppNotifierSignal(&context->notifier,
+                       CHPP_TRANSPORT_SIGNAL_RECALC_TIMEOUT);
   }
 }
 
