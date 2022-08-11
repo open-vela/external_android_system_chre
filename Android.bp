@@ -53,6 +53,7 @@ cc_library_static {
         "util/include",
     ],
     srcs: [
+        "host/common/file_stream.cc",
         "host/common/fragmented_load_transaction.cc",
         "host/common/host_protocol_host.cc",
         "host/common/socket_client.cc",
@@ -105,6 +106,26 @@ cc_binary {
         "libutils",
     ],
     static_libs: ["chre_client"],
+}
+
+cc_binary {
+    name: "chre_aidl_hal_client",
+    vendor: true,
+    local_include_dirs: [
+        "host/common/include",
+    ],
+    srcs: [
+        "host/common/file_stream.cc",
+        "host/common/chre_aidl_hal_client.cc",
+    ],
+    shared_libs: [
+        "android.hardware.contexthub-V1-ndk",
+        "libbase",
+        "libbinder_ndk",
+        "liblog",
+        "libutils",
+    ],
+    cflags: ["-Wall", "-Werror"],
 }
 
 cc_test {
@@ -168,20 +189,24 @@ cc_library_shared {
     static_libs: ["chre_client"],
 }
 
-cc_binary {
-    name: "android.hardware.contexthub@1.1-service.generic",
-    defaults: ["hidl_defaults"],
+cc_library_static {
+    name: "android.hardware.contexthub@1.1-common-impl",
     vendor: true,
-    relative_install_path: "hw",
     srcs: [
         "host/hal_generic/V1_1/generic_context_hub_v1_1.cc",
-        "host/hal_generic/V1_1/service.cc",
         "host/hal_generic/common/context_hub_settings_util.cc",
         "host/hal_generic/common/hal_chre_socket_connection.cc",
         "host/hal_generic/common/permissions_util.cc",
     ],
-    init_rc: ["host/hal_generic/V1_1/android.hardware.contexthub@1.1-service-generic.rc"],
     cflags: ["-Wall", "-Werror"],
+    export_header_lib_headers: [
+        "android.hardware.contexthub@1.X-shared-impl",
+        "android.hardware.contexthub@1.X-common-utils",
+    ],
+    export_static_lib_headers: [
+        "chre_client",
+    ],
+    export_include_dirs: ["host/hal_generic/V1_1/"],
     header_libs: [
         "android.hardware.contexthub@1.X-shared-impl",
         "android.hardware.contexthub@1.X-common-utils",
@@ -196,6 +221,31 @@ cc_binary {
         "android.hardware.contexthub@1.2",
     ],
     static_libs: ["chre_client"],
+}
+
+cc_binary {
+    name: "android.hardware.contexthub@1.1-service.generic",
+    defaults: ["hidl_defaults"],
+    vendor: true,
+    relative_install_path: "hw",
+    srcs: [
+        "host/hal_generic/V1_1/service.cc",
+    ],
+    init_rc: ["host/hal_generic/V1_1/android.hardware.contexthub@1.1-service-generic.rc"],
+    cflags: ["-Wall", "-Werror"],
+    shared_libs: [
+        "libcutils",
+        "liblog",
+        "libhidlbase",
+        "libutils",
+        "android.hardware.contexthub@1.0",
+        "android.hardware.contexthub@1.1",
+        "android.hardware.contexthub@1.2",
+    ],
+    static_libs: [
+        "android.hardware.contexthub@1.1-common-impl",
+        "chre_client",
+    ],
     vintf_fragments: ["host/hal_generic/V1_1/android.hardware.contexthub@1.1-generic.xml"],
 }
 
@@ -411,6 +461,8 @@ cc_library_static {
 
 cc_test_host {
     name: "chre_unit_tests",
+    // TODO(b/232537107): Evaluate if isolated can be turned on
+    isolated: false,
     srcs: [
         "core/tests/**/*.cc",
         "pal/tests/**/*_test.cc",
@@ -454,6 +506,8 @@ cc_test_host {
 
 cc_test_host {
     name: "chre_simulation_tests",
+    // TODO(b/232537107): Evaluate if isolated can be turned on
+    isolated: false,
     srcs: [
         "test/simulation/*.cc",
     ],
@@ -517,12 +571,10 @@ cc_library_static {
         "platform/linux/platform_log.cc",
         "platform/linux/platform_nanoapp.cc",
         "platform/linux/platform_pal.cc",
-        "platform/linux/platform_sensor_type_helpers.cc",
-        "platform/linux/platform_sensor.cc",
         "platform/linux/power_control_manager.cc",
         "platform/linux/system_time.cc",
         "platform/linux/system_timer.cc",
-        "platform/linux/testing/platform_audio.cc",
+        "platform/shared/audio_pal/platform_audio.cc",
         "platform/shared/chre_api_audio.cc",
         "platform/shared/chre_api_ble.cc",
         "platform/shared/chre_api_core.cc",
@@ -536,10 +588,12 @@ cc_library_static {
         "platform/shared/pal_system_api.cc",
         "platform/shared/platform_ble.cc",
         "platform/shared/platform_gnss.cc",
-        "platform/shared/platform_sensor_manager.cc",
         "platform/shared/platform_wifi.cc",
         "platform/shared/system_time.cc",
         "platform/shared/version.cc",
+        "platform/shared/sensor_pal/platform_sensor.cc",
+        "platform/shared/sensor_pal/platform_sensor_type_helpers.cc",
+        "platform/shared/sensor_pal/platform_sensor_manager.cc",
         "util/**/*.cc",
     ],
     // TODO(b/217952682) Exclude pigweed because it can't be built via
@@ -554,9 +608,10 @@ cc_library_static {
         "core/include",
         "pal/include",
         "pal/util/include",
+        "platform/shared/audio_pal/include",
         "platform/linux/include",
-        "platform/linux/testing/include",
         "platform/shared/include",
+        "platform/shared/sensor_pal/include",
         "platform/include",
         "util/include",
     ],
@@ -594,3 +649,56 @@ cc_defaults {
 subdirs = [
     "apps/wifi_offload",
 ]
+
+cc_defaults {
+    name: "chre_daemon_common",
+    local_include_dirs: [
+        "external/flatbuffers/include",
+        "host/common/include",
+        "platform/shared/include",
+        "util/include",
+    ],
+    srcs: [
+        "host/common/daemon_base.cc",
+        "host/common/fbs_daemon_base.cc",
+        "host/common/file_stream.cc",
+        "host/common/fragmented_load_transaction.cc",
+        "host/common/host_protocol_host.cc",
+        "host/common/log_message_parser.cc",
+        "host/common/socket_server.cc",
+        "host/common/st_hal_lpma_handler.cc",
+        "platform/shared/host_protocol_common.cc",
+    ],
+    shared_libs: [
+        "libbase",
+        "libbinder_ndk",
+        "libcutils",
+        "libutils",
+        "liblog",
+    ],
+}
+
+cc_binary {
+    name: "chre_daemon_exynos",
+    cpp_std: "c++20",
+    defaults: ["chre_daemon_common"],
+    soc_specific: true,
+    local_include_dirs: [
+        "host/exynos",
+    ],
+    cflags: [ "-DCHRE_LPMA_REQUEST_START_RECOGNITION" ],
+    srcs: [
+        "host/exynos/exynos_daemon.cc",
+        "host/exynos/main.cc",
+    ],
+    static_libs: [
+        "pw_detokenizer",
+        "pw_varint",
+    ],
+    shared_libs: [
+        "libjsoncpp",
+        "libpower",
+        "android.hardware.soundtrigger@2.0",
+    ],
+    init_rc: ["host/exynos/chre_daemon_exynos.rc"],
+}
