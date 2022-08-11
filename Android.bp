@@ -541,7 +541,7 @@ cc_library_static {
         "core/event.cc",
         "core/gnss_manager.cc",
         "core/host_comms_manager.cc",
-        "core/host_notifications.cc",
+        "core/host_endpoint_manager.cc",
         "core/init.cc",
         "core/nanoapp.cc",
         "core/sensor_request_manager.cc",

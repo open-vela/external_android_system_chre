@@ -14,25 +14,17 @@
  * limitations under the License.
  */
 
-#include "chre/core/host_notifications.h"
+#include "chre/core/host_endpoint_manager.h"
 
 #include "chre/core/event_loop_manager.h"
 #include "chre/util/dynamic_vector.h"
 #include "chre/util/nested_data_ptr.h"
 
 namespace chre {
-
-namespace {
-
-//! Connected host endpoint metadata, which should only be accessed by the main
-//! CHRE event loop.
-// TODO(b/194287786): Re-organize this code into a class for better
-// organization.
-chre::DynamicVector<struct chreHostEndpointInfo> gHostEndpoints;
-
-bool isHostEndpointConnected(uint16_t hostEndpointId, size_t *index) {
-  for (size_t i = 0; i < gHostEndpoints.size(); i++) {
-    if (gHostEndpoints[i].hostEndpointId == hostEndpointId) {
+bool HostEndpointManager::isHostEndpointConnected(uint16_t hostEndpointId,
+                                                  size_t *index) {
+  for (size_t i = 0; i < mHostEndpoints.size(); i++) {
+    if (mHostEndpoints[i].hostEndpointId == hostEndpointId) {
       *index = i;
       return true;
     }
@@ -41,14 +33,15 @@ bool isHostEndpointConnected(uint16_t hostEndpointId, size_t *index) {
   return false;
 }
 
-void hostNotificationCallback(uint16_t type, void *data, void *extraData) {
+void HostEndpointManager::hostNotificationCallback(uint16_t type, void *data,
+                                                   void *extraData) {
   uint16_t hostEndpointId = NestedDataPtr<uint16_t>(data);
 
   SystemCallbackType callbackType = static_cast<SystemCallbackType>(type);
   if (callbackType == SystemCallbackType::HostEndpointDisconnected) {
     size_t index;
     if (isHostEndpointConnected(hostEndpointId, &index)) {
-      gHostEndpoints.erase(index);
+      mHostEndpoints.erase(index);
 
       uint16_t eventType = CHRE_EVENT_HOST_ENDPOINT_NOTIFICATION;
       auto *eventData = memoryAlloc<struct chreHostEndpointNotification>();
@@ -73,7 +66,7 @@ void hostNotificationCallback(uint16_t type, void *data, void *extraData) {
 
     size_t index;
     if (!isHostEndpointConnected(hostEndpointId, &index)) {
-      gHostEndpoints.push_back(*info);
+      mHostEndpoints.push_back(*info);
     } else {
       LOGW("Got connected event for already existing host endpoint ID %" PRIu16,
            hostEndpointId);
@@ -83,38 +76,48 @@ void hostNotificationCallback(uint16_t type, void *data, void *extraData) {
   memoryFree(extraData);
 }
 
-}  // anonymous namespace
+auto HostEndpointManager::getHostNotificationCallback() {
+  return [](uint16_t type, void *data, void *extraData) {
+    EventLoopManagerSingleton::get()
+        ->getHostEndpointManager()
+        .hostNotificationCallback(type, data, extraData);
+  };
+}
 
-bool getHostEndpointInfo(uint16_t hostEndpointId,
-                         struct chreHostEndpointInfo *info) {
+bool HostEndpointManager::getHostEndpointInfo(
+    uint16_t hostEndpointId, struct chreHostEndpointInfo *info) {
   size_t index;
   if (isHostEndpointConnected(hostEndpointId, &index)) {
-    *info = gHostEndpoints[index];
+    *info = mHostEndpoints[index];
     return true;
   } else {
     return false;
   }
 }
 
-void postHostEndpointConnected(const struct chreHostEndpointInfo &info) {
+void HostEndpointManager::postHostEndpointConnected(
+    const struct chreHostEndpointInfo &info) {
   auto *infoData = memoryAlloc<struct chreHostEndpointInfo>();
   if (infoData == nullptr) {
     LOG_OOM();
   } else {
     memcpy(infoData, &info, sizeof(struct chreHostEndpointInfo));
 
+    auto callback = getHostNotificationCallback();
+
     EventLoopManagerSingleton::get()->deferCallback(
         SystemCallbackType::HostEndpointConnected,
-        NestedDataPtr<uint16_t>(info.hostEndpointId), hostNotificationCallback,
+        NestedDataPtr<uint16_t>(info.hostEndpointId), callback,
         infoData /* extraData */);
   }
 }
 
-void postHostEndpointDisconnected(uint16_t hostEndpointId) {
+void HostEndpointManager::postHostEndpointDisconnected(
+    uint16_t hostEndpointId) {
+  auto callback = getHostNotificationCallback();
   EventLoopManagerSingleton::get()->deferCallback(
       SystemCallbackType::HostEndpointDisconnected,
-      NestedDataPtr<uint16_t>(hostEndpointId), hostNotificationCallback,
-      nullptr);
+      NestedDataPtr<uint16_t>(hostEndpointId), callback, nullptr);
 }
 
 }  // namespace chre
