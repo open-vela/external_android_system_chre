@@ -41,13 +41,8 @@ PW_RPC_GENERATOR_CMD = PYTHONPATH=$$PYTHONPATH:$(PW_RPC_GEN_PATH)/py:$\
 
 $(PW_RPC_GENERATOR_COMPILED_PROTO): $(PW_RPC_GENERATOR_PROTO_SRCS)
 	@echo " [PW_RPC] $<"
-	$(V)mkdir -p $(PW_RPC_GEN_PATH)/py/pw_rpc/internal
-	$(V)mkdir -p $(PW_RPC_GEN_PATH)/py/pw_protobuf_codegen_protos
+	$(V)mkdir -p $(PW_RPC_GEN_PATH)/py/
 	$(V)cp -R $(PIGWEED_DIR)/pw_rpc/py/pw_rpc $(PW_RPC_GEN_PATH)/py/
-	$(PROTOC) -I$(PIGWEED_DIR)/pw_protobuf/pw_protobuf_codegen_protos \
-	  --experimental_allow_proto3_optional \
-		--python_out=$(PW_RPC_GEN_PATH)/py/pw_protobuf_codegen_protos \
-	  $(PIGWEED_DIR)/pw_protobuf/pw_protobuf_codegen_protos/options.proto
 	$(V)$(PW_RPC_GENERATOR_CMD) $(PW_RPC_PROTO_GENERATOR) --out-dir=$(PW_RPC_GEN_PATH)/py/pw_rpc/internal \
 	  --compile-dir=$(dir $<) --sources $(PW_RPC_GENERATOR_PROTO_SRCS) \
 	  --language python
@@ -72,10 +67,10 @@ COMMON_SRCS += $(PW_RPC_GEN_SRCS)
 # PW RPC library ###############################################################
 
 # Pigweed RPC include paths
+COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_assert/assert_lite_public_overrides
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_assert/public
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_assert_log/public
-COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_assert_log/assert_backend_public_overrides
-COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_assert_log/check_backend_public_overrides
+COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_assert_log/public_overrides
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_bytes/public
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_containers/public
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_function/public
@@ -106,7 +101,6 @@ COMMON_SRCS += $(PIGWEED_DIR)/pw_protobuf/decoder.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_protobuf/encoder.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/call.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/channel.cc
-COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/channel_list.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/client.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/client_call.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/client_server.cc
@@ -123,7 +117,6 @@ COMMON_SRCS += $(PIGWEED_DIR)/pw_varint/varint.cc
 
 # NanoPB header includes
 COMMON_CFLAGS += -I$(NANOPB_PREFIX)
-COMMON_CFLAGS += -DPW_RPC_USE_GLOBAL_MUTEX=0
 
 # NanoPB sources
 COMMON_SRCS += $(NANOPB_PREFIX)/pb_common.c
