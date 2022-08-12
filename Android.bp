@@ -461,8 +461,7 @@ cc_library_static {
 
 cc_test_host {
     name: "chre_unit_tests",
-    // TODO(b/232537107): Evaluate if isolated can be turned on
-    isolated: false,
+    isolated: true,
     srcs: [
         "core/tests/**/*.cc",
         "pal/tests/**/*_test.cc",
