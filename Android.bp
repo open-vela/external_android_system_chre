@@ -461,8 +461,7 @@ cc_library_static {
 
 cc_test_host {
     name: "chre_unit_tests",
-    // TODO(b/232537107): Evaluate if isolated can be turned on
-    isolated: false,
+    isolated: true,
     srcs: [
         "core/tests/**/*.cc",
         "pal/tests/**/*_test.cc",
@@ -542,7 +541,7 @@ cc_library_static {
         "core/event.cc",
         "core/gnss_manager.cc",
         "core/host_comms_manager.cc",
-        "core/host_notifications.cc",
+        "core/host_endpoint_manager.cc",
         "core/init.cc",
         "core/nanoapp.cc",
         "core/sensor_request_manager.cc",

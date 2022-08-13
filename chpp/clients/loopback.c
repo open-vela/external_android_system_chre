@@ -199,7 +199,7 @@ struct ChppLoopbackTestResult chppRunLoopbackTest(struct ChppAppState *context,
                   &context->loopbackClientContext->runLoopbackTest,
                   loopbackRequest,
                   context->loopbackClientContext->testResult.requestLen,
-                  CHPP_NSEC_PER_SEC /* 1s */)) {
+                  5 * CHPP_NSEC_PER_SEC /* 5s */)) {
             context->loopbackClientContext->testResult.error =
                 CHPP_APP_ERROR_UNSPECIFIED;
           }  // else {context->loopbackClientContext->testResult is now
