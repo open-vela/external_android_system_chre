@@ -16,7 +16,7 @@ endif
 
 TARGET_AR = $(CORTEXM_TOOLS_PREFIX)/bin/arm-none-eabi-ar
 TARGET_CC = $(CORTEXM_TOOLS_PREFIX)/bin/arm-none-eabi-g++
-TARGET_LD = $(CORTEXM_TOOLS_PREFIX)/bin/arm-none-eabi-g++
+TARGET_LD = $(CORTEXM_TOOLS_PREFIX)/bin/arm-none-eabi-ld
 
 # Cortex-M Compiler Flags ######################################################
 
@@ -29,6 +29,10 @@ TARGET_CFLAGS += -mfloat-abi=softfp
 TARGET_CFLAGS += -mno-thumb-interwork
 TARGET_CFLAGS += -ffast-math
 TARGET_CFLAGS += -fsingle-precision-constant
+
+ifeq ($(IS_ARCHIVE_ONLY_BUILD), true)
+COMMON_CXX_CFLAGS += -fno-use-cxa-atexit
+endif
 
 # Sadly we must disable double promotion warnings due to logging macros. There
 # is a bug for this here: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=53431
