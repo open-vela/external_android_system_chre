@@ -21,6 +21,48 @@ namespace chre {
 
 PlatformNanoapp::~PlatformNanoapp() {}
 
+bool PlatformNanoappBase::reserveBuffer(uint64_t appId, uint32_t appVersion,
+                                        uint32_t appFlags, size_t appBinaryLen,
+                                        uint32_t targetApiVersion) {
+  CHRE_ASSERT(!isLoaded());
+
+  bool success = false;
+  mAppBinary = memoryAlloc(appBinaryLen);
+
+  // TODO(b/237819962): Check binary signature when authentication is
+  // implemented.
+  if (mAppBinary == nullptr) {
+    LOG_OOM();
+  } else {
+    mExpectedAppId = appId;
+    mExpectedAppVersion = appVersion;
+    mExpectedTargetApiVersion = targetApiVersion;
+    mAppBinaryLen = appBinaryLen;
+    success = true;
+  }
+
+  return success;
+}
+
+bool PlatformNanoappBase::copyNanoappFragment(const void *buffer,
+                                              size_t bufferLen) {
+  CHRE_ASSERT(!isLoaded());
+
+  bool success = true;
+
+  if ((mBytesLoaded + bufferLen) > mAppBinaryLen) {
+    LOGE("Overflow: cannot load %zu bytes to %zu/%zu nanoapp binary buffer",
+         bufferLen, mBytesLoaded, mAppBinaryLen);
+    success = false;
+  } else {
+    uint8_t *binaryBuffer = static_cast<uint8_t *>(mAppBinary) + mBytesLoaded;
+    memcpy(binaryBuffer, buffer, bufferLen);
+    mBytesLoaded += bufferLen;
+  }
+
+  return success;
+}
+
 bool PlatformNanoapp::start() {
   bool success = false;
 

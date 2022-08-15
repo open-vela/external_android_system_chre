@@ -50,6 +50,17 @@ class HostLinkBase {
    */
   static void receive(void *cookie, void *message, int messageLen);
 
+  /**
+   * Send a message to the host.
+   *
+   * @param data The message to host payload.
+   * @param dataLen Size of the message payload in bytes.
+   * @return true if the operation succeeds, false otherwise.
+   */
+  bool send(uint8_t *data, size_t dataLen) {
+    return mailboxWriteChre(data, dataLen) == 0;
+  }
+
   void setInitialized(bool initialized) {
     mInitialized = initialized;
   }
