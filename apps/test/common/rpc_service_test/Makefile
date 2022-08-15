@@ -22,7 +22,8 @@ NANOAPP_VERSION = 0x00000001
 NANOAPP_PATH = $(CHRE_PREFIX)/apps/test/common/rpc_service_test
 TEST_SHARED_PATH = $(CHRE_PREFIX)/apps/test/common/shared
 
-CHRE_STD_OVERRIDES_ALLOWED = true
+# TODO(b/210138227) Enable PW RPC by default once build system is fixed
+NANOAPP_PW_RPC_ENABLED = false
 
 # Source Code ##################################################################
 
@@ -40,8 +41,10 @@ COMMON_CFLAGS += -I$(NANOAPP_PATH)/inc
 
 # PW RPC protos ################################################################
 
+ifeq (NANOAPP_PW_RPC_ENABLED, true)
 PW_RPC_SRCS = $(ANDROID_BUILD_TOP)/external/pigweed/pw_rpc/echo.proto
 COMMON_CFLAGS += -DPW_RPC_SERVICE_ENABLED
+endif
 
 # Makefile Includes ############################################################
 
