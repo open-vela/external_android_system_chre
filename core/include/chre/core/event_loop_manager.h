@@ -21,7 +21,6 @@
 #include "chre/core/event_loop.h"
 #include "chre/core/event_loop_common.h"
 #include "chre/core/host_comms_manager.h"
-#include "chre/core/host_endpoint_manager.h"
 #include "chre/core/settings.h"
 #include "chre/platform/memory_manager.h"
 #include "chre/platform/mutex.h"
@@ -261,10 +260,6 @@ class EventLoopManager : public NonCopyable {
     return mHostCommsManager;
   }
 
-  HostEndpointManager &getHostEndpointManager() {
-    return mHostEndpointManager;
-  }
-
 #ifdef CHRE_SENSORS_SUPPORT_ENABLED
   /**
    * @return Returns a reference to the sensor request manager. This allows
@@ -364,8 +359,6 @@ class EventLoopManager : public NonCopyable {
 
   //! Handles communications with the host processor.
   HostCommsManager mHostCommsManager;
-
-  HostEndpointManager mHostEndpointManager;
 
 #ifdef CHRE_SENSORS_SUPPORT_ENABLED
   //! The SensorRequestManager that handles requests for all nanoapps. This
