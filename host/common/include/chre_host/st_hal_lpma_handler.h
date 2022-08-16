@@ -47,6 +47,30 @@ namespace chre {
  */
 class StHalLpmaHandler {
  public:
+  StHalLpmaHandler() = delete;
+  explicit StHalLpmaHandler(bool allowed);
+
+  ~StHalLpmaHandler() {
+    if (mThread.has_value()) {
+      // TODO(b/241015054): Change this to join after adding proper handler
+      mThread->detach();
+    }
+  }
+
+  /**
+   * If LPMA is enabled, starts a worker thread to load/unload models.
+   */
+  void init();
+
+  /**
+   * Sets the target state for LPMA to be enabled. This triggers another thread
+   * to perform the async operation of enabling or disabling the LPMA use case.
+   *
+   * @param enabled Whether LPMA is to be enabled or disabled.
+   */
+  void enable(bool enabled);
+
+ private:
   //! Class to handle when a connected ST HAL service dies
   class StHalDeathRecipient : public hidl_death_recipient {
    public:
@@ -68,29 +92,21 @@ class StHalLpmaHandler {
     std::function<void()> mCallback;
   };
 
-  StHalLpmaHandler() = delete;
+  const bool mIsLpmaAllowed;
+  bool mCurrentLpmaEnabled;
+  bool mTargetLpmaEnabled;
+  bool mCondVarPredicate;
+  SoundModelHandle mLpmaHandle = 0;
 
-  explicit StHalLpmaHandler(bool allowed);
+  int mRetryCount;
+  useconds_t mRetryDelay;
 
-  ~StHalLpmaHandler() {
-    if (mThread.has_value()) {
-      // TODO: Change this to join after adding proper handler
-      mThread->detach();
-    }
-  }
+  std::optional<std::thread> mThread;
+  std::mutex mMutex;
+  std::condition_variable mCondVar;
 
-  /**
-   * If LPMA is enabled, starts a worker thread to load/unload models.
-   */
-  void init();
-
-  /**
-   * Sets the target state for LPMA to be enabled. This triggers another thread
-   * to perform the async operation of enabling or disabling the LPMA use case.
-   *
-   * @param enabled Whether LPMA is to be enabled or disabled.
-   */
-  void enable(bool enabled);
+  sp<StHalDeathRecipient> mDeathRecipient;
+  sp<ISoundTriggerHw> mStHalService;
 
   /**
    * Loads the LPMA use case via the SoundTrigger HAL HIDL service.
@@ -109,27 +125,31 @@ class StHalLpmaHandler {
   void unload();
 
   /**
+   * If CHRE_LPMA_REQUEST_START_RECOGNITION is defined, calls startRecognition()
+   * on the currently loaded model. No-op otherwise.
+   *
+   * @return true on success
+   */
+  bool start();
+
+  //! Invokes stopRecognition() on the currently loaded model
+  /**
+   * If CHRE_LPMA_REQUEST_START_RECOGNITION is defined, calls stopRecognition()
+   * on the currently loaded model. No-op otherwise.
+   *
+   * @return true on success
+   */
+  void stop();
+
+  // Convenience methods
+  bool loadAndStart();
+  void stopAndUnload();
+
+  /**
    * Entry point for the thread that loads/unloads sound models from the
    * ST HAL
    */
-  void StHalLpmaHandlerThreadEntry();
-
- private:
-  const bool mIsLpmaAllowed;
-  bool mCurrentLpmaEnabled;
-  bool mTargetLpmaEnabled;
-  bool mCondVarPredicate;
-  SoundModelHandle mLpmaHandle = 0;
-
-  int mRetryCount;
-  useconds_t mRetryDelay;
-
-  std::optional<std::thread> mThread;
-  std::mutex mMutex;
-  std::condition_variable mCondVar;
-
-  sp<StHalDeathRecipient> mDeathRecipient;
-  sp<ISoundTriggerHw> mStHalService;
+  void stHalLpmaHandlerThreadEntry();
 
   /**
    * Checks for a valid connection to the ST HAL service, reconnects if not
