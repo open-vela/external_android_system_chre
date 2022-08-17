@@ -49,10 +49,15 @@ bool SystemTimer::set(SystemTimerCallback *callback, void *data,
   // its timer create API if the values lie beyond the specified interval of
   // 1 ≤ Period ≤ 0x7FFFFFFF. Since there's not return value to assess API
   // call success, we clamp the delay to the supported interval.
+  // Note that since the EmbOS timer is a millisecond tick timer, an additional
+  // delay of 1ms is added to the requested delay to avoid clipping/zeroing
+  // during the time factor conversion.
+  // TODO(b/237819962): Investigate the possibility of a spare hardware timer
+  // available on SLSI that we can eventually switch to.
   constexpr uint64_t kMinDelayMs = 1;
   constexpr uint64_t kMaxDelayMs = INT32_MAX;
   uint64_t delayMs = Milliseconds(delay).getMilliseconds();
-  delayMs = std::min(std::max(delayMs, kMinDelayMs), kMaxDelayMs);
+  delayMs = std::min(std::max(delayMs + 1, kMinDelayMs), kMaxDelayMs);
 
   OS_StopTimerEx(&mTimer);
   OS_SetTimerPeriodEx(&mTimer, static_cast<OS_TIME>(delayMs));

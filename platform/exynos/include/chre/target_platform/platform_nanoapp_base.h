@@ -41,6 +41,34 @@ class PlatformNanoappBase {
    */
   bool isLoaded() const;
 
+  /**
+   * Reserves buffer space for a nanoapp's binary. This method should be called
+   * before copyNanoappFragment is called.
+   *
+   * @param appId The unique app identifier associated with this binary
+   * @param appVersion An application-defined version number
+   * @param appFlags The flags provided by the app being loaded
+   * @param appBinaryLen Size of appBinary, in bytes
+   * @param targetApiVersion The target API version of the nanoapp
+   *
+   * @return true if the allocation was successful, false otherwise
+   */
+  bool reserveBuffer(uint64_t appId, uint32_t appVersion, uint32_t appFlags,
+                     size_t appBinaryLen, uint32_t targetApiVersion);
+
+  /**
+   * Copies the (possibly fragmented) application binary data into the allocated
+   * buffer, and updates the pointer to the next address to write into. The
+   * application may be invalid - full checking and initialization happens just
+   * before invoking start() nanoapp entry point.
+   *
+   * @param buffer The pointer to the buffer
+   * @param bufferSize The size of the buffer in bytes
+   *
+   * @return true if the reserved buffer did not overflow, false otherwise
+   */
+  bool copyNanoappFragment(const void *buffer, size_t bufferSize);
+
  protected:
   /**
    * The app ID we received in the metadata alongside the nanoapp binary. This
@@ -67,6 +95,14 @@ class PlatformNanoappBase {
 
   /** Pointer to the app info structure within this nanoapp */
   const struct ::chreNslNanoappInfo *mAppInfo = nullptr;
+
+  //! Buffer containing the complete DSO binary - only populated if
+  //! copyNanoappFragment() was used to load this nanoapp
+  void *mAppBinary = nullptr;
+  size_t mAppBinaryLen = 0;
+
+  //! The number of bytes of the binary that has been loaded so far.
+  size_t mBytesLoaded = 0;
 };
 
 }  // namespace chre

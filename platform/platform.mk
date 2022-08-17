@@ -387,11 +387,14 @@ EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/nanoapp_loader.cc
 EXYNOS_CFLAGS += -I$(CHRE_PREFIX)/platform/exynos/include
 EXYNOS_CFLAGS += -I$(CHRE_PREFIX)/platform/shared/audio_pal/include
 
+EXYNOS_SRCS += $(CHRE_PREFIX)/platform/shared/nanoapp_load_manager.cc
 EXYNOS_SRCS += $(CHRE_PREFIX)/platform/exynos/platform_nanoapp.cc
 EXYNOS_SRCS += $(CHRE_PREFIX)/platform/exynos/platform_pal.cc
 EXYNOS_SRCS += $(CHRE_PREFIX)/platform/exynos/power_control_manager.cc
 EXYNOS_SRCS += $(CHRE_PREFIX)/platform/exynos/system_time.cc
 EXYNOS_SRCS += $(CHRE_PREFIX)/platform/exynos/host_link.cc
+
+EXYNOS_SRCS += $(FLATBUFFERS_SRCS)
 
 # Optional sensors support
 ifeq ($(CHRE_SENSORS_SUPPORT_ENABLED), true)

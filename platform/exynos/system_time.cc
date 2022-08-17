@@ -18,9 +18,20 @@
 #include "system_Device.h"
 
 namespace chre {
+namespace {
+int64_t gEstimatedHostTimeOffset = 0;
+}  // anonymous namespace
 
 Nanoseconds SystemTime::getMonotonicTime() {
   return Nanoseconds(getTimeStampNS());
+}
+
+int64_t SystemTime::getEstimatedHostTimeOffset() {
+  return gEstimatedHostTimeOffset;
+}
+
+void SystemTime::setEstimatedHostTimeOffset(int64_t offset) {
+  gEstimatedHostTimeOffset = offset;
 }
 
 }  // namespace chre
