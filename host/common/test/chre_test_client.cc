@@ -16,7 +16,6 @@
 
 #include "chre/util/nanoapp/app_id.h"
 #include "chre/util/system/napp_header_utils.h"
-#include "chre_host/file_stream.h"
 #include "chre_host/host_protocol_host.h"
 #include "chre_host/log.h"
 #include "chre_host/napp_header.h"
@@ -52,7 +51,6 @@ using android::chre::getStringFromByteVector;
 using android::chre::HostProtocolHost;
 using android::chre::IChreMessageHandlers;
 using android::chre::NanoAppBinaryHeader;
-using android::chre::readFileContents;
 using android::chre::SocketClient;
 using flatbuffers::FlatBufferBuilder;
 
@@ -182,6 +180,27 @@ void sendMessageToNanoapp(SocketClient &client) {
   if (!client.sendMessage(builder.GetBufferPointer(), builder.GetSize())) {
     LOGE("Failed to send message");
   }
+}
+
+bool readFileContents(const char *filename, std::vector<uint8_t> *buffer) {
+  bool success = false;
+  std::ifstream file(filename, std::ios::binary | std::ios::ate);
+  if (!file) {
+    LOGE("Couldn't open file '%s': %d (%s)", filename, errno, strerror(errno));
+  } else {
+    ssize_t size = file.tellg();
+    file.seekg(0, std::ios::beg);
+
+    buffer->resize(size);
+    if (!file.read(reinterpret_cast<char *>(buffer->data()), size)) {
+      LOGE("Couldn't read from file '%s': %d (%s)", filename, errno,
+           strerror(errno));
+    } else {
+      success = true;
+    }
+  }
+
+  return success;
 }
 
 void sendNanoappLoad(SocketClient &client, uint64_t appId, uint32_t appVersion,
