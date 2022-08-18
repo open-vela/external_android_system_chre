@@ -52,10 +52,19 @@ void RpcServiceManager::handleEvent(uint32_t senderInstanceId,
     auto *hostMessage = static_cast<const chreMessageFromHostData *>(eventData);
     mOutput.setHostEndpoint(hostMessage->hostEndpoint);
 
-    pw::Status success = mServer.ProcessPacket(
-        std::span(static_cast<const std::byte *>(hostMessage->message),
-                  hostMessage->messageSize),
-        mOutput);
+    std::span packet(static_cast<const std::byte *>(hostMessage->message),
+                     hostMessage->messageSize);
+
+    // TODO(b/241930379): Add this logic to a helper.
+    pw::Result result = pw::rpc::ExtractChannelId(packet);
+    if (result.status() != PW_STATUS_OK) {
+      LOGE("Unable to extract channel ID from packet");
+      return;
+    }
+
+    mServer.OpenChannel(result.value(), mOutput);
+
+    pw::Status success = mServer.ProcessPacket(packet, mOutput);
     LOGI("Parsing packet %d", success == pw::OkStatus());
   } else
 #else
