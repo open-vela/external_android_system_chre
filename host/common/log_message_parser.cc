@@ -18,7 +18,6 @@
 #include <endian.h>
 #include "chre/util/time.h"
 #include "chre_host/daemon_base.h"
-#include "chre_host/file_stream.h"
 #include "chre_host/log.h"
 #include "include/chre_host/log_message_parser.h"
 
@@ -40,11 +39,10 @@ LogMessageParser::LogMessageParser()
     : mVerboseLoggingEnabled(kVerboseLoggingEnabled) {}
 
 std::unique_ptr<Detokenizer> LogMessageParser::logDetokenizerInit() {
-#ifdef CHRE_TOKENIZED_LOGGING_ENABLED
   constexpr const char kLogDatabaseFilePath[] =
       "/vendor/etc/chre/libchre_log_database.bin";
   std::vector<uint8_t> tokenData;
-  if (readFileContents(kLogDatabaseFilePath, &tokenData)) {
+  if (ChreDaemonBase::readFileContents(kLogDatabaseFilePath, &tokenData)) {
     pw::tokenizer::TokenDatabase database =
         pw::tokenizer::TokenDatabase::Create(tokenData);
     if (database.ok()) {
@@ -56,7 +54,6 @@ std::unique_ptr<Detokenizer> LogMessageParser::logDetokenizerInit() {
   } else {
     LOGE("Failed to read CHRE Token database file");
   }
-#endif
   return std::unique_ptr<Detokenizer>(nullptr);
 }
 
