@@ -142,6 +142,11 @@ static bool chppProcessPredefinedClientRequest(struct ChppAppState *context,
  */
 static bool chppProcessPredefinedServiceResponse(struct ChppAppState *context,
                                                  uint8_t *buf, size_t len) {
+  // Possibly unused if compiling without the clients below enabled
+  UNUSED_VAR(context);
+  UNUSED_VAR(buf);
+  UNUSED_VAR(len);
+
   struct ChppAppHeader *rxHeader = (struct ChppAppHeader *)buf;
   bool handleValid = true;
   bool dispatchResult = true;

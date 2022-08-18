@@ -19,7 +19,8 @@
 #include <inttypes.h>
 #include <string.h>
 
-#include "chre/core/host_notifications.h"
+#include "chre/core/event_loop_manager.h"
+#include "chre/core/host_endpoint_manager.h"
 #include "chre/platform/log.h"
 #include "chre/platform/shared/generated/host_messages_generated.h"
 #include "chre/util/macros.h"
@@ -151,7 +152,9 @@ bool HostProtocolChre::decodeMessageFromHost(const void *message,
           info.isTagValid = false;
         }
 
-        postHostEndpointConnected(info);
+        EventLoopManagerSingleton::get()
+            ->getHostEndpointManager()
+            .postHostEndpointConnected(info);
         break;
       }
 
@@ -159,7 +162,9 @@ bool HostProtocolChre::decodeMessageFromHost(const void *message,
         const auto *disconnectedMessage =
             static_cast<const fbs::HostEndpointDisconnected *>(
                 container->message());
-        postHostEndpointDisconnected(disconnectedMessage->host_endpoint());
+        EventLoopManagerSingleton::get()
+            ->getHostEndpointManager()
+            .postHostEndpointDisconnected(disconnectedMessage->host_endpoint());
         break;
       }
 
