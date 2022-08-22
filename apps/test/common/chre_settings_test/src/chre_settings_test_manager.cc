@@ -45,7 +45,10 @@ constexpr uint32_t kWwanCellInfoCookie = 0x5678;
 // not-suspended event).
 bool gGotSourceEnabledEvent = false;
 
-uint32_t gTimerHandle = CHRE_TIMER_INVALID;
+uint32_t gAudioDataTimerHandle = CHRE_TIMER_INVALID;
+constexpr uint32_t kAudioDataTimerCookie = 0xc001cafe;
+uint32_t gAudioStatusTimerHandle = CHRE_TIMER_INVALID;
+constexpr uint32_t kAudioStatusTimerCookie = 0xb01dcafe;
 
 bool getFeature(const chre_settings_test_TestCommand &command,
                 Manager::Feature *feature) {
@@ -267,7 +270,7 @@ void Manager::handleDataFromChre(uint16_t eventType, const void *eventData) {
         break;
 
       case CHRE_EVENT_TIMER:
-        handleTimeout();
+        handleTimeout(eventData);
         break;
 
       case CHRE_EVENT_WIFI_ASYNC_RESULT:
@@ -523,11 +526,11 @@ void Manager::handleAudioSourceStatusEvent(
         if (chreAudioGetSource(0 /* handle */, &source)) {
           const uint64_t duration =
               source.minBufferDuration + kOneSecondInNanoseconds;
-          gTimerHandle =
-              chreTimerSet(duration, nullptr /* cookie */, true /* oneShot */);
+          gAudioDataTimerHandle = chreTimerSet(duration, &kAudioDataTimerCookie,
+                                               true /* oneShot */);
 
-          if (gTimerHandle == CHRE_TIMER_INVALID) {
-            LOGE("Failed to set timer");
+          if (gAudioDataTimerHandle == CHRE_TIMER_INVALID) {
+            LOGE("Failed to set data check timer");
           } else {
             success = true;
           }
@@ -535,7 +538,23 @@ void Manager::handleAudioSourceStatusEvent(
           LOGE("Failed to query audio source");
         }
       } else {
-        LOGE("Source wasn't suspended when Mic Access was disabled");
+        // There might be a corner case where CHRE might have queued an audio
+        // available event just as the microphone disable setting change is
+        // received that might wrongfully indicate that microphone access
+        // wasn't disabled when it is dispatched. We add a 2 second timer to
+        // allow CHRE to send the source status change event to account for
+        // this, and fail the test if the timer expires without getting said
+        // event.
+        LOGW("Source wasn't suspended when Mic Access disabled, waiting 2 sec");
+        gAudioStatusTimerHandle =
+            chreTimerSet(2 * kOneSecondInNanoseconds, &kAudioStatusTimerCookie,
+                         true /* oneShot */);
+        if (gAudioStatusTimerHandle == CHRE_TIMER_INVALID) {
+          LOGE("Failed to set audio status check timer");
+        } else {
+          // continue the test, fail on timeout.
+          success = true;
+        }
       }
     } else {
       gGotSourceEnabledEvent = true;
@@ -554,9 +573,9 @@ void Manager::handleAudioDataEvent(const struct chreAudioDataEvent *event) {
   bool success = false;
   if (mTestSession.has_value()) {
     if (mTestSession->featureState == FeatureState::ENABLED) {
-      if (gTimerHandle != CHRE_TIMER_INVALID) {
-        chreTimerCancel(gTimerHandle);
-        gTimerHandle = CHRE_TIMER_INVALID;
+      if (gAudioDataTimerHandle != CHRE_TIMER_INVALID) {
+        chreTimerCancel(gAudioDataTimerHandle);
+        gAudioDataTimerHandle = CHRE_TIMER_INVALID;
       }
     } else if (gGotSourceEnabledEvent) {
       success = true;
@@ -568,11 +587,27 @@ void Manager::handleAudioDataEvent(const struct chreAudioDataEvent *event) {
   }
 }
 
-void Manager::handleTimeout() {
-  gTimerHandle = CHRE_TIMER_INVALID;
+void Manager::handleTimeout(const void *eventData) {
+  bool testSuccess = false;
+  auto *cookie = static_cast<const uint32_t *>(eventData);
+
+  if (*cookie == kAudioDataTimerCookie) {
+    gAudioDataTimerHandle = CHRE_TIMER_INVALID;
+    testSuccess = true;
+    if (gAudioStatusTimerHandle != CHRE_TIMER_INVALID) {
+      chreTimerCancel(gAudioStatusTimerHandle);
+      gAudioStatusTimerHandle = CHRE_TIMER_INVALID;
+    }
+  } else if (*cookie == kAudioStatusTimerCookie) {
+    LOGE("Source wasn't suspended when Mic Access was disabled");
+    gAudioStatusTimerHandle = CHRE_TIMER_INVALID;
+    testSuccess = false;
+  } else {
+    LOGE("Invalid timer cookie: %" PRIx32, *cookie);
+  }
   chreAudioConfigureSource(0 /*handle*/, false /*enable*/,
                            0 /*minBufferDuration*/, 0 /*maxBufferDuration*/);
-  sendTestResult(mTestSession->hostEndpointId, true /*success*/);
+  sendTestResult(mTestSession->hostEndpointId, testSuccess);
 }
 
 void Manager::sendTestResult(uint16_t hostEndpointId, bool success) {
