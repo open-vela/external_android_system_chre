@@ -30,10 +30,7 @@ endif
 TARGET_CFLAGS += $(CORTEXM_CFLAGS)
 
 # Code generation flags.
-#TODO(b/240981468): Float ABI soft -> hard pending CMSIS upgrade.
-CLANG_CFLAGS += -mfloat-abi=soft
 GCC_CFLAGS += -mthumb
-GCC_CFLAGS += -mfloat-abi=softfp
 GCC_CFLAGS += -mno-thumb-interwork
 GCC_CFLAGS += -ffast-math
 GCC_CFLAGS += -fsingle-precision-constant
@@ -59,10 +56,11 @@ TARGET_CFLAGS += -Wno-double-promotion
 # Cortex-M Shared Object Linker Flags ##########################################
 
 TARGET_SO_LDFLAGS += -shared
+TARGET_SO_LDFLAGS += -z max-page-size=0x8
 
 # Supported Cortex-M Architectures #############################################
 
-CORTEXM_SUPPORTED_ARCHS = m4
+CORTEXM_SUPPORTED_ARCHS = m4 m4_hardfp
 
 # Environment Checks ###########################################################
 
@@ -76,11 +74,19 @@ endif
 
 # Set the Cortex-M architecture.
 ifeq ($(CORTEXM_ARCH), m4)
-TARGET_CFLAGS += -mcpu=cortex-m4
+GCC_CFLAGS += -mcpu=cortex-m4
 CLANG_CFLAGS += --target=arm-none-eabi
-# TODO(b/240981468): Make the FPU flag generic after CMSIS upgrade.
-GCC_CFLAGS += -mfpu=fpv4-sp-d16
+TARGET_CFLAGS += -mfloat-abi=softfp
+TARGET_CFLAGS += -mfpu=fpv4-sp-d16
 endif
+
+ifeq ($(CORTEXM_ARCH), m4_hardfp)
+GCC_CFLAGS += -mcpu=cortex-m4
+CLANG_CFLAGS += --target=arm-none-eabi
+TARGET_CFLAGS += -mfloat-abi=hard
+TARGET_CFLAGS += -mfpu=fpv4-sp-d16
+endif
+
 
 ifeq ($(IS_CLANG_TOOLCHAIN),)
 TARGET_CFLAGS += $(GCC_CFLAGS)
