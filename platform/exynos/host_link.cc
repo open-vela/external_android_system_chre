@@ -52,6 +52,12 @@ struct UnloadNanoappCallbackData {
   bool allowSystemNanoappUnload;
 };
 
+NanoappLoadManager gLoadManager;
+
+inline NanoappLoadManager &getLoadManager() {
+  return gLoadManager;
+}
+
 inline HostCommsManager &getHostCommsManager() {
   return EventLoopManagerSingleton::get()->getHostCommsManager();
 }
@@ -93,12 +99,15 @@ void finishLoadingNanoappCallback(SystemCallbackType /*type*/,
   ChreFlatBufferBuilder builder(kInitialBufferSize);
 
   CHRE_ASSERT(cbData != nullptr);
-  LOGD("Finished loading nanoapp cb on fragment ID: %" PRIu32,
-       cbData->fragmentId);
 
   EventLoop &eventLoop = EventLoopManagerSingleton::get()->getEventLoop();
-  bool success =
-      cbData->nanoapp->isLoaded() && eventLoop.startNanoapp(cbData->nanoapp);
+  bool success = false;
+
+  if (cbData->nanoapp->isLoaded()) {
+    success = eventLoop.startNanoapp(cbData->nanoapp);
+  } else {
+    LOGE("Nanoapp is not loaded");
+  }
 
   if (cbData->sendFragmentResponse) {
     sendFragmentResponse(cbData->hostClientId, cbData->transactionId,
@@ -192,7 +201,6 @@ void HostMessageHandlers::handleLoadNanoappRequest(
   UNUSED_VAR(appFileName);
 
   bool success = true;
-  static NanoappLoadManager sLoadManager;
 
   if (fragmentId == 0 || fragmentId == 1) {
     size_t totalAppBinaryLen = (fragmentId == 0) ? bufferLen : appBinaryLen;
@@ -202,27 +210,27 @@ void HostMessageHandlers::handleLoadNanoappRequest(
          appId, appVersion, appFlags, targetApiVersion, totalAppBinaryLen,
          transactionId, hostClientId);
 
-    if (sLoadManager.hasPendingLoadTransaction()) {
-      FragmentedLoadInfo info = sLoadManager.getTransactionInfo();
+    if (getLoadManager().hasPendingLoadTransaction()) {
+      FragmentedLoadInfo info = getLoadManager().getTransactionInfo();
       sendFragmentResponse(info.hostClientId, info.transactionId,
                            0 /* fragmentId */, false /* success */);
-      sLoadManager.markFailure();
+      getLoadManager().markFailure();
     }
 
-    success = sLoadManager.prepareForLoad(hostClientId, transactionId, appId,
-                                          appVersion, appFlags,
-                                          totalAppBinaryLen, targetApiVersion);
+    success = getLoadManager().prepareForLoad(
+        hostClientId, transactionId, appId, appVersion, appFlags,
+        totalAppBinaryLen, targetApiVersion);
   }
 
   if (success) {
-    success = sLoadManager.copyNanoappFragment(
+    success = getLoadManager().copyNanoappFragment(
         hostClientId, transactionId, (fragmentId == 0) ? 1 : fragmentId, buffer,
         bufferLen);
   } else {
     LOGE("Failed to prepare for load");
   }
 
-  if (sLoadManager.isLoadComplete()) {
+  if (getLoadManager().isLoadComplete()) {
     LOGD("Load manager load complete...");
     auto cbData = MakeUnique<LoadNanoappCallbackData>();
     if (cbData.isNull()) {
@@ -232,7 +240,7 @@ void HostMessageHandlers::handleLoadNanoappRequest(
       cbData->hostClientId = hostClientId;
       cbData->appId = appId;
       cbData->fragmentId = fragmentId;
-      cbData->nanoapp = sLoadManager.releaseNanoapp();
+      cbData->nanoapp = getLoadManager().releaseNanoapp();
       cbData->sendFragmentResponse = !respondBeforeStart;
 
       // Note that if this fails, we'll generate the error response in
