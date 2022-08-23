@@ -96,6 +96,9 @@ class PlatformNanoappBase {
   /** Pointer to the app info structure within this nanoapp */
   const struct ::chreNslNanoappInfo *mAppInfo = nullptr;
 
+  //! Pointer containing the unstable ID section for this nanoapp
+  const char *mAppUnstableId = nullptr;
+
   //! Buffer containing the complete DSO binary - only populated if
   //! copyNanoappFragment() was used to load this nanoapp
   void *mAppBinary = nullptr;
@@ -103,6 +106,29 @@ class PlatformNanoappBase {
 
   //! The number of bytes of the binary that has been loaded so far.
   size_t mBytesLoaded = 0;
+
+  //! The dynamic shared object (DSO) handle returned by dlopenbuf()
+  void *mDsoHandle = nullptr;
+
+  /**
+   * Loads the nanoapp symbols from the currently loaded binary and verifies
+   * they match the expected information the nanoapp should have.
+   *
+   * @return true if the app info structure passed validation.
+   */
+  bool verifyNanoappInfo();
+
+  /**
+   * Calls through to openNanoappFromBuffer or openNanoappFromFile, depending on
+   * how this nanoapp was loaded.
+   */
+  bool openNanoapp();
+
+  /**
+   * Releases the DSO handle if it was active, by calling dlclose(). This will
+   * result in execution of any unload handlers in the nanoapp.
+   */
+  void closeNanoapp();
 };
 
 }  // namespace chre
