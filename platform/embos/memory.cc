@@ -39,4 +39,28 @@ void palSystemApiMemoryFree(void *pointer) {
   OS_free(pointer);
 }
 
+void *nanoappBinaryAlloc(size_t size, size_t /* alignment */) {
+  return OS_malloc(size);
+}
+
+void nanoappBinaryFree(void *pointer) {
+  OS_free(pointer);
+}
+
+void *nanoappBinaryDramAlloc(size_t size, size_t /* alignment */) {
+  return OS_malloc(size);
+}
+
+void nanoappBinaryDramFree(void *pointer) {
+  OS_free(pointer);
+}
+
+void *memoryAllocDram(size_t size) {
+  return OS_malloc(size);
+}
+
+void memoryFreeDram(void *pointer) {
+  OS_free(pointer);
+}
+
 }  // namespace chre
