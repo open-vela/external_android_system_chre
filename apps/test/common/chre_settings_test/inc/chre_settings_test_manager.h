@@ -155,7 +155,10 @@ class Manager {
    */
   void handleAudioDataEvent(const struct chreAudioDataEvent *event);
 
-  void handleTimeout();
+  /*
+   * @param data CHRE event data containing the cookie used to set the timer.
+   */
+  void handleTimeout(const void *data);
 
   /**
    * End the current test session and sends result to host.
