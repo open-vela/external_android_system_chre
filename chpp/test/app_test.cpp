@@ -18,7 +18,6 @@
 
 #include <stddef.h>
 #include <stdint.h>
-#include <string.h>
 #include <thread>
 
 #include "app_test_base.h"
@@ -35,13 +34,15 @@
 namespace chpp {
 namespace {
 
-TEST_F(AppTestBase, SimpleStartStop) {
+class ChppAppTest : public AppTestBase {};
+
+TEST_F(ChppAppTest, SimpleStartStop) {
   // Simple test to make sure start/stop work threads work without crashing
   ASSERT_TRUE(mClientTransportContext.linkParams.linkEstablished);
   ASSERT_TRUE(mServiceTransportContext.linkParams.linkEstablished);
 }
 
-TEST_F(AppTestBase, TransportLayerLoopback) {
+TEST_F(ChppAppTest, TransportLayerLoopback) {
   // This tests the more limited transport-layer-looopback. In contrast,
   // the regular application-layer loopback test provides a more thorough test
   // and test results.
@@ -84,7 +85,7 @@ TEST_F(AppTestBase, TransportLayerLoopback) {
             mClientAppContext.transportContext->loopbackResult);
 }
 
-TEST_F(AppTestBase, SimpleLoopback) {
+TEST_F(ChppAppTest, SimpleLoopback) {
   constexpr size_t kTestLen =
       CHPP_TRANSPORT_TX_MTU_BYTES - CHPP_LOOPBACK_HEADER_LEN;
   uint8_t buf[kTestLen];
@@ -96,9 +97,9 @@ TEST_F(AppTestBase, SimpleLoopback) {
       "Starting loopback test without fragmentation (max buffer = %zu)...",
       kTestLen);
 
-  struct ChppLoopbackTestResult result;
+  struct ChppLoopbackTestResult result =
+      chppRunLoopbackTest(&mClientAppContext, buf, kTestLen);
 
-  result = chppRunLoopbackTest(&mClientAppContext, buf, kTestLen);
   EXPECT_EQ(result.error, CHPP_APP_ERROR_NONE);
 
   result = chppRunLoopbackTest(&mClientAppContext, buf, 10);
@@ -111,21 +112,20 @@ TEST_F(AppTestBase, SimpleLoopback) {
   EXPECT_EQ(result.error, CHPP_APP_ERROR_INVALID_LENGTH);
 }
 
-TEST_F(AppTestBase, FragmentedLoopback) {
+TEST_F(ChppAppTest, FragmentedLoopback) {
   constexpr size_t kTestLen = UINT16_MAX;
   uint8_t buf[kTestLen];
   for (size_t i = 0; i < kTestLen; i++) {
-    buf[i] = (uint8_t)(
-        (i % 251) + 64);  // Arbitrary data. A modulus of 251, a prime number,
-                          // reduces the chance of alignment with the MTU.
+    // Arbitrary data. A modulus of 251, a prime number, reduces the chance of
+    // alignment with the MTU.
+    buf[i] = (uint8_t)((i % 251) + 64);
   }
 
   CHPP_LOGI("Starting loopback test with fragmentation (max buffer = %zu)...",
             kTestLen);
 
-  struct ChppLoopbackTestResult result;
-
-  result = chppRunLoopbackTest(&mClientAppContext, buf, kTestLen);
+  struct ChppLoopbackTestResult result =
+      chppRunLoopbackTest(&mClientAppContext, buf, kTestLen);
   EXPECT_EQ(result.error, CHPP_APP_ERROR_NONE);
 
   result = chppRunLoopbackTest(&mClientAppContext, buf, 50000);
@@ -137,7 +137,7 @@ TEST_F(AppTestBase, FragmentedLoopback) {
   EXPECT_EQ(result.error, CHPP_APP_ERROR_NONE);
 }
 
-TEST_F(AppTestBase, Timesync) {
+TEST_F(ChppAppTest, Timesync) {
   constexpr uint64_t kMaxRtt = 2 * CHPP_NSEC_PER_MSEC;    // in ms
   constexpr int64_t kMaxOffset = 1 * CHPP_NSEC_PER_MSEC;  // in ms
 
@@ -158,7 +158,7 @@ TEST_F(AppTestBase, Timesync) {
   EXPECT_NE(chppTimesyncGetResult(&mClientAppContext)->offsetNs, 0);
 }
 
-TEST_F(AppTestBase, DiscoveryMatched) {
+TEST_F(ChppAppTest, DiscoveryMatched) {
   constexpr uint64_t kTimeoutMs = 5000;
   EXPECT_TRUE(chppWaitForDiscoveryComplete(&mClientAppContext, kTimeoutMs));
   EXPECT_TRUE(chppAreAllClientsMatched(&mClientAppContext));
