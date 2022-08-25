@@ -16,8 +16,14 @@
 
 #include "exynos_daemon.h"
 #include <sys/epoll.h>
+#include <utils/SystemClock.h>
 #include <array>
 #include <csignal>
+#include "chre_host/file_stream.h"
+
+// Aliased for consistency with the way these symbols are referenced in
+// CHRE-side code
+namespace fbs = ::chre::fbs;
 
 namespace android {
 namespace chre {
@@ -44,6 +50,8 @@ ExynosDaemon::ExynosDaemon() : mLpmaHandler(true /* LPMA enabled */) {
 }
 
 bool ExynosDaemon::init() {
+  constexpr size_t kMaxTimeSyncRetries = 5;
+  constexpr useconds_t kTimeSyncRetryDelayUs = 50000;  // 50 ms
   bool success = false;
   mNativeThreadHandle = 0;
   siginterrupt(SIGINT, true);
@@ -54,11 +62,19 @@ bool ExynosDaemon::init() {
                   open(kCommsDeviceFilename, O_WRONLY | O_CLOEXEC)) < 0) {
     LOGE("Write FD open failed: %s", strerror(errno));
   } else {
-    success = true;
     mProcessThreadRunning = true;
     mIncomingMsgProcessThread =
         std::thread([&] { this->processIncomingMsgs(); });
     mNativeThreadHandle = mIncomingMsgProcessThread.native_handle();
+
+    if (!sendTimeSyncWithRetry(kMaxTimeSyncRetries, kTimeSyncRetryDelayUs,
+                               true /* logOnError */)) {
+      LOGE("Failed to send initial time sync message");
+    } else {
+      loadPreloadedNanoapps();
+      success = true;
+      LOGD("CHRE daemon initialized successfully");
+    }
   }
   return success;
 }
@@ -144,6 +160,155 @@ int64_t ExynosDaemon::getTimeOffset(bool *success) {
   // TODO(b/235631242): Implement this.
   *success = false;
   return 0;
+}
+
+void ExynosDaemon::loadPreloadedNanoapp(const std::string &directory,
+                                        const std::string &name,
+                                        uint32_t transactionId) {
+  std::vector<uint8_t> headerBuffer;
+  std::vector<uint8_t> nanoappBuffer;
+
+  std::string headerFilename = directory + "/" + name + ".napp_header";
+  std::string nanoappFilename = directory + "/" + name + ".so";
+
+  if (readFileContents(headerFilename.c_str(), &headerBuffer) &&
+      readFileContents(nanoappFilename.c_str(), &nanoappBuffer) &&
+      !loadNanoapp(headerBuffer, nanoappBuffer, transactionId)) {
+    LOGE("Failed to load nanoapp: '%s'", name.c_str());
+  }
+}
+
+bool ExynosDaemon::loadNanoapp(const std::vector<uint8_t> &header,
+                               const std::vector<uint8_t> &nanoapp,
+                               uint32_t transactionId) {
+  // This struct comes from build/build_template.mk and must not be modified.
+  // Refer to that file for more details.
+  struct NanoAppBinaryHeader {
+    uint32_t headerVersion;
+    uint32_t magic;
+    uint64_t appId;
+    uint32_t appVersion;
+    uint32_t flags;
+    uint64_t hwHubType;
+    uint8_t targetChreApiMajorVersion;
+    uint8_t targetChreApiMinorVersion;
+    uint8_t reserved[6];
+  } __attribute__((packed));
+
+  bool success = false;
+  if (header.size() != sizeof(NanoAppBinaryHeader)) {
+    LOGE("Header size mismatch");
+  } else {
+    // The header blob contains the struct above.
+    const auto *appHeader =
+        reinterpret_cast<const NanoAppBinaryHeader *>(header.data());
+
+    // Build the target API version from major and minor.
+    uint32_t targetApiVersion = (appHeader->targetChreApiMajorVersion << 24) |
+                                (appHeader->targetChreApiMinorVersion << 16);
+
+    success = sendFragmentedNanoappLoad(
+        appHeader->appId, appHeader->appVersion, appHeader->flags,
+        targetApiVersion, nanoapp.data(), nanoapp.size(), transactionId);
+  }
+
+  return success;
+}
+
+bool ExynosDaemon::sendFragmentedNanoappLoad(
+    uint64_t appId, uint32_t appVersion, uint32_t appFlags,
+    uint32_t appTargetApiVersion, const uint8_t *appBinary, size_t appSize,
+    uint32_t transactionId) {
+  std::vector<uint8_t> binary(appSize);
+  std::copy(appBinary, appBinary + appSize, binary.begin());
+
+  FragmentedLoadTransaction transaction(transactionId, appId, appVersion,
+                                        appFlags, appTargetApiVersion, binary);
+
+  bool success = true;
+
+  while (success && !transaction.isComplete()) {
+    // Pad the builder to avoid allocation churn.
+    const auto &fragment = transaction.getNextRequest();
+    flatbuffers::FlatBufferBuilder builder(fragment.binary.size() + 128);
+    HostProtocolHost::encodeFragmentedLoadNanoappRequest(
+        builder, fragment, true /* respondBeforeStart */);
+    success = sendFragmentAndWaitOnResponse(transactionId, builder,
+                                            fragment.fragmentId, appId);
+  }
+
+  return success;
+}
+
+bool ExynosDaemon::sendFragmentAndWaitOnResponse(
+    uint32_t transactionId, flatbuffers::FlatBufferBuilder &builder,
+    uint32_t fragmentId, uint64_t appId) {
+  bool success = true;
+  std::unique_lock<std::mutex> lock(mPreloadedNanoappsMutex);
+
+  mPreloadedNanoappPendingTransaction = {
+      .transactionId = transactionId,
+      .fragmentId = fragmentId,
+      .nanoappId = appId,
+  };
+  mPreloadedNanoappPending = sendMessageToChre(
+      kHostClientIdDaemon, builder.GetBufferPointer(), builder.GetSize());
+  if (!mPreloadedNanoappPending) {
+    LOGE("Failed to send nanoapp fragment");
+    success = false;
+  } else {
+    std::chrono::seconds timeout(2);
+    bool signaled = mPreloadedNanoappsCond.wait_for(
+        lock, timeout, [this] { return !mPreloadedNanoappPending; });
+
+    if (!signaled) {
+      LOGE("Nanoapp fragment load timed out");
+      success = false;
+    }
+  }
+  return success;
+}
+
+void ExynosDaemon::handleDaemonMessage(const uint8_t *message) {
+  std::unique_ptr<fbs::MessageContainerT> container =
+      fbs::UnPackMessageContainer(message);
+  if (container->message.type != fbs::ChreMessage::LoadNanoappResponse) {
+    LOGE("Invalid message from CHRE directed to daemon");
+  } else {
+    const auto *response = container->message.AsLoadNanoappResponse();
+    std::unique_lock<std::mutex> lock(mPreloadedNanoappsMutex);
+
+    if (!mPreloadedNanoappPending) {
+      LOGE("Received nanoapp load response with no pending load");
+    } else if (mPreloadedNanoappPendingTransaction.transactionId !=
+               response->transaction_id) {
+      LOGE("Received nanoapp load response with invalid transaction id");
+    } else if (mPreloadedNanoappPendingTransaction.fragmentId !=
+               response->fragment_id) {
+      LOGE("Received nanoapp load response with invalid fragment id");
+    } else if (!response->success) {
+#ifdef CHRE_DAEMON_METRIC_ENABLED
+      std::vector<VendorAtomValue> values(3);
+      values[0].set<VendorAtomValue::longValue>(
+          mPreloadedNanoappPendingTransaction.nanoappId);
+      values[1].set<VendorAtomValue::intValue>(
+          PixelAtoms::ChreHalNanoappLoadFailed::TYPE_PRELOADED);
+      values[2].set<VendorAtomValue::intValue>(
+          PixelAtoms::ChreHalNanoappLoadFailed::REASON_ERROR_GENERIC);
+      const VendorAtom atom{
+          .reverseDomainName = "",
+          .atomId = PixelAtoms::Atom::kChreHalNanoappLoadFailed,
+          .values{std::move(values)},
+      };
+      ChreDaemonBase::reportMetric(atom);
+#endif  // CHRE_DAEMON_METRIC_ENABLED
+
+    } else {
+      mPreloadedNanoappPending = false;
+    }
+
+    mPreloadedNanoappsCond.notify_all();
+  }
 }
 
 }  // namespace chre
