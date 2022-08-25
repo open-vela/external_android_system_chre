@@ -50,7 +50,13 @@ class ExynosDaemon : public FbsDaemonBase {
 
   void processIncomingMsgs();
 
+  int64_t getTimeOffset(bool *success) override;
+
  protected:
+  void loadPreloadedNanoapp(const std::string &directory,
+                            const std::string &name,
+                            uint32_t transactionId) override;
+  void handleDaemonMessage(const uint8_t *message) override;
   bool doSendMessage(void *data, size_t length) override;
 
   void configureLpma(bool enabled) override {
@@ -69,17 +75,28 @@ class ExynosDaemon : public FbsDaemonBase {
 
   StHalLpmaHandler mLpmaHandler;
 
+  //! Set to the expected transaction, fragment, app ID for loading a nanoapp.
+  struct Transaction {
+    uint32_t transactionId;
+    uint32_t fragmentId;
+    uint64_t nanoappId;
+  };
+  Transaction mPreloadedNanoappPendingTransaction;
+
+  //! The mutex used to guard state between the nanoapp messaging thread
+  //! and loading preloaded nanoapps.
+  std::mutex mPreloadedNanoappsMutex;
+
+  //! The condition variable used to wait for a nanoapp to finish loading.
+  std::condition_variable mPreloadedNanoappsCond;
+
+  //! Set to true when a preloaded nanoapp is pending load.
+  bool mPreloadedNanoappPending;
+
   /**
    * Perform a graceful shutdown of the daemon
    */
   void deinit();
-
-  /**
-   * Platform specific getTimeOffset.
-   *
-   * @return clock drift offset in nanoseconds
-   */
-  int64_t getTimeOffset(bool *success);
 
   /**
    * Stops the inbound message processing thread (forcibly).
@@ -90,6 +107,40 @@ class ExynosDaemon : public FbsDaemonBase {
    * not provide an API to accomplish this.
    */
   void stopMsgProcessingThread();
+
+  /**
+   * Sends a preloaded nanoapp to CHRE.
+   *
+   * @param header The nanoapp header binary blob.
+   * @param nanoapp The nanoapp binary blob.
+   * @param transactionId The transaction ID to use when loading the app.
+   * @return true if successful, false otherwise.
+   */
+  bool loadNanoapp(const std::vector<uint8_t> &header,
+                   const std::vector<uint8_t> &nanoapp, uint32_t transactionId);
+
+  /**
+   * Loads a nanoapp using fragments.
+   *
+   * @param appId The ID of the nanoapp to load.
+   * @param appVersion The version of the nanoapp to load.
+   * @param appFlags The flags specified by the nanoapp to be loaded.
+   * @param appTargetApiVersion The version of the CHRE API that the app
+   * targets.
+   * @param appBinary The application binary code.
+   * @param appSize The size of the appBinary.
+   * @param transactionId The transaction ID to use when loading.
+   * @return true if successful, false otherwise.
+   */
+  bool sendFragmentedNanoappLoad(uint64_t appId, uint32_t appVersion,
+                                 uint32_t appFlags,
+                                 uint32_t appTargetApiVersion,
+                                 const uint8_t *appBinary, size_t appSize,
+                                 uint32_t transactionId);
+
+  bool sendFragmentAndWaitOnResponse(uint32_t transactionId,
+                                     flatbuffers::FlatBufferBuilder &builder,
+                                     uint32_t fragmentId, uint64_t appId);
 
   /**
    * Empty signal handler to handle SIGINT
