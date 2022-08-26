@@ -73,8 +73,6 @@ public class ChreCrossValidatorSensor
     private static final long AWAIT_DATA_TIMEOUT_ON_CHANGE_ONE_SHOT_IN_MS = 1000;
     private static final long INFO_RESPONSE_TIMEOUT_MS = 1000;
 
-    private static final long DEFAULT_SAMPLING_INTERVAL_IN_MS = 20;
-
     private static final long SAMPLING_LATENCY_IN_MS = 0;
 
     private static final long MAX_TIMESTAMP_DIFF_NS = 10000000L;
@@ -159,11 +157,7 @@ public class ChreCrossValidatorSensor
             mChreSensorIndex = Optional.empty();
             mSensor = mSensorList.get(i);
             Log.d(TAG, "Starting x-val for sensor[" + i + "]: " + mSensor);
-            mSamplingIntervalInMs =
-                    Math.min(Math.max(
-                            DEFAULT_SAMPLING_INTERVAL_IN_MS,
-                            TimeUnit.MICROSECONDS.toMillis(mSensor.getMinDelay())),
-                            TimeUnit.MICROSECONDS.toMillis(mSensor.getMaxDelay()));
+            mSamplingIntervalInMs = TimeUnit.MICROSECONDS.toMillis(mSensor.getMinDelay());
 
             verifyChreSensorIsPresent();
             if (!mChreSensorIndex.isPresent()) {
