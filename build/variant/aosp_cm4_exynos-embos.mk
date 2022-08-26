@@ -10,7 +10,7 @@ endif
 
 EMBOS_V422_INCLUDE_DIR := $(RAINBOW_SDK_DIR)/OEM/LSI/exynos9925/embos/Start/Inc/Embos422
 
-CORTEXM_ARCH := m4
+CORTEXM_ARCH := m4_hardfp
 
 TARGET_CFLAGS += -I$(EMBOS_V422_INCLUDE_DIR)
 
@@ -32,12 +32,17 @@ TARGET_CFLAGS += -I$(RAINBOW_SDK_DIR)/OEM/LSI/exynos9925/firmware/os/platform/ex
 TARGET_CFLAGS += -I$(RAINBOW_SDK_DIR)/OEM/LSI/exynos9925/firmware/os/platform/exynos/inc/plat/mailbox
 TARGET_CFLAGS += -I$(RAINBOW_SDK_DIR)/OEM/LSI/exynos9925/embos/Project/erd9925/DeviceSupport
 
+# TODO(b/242765122): The target won't build out of the box until the
+# aforementioned bug is resolved since a set of standard library headers
+# that CHRE requires are missing. Please contact the CHRE team for a
+# workaround.
+
 # IAR interlinking compatibility flags
 TARGET_CFLAGS += -D__ARM7EM__
 TARGET_CFLAGS += -D__CORE__=__ARM7EM__
 TARGET_CFLAGS += -D__FPU_PRESENT=1
-TARGET_CFLAGS += -fshort-wchar
-TARGET_SO_LDFLAGS += --no-wchar-size-warning
+TARGET_CFLAGS += -D_LIBCPP_HAS_THREAD_API_EXTERNAL
+GCC_SO_LDFLAGS += --no-wchar-size-warning
 
 # The Exynos lib has a macro that includes common headers based on a 'Chip' ID. Eg:
 # CSP_HEADER(csp_common) includes csp_common{CHIP}.h.
@@ -68,6 +73,9 @@ TARGET_CFLAGS += -DCHRE_FIRST_SUPPORTED_API_VERSION=CHRE_API_VERSION_1_6
 TARGET_VARIANT_SRCS += $(EMBOS_SRCS)
 TARGET_VARIANT_SRCS += $(EXYNOS_SRCS)
 TARGET_VARIANT_SRCS += $(ARM_SRCS)
+TARGET_VARIANT_SRCS += $(DSO_SUPPORT_LIB_SRCS)
+
+TARGET_CFLAGS += $(DSO_SUPPORT_LIB_CFLAGS)
 
 TARGET_PLATFORM_ID = 0x476F6F676C002000
 
