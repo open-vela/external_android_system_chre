@@ -123,7 +123,7 @@ void PlatformNanoappBase::loadStatic(const struct chreNslNanoappInfo *appInfo) {
 
 bool PlatformNanoapp::supportsAppPermissions() const {
   return (mAppInfo != nullptr) ? (mAppInfo->structMinorVersion >=
-                                  CHRE_NSL_NANOAPP_INFO_STRUCT_MINOR_VERSION)
+                                  CHRE_NSL_NANOAPP_INFO_STRUCT_MINOR_VERSION_3)
                                : false;
 }
 
@@ -159,7 +159,7 @@ bool PlatformNanoappBase::verifyNanoappInfo() {
                mAppInfo->appVersionString, mAppInfo->isTcmNanoapp,
                mAppInfo->isSystemNanoapp);
           if (mAppInfo->structMinorVersion >=
-              CHRE_NSL_NANOAPP_INFO_STRUCT_MINOR_VERSION) {
+              CHRE_NSL_NANOAPP_INFO_STRUCT_MINOR_VERSION_3) {
             LOGI("Nanoapp permissions: 0x%" PRIx32, mAppInfo->appPermissions);
           }
         }
