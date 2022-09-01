@@ -207,13 +207,10 @@ public class ContextHubSettingsTestExecutor extends ContextHubClientCallback {
      * Cleans up the test, should be invoked in e.g. @After method.
      */
     public void deinit() {
-        Assert.assertTrue("deinit() must be invoked after init()", mInitialized);
-
         if (mChreReset.get()) {
             Assert.fail("CHRE reset during the test");
         }
-
-        ChreTestUtil.unloadNanoAppAssertSuccess(mContextHubManager, mContextHubInfo, mNanoAppId);
+        ChreTestUtil.unloadNanoApp(mContextHubManager, mContextHubInfo, mNanoAppId);
         mContextHubClient.close();
 
         mInitialized = false;
