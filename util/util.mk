@@ -15,6 +15,7 @@ COMMON_SRCS += $(CHRE_PREFIX)/util/nanoapp/audio.cc
 COMMON_SRCS += $(CHRE_PREFIX)/util/nanoapp/callbacks.cc
 COMMON_SRCS += $(CHRE_PREFIX)/util/nanoapp/debug.cc
 COMMON_SRCS += $(CHRE_PREFIX)/util/nanoapp/wifi.cc
+COMMON_SRCS += $(CHRE_PREFIX)/util/system/event_callbacks.cc
 COMMON_SRCS += $(CHRE_PREFIX)/util/system/debug_dump.cc
 
 # GoogleTest Source Files ######################################################
