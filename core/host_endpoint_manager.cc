@@ -19,6 +19,7 @@
 #include "chre/core/event_loop_manager.h"
 #include "chre/util/dynamic_vector.h"
 #include "chre/util/nested_data_ptr.h"
+#include "chre/util/system/event_callbacks.h"
 
 namespace chre {
 bool HostEndpointManager::isHostEndpointConnected(uint16_t hostEndpointId,
