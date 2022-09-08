@@ -28,10 +28,7 @@
 #include "event_logger.h"
 #include "hal_chre_socket_connection.h"
 
-namespace aidl {
-namespace android {
-namespace hardware {
-namespace contexthub {
+namespace aidl::android::hardware::contexthub {
 
 class ContextHub : public BnContextHub,
                    public ::android::hardware::contexthub::DebugDumpHelper,
@@ -114,8 +111,7 @@ class ContextHub : public BnContextHub,
   EventLogger mEventLogger;
 
   bool isSettingEnabled(Setting setting) {
-    return mSettingEnabled.count(setting) > 0 ? mSettingEnabled[setting]
-                                              : false;
+    return mSettingEnabled.count(setting) > 0 && mSettingEnabled[setting];
   }
 
   chre::fbs::SettingState toFbsSettingState(bool enabled) const {
@@ -124,9 +120,6 @@ class ContextHub : public BnContextHub,
   }
 };
 
-}  // namespace contexthub
-}  // namespace hardware
-}  // namespace android
-}  // namespace aidl
+}  // namespace aidl::android::hardware::contexthub
 
 #endif  // ANDROID_HARDWARE_CONTEXTHUB_AIDL_CONTEXTHUB_H
