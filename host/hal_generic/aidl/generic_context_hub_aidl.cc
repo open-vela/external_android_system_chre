@@ -21,10 +21,7 @@
 #include "chre_host/host_protocol_host.h"
 #include "permissions_util.h"
 
-namespace aidl {
-namespace android {
-namespace hardware {
-namespace contexthub {
+namespace aidl::android::hardware::contexthub {
 
 // Aliased for consistency with the way these symbols are referenced in
 // CHRE-side code
@@ -41,12 +38,12 @@ using ::ndk::ScopedAStatus;
 namespace {
 constexpr uint32_t kDefaultHubId = 0;
 
-inline constexpr uint8_t extractChreApiMajorVersion(uint32_t chreVersion) {
-  return static_cast<uint8_t>(chreVersion >> 24);
+inline constexpr int8_t extractChreApiMajorVersion(uint32_t chreVersion) {
+  return static_cast<int8_t>(chreVersion >> 24);
 }
 
-inline constexpr uint8_t extractChreApiMinorVersion(uint32_t chreVersion) {
-  return static_cast<uint8_t>(chreVersion >> 16);
+inline constexpr int8_t extractChreApiMinorVersion(uint32_t chreVersion) {
+  return static_cast<int8_t>(chreVersion >> 16);
 }
 
 inline constexpr uint16_t extractChrePatchVersion(uint32_t chreVersion) {
@@ -116,16 +113,15 @@ ScopedAStatus ContextHub::loadNanoapp(int32_t contextHubId,
   if (contextHubId != kDefaultHubId) {
     ALOGE("Invalid ID %" PRId32, contextHubId);
     return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
-  } else {
-    uint32_t targetApiVersion = (appBinary.targetChreApiMajorVersion << 24) |
-                                (appBinary.targetChreApiMinorVersion << 16);
-    FragmentedLoadTransaction transaction(
-        transactionId, appBinary.nanoappId, appBinary.nanoappVersion,
-        appBinary.flags, targetApiVersion, appBinary.customBinary);
-    const bool success = mConnection.loadNanoapp(transaction);
-    mEventLogger.logNanoappLoad(appBinary, success);
-    return toServiceSpecificError(success);
   }
+  uint32_t targetApiVersion = (appBinary.targetChreApiMajorVersion << 24) |
+                              (appBinary.targetChreApiMinorVersion << 16);
+  FragmentedLoadTransaction transaction(
+      transactionId, appBinary.nanoappId, appBinary.nanoappVersion,
+      appBinary.flags, targetApiVersion, appBinary.customBinary);
+  const bool success = mConnection.loadNanoapp(transaction);
+  mEventLogger.logNanoappLoad(appBinary, success);
+  return toServiceSpecificError(success);
 }
 
 ScopedAStatus ContextHub::unloadNanoapp(int32_t contextHubId, int64_t appId,
@@ -133,11 +129,10 @@ ScopedAStatus ContextHub::unloadNanoapp(int32_t contextHubId, int64_t appId,
   if (contextHubId != kDefaultHubId) {
     ALOGE("Invalid ID %" PRId32, contextHubId);
     return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
-  } else {
-    const bool success = mConnection.unloadNanoapp(appId, transactionId);
-    mEventLogger.logNanoappUnload(appId, success);
-    return toServiceSpecificError(success);
   }
+  const bool success = mConnection.unloadNanoapp(appId, transactionId);
+  mEventLogger.logNanoappUnload(appId, success);
+  return toServiceSpecificError(success);
 }
 
 ScopedAStatus ContextHub::disableNanoapp(int32_t /* contextHubId */,
@@ -203,9 +198,8 @@ ScopedAStatus ContextHub::queryNanoapps(int32_t contextHubId) {
   if (contextHubId != kDefaultHubId) {
     ALOGE("Invalid ID %" PRId32, contextHubId);
     return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
-  } else {
-    return toServiceSpecificError(mConnection.queryNanoapps());
   }
+  return toServiceSpecificError(mConnection.queryNanoapps());
 }
 
 ScopedAStatus ContextHub::registerCallback(
@@ -213,29 +207,24 @@ ScopedAStatus ContextHub::registerCallback(
   if (contextHubId != kDefaultHubId) {
     ALOGE("Invalid ID %" PRId32, contextHubId);
     return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
-  } else {
-    std::lock_guard<std::mutex> lock(mCallbackMutex);
-    if (mCallback != nullptr) {
-      binder_status_t binder_status = AIBinder_unlinkToDeath(
-          mCallback->asBinder().get(), mDeathRecipient.get(), this);
-      if (binder_status != STATUS_OK) {
-        ALOGE("Failed to unlink to death");
-      }
-    }
-
-    mCallback = cb;
-
-    if (cb != nullptr) {
-      binder_status_t binder_status = AIBinder_linkToDeath(
-          cb->asBinder().get(), mDeathRecipient.get(), this);
-
-      if (binder_status != STATUS_OK) {
-        ALOGE("Failed to link to death");
-      }
-    }
-
-    return ScopedAStatus::ok();
   }
+  std::lock_guard<std::mutex> lock(mCallbackMutex);
+  if (mCallback != nullptr) {
+    binder_status_t binder_status = AIBinder_unlinkToDeath(
+        mCallback->asBinder().get(), mDeathRecipient.get(), this);
+    if (binder_status != STATUS_OK) {
+      ALOGE("Failed to unlink to death");
+    }
+  }
+  mCallback = cb;
+  if (cb != nullptr) {
+    binder_status_t binder_status =
+        AIBinder_linkToDeath(cb->asBinder().get(), mDeathRecipient.get(), this);
+    if (binder_status != STATUS_OK) {
+      ALOGE("Failed to link to death");
+    }
+  }
+  return ScopedAStatus::ok();
 }
 
 ScopedAStatus ContextHub::sendMessageToHub(int32_t contextHubId,
@@ -304,44 +293,44 @@ void ContextHub::onNanoappMessage(const ::chre::fbs::NanoappMessageT &message) {
 void ContextHub::onNanoappListResponse(
     const ::chre::fbs::NanoappListResponseT &response) {
   std::lock_guard<std::mutex> lock(mCallbackMutex);
-  if (mCallback != nullptr) {
-    std::vector<NanoappInfo> appInfoList;
+  if (mCallback == nullptr) {
+    return;
+  }
+  std::vector<NanoappInfo> appInfoList;
 
-    for (const std::unique_ptr<::chre::fbs::NanoappListEntryT> &nanoapp :
-         response.nanoapps) {
-      // TODO: determine if this is really required, and if so, have
-      // HostProtocolHost strip out null entries as part of decode
-      if (nanoapp == nullptr) {
-        continue;
-      }
-
-      ALOGV("App 0x%016" PRIx64 " ver 0x%" PRIx32 " permissions 0x%" PRIx32
-            " enabled %d system %d",
-            nanoapp->app_id, nanoapp->version, nanoapp->permissions,
-            nanoapp->enabled, nanoapp->is_system);
-      if (!nanoapp->is_system) {
-        NanoappInfo appInfo;
-
-        appInfo.nanoappId = nanoapp->app_id;
-        appInfo.nanoappVersion = nanoapp->version;
-        appInfo.enabled = nanoapp->enabled;
-        appInfo.permissions = chreToAndroidPermissions(nanoapp->permissions);
-
-        std::vector<NanoappRpcService> rpcServices;
-        for (const auto &service : nanoapp->rpc_services) {
-          NanoappRpcService aidlService;
-          aidlService.id = service->id;
-          aidlService.version = service->version;
-          rpcServices.emplace_back(aidlService);
-        }
-        appInfo.rpcServices = rpcServices;
-
-        appInfoList.push_back(appInfo);
-      }
+  for (const std::unique_ptr<::chre::fbs::NanoappListEntryT> &nanoapp :
+       response.nanoapps) {
+    // TODO(b/245202050): determine if this is really required, and if so, have
+    // HostProtocolHost strip out null entries as part of decode
+    if (nanoapp == nullptr) {
+      continue;
     }
 
-    mCallback->handleNanoappInfo(appInfoList);
+    ALOGV("App 0x%016" PRIx64 " ver 0x%" PRIx32 " permissions 0x%" PRIx32
+          " enabled %d system %d",
+          nanoapp->app_id, nanoapp->version, nanoapp->permissions,
+          nanoapp->enabled, nanoapp->is_system);
+    if (!nanoapp->is_system) {
+      NanoappInfo appInfo;
+
+      appInfo.nanoappId = nanoapp->app_id;
+      appInfo.nanoappVersion = nanoapp->version;
+      appInfo.enabled = nanoapp->enabled;
+      appInfo.permissions = chreToAndroidPermissions(nanoapp->permissions);
+
+      std::vector<NanoappRpcService> rpcServices;
+      for (const auto &service : nanoapp->rpc_services) {
+        NanoappRpcService aidlService;
+        aidlService.id = service->id;
+        aidlService.version = service->version;
+        rpcServices.emplace_back(aidlService);
+      }
+      appInfo.rpcServices = rpcServices;
+
+      appInfoList.push_back(appInfo);
+    }
   }
+  mCallback->handleNanoappInfo(appInfoList);
 }
 
 void ContextHub::onTransactionResult(uint32_t transactionId, bool success) {
@@ -355,7 +344,7 @@ void ContextHub::onContextHubRestarted() {
   std::lock_guard<std::mutex> lock(mCallbackMutex);
   mIsWifiAvailable.reset();
   {
-    std::lock_guard<std::mutex> lock(mConnectedHostEndpointsMutex);
+    std::lock_guard<std::mutex> endpointLock(mConnectedHostEndpointsMutex);
     mConnectedHostEndpoints.clear();
     mEventLogger.logContextHubRestart();
   }
@@ -414,7 +403,4 @@ void ContextHub::writeToDebugFile(const char *str) {
   }
 }
 
-}  // namespace contexthub
-}  // namespace hardware
-}  // namespace android
-}  // namespace aidl
+}  // namespace aidl::android::hardware::contexthub
