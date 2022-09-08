@@ -244,6 +244,8 @@ public class ContextHubClientSendMessageTestExecutor {
     private void unregisterMessageClient(ContextHubClient client) {
         if (client != null) {
             client.close();
+            Log.d(TAG, "Sending message after closing client, "
+                    + "expecting a error message from sendMessageToNanoApp");
             int result = client.sendMessageToNanoApp(createNanoAppMessage());
             assertWithMessage("Send message succeeded after client close")
                     .that(result)
