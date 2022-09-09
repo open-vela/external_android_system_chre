@@ -28,6 +28,7 @@
 #include "chre/util/conditional_lock_guard.h"
 #include "chre/util/lock_guard.h"
 #include "chre/util/system/debug_dump.h"
+#include "chre/util/system/event_callbacks.h"
 #include "chre/util/system/stats_container.h"
 #include "chre/util/time.h"
 #include "chre_api/chre/version.h"
