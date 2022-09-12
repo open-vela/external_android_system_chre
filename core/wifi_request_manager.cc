@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include "chre/core/wifi_request_manager.h"
+
 #include <cinttypes>
 #include <cstddef>
 #include <cstdint>
@@ -21,7 +23,7 @@
 
 #include "chre/core/event_loop_manager.h"
 #include "chre/core/settings.h"
-#include "chre/core/wifi_request_manager.h"
+#include "chre/core/system_health_monitor.h"
 #include "chre/platform/fatal_error.h"
 #include "chre/platform/log.h"
 #include "chre/platform/system_time.h"
@@ -191,8 +193,9 @@ bool WifiRequestManager::requestRanging(RangingType rangingType,
       // Dispatch request later, after prior requests finish
       // TODO(b/65331248): use a timer to ensure the platform is meeting its
       // contract
-      CHRE_ASSERT_LOG(SystemTime::getMonotonicTime() <= mRangingResponseTimeout,
-                      "WiFi platform didn't give callback in time");
+      SystemHealthMonitor::check(
+          SystemTime::getMonotonicTime() <= mRangingResponseTimeout,
+          HealthCheckId::WifiRequestRangingTimeout);
       success = updateRangingRequest(rangingType, req, rangingParams);
       if (!success) {
         LOG_OOM();
@@ -214,7 +217,7 @@ bool WifiRequestManager::requestScan(Nanoapp *nanoapp,
        mLastScanRequestTime + Nanoseconds(CHRE_WIFI_SCAN_RESULT_TIMEOUT_NS) <
            SystemTime::getMonotonicTime());
   if (timedOut) {
-    LOGE("Scan request async response timed out");
+    SystemHealthMonitor::onFailure(HealthCheckId::WifiScanResponseTimeout);
     mScanRequestingNanoappInstanceId.reset();
   }
 
@@ -229,6 +232,7 @@ bool WifiRequestManager::requestScan(Nanoapp *nanoapp,
 
   bool success = false;
   if (mScanRequestingNanoappInstanceId.has_value()) {
+    SystemHealthMonitor::onFailure(HealthCheckId::UnexpectedWifiPalCallback);
     LOGE("Active wifi scan request made by 0x%" PRIx64
          " while a request by 0x%" PRIx64 " is in flight",
          nanoapp->getAppId(),
