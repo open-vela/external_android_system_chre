@@ -551,6 +551,7 @@ cc_library_static {
         "core/sensor_type.cc",
         "core/sensor.cc",
         "core/settings.cc",
+        "core/system_health_monitor.cc",
         "core/timer_pool.cc",
         "core/wifi_request_manager.cc",
         "core/wifi_scan_request.cc",
