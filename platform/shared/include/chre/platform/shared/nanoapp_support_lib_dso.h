@@ -134,6 +134,13 @@ struct chreNslNanoappInfo {
 };
 
 /**
+ * Get the Chre Nsl Nanoapp Info object
+ *
+ * @return struct chreNslNanoappInfo
+ */
+const struct chreNslNanoappInfo *getChreNslDsoNanoappInfo();
+
+/**
  * Defined as a placeholder to enable future functionality extension.
  *
  * @param apiId
