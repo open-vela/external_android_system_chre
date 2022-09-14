@@ -14,101 +14,278 @@
  * limitations under the License.
  */
 
-#include "chre_host/file_stream.h"
-#include "chre_host/log.h"
-
-#include <cinttypes>
-#include <string>
-#include <vector>
-
+#include <aidl/android/hardware/contexthub/BnContextHubCallback.h>
 #include <aidl/android/hardware/contexthub/IContextHub.h>
 #include <aidl/android/hardware/contexthub/NanoappBinary.h>
 #include <android/binder_manager.h>
+#include <android/binder_process.h>
+#include <dirent.h>
 #include <utils/String16.h>
 
+#include <cinttypes>
+#include <filesystem>
+#include <fstream>
+#include <future>
+#include <map>
+#include <regex>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
+#include "chre_host/file_stream.h"
+#include "chre_host/napp_header.h"
+
+using aidl::android::hardware::contexthub::AsyncEventType;
+using aidl::android::hardware::contexthub::BnContextHubCallback;
+using aidl::android::hardware::contexthub::ContextHubMessage;
 using aidl::android::hardware::contexthub::IContextHub;
 using aidl::android::hardware::contexthub::NanoappBinary;
-using android::String16;
+using aidl::android::hardware::contexthub::NanoappInfo;
+using android::chre::NanoAppBinaryHeader;
 using android::chre::readFileContents;
+using android::internal::ToString;
+using ndk::ScopedAStatus;
 
 namespace {
 
-constexpr uint32_t kContextHubId = 0;
-constexpr int32_t kTransactionId = -1;
-
-bool loadNanoapp(const char *fileName, uint64_t nanoappId) {
-  bool success = false;
-  auto aidlServiceName = std::string() + IContextHub::descriptor + "/default";
-  ndk::SpAIBinder binder(
-      AServiceManager_waitForService(aidlServiceName.c_str()));
-  if (binder.get() == nullptr) {
-    LOGE("Could not find Context Hub HAL");
-  } else {
-    std::shared_ptr<IContextHub> contextHub = IContextHub::fromBinder(binder);
-    contextHub->registerCallback(kContextHubId, nullptr);
-    std::vector<uint8_t> soBuffer;
-    if (!readFileContents(fileName, &soBuffer)) {
-      LOGE("Failed to read contents of %s", fileName);
-    } else {
-      NanoappBinary binary;
-      binary.nanoappId = nanoappId;
-      binary.customBinary = soBuffer;
-      success =
-          contextHub->loadNanoapp(kContextHubId, binary, kTransactionId).isOk();
-      LOGI("Load nanoapp 0x%" PRIx64 " success %d", nanoappId, success);
+class ContextHubCallback : public BnContextHubCallback {
+ public:
+  ScopedAStatus handleNanoappInfo(
+      const std::vector<NanoappInfo> &appInfo) override {
+    std::cout << appInfo.size() << " nanoapps loaded" << std::endl;
+    for (const NanoappInfo &app : appInfo) {
+      std::cout << "appId: 0x" << std::hex << app.nanoappId << std::dec << " {"
+                << "\n\tappVersion: " << app.nanoappVersion
+                << "\n\tenabled: " << app.enabled
+                << "\n\tpermissions: " << ToString(app.permissions)
+                << "\n\trpcServices: " << ToString(app.rpcServices) << "\n}"
+                << std::endl;
     }
+    promise.set_value();
+    return ScopedAStatus::ok();
   }
-  return success;
+  ScopedAStatus handleContextHubMessage(
+      const ContextHubMessage & /*message*/,
+      const std::vector<std::string> & /*msgContentPerms*/) override {
+    promise.set_value();
+    return ScopedAStatus::ok();
+  }
+  ScopedAStatus handleContextHubAsyncEvent(AsyncEventType /*event*/) override {
+    promise.set_value();
+    return ScopedAStatus::ok();
+  }
+  // Called after loading/unloading a nanoapp.
+  ScopedAStatus handleTransactionResult(int32_t transactionId,
+                                        bool success) override {
+    std::cout << "[ContextHubCallback] Transaction " << transactionId << " is "
+              << (success ? "successful" : "failed") << std::endl;
+    promise.set_value();
+    return ScopedAStatus::ok();
+  }
+  std::promise<void> promise;
+};
+
+constexpr uint32_t kContextHubId = 0;
+constexpr int32_t kLoadTransactionId = 1;
+constexpr int32_t kUnloadTransactionId = -1;
+constexpr auto kTimeOutThreshold = std::chrono::seconds(5);
+constexpr char kUsage[] = R"(
+Usage: chre_aidl_hal_client COMMAND [ARGS]
+COMMAND ARGS...:
+  list <PATH_OF_NANOAPPS>        - list all the nanoapps' header info in the path
+  load <ABSOLUTE_PATH>           - load the nanoapp specified by the absolute path
+                                   of the nanoapp. For example, load /path/to/awesome.so
+  query                          - show all loaded nanoapps (system apps excluded)
+  unload <HEX_NANOAPP_ID | ABSOLUTE_PATH>
+                                 - unload the nanoapp specified by either the nanoapp
+                                   id in hex format or the absolute path.  For example,
+                                   unload 0x123def or unload /path/to/awesome.so
+)";
+
+void throwError(const std::string &message) {
+  throw std::system_error{std::error_code(), message};
 }
 
-bool unloadNanoapp(uint64_t nanoappId) {
-  bool success = false;
+std::shared_ptr<IContextHub> getContextHub(std::future<void> &callbackSignal) {
   auto aidlServiceName = std::string() + IContextHub::descriptor + "/default";
   ndk::SpAIBinder binder(
       AServiceManager_waitForService(aidlServiceName.c_str()));
   if (binder.get() == nullptr) {
-    LOGE("Could not find Context Hub HAL");
-  } else {
-    std::shared_ptr<IContextHub> contextHub = IContextHub::fromBinder(binder);
-    contextHub->registerCallback(kContextHubId, nullptr);
-    success =
-        contextHub->unloadNanoapp(kContextHubId, nanoappId, kTransactionId)
-            .isOk();
-    LOGI("Unload nanoapp 0x%" PRIx64 " success %d", nanoappId, success);
+    throwError("Could not find Context Hub HAL");
   }
-  return success;
+  std::shared_ptr<IContextHub> contextHub = IContextHub::fromBinder(binder);
+  std::shared_ptr<ContextHubCallback> callback =
+      ContextHubCallback::make<ContextHubCallback>();
+
+  if (!contextHub->registerCallback(kContextHubId, callback).isOk()) {
+    throwError("Failed to register the callback");
+  }
+  callbackSignal = callback->promise.get_future();
+  return contextHub;
 }
 
-void printUsage() {
-  LOGI(
-      "\n"
-      "Usage:\n"
-      " chre_aidl_hal_client load <path to .so file> <nanoapp ID>\n"
-      " chre_aidl_hal_client unload <nanoapp ID>");
+void printNanoappHeader(const NanoAppBinaryHeader &header) {
+  std::cout << " {"
+            << "\n\tappId: 0x" << std::hex << header.appId << std::dec
+            << "\n\tappVersion: " << header.appVersion
+            << "\n\tflags: " << header.flags << "\n\ttarget major version: "
+            << static_cast<int>(header.targetChreApiMajorVersion)
+            << "\n\ttarget minor version: "
+            << static_cast<int>(header.targetChreApiMinorVersion) << "\n}"
+            << std::endl;
+}
+
+void readNanoappHeaders(std::map<std::string, NanoAppBinaryHeader> &nanoapps,
+                        const std::string &binaryPath) {
+  DIR *dir = opendir(binaryPath.c_str());
+  if (dir == nullptr) {
+    throwError("Unable to access the nanoapp path");
+  }
+  std::regex regex("(\\w+)\\.napp_header");
+  std::cmatch match;
+  for (struct dirent *entry; (entry = readdir(dir)) != nullptr;) {
+    if (!std::regex_match(entry->d_name, match, regex)) {
+      continue;
+    }
+    std::ifstream input(std::string(binaryPath) + "/" + entry->d_name,
+                        std::ios::binary);
+    input.read(reinterpret_cast<char *>(&nanoapps[match[1]]),
+               sizeof(NanoAppBinaryHeader));
+  }
+  closedir(dir);
+}
+
+void verifyStatusAndSignal(const ScopedAStatus &status,
+                           const std::future<void> &future_signal) {
+  if (!status.isOk()) {
+    throwError("API call fails with abnormal status");
+  }
+  auto future_status = future_signal.wait_for(kTimeOutThreshold);
+  if (future_status != std::future_status::ready) {
+    throwError("The callback function is not ready yet");
+  }
+}
+
+NanoAppBinaryHeader findHeaderByPath(const std::string &pathAndName) {
+  std::map<std::string, NanoAppBinaryHeader> nanoapps{};
+  // To match the file pattern of [path][name].so
+  std::regex pathNameRegex("(.*?)(\\w+)\\.so");
+  std::smatch smatch;
+  if (!std::regex_match(pathAndName, smatch, pathNameRegex)) {
+    throwError("Invalid nanoapp: " + pathAndName);
+  }
+  std::string fullPath = smatch[1];
+  std::string appName = smatch[2];
+  readNanoappHeaders(nanoapps, fullPath);
+  if (nanoapps.find(appName) == nanoapps.end()) {
+    throwError("Cannot find the nanoapp: " + appName);
+  }
+  return nanoapps[appName];
+}
+
+void loadNanoapp(const std::string &pathAndName) {
+  NanoAppBinaryHeader header = findHeaderByPath(pathAndName);
+  std::vector<uint8_t> soBuffer{};
+  if (!readFileContents(pathAndName.c_str(), &soBuffer)) {
+    throwError("Failed to open the content of " + pathAndName);
+  }
+  NanoappBinary binary;
+  binary.nanoappId = static_cast<int64_t>(header.appId);
+  binary.customBinary = soBuffer;
+  binary.flags = static_cast<int32_t>(header.flags);
+  binary.targetChreApiMajorVersion =
+      static_cast<int8_t>(header.targetChreApiMajorVersion);
+  binary.targetChreApiMinorVersion =
+      static_cast<int8_t>(header.targetChreApiMinorVersion);
+  binary.nanoappVersion = static_cast<int32_t>(header.appVersion);
+
+  std::future<void> callbackSignal;
+  auto status = getContextHub(callbackSignal)
+                    ->loadNanoapp(kContextHubId, binary, kLoadTransactionId);
+  verifyStatusAndSignal(status, callbackSignal);
+}
+
+void unloadNanoapp(const std::string &appIdentifier) {
+  std::future<void> callbackSignal;
+  int64_t appId;
+  try {
+    // check if user provided the hex appId
+    appId = std::stoll(appIdentifier, nullptr, 16);
+  } catch (std::invalid_argument &e) {
+    // Treat the appIdentifier as the absolute path and name and try again
+    appId = static_cast<int64_t>(findHeaderByPath(appIdentifier).appId);
+  }
+  auto status = getContextHub(callbackSignal)
+                    ->unloadNanoapp(kContextHubId, appId, kUnloadTransactionId);
+  verifyStatusAndSignal(status, callbackSignal);
+}
+
+void queryNanoapps() {
+  std::future<void> callbackSignal;
+  auto status = getContextHub(callbackSignal)->queryNanoapps(kContextHubId);
+  verifyStatusAndSignal(status, callbackSignal);
+}
+
+enum Command { list, load, query, unload, unsupported };
+
+struct CommandInfo {
+  Command cmd;
+  u_int8_t numofArgs;  // including cmd;
+};
+
+Command parseCommand(const std::vector<std::string> &cmdLine) {
+  std::map<std::string, CommandInfo> commandMap{
+      {"list", {list, 2}},
+      {"load", {load, 2}},
+      {"query", {query, 1}},
+      {"unload", {unload, 2}},
+  };
+  if (cmdLine.empty() || commandMap.find(cmdLine[0]) == commandMap.end()) {
+    return unsupported;
+  }
+  auto cmdInfo = commandMap.at(cmdLine[0]);
+  return cmdLine.size() == cmdInfo.numofArgs ? cmdInfo.cmd : unsupported;
 }
 
 }  // anonymous namespace
 
 int main(int argc, char *argv[]) {
-  int argi = 1;
-  const std::string cmd{argi < argc ? argv[argi++] : ""};
+  // Start binder thread pool to enable callbacks.
+  ABinderProcess_startThreadPool();
 
-  std::vector<std::string> args;
-  while (argi < argc) {
-    args.push_back(std::string(argv[argi++]));
+  std::vector<std::string> cmdLine{};
+  for (int i = 1; i < argc; i++) {
+    cmdLine.emplace_back(argv[i]);
   }
-
-  bool success = false;
-  if (cmd == "load" && args.size() == 2) {
-    std::string file = args[0];
-    uint64_t nanoappId = strtoull(args[1].c_str(), NULL, 0);
-    success = loadNanoapp(file.c_str(), nanoappId);
-  } else if (cmd == "unload" && args.size() == 1) {
-    uint64_t nanoappId = strtoull(args[0].c_str(), NULL, 0);
-    success = unloadNanoapp(nanoappId);
-  } else {
-    printUsage();
+  try {
+    switch (parseCommand(cmdLine)) {
+      case list: {
+        std::map<std::string, NanoAppBinaryHeader> nanoapps{};
+        readNanoappHeaders(nanoapps, cmdLine[1]);
+        for (const auto &entity : nanoapps) {
+          std::cout << entity.first;
+          printNanoappHeader(entity.second);
+        }
+        break;
+      }
+      case load: {
+        loadNanoapp(cmdLine[1]);
+        break;
+      }
+      case unload: {
+        unloadNanoapp(cmdLine[1]);
+        break;
+      }
+      case query: {
+        queryNanoapps();
+        break;
+      }
+      default:
+        std::cout << kUsage;
+    }
+  } catch (std::system_error &e) {
+    std::cerr << e.what() << std::endl;
+    return -1;
   }
-
-  return success ? 0 : -1;
+  return 0;
 }
