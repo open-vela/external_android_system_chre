@@ -78,7 +78,7 @@ pw::Status ChreHostChannelOutput::Send(std::span<const std::byte> buffer) {
   pw::Status returnCode = PW_STATUS_OK;
 
   if (buffer.size() > 0) {
-    uint8_t *data = memoryAlloc<uint8_t>(buffer.size());
+    uint8_t *data = static_cast<uint8_t *>(memoryAlloc(buffer.size()));
     if (data == nullptr) {
       returnCode = PW_STATUS_RESOURCE_EXHAUSTED;
     } else {
