@@ -27,6 +27,7 @@
 #include "chre/platform/system_time.h"
 #include "chre/util/nested_data_ptr.h"
 #include "chre/util/system/debug_dump.h"
+#include "chre/util/system/event_callbacks.h"
 #include "chre_api/chre/version.h"
 #include "include/chre/core/event_loop_common.h"
 #include "include/chre/core/wifi_request_manager.h"
