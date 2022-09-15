@@ -20,15 +20,12 @@
 namespace chre {
 
 void HostLink::flushMessagesSentByNanoapp(uint64_t /* appId */) {
-  // (empty)
+  // TODO: implement
 }
 
-bool HostLink::sendMessage(const MessageToHost *message) {
-  // Just drop the message since we don't have a real host to send to
-  EventLoopManagerSingleton::get()
-      ->getHostCommsManager()
-      .onMessageToHostComplete(message);
-  return true;
+bool HostLink::sendMessage(const MessageToHost * /* message */) {
+  // TODO: implement
+  return false;
 }
 
 void HostLinkBase::sendNanConfiguration(bool enable) {
