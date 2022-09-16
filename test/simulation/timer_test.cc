@@ -50,7 +50,7 @@ TEST_F(TestTimer, SetupAndCancelPeriodicTimer) {
     void (*handleEvent)(uint32_t, uint16_t,
                         const void *) = [](uint32_t, uint16_t eventType,
                                            const void *eventData) {
-      static const uint32_t cookie = 123;
+      const uint32_t cookie = 123;
       switch (eventType) {
         static int count = 0;
 
@@ -125,7 +125,7 @@ TEST_F(TestTimer, CancelPeriodicTimerOnUnload) {
     void (*handleEvent)(uint32_t, uint16_t,
                         const void *) = [](uint32_t, uint16_t eventType,
                                            const void *eventData) {
-      static const uint32_t cookie = 123;
+      const uint32_t cookie = 123;
       switch (eventType) {
         static int count = 0;
 
