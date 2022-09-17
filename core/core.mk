@@ -21,6 +21,7 @@ COMMON_SRCS += $(CHRE_PREFIX)/core/log.cc
 COMMON_SRCS += $(CHRE_PREFIX)/core/nanoapp.cc
 COMMON_SRCS += $(CHRE_PREFIX)/core/settings.cc
 COMMON_SRCS += $(CHRE_PREFIX)/core/static_nanoapps.cc
+COMMON_SRCS += $(CHRE_PREFIX)/core/system_health_monitor.cc
 COMMON_SRCS += $(CHRE_PREFIX)/core/timer_pool.cc
 
 # Optional audio support.
