@@ -41,6 +41,89 @@ class WifiTimeoutTestBase : public TestBase {
   }
 };
 
+TEST_F(WifiTimeoutTestBase, WifiScanMonitorTimeoutTest) {
+  CREATE_CHRE_TEST_EVENT(SCAN_MONITOR_REQUEST, 1);
+
+  struct MonitoringRequest {
+    bool enable;
+    uint32_t cookie;
+  };
+
+  struct App : public TestNanoapp {
+    uint32_t perms = NanoappPermissions::CHRE_PERMS_WIFI;
+
+    void (*handleEvent)(uint32_t, uint16_t, const void *) =
+        [](uint32_t, uint16_t eventType, const void *eventData) {
+          static uint32_t cookie;
+
+          switch (eventType) {
+            case CHRE_EVENT_WIFI_ASYNC_RESULT: {
+              auto *event = static_cast<const chreAsyncResult *>(eventData);
+              if (event->success) {
+                TestEventQueueSingleton::get()->pushEvent(
+                    CHRE_EVENT_WIFI_ASYNC_RESULT,
+                    *(static_cast<const uint32_t *>(event->cookie)));
+              }
+              break;
+            }
+
+            case CHRE_EVENT_TEST_EVENT: {
+              auto event = static_cast<const TestEvent *>(eventData);
+              switch (event->type) {
+                case SCAN_MONITOR_REQUEST:
+                  auto request =
+                      static_cast<const MonitoringRequest *>(event->data);
+                  cookie = request->cookie;
+                  bool success = chreWifiConfigureScanMonitorAsync(
+                      request->enable, &cookie);
+                  TestEventQueueSingleton::get()->pushEvent(
+                      SCAN_MONITOR_REQUEST, success);
+              }
+            }
+          }
+        };
+  };
+
+  auto app = loadNanoapp<App>();
+
+  MonitoringRequest timeoutRequest{.enable = true, .cookie = 0xdead};
+  chrePalWifiEnableResponse(PalWifiAsyncRequestTypes::SCAN_MONITORING, false);
+  sendEventToNanoapp(app, SCAN_MONITOR_REQUEST, timeoutRequest);
+  bool success;
+  waitForEvent(SCAN_MONITOR_REQUEST, &success);
+  EXPECT_TRUE(success);
+
+  // Add 1 second to prevent race condition.
+  constexpr uint8_t kWifiConfigureScanMonitorTimeoutSec =
+      (CHRE_ASYNC_RESULT_TIMEOUT_NS / CHRE_NSEC_PER_SEC) + 1;
+  std::this_thread::sleep_for(
+      std::chrono::seconds(kWifiConfigureScanMonitorTimeoutSec));
+
+  // Make sure that we can still request to change scan monitor after a timedout
+  // request.
+  MonitoringRequest enableRequest{.enable = true, .cookie = 0x1010};
+  chrePalWifiEnableResponse(PalWifiAsyncRequestTypes::SCAN_MONITORING, true);
+  sendEventToNanoapp(app, SCAN_MONITOR_REQUEST, enableRequest);
+  waitForEvent(SCAN_MONITOR_REQUEST, &success);
+  EXPECT_TRUE(success);
+
+  uint32_t cookie;
+  waitForEvent(CHRE_EVENT_WIFI_ASYNC_RESULT, &cookie);
+  EXPECT_EQ(cookie, enableRequest.cookie);
+  EXPECT_TRUE(chrePalWifiIsScanMonitoringActive());
+
+  MonitoringRequest disableRequest{.enable = false, .cookie = 0x0101};
+  sendEventToNanoapp(app, SCAN_MONITOR_REQUEST, disableRequest);
+  waitForEvent(SCAN_MONITOR_REQUEST, &success);
+  EXPECT_TRUE(success);
+
+  waitForEvent(CHRE_EVENT_WIFI_ASYNC_RESULT, &cookie);
+  EXPECT_EQ(cookie, disableRequest.cookie);
+  EXPECT_FALSE(chrePalWifiIsScanMonitoringActive());
+
+  unloadNanoapp(app);
+}
+
 TEST_F(WifiTimeoutTestBase, WifiRequestRangingTimeoutTest) {
   CREATE_CHRE_TEST_EVENT(RANGING_REQUEST, 0);
   CREATE_CHRE_TEST_EVENT(RANGING_RESULT_TIMEOUT, 1);
