@@ -27,6 +27,7 @@ SLPI_CFLAGS += -I$(SLPI_PREFIX)/platform/inc/a1std
 SLPI_CFLAGS += -I$(SLPI_PREFIX)/platform/inc/stddef
 SLPI_CFLAGS += -I$(SLPI_PREFIX)/platform/rtld/inc
 
+SLPI_CFLAGS += -Iplatform/shared/aligned_alloc_unsupported/include
 SLPI_CFLAGS += -Iplatform/shared/include
 SLPI_CFLAGS += -Iplatform/slpi/include
 
@@ -202,13 +203,10 @@ SIM_SRCS += platform/linux/memory_manager.cc
 SIM_SRCS += platform/linux/platform_debug_dump_manager.cc
 SIM_SRCS += platform/linux/platform_log.cc
 SIM_SRCS += platform/linux/platform_pal.cc
-SIM_SRCS += platform/linux/platform_sensor.cc
-SIM_SRCS += platform/linux/platform_sensor_type_helpers.cc
 SIM_SRCS += platform/linux/power_control_manager.cc
 SIM_SRCS += platform/linux/system_time.cc
 SIM_SRCS += platform/linux/system_timer.cc
 SIM_SRCS += platform/linux/platform_nanoapp.cc
-SIM_SRCS += platform/linux/platform_sensor.cc
 SIM_SRCS += platform/shared/chre_api_audio.cc
 SIM_SRCS += platform/shared/chre_api_ble.cc
 SIM_SRCS += platform/shared/chre_api_core.cc
@@ -244,8 +242,11 @@ endif
 
 # Optional sensor support.
 ifeq ($(CHRE_SENSORS_SUPPORT_ENABLED), true)
+SIM_CFLAGS += -I$(CHRE_PREFIX)/platform/shared/sensor_pal/include
 SIM_SRCS += platform/linux/pal_sensor.cc
-SIM_SRCS += platform/shared/platform_sensor_manager.cc
+SIM_SRCS += platform/shared/sensor_pal/platform_sensor.cc
+SIM_SRCS += platform/shared/sensor_pal/platform_sensor_manager.cc
+SIM_SRCS += platform/shared/sensor_pal/platform_sensor_type_helpers.cc
 endif
 
 # Optional Wi-Fi support.
@@ -342,3 +343,75 @@ GOOGLETEST_COMMON_SRCS += platform/shared/log_buffer.cc
 ifeq ($(CHRE_WIFI_NAN_SUPPORT_ENABLED), true)
 GOOGLETEST_COMMON_SRCS += platform/linux/pal_nan.cc
 endif
+
+# EmbOS specific compiler flags
+EMBOS_CFLAGS += -I$(CHRE_PREFIX)/platform/embos/include
+EMBOS_CFLAGS += -I$(CHRE_PREFIX)/platform/shared/aligned_alloc_unsupported/include
+EMBOS_CFLAGS += -I$(CHRE_PREFIX)/platform/shared/include
+EMBOS_CFLAGS += $(FLATBUFFERS_CFLAGS)
+
+# The IAR flavor of EmbOS's RTOS.h includes an intrinsics.h header for
+# optimized enabling and disabling interrupts. We add an empty header to that
+# name in the path below, and let the linker deal with finding the symbol.
+EMBOS_CFLAGS += -I$(CHRE_PREFIX)/platform/embos/include/chre/embos
+
+EMBOS_SRCS += $(CHRE_PREFIX)/platform/embos/context.cc
+EMBOS_SRCS += $(CHRE_PREFIX)/platform/embos/init.cc
+EMBOS_SRCS += $(CHRE_PREFIX)/platform/embos/memory.cc
+EMBOS_SRCS += $(CHRE_PREFIX)/platform/embos/memory_manager.cc
+EMBOS_SRCS += $(CHRE_PREFIX)/platform/embos/system_timer.cc
+EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/assert.cc
+EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/chre_api_audio.cc
+EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/chre_api_ble.cc
+EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/chre_api_core.cc
+EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/chre_api_gnss.cc
+EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/chre_api_re.cc
+EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/chre_api_user_settings.cc
+EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/chre_api_version.cc
+EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/chre_api_wifi.cc
+EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/chre_api_wwan.cc
+EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/host_protocol_chre.cc
+EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/host_protocol_common.cc
+EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/dlfcn.cc
+EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/dram_vote_client.cc
+EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/memory_manager.cc
+EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/pal_system_api.cc
+EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/pal_sensor_stub.cc
+EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/platform_debug_dump_manager.cc
+EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/system_time.cc
+EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/version.cc
+EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/nanoapp/nanoapp_dso_util.cc
+EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/nanoapp_loader.cc
+
+# Exynos specific compiler flags
+EXYNOS_CFLAGS += -I$(CHRE_PREFIX)/platform/exynos/include
+EXYNOS_CFLAGS += -I$(CHRE_PREFIX)/platform/shared/audio_pal/include
+
+EXYNOS_SRCS += $(CHRE_PREFIX)/platform/exynos/chre_api_re.cc
+EXYNOS_SRCS += $(CHRE_PREFIX)/platform/exynos/host_link.cc
+EXYNOS_SRCS += $(CHRE_PREFIX)/platform/exynos/memory.cc
+EXYNOS_SRCS += $(CHRE_PREFIX)/platform/exynos/platform_cache_management.cc
+EXYNOS_SRCS += $(CHRE_PREFIX)/platform/exynos/platform_nanoapp.cc
+EXYNOS_SRCS += $(CHRE_PREFIX)/platform/exynos/platform_pal.cc
+EXYNOS_SRCS += $(CHRE_PREFIX)/platform/exynos/power_control_manager.cc
+EXYNOS_SRCS += $(CHRE_PREFIX)/platform/exynos/system_time.cc
+EXYNOS_SRCS += $(CHRE_PREFIX)/platform/shared/nanoapp_load_manager.cc
+
+EXYNOS_SRCS += $(FLATBUFFERS_SRCS)
+
+# Optional sensors support
+ifeq ($(CHRE_SENSORS_SUPPORT_ENABLED), true)
+EXYNOS_CFLAGS += -I$(CHRE_PREFIX)/platform/shared/sensor_pal/include
+EXYNOS_SRCS += $(CHRE_PREFIX)/platform/shared/chre_api_sensor.cc
+EXYNOS_SRCS += $(CHRE_PREFIX)/platform/shared/sensor_pal/platform_sensor_manager.cc
+EXYNOS_SRCS += $(CHRE_PREFIX)/platform/shared/sensor_pal/platform_sensor.cc
+EXYNOS_SRCS += $(CHRE_PREFIX)/platform/shared/sensor_pal/platform_sensor_type_helpers.cc
+endif
+
+ifeq ($(CHRE_AUDIO_SUPPORT_ENABLED), true)
+EXYNOS_CFLAGS += -I$(CHRE_PREFIX)/platform/shared/audio_pal/include
+EXYNOS_SRCS += $(CHRE_PREFIX)/platform/shared/audio_pal/platform_audio.cc
+endif
+
+# ARM specific compiler flags
+ARM_CFLAGS += -I$(CHRE_PREFIX)/platform/arm/include

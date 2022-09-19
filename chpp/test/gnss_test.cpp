@@ -21,11 +21,9 @@
 
 #include <stddef.h>
 #include <stdint.h>
-#include <string.h>
 #include <thread>
 
 #include "app_test_base.h"
-#include "chpp/app.h"
 #include "chpp/clients/gnss.h"
 #include "chpp/log.h"
 #include "chpp/platform/platform_gnss.h"
@@ -36,7 +34,10 @@
 namespace chpp {
 namespace {
 
+class ChppGnssTest : public AppTestBase {};
+
 const struct chrePalGnssApi *gApi;
+
 void chrePalRequestStateResync() {}
 
 void chrePalLocationStatusChangeCallback(bool /* enabled */,
@@ -55,7 +56,7 @@ void chrePalMeasurementEventCallback(struct chreGnssDataEvent *event) {
   gApi->releaseMeasurementDataEvent(event);
 }
 
-TEST_F(AppTestBase, SimpleGnss) {
+TEST_F(ChppGnssTest, SimpleGnss) {
   gApi = chppPalGnssGetApi(CHRE_PAL_GNSS_API_CURRENT_VERSION);
   ASSERT_NE(gApi, nullptr);
 
@@ -77,7 +78,7 @@ TEST_F(AppTestBase, SimpleGnss) {
   gApi->close();
 }
 
-TEST_F(AppTestBase, GnssCapabilitiesTest) {
+TEST_F(ChppGnssTest, GnssCapabilitiesTest) {
   gApi = chppPalGnssGetApi(CHRE_PAL_GNSS_API_CURRENT_VERSION);
   ASSERT_NE(gApi, nullptr);
 
