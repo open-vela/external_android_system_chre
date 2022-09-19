@@ -134,15 +134,6 @@ class Manager {
       uint32_t capabilitiesFromChre);
 
   /**
-   * Encode the proto message and send to host.
-   *
-   * @param message The proto message struct pointer.
-   * @param fields The fields descriptor of the proto message to encode.
-   * @param messageType The message type of the message.
-   */
-  void encodeAndSendMessageToHost(const void *message, const pb_field_t *fields,
-                                  uint32_t messageType);
-  /**
    * Handle a wifi scan result data message sent from AP.
    *
    * @param hostData The message.

@@ -123,11 +123,21 @@ void Nanoapp::configureUserSettingEvent(uint8_t setting, bool enable) {
 }
 
 void Nanoapp::processEvent(Event *event) {
+  Nanoseconds eventStartTime = SystemTime::getMonotonicTime();
   if (event->eventType == CHRE_EVENT_GNSS_DATA) {
     handleGnssMeasurementDataEvent(event);
   } else {
     handleEvent(event->senderInstanceId, event->eventType, event->eventData);
   }
+  Nanoseconds eventProcessTime =
+      SystemTime::getMonotonicTime() - eventStartTime;
+  if (Milliseconds(eventProcessTime) >= Milliseconds(100)) {
+    LOGE("Nanoapp 0x%" PRIx64 " took %" PRIu64
+         " ms to process event type %" PRIu16,
+         getAppId(), Milliseconds(eventProcessTime).getMilliseconds(),
+         event->eventType);
+  }
+  mEventProcessTime.addValue(Milliseconds(eventProcessTime).getMilliseconds());
 }
 
 void Nanoapp::blameHostWakeup() {
@@ -166,7 +176,11 @@ void Nanoapp::logStateToBuffer(DebugDumpWrapper &debugDump) const {
   debugDump.print("%" PRIu16 " ]", mWakeupBuckets.front());
 
   // Print total wakeups since boot
-  debugDump.print(" totWakeups=%" PRIu32 " ]\n", mNumWakeupsSinceBoot);
+  debugDump.print(" totWakeups=%" PRIu32 " ", mNumWakeupsSinceBoot);
+
+  // Print mean and max event process time
+  debugDump.print("eventProcessTimeMs: mean=%" PRIu64 ", max=%" PRIu64 "\n",
+                  mEventProcessTime.getMean(), mEventProcessTime.getMax());
 }
 
 bool Nanoapp::permitPermissionUse(uint32_t permission) const {
