@@ -22,7 +22,6 @@
 #include <dirent.h>
 #include <utils/String16.h>
 
-#include <cinttypes>
 #include <filesystem>
 #include <fstream>
 #include <future>
@@ -32,6 +31,7 @@
 #include <string>
 #include <vector>
 
+#include "chre_api/chre/version.h"
 #include "chre_host/file_stream.h"
 #include "chre_host/napp_header.h"
 
@@ -48,6 +48,15 @@ using ndk::ScopedAStatus;
 
 namespace {
 
+std::string parseAppVersion(uint32_t version) {
+  std::ostringstream stringStream;
+  stringStream << std::hex << "0x" << version << std::dec << " (v"
+               << CHRE_EXTRACT_MAJOR_VERSION(version) << "."
+               << CHRE_EXTRACT_MINOR_VERSION(version) << "."
+               << CHRE_EXTRACT_PATCH_VERSION(version) << ")";
+  return stringStream.str();
+}
+
 class ContextHubCallback : public BnContextHubCallback {
  public:
   ScopedAStatus handleNanoappInfo(
@@ -55,8 +64,8 @@ class ContextHubCallback : public BnContextHubCallback {
     std::cout << appInfo.size() << " nanoapps loaded" << std::endl;
     for (const NanoappInfo &app : appInfo) {
       std::cout << "appId: 0x" << std::hex << app.nanoappId << std::dec << " {"
-                << "\n\tappVersion: " << app.nanoappVersion
-                << "\n\tenabled: " << app.enabled
+                << "\n\tappVersion: " << parseAppVersion(app.nanoappVersion)
+                << "\n\tenabled: " << (app.enabled ? "true" : "false")
                 << "\n\tpermissions: " << ToString(app.permissions)
                 << "\n\trpcServices: " << ToString(app.rpcServices) << "\n}"
                 << std::endl;
@@ -102,7 +111,7 @@ COMMAND ARGS...:
                                    unload 0x123def or unload /path/to/awesome.so
 )";
 
-void throwError(const std::string &message) {
+inline void throwError(const std::string &message) {
   throw std::system_error{std::error_code(), message};
 }
 
@@ -127,10 +136,9 @@ std::shared_ptr<IContextHub> getContextHub(std::future<void> &callbackSignal) {
 void printNanoappHeader(const NanoAppBinaryHeader &header) {
   std::cout << " {"
             << "\n\tappId: 0x" << std::hex << header.appId << std::dec
-            << "\n\tappVersion: " << header.appVersion
-            << "\n\tflags: " << header.flags << "\n\ttarget major version: "
-            << static_cast<int>(header.targetChreApiMajorVersion)
-            << "\n\ttarget minor version: "
+            << "\n\tappVersion: " << parseAppVersion(header.appVersion)
+            << "\n\tflags: " << header.flags << "\n\ttarget CHRE API version: "
+            << static_cast<int>(header.targetChreApiMajorVersion) << "."
             << static_cast<int>(header.targetChreApiMinorVersion) << "\n}"
             << std::endl;
 }
