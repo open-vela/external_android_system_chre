@@ -286,14 +286,14 @@ class Manager {
   SensorState mSensors[kNumSensors] = {
       {
           .type = CHRE_SENSOR_TYPE_ACCELEROMETER,
+          .samplingInterval = CHRE_SENSOR_INTERVAL_DEFAULT,
           .handle = 0,
-          .samplingInterval = 0,
           .enabled = true,
           .info = {},
       },
       {
           .type = CHRE_SENSOR_TYPE_GYROSCOPE,
-          .samplingInterval = 0,
+          .samplingInterval = CHRE_SENSOR_INTERVAL_DEFAULT,
           .handle = 0,
           .enabled = true,
           .info = {},
