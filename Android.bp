@@ -113,6 +113,7 @@ cc_binary {
     vendor: true,
     local_include_dirs: [
         "host/common/include",
+        "chre_api/include",
     ],
     srcs: [
         "host/common/file_stream.cc",
