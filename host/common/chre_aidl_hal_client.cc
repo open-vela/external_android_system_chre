@@ -47,6 +47,22 @@ using android::internal::ToString;
 using ndk::ScopedAStatus;
 
 namespace {
+constexpr uint32_t kContextHubId = 0;
+constexpr int32_t kLoadTransactionId = 1;
+constexpr int32_t kUnloadTransactionId = 2;
+constexpr auto kTimeOutThresholdInSec = std::chrono::seconds(5);
+constexpr char kUsage[] = R"(
+Usage: chre_aidl_hal_client COMMAND [ARGS]
+COMMAND ARGS...:
+  list <PATH_OF_NANOAPPS>        - list all the nanoapps' header info in the path
+  load <ABSOLUTE_PATH>           - load the nanoapp specified by the absolute path
+                                   of the nanoapp. For example, load /path/to/awesome.so
+  query                          - show all loaded nanoapps (system apps excluded)
+  unload <HEX_NANOAPP_ID | ABSOLUTE_PATH>
+                                 - unload the nanoapp specified by either the nanoapp
+                                   id in hex format or the absolute path.  For example,
+                                   unload 0x123def or unload /path/to/awesome.so
+)";
 
 std::string parseAppVersion(uint32_t version) {
   std::ostringstream stringStream;
@@ -55,6 +71,17 @@ std::string parseAppVersion(uint32_t version) {
                << CHRE_EXTRACT_MINOR_VERSION(version) << "."
                << CHRE_EXTRACT_PATCH_VERSION(version) << ")";
   return stringStream.str();
+}
+
+std::string parseTransactionId(int32_t transactionId) {
+  switch (transactionId) {
+    case kLoadTransactionId:
+      return "Loading";
+    case kUnloadTransactionId:
+      return "Unloading";
+    default:
+      return "Unknown";
+  }
 }
 
 class ContextHubCallback : public BnContextHubCallback {
@@ -86,30 +113,13 @@ class ContextHubCallback : public BnContextHubCallback {
   // Called after loading/unloading a nanoapp.
   ScopedAStatus handleTransactionResult(int32_t transactionId,
                                         bool success) override {
-    std::cout << "[ContextHubCallback] Transaction " << transactionId << " is "
+    std::cout << parseTransactionId(transactionId) << " transaction is "
               << (success ? "successful" : "failed") << std::endl;
     promise.set_value();
     return ScopedAStatus::ok();
   }
   std::promise<void> promise;
 };
-
-constexpr uint32_t kContextHubId = 0;
-constexpr int32_t kLoadTransactionId = 1;
-constexpr int32_t kUnloadTransactionId = -1;
-constexpr auto kTimeOutThreshold = std::chrono::seconds(5);
-constexpr char kUsage[] = R"(
-Usage: chre_aidl_hal_client COMMAND [ARGS]
-COMMAND ARGS...:
-  list <PATH_OF_NANOAPPS>        - list all the nanoapps' header info in the path
-  load <ABSOLUTE_PATH>           - load the nanoapp specified by the absolute path
-                                   of the nanoapp. For example, load /path/to/awesome.so
-  query                          - show all loaded nanoapps (system apps excluded)
-  unload <HEX_NANOAPP_ID | ABSOLUTE_PATH>
-                                 - unload the nanoapp specified by either the nanoapp
-                                   id in hex format or the absolute path.  For example,
-                                   unload 0x123def or unload /path/to/awesome.so
-)";
 
 inline void throwError(const std::string &message) {
   throw std::system_error{std::error_code(), message};
@@ -163,14 +173,17 @@ void readNanoappHeaders(std::map<std::string, NanoAppBinaryHeader> &nanoapps,
   closedir(dir);
 }
 
-void verifyStatusAndSignal(const ScopedAStatus &status,
+void verifyStatusAndSignal(const std::string &operation,
+                           const ScopedAStatus &status,
                            const std::future<void> &future_signal) {
   if (!status.isOk()) {
-    throwError("API call fails with abnormal status");
+    throwError(operation + " fails with abnormal status " +
+               ToString(status.getMessage()));
   }
-  auto future_status = future_signal.wait_for(kTimeOutThreshold);
+  auto future_status = future_signal.wait_for(kTimeOutThresholdInSec);
   if (future_status != std::future_status::ready) {
-    throwError("The callback function is not ready yet");
+    throwError(operation + " doesn't finish within " +
+               ToString(kTimeOutThresholdInSec.count()) + " seconds");
   }
 }
 
@@ -210,7 +223,8 @@ void loadNanoapp(const std::string &pathAndName) {
   std::future<void> callbackSignal;
   auto status = getContextHub(callbackSignal)
                     ->loadNanoapp(kContextHubId, binary, kLoadTransactionId);
-  verifyStatusAndSignal(status, callbackSignal);
+  verifyStatusAndSignal(/* operation= */ "loading nanoapp " + pathAndName,
+                        status, callbackSignal);
 }
 
 void unloadNanoapp(const std::string &appIdentifier) {
@@ -225,13 +239,15 @@ void unloadNanoapp(const std::string &appIdentifier) {
   }
   auto status = getContextHub(callbackSignal)
                     ->unloadNanoapp(kContextHubId, appId, kUnloadTransactionId);
-  verifyStatusAndSignal(status, callbackSignal);
+  verifyStatusAndSignal(/* operation= */ "unloading nanoapp " + appIdentifier,
+                        status, callbackSignal);
 }
 
 void queryNanoapps() {
   std::future<void> callbackSignal;
   auto status = getContextHub(callbackSignal)->queryNanoapps(kContextHubId);
-  verifyStatusAndSignal(status, callbackSignal);
+  verifyStatusAndSignal(/* operation= */ "querying nanoapps", status,
+                        callbackSignal);
 }
 
 enum Command { list, load, query, unload, unsupported };
