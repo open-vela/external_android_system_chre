@@ -21,9 +21,7 @@
 #include "chre/core/event_loop.h"
 #include "chre/core/event_loop_common.h"
 #include "chre/core/host_comms_manager.h"
-#include "chre/core/host_endpoint_manager.h"
 #include "chre/core/settings.h"
-#include "chre/core/system_health_monitor.h"
 #include "chre/platform/memory_manager.h"
 #include "chre/platform/mutex.h"
 #include "chre/util/always_false.h"
@@ -262,10 +260,6 @@ class EventLoopManager : public NonCopyable {
     return mHostCommsManager;
   }
 
-  HostEndpointManager &getHostEndpointManager() {
-    return mHostEndpointManager;
-  }
-
 #ifdef CHRE_SENSORS_SUPPORT_ENABLED
   /**
    * @return Returns a reference to the sensor request manager. This allows
@@ -331,10 +325,6 @@ class EventLoopManager : public NonCopyable {
     return mSettingManager;
   }
 
-  SystemHealthMonitor &getSystemHealthMonitor() {
-    return mSystemHealthMonitor;
-  }
-
   /**
    * Performs second-stage initialization of things that are not necessarily
    * required at construction time but need to be completed prior to executing
@@ -369,10 +359,6 @@ class EventLoopManager : public NonCopyable {
 
   //! Handles communications with the host processor.
   HostCommsManager mHostCommsManager;
-
-  HostEndpointManager mHostEndpointManager;
-
-  SystemHealthMonitor mSystemHealthMonitor;
 
 #ifdef CHRE_SENSORS_SUPPORT_ENABLED
   //! The SensorRequestManager that handles requests for all nanoapps. This
