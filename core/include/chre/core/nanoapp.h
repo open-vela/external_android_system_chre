@@ -27,6 +27,7 @@
 #include "chre/util/fixed_size_vector.h"
 #include "chre/util/system/debug_dump.h"
 #include "chre/util/system/napp_permissions.h"
+#include "chre/util/system/stats_container.h"
 #include "chre_api/chre/event.h"
 
 namespace chre {
@@ -269,6 +270,9 @@ class Nanoapp : public PlatformNanoapp {
   //! A fixed size buffer of buckets that keeps track of the number of host
   //! wakeups over time intervals.
   FixedSizeVector<uint16_t, kMaxSizeWakeupBuckets> mWakeupBuckets;
+
+  //! Collects process time in nanoseconds of each event
+  StatsContainer<uint64_t> mEventProcessTime;
 
   //! Metadata needed for keeping track of the registered events for this
   //! nanoapp.

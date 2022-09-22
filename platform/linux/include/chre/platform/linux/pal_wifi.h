@@ -17,9 +17,29 @@
 #ifndef CHRE_PLATFORM_LINUX_PAL_WIFI_H_
 #define CHRE_PLATFORM_LINUX_PAL_WIFI_H_
 
+#include <stdint.h>
+
+enum class PalWifiAsyncRequestTypes : uint8_t {
+  SCAN,
+  SCAN_MONITORING,
+  RANGING,
+};
+
 /**
  * @return whether scan monitoring is active.
  */
 bool chrePalWifiIsScanMonitoringActive();
+
+/**
+ * Sets if PAL should send back async request result for each async request.
+ *
+ * This function is used to mimic the behavior of hardware failure in
+ * simulation test.
+ *
+ * @param requestType select one request type to modify its behavior.
+ * @param enableResponse true if allow pal to send back async result.
+ */
+void chrePalWifiEnableResponse(PalWifiAsyncRequestTypes requestType,
+                               bool enableResponse);
 
 #endif  // CHRE_PLATFORM_LINUX_PAL_WIFI_H_
