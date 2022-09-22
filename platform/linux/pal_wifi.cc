@@ -22,6 +22,7 @@
 
 #include "chre/pal/wifi.h"
 #include "chre/platform/linux/pal_nan.h"
+#include "chre/util/enum.h"
 #include "chre/util/memory.h"
 #include "chre/util/unique_ptr.h"
 
@@ -50,8 +51,15 @@ bool gEnableRangingResponse = true;
 //! Whether PAL should respond to configure scan monitor request.
 bool gEnableScanMonitorResponse = true;
 
+//! How long should each the PAL hold before response.
+//! Use to mimic real world hardware process time.
+std::chrono::seconds gAsyncRequestDelayResponseTime[chre::asBaseType(
+    PalWifiAsyncRequestTypes::NUM_WIFI_REQUEST_TYPE)];
+
 void sendScanResponse() {
   gCallbacks->scanResponseCallback(true, CHRE_ERROR_NONE);
+  std::this_thread::sleep_for(gAsyncRequestDelayResponseTime[chre::asBaseType(
+      PalWifiAsyncRequestTypes::SCAN)]);
 
   auto event = chre::MakeUniqueZeroFill<struct chreWifiScanEvent>();
   auto result = chre::MakeUniqueZeroFill<struct chreWifiScanResult>();
@@ -214,6 +222,11 @@ void chrePalWifiEnableResponse(PalWifiAsyncRequestTypes requestType,
 
 bool chrePalWifiIsScanMonitoringActive() {
   return gScanMonitoringActive;
+}
+
+void chrePalWifiDelayResponse(PalWifiAsyncRequestTypes requestType,
+                              std::chrono::seconds seconds) {
+  gAsyncRequestDelayResponseTime[chre::asBaseType(requestType)] = seconds;
 }
 
 const struct chrePalWifiApi *chrePalWifiGetApi(uint32_t requestedApiVersion) {
