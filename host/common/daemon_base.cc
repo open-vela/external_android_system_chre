@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <signal.h>
 #include <cstdlib>
 #include <fstream>
 
@@ -40,8 +41,37 @@ namespace fbs = ::chre::fbs;
 namespace android {
 namespace chre {
 
+namespace {
+
+void signalHandler(void *ctx) {
+  auto *daemon = static_cast<ChreDaemonBase *>(ctx);
+  int rc = -1;
+  sigset_t signalMask;
+  sigfillset(&signalMask);
+  sigdelset(&signalMask, SIGINT);
+  sigdelset(&signalMask, SIGTERM);
+  if (sigprocmask(SIG_SETMASK, &signalMask, NULL) != 0) {
+    LOG_ERROR("Couldn't mask all signals except INT/TERM", errno);
+  }
+
+  while (true) {
+    int signum = 0;
+    if ((rc = sigwait(&signalMask, &signum)) != 0) {
+      LOGE("Sigwait failed: %d", rc);
+    }
+    LOGI("Received signal %d", signum);
+    if (signum == SIGINT || signum == SIGTERM) {
+      daemon->onShutdown();
+      break;
+    }
+  }
+}
+
+}  // anonymous namespace
+
 ChreDaemonBase::ChreDaemonBase() : mChreShutdownRequested(false) {
   mLogger.init();
+  mSignalHandlerThread = std::thread(signalHandler, this);
 }
 
 void ChreDaemonBase::loadPreloadedNanoapps() {
