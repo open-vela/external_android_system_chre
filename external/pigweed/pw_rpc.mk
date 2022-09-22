@@ -12,7 +12,10 @@ ifneq ($(PW_RPC_SRCS),)
 
 # Location of various Pigweed modules
 PIGWEED_DIR = $(ANDROID_BUILD_TOP)/external/pigweed
-CHRE_UTIL_DIR = $(ANDROID_BUILD_TOP)/system/chre/util
+CHRE_PREFIX = $(ANDROID_BUILD_TOP)/system/chre
+CHRE_UTIL_DIR = $(CHRE_PREFIX)/util
+CHRE_API_DIR = $(CHRE_PREFIX)/chre_api
+PIGWEED_CHRE_DIR=$(CHRE_PREFIX)/external/pigweed
 PIGWEED_CHRE_UTIL_DIR = $(CHRE_UTIL_DIR)/pigweed
 
 ifeq ($(NANOPB_PREFIX),)
@@ -73,15 +76,10 @@ COMMON_SRCS += $(PW_RPC_GEN_SRCS)
 
 # Pigweed RPC include paths
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_assert/public
-COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_assert_log/public
-COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_assert_log/assert_backend_public_overrides
-COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_assert_log/check_backend_public_overrides
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_bytes/public
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_containers/public
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_function/public
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_log/public
-COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_log_null/public
-COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_log_null/public_overrides
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_polyfill/public
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_polyfill/public_overrides
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_polyfill/standard_library_public
@@ -137,6 +135,10 @@ COMMON_SRCS += $(NANOPB_PREFIX)/pb_encode.c
 # Add CHRE Pigweed util sources since nanoapps should always use these
 COMMON_SRCS += $(PIGWEED_CHRE_UTIL_DIR)/chre_channel_output.cc
 COMMON_SRCS += $(CHRE_UTIL_DIR)/nanoapp/callbacks.cc
+
+# CHRE Pigwweed overrides
+COMMON_CFLAGS += -I$(PIGWEED_CHRE_DIR)/pw_log_nanoapp/public_overrides
+COMMON_CFLAGS += -I$(PIGWEED_CHRE_DIR)/pw_assert_nanoapp/public_overrides
 
 # Generate PW RPC headers ######################################################
 
