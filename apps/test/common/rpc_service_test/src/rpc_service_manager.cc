@@ -24,14 +24,12 @@
 namespace chre {
 namespace rpc_service_test {
 
-#ifdef PW_RPC_SERVICE_ENABLED
 pw::Status EchoService::Echo(const pw_rpc_EchoMessage &request,
                              pw_rpc_EchoMessage &response) {
   memcpy(response.msg, request.msg,
          MIN(ARRAY_SIZE(response.msg), ARRAY_SIZE(request.msg)));
   return pw::OkStatus();
 }
-#endif  // PW_RPC_SERVICE_ENABLED
 
 bool RpcServiceManager::start() {
   static chreNanoappRpcService sRpcService = {
@@ -39,15 +37,12 @@ bool RpcServiceManager::start() {
       .version = 0x01020034,
   };
 
-#ifdef PW_RPC_SERVICE_ENABLED
   mServer.RegisterService(mEchoService);
-#endif
   return chrePublishRpcServices(&sRpcService, 1 /* numServices */);
 }
 
 void RpcServiceManager::handleEvent(uint32_t senderInstanceId,
                                     uint16_t eventType, const void *eventData) {
-#ifdef PW_RPC_SERVICE_ENABLED
   if (eventType == CHRE_EVENT_MESSAGE_FROM_HOST) {
     auto *hostMessage = static_cast<const chreMessageFromHostData *>(eventData);
     mOutput.setHostEndpoint(hostMessage->hostEndpoint);
@@ -66,11 +61,7 @@ void RpcServiceManager::handleEvent(uint32_t senderInstanceId,
 
     pw::Status success = mServer.ProcessPacket(packet, mOutput);
     LOGI("Parsing packet %d", success == pw::OkStatus());
-  } else
-#else
-  UNUSED_VAR(eventData);
-#endif  // PW_RPC_SERVICE_ENABLED
-  {
+  } else {
     LOGW("Got unknown event type from senderInstanceId %" PRIu32
          " and with eventType %" PRIu16,
          senderInstanceId, eventType);
