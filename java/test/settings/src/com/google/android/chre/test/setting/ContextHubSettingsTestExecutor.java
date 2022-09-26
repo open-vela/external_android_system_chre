@@ -81,7 +81,6 @@ public class ContextHubSettingsTestExecutor extends ContextHubClientCallback {
         mContextHubInfo = info.get(0);
 
         mContextHubClient = mContextHubManager.createClient(mContextHubInfo, this);
-        Assert.assertTrue(mContextHubClient != null);
     }
 
     @Override

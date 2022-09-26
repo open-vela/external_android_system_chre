@@ -169,7 +169,6 @@ public class ContextHubStressTestExecutor extends ContextHubClientCallback {
                     mNanoAppBinary);
         }
         mContextHubClient = mContextHubManager.createClient(mContextHubInfo, this);
-        Assert.assertTrue(mContextHubClient != null);
     }
 
     /**
