@@ -112,10 +112,11 @@ extern "C" {
 /**
  * Value for version 1.6 of the Context Hub Runtime Environment API interface.
  *
- * This version of the CHRE API is shipped with the Android T release.
- *
- * @note This version of the CHRE API has not been finalized yet, and is
- * currently considered a preview that is subject to change.
+ * This version of the CHRE API is shipped with the Android T release. It adds
+ * support for BLE scanning, subscribing to the WiFi NAN discovery engine,
+ * subscribing to host endpoint notifications, requesting metadata for a host
+ * endpoint ID, nanoapps publishing RPC services they support, and limits the
+ * nanoapp instance ID size to INT16_MAX.
  *
  * @see CHRE_API_VERSION
  */
