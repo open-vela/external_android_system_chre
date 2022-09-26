@@ -24,9 +24,9 @@
 
 #include "chre/util/macros.h"
 #include "chre/util/pigweed/chre_channel_output.h"
+#include "chre/util/pigweed/rpc_server.h"
 #include "chre/util/singleton.h"
 #include "pw_rpc/echo.rpc.pb.h"
-#include "pw_rpc/server.h"
 
 namespace chre {
 namespace rpc_service_test {
@@ -45,8 +45,6 @@ class EchoService final
  */
 class RpcServiceManager {
  public:
-  RpcServiceManager() : mServer(std::span(mChannels, ARRAY_SIZE(mChannels))) {}
-
   /**
    * Allows the manager to do any init necessary as part of nanoappStart.
    */
@@ -63,14 +61,9 @@ class RpcServiceManager {
                    const void *eventData);
 
  private:
+  RpcServer mServer;
   // pw_rpc service used to process the echo RPC
   EchoService mEchoService;
-
-  // TODO(b/210138227): Make # of channels dynamic
-  pw::rpc::Channel mChannels[5];
-  pw::rpc::Server mServer;
-
-  ChreHostChannelOutput mOutput;
 };
 
 typedef chre::Singleton<RpcServiceManager> RpcServiceManagerSingleton;
