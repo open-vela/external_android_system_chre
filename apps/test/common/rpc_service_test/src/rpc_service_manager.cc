@@ -32,39 +32,14 @@ pw::Status EchoService::Echo(const pw_rpc_EchoMessage &request,
 }
 
 bool RpcServiceManager::start() {
-  static chreNanoappRpcService sRpcService = {
-      .id = 0xca8f7150a3f05847,
-      .version = 0x01020034,
-  };
-
-  mServer.RegisterService(mEchoService);
-  return chrePublishRpcServices(&sRpcService, 1 /* numServices */);
+  RpcServer::Service service = {mEchoService, 0x01020034 /* version */};
+  return mServer.registerServices(1, &service);
 }
 
 void RpcServiceManager::handleEvent(uint32_t senderInstanceId,
                                     uint16_t eventType, const void *eventData) {
-  if (eventType == CHRE_EVENT_MESSAGE_FROM_HOST) {
-    auto *hostMessage = static_cast<const chreMessageFromHostData *>(eventData);
-    mOutput.setHostEndpoint(hostMessage->hostEndpoint);
-
-    std::span packet(static_cast<const std::byte *>(hostMessage->message),
-                     hostMessage->messageSize);
-
-    // TODO(b/241930379): Add this logic to a helper.
-    pw::Result result = pw::rpc::ExtractChannelId(packet);
-    if (result.status() != PW_STATUS_OK) {
-      LOGE("Unable to extract channel ID from packet");
-      return;
-    }
-
-    mServer.OpenChannel(result.value(), mOutput);
-
-    pw::Status success = mServer.ProcessPacket(packet, mOutput);
-    LOGI("Parsing packet %d", success == pw::OkStatus());
-  } else {
-    LOGW("Got unknown event type from senderInstanceId %" PRIu32
-         " and with eventType %" PRIu16,
-         senderInstanceId, eventType);
+  if (!mServer.handleEvent(senderInstanceId, eventType, eventData)) {
+    LOGE("An RPC error occurred");
   }
 }
 
