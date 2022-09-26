@@ -69,10 +69,10 @@ class RpcServer {
    * Handles the following events:
    * - CHRE_EVENT_MESSAGE_FROM_HOST: respond to RPC requests.
    *
-   * @param senderInstanceId  The Instance ID for the source of this event.
-   * @param eventType  The event type.
-   * @param eventData  The associated data, if any, for this specific type of
-   *                   event.
+   * @param senderInstanceId The Instance ID for the source of this event.
+   * @param eventType The event type.
+   * @param eventData The associated data, if any, for this specific type of
+   *                  event.
    * @return whether any event was handled successfully.
    */
   bool handleEvent(uint32_t senderInstanceId, uint16_t eventType,
@@ -89,6 +89,26 @@ class RpcServer {
    * @return whether the RPC was handled successfully.
    */
   bool handleMessageFromHost(const void *eventData);
+
+  /**
+   * Validates that the host client sending the message matches the expected
+   * channel ID.
+   *
+   * @param msg Message received from the host client.
+   * @param channelId Channel ID extracted from the received packet.
+   * @return Whether the IDs match.
+   */
+  bool validateHostChannelId(const chreMessageFromHostData *msg,
+                             uint32_t channelId);
+  /**
+   * Validates that the nanoapp client sending the message matches the expected
+   * channel ID.
+   *
+   * @param senderInstanceId ID of the nanoapp sending the message.
+   * @param channelId Channel ID extracted from the received packet.
+   * @return Whether the IDs match.
+   */
+  bool validateNanoappChannelId(uint32_t senderInstanceId, uint32_t channelId);
 
   // TODO(b/210138227): Make # of channels dynamic
   pw::rpc::Channel mChannels[5];
