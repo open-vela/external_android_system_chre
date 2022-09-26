@@ -20,6 +20,7 @@
 #include "chre/core/api_manager_common.h"
 #include "chre/core/nanoapp.h"
 #include "chre/core/settings.h"
+#include "chre/core/timer_pool.h"
 #include "chre/platform/platform_wifi.h"
 #include "chre/util/buffer.h"
 #include "chre/util/non_copyable.h"
@@ -416,8 +417,12 @@ class WifiRequestManager : public NonCopyable {
   static constexpr size_t kNumWifiRequestLogs = 10;
   ArrayQueue<WifiScanRequestLog, kNumWifiRequestLogs> mWifiScanRequestLogs;
 
-  //! Helps ensure we don't get stuck if platform isn't behaving as expected
-  Nanoseconds mRangingResponseTimeout;
+  //! Manages the timer when a ranging request is dispatched to the PAL.
+  TimerHandle mRequestRangingTimeoutHandle;
+
+  //! Manages the timer that starts when a configure scan monitor request is
+  //! dispatched to the PAL
+  TimerHandle mConfigureScanMonitorTimeoutHandle;
 
   //! System time when the last WiFi scan event was received.
   Milliseconds mLastScanEventTime;
@@ -676,6 +681,12 @@ class WifiRequestManager : public NonCopyable {
   bool postRangingAsyncResult(uint8_t errorCode);
 
   /**
+   * Keep issuing pending configure scan monitor request to the platform in
+   * queued order util a successful dispatch or the queue is empty
+   */
+  void dispatchQueuedConfigureScanMonitorRequests();
+
+  /**
    * Issues the next pending ranging request to the platform.
    *
    * @return Result of PlatformWifi::requestRanging()
@@ -832,6 +843,35 @@ class WifiRequestManager : public NonCopyable {
    * @param enable Indicates if a NAN enable or disable is being requested.
    */
   void sendNanConfiguration(bool enable);
+
+  /**
+   * Invoked on no response for a configure scan monitor request in the expected
+   * window.
+   */
+  void handleConfigureScanMonitorTimeout();
+
+  /**
+   * Sets up the system timer that invokes handleConfigureScanMonitorTimeout
+   * when the PAL does not respond to configure scan monitor request on time.
+   *
+   * @return TimerHandle that can be used later to cancel the timer if the PAL
+   * has responded in the expected time window.
+   */
+  TimerHandle setConfigureScanMonitorTimer();
+
+  /**
+   * Invoked on no response for a ranging request in the expected window.
+   */
+  void handleRangingRequestTimeout();
+
+  /**
+   * Sets up the system timer that invokes handleRangingRequestTimeout when the
+   * PAL does not respond on time.
+   *
+   * @return TimerHandle that can be used later to cancel the timer if the PAL
+   * has responded in the expected time window.
+   */
+  TimerHandle setRangingRequestTimer();
 };
 
 }  // namespace chre
