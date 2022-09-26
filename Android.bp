@@ -67,6 +67,11 @@ cc_library_static {
         "libutils",
     ],
     cflags: ["-Wall", "-Werror"],
+    product_variables:{
+        debuggable: {
+            cflags: ["-DCHRE_HEALTH_MONITOR_CHECK_CRASH"],
+        },
+    },
 }
 
 cc_binary {
@@ -633,6 +638,11 @@ cc_defaults {
         "libutils",
         "liblog",
     ],
+    product_variables:{
+        debuggable: {
+            cflags: ["-DCHRE_HEALTH_MONITOR_CHECK_CRASH"],
+        },
+    },
 }
 
 cc_binary {
