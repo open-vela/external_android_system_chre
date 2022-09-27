@@ -17,6 +17,7 @@
 #include "chre/util/pigweed/rpc_server.h"
 
 #include <cinttypes>
+#include <cstdint>
 
 #include "chre/event.h"
 #include "chre/re.h"
@@ -80,6 +81,9 @@ bool RpcServer::handleEvent(uint32_t senderInstanceId, uint16_t eventType,
   switch (eventType) {
     case CHRE_EVENT_MESSAGE_FROM_HOST:
       return handleMessageFromHost(eventData);
+    case CHRE_EVENT_HOST_ENDPOINT_NOTIFICATION:
+      handleHostClientNotification(eventData);
+      return true;
     default:
       return true;
   }
@@ -102,6 +106,11 @@ bool RpcServer::handleMessageFromHost(const void *eventData) {
     return false;
   }
 
+  if (!chreConfigureHostEndpointNotifications(hostMessage->hostEndpoint,
+                                              true)) {
+    LOGW("Fail to register for host client updates");
+  }
+
   mServer.OpenChannel(result.value(), mOutput);
 
   pw::Status success = mServer.ProcessPacket(packet, mOutput);
@@ -112,6 +121,16 @@ bool RpcServer::handleMessageFromHost(const void *eventData) {
   }
 
   return true;
+}
+
+void RpcServer::handleHostClientNotification(const void *eventData) {
+  auto notif =
+      static_cast<const struct chreHostEndpointNotification *>(eventData);
+
+  if (notif->notificationType == HOST_ENDPOINT_NOTIFICATION_TYPE_DISCONNECT) {
+    mServer.CloseChannel(kChannelIdHostClient |
+                         static_cast<uint32_t>(notif->hostEndpointId));
+  }
 }
 
 bool RpcServer::validateHostChannelId(const chreMessageFromHostData *msg,
@@ -139,6 +158,10 @@ bool RpcServer::validateNanoappChannelId(uint32_t nappId, uint32_t channelId) {
   }
 
   return endpointsMatch(channelId, nappId);
+}
+
+pw::Status RpcServer::closeChannel(uint32_t id) {
+  return mServer.CloseChannel(id);
 }
 
 }  // namespace chre
