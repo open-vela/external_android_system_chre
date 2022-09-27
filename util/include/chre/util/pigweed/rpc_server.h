@@ -91,6 +91,13 @@ class RpcServer {
   bool handleMessageFromHost(const void *eventData);
 
   /**
+   * Closes the Pigweed channel when a host client disconnects.
+   *
+   * @param notification The notification from the host client
+   */
+  void handleHostClientNotification(const void *eventData);
+
+  /**
    * Validates that the host client sending the message matches the expected
    * channel ID.
    *
@@ -109,6 +116,14 @@ class RpcServer {
    * @return Whether the IDs match.
    */
   bool validateNanoappChannelId(uint32_t senderInstanceId, uint32_t channelId);
+
+  /**
+   * Closes a Pigweed channel.
+   *
+   * @param id The channel ID.
+   * @return either an ok or not found status if the channel was not opened.
+   */
+  pw::Status closeChannel(uint32_t id);
 
   // TODO(b/210138227): Make # of channels dynamic
   pw::rpc::Channel mChannels[5];
