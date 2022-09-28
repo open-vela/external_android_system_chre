@@ -17,19 +17,14 @@
 #include "chre_stress_test_manager.h"
 
 #include <pb_decode.h>
-#include <pb_encode.h>
 
 #include "chre/util/macros.h"
-#include "chre/util/nanoapp/audio.h"
 #include "chre/util/nanoapp/callbacks.h"
 #include "chre/util/nanoapp/log.h"
 #include "chre_stress_test.nanopb.h"
 #include "send_message.h"
 
 #define LOG_TAG "[ChreStressTest]"
-
-using chre::kOneMicrosecondInNanoseconds;
-using chre::kOneMillisecondInNanoseconds;
 
 namespace chre {
 
@@ -42,12 +37,6 @@ namespace {
 #define TIMEOUT_BUFFER_DELAY_NS (1 * CHRE_NSEC_PER_SEC)
 
 constexpr chre::Nanoseconds kWifiScanInterval = chre::Seconds(5);
-constexpr chre::Nanoseconds kSensorRequestInterval = chre::Seconds(5);
-constexpr uint64_t kSensorSamplingDelayNs = 0;
-constexpr chre::Nanoseconds kAudioRequestInterval = chre::Seconds(5);
-constexpr uint8_t kAccelSensorIndex = 0;
-constexpr uint8_t kGyroSensorIndex = 1;
-constexpr uint8_t kInstantMotionSensorIndex = 1;
 
 bool isRequestTypeForLocation(uint8_t requestType) {
   return (requestType == CHRE_GNSS_REQUEST_TYPE_LOCATION_SESSION_START) ||
@@ -85,9 +74,6 @@ void Manager::handleMessageFromHost(uint32_t senderInstanceId,
   } else if (messageType == chre_stress_test_MessageType_TEST_HOST_RESTARTED) {
     // Do nothing and only update the host endpoint
     mHostEndpoint = hostData->hostEndpoint;
-    success = true;
-  } else if (messageType == chre_stress_test_MessageType_GET_CAPABILITIES) {
-    sendCapabilitiesMessage();
     success = true;
   } else if (messageType != chre_stress_test_MessageType_TEST_COMMAND) {
     LOGE("Invalid message type %" PRIu32, messageType);
@@ -129,14 +115,6 @@ void Manager::handleMessageFromHost(uint32_t senderInstanceId,
         }
         case chre_stress_test_TestCommand_Feature_WIFI_SCAN_MONITOR: {
           handleWifiScanMonitoringCommand(testCommand.start);
-          break;
-        }
-        case chre_stress_test_TestCommand_Feature_SENSORS: {
-          handleSensorStartCommand(testCommand.start);
-          break;
-        }
-        case chre_stress_test_TestCommand_Feature_AUDIO: {
-          handleAudioStartCommand(testCommand.start);
           break;
         }
         default: {
@@ -190,39 +168,6 @@ void Manager::handleDataFromChre(uint16_t eventType, const void *eventData) {
           static_cast<const chreWwanCellInfoResult *>(eventData));
       break;
 
-    case CHRE_EVENT_SENSOR_ACCELEROMETER_DATA:
-      handleAccelSensorDataEvent(
-          static_cast<const chreSensorThreeAxisData *>(eventData));
-      break;
-
-    case CHRE_EVENT_SENSOR_GYROSCOPE_DATA:
-      handleGyroSensorDataEvent(
-          static_cast<const chreSensorThreeAxisData *>(eventData));
-      break;
-
-    case CHRE_EVENT_SENSOR_INSTANT_MOTION_DETECT_DATA:
-      handleInstantMotionSensorDataEvent(
-          static_cast<const chreSensorOccurrenceData *>(eventData));
-      break;
-
-    case CHRE_EVENT_SENSOR_SAMPLING_CHANGE:
-      handleSensorSamplingChangeEvent(
-          static_cast<const chreSensorSamplingStatusEvent *>(eventData));
-      break;
-
-    case CHRE_EVENT_SENSOR_GYROSCOPE_BIAS_INFO:
-      LOGI("Received gyro bias info");
-      break;
-
-    case CHRE_EVENT_AUDIO_DATA:
-      handleAudioDataEvent(static_cast<const chreAudioDataEvent *>(eventData));
-      break;
-
-    case CHRE_EVENT_AUDIO_SAMPLING_CHANGE:
-      handleAudioSamplingChangeEvent(
-          static_cast<const chreAudioSourceStatusEvent *>(eventData));
-      break;
-
     default:
       LOGW("Unknown event type %" PRIu16, eventType);
       break;
@@ -238,8 +183,6 @@ void Manager::handleTimerEvent(const uint32_t *handle) {
     makeGnssLocationRequest();
   } else if (*handle == mGnssMeasurementTimerHandle) {
     makeGnssMeasurementRequest();
-  } else if (*handle == mSensorTimerHandle) {
-    makeSensorRequests();
   } else if (*handle == mGnssLocationAsyncTimerHandle &&
              mGnssLocationAsyncRequest.has_value()) {
     sendFailure("GNSS location async result timed out");
@@ -250,8 +193,6 @@ void Manager::handleTimerEvent(const uint32_t *handle) {
     makeWwanCellInfoRequest();
   } else if (*handle == mWifiScanMonitorAsyncTimerHandle) {
     sendFailure("WiFi scan monitor request timed out");
-  } else if (*handle == mAudioTimerHandle) {
-    makeAudioRequest();
   } else {
     sendFailure("Unknown timer handle");
   }
@@ -324,19 +265,6 @@ void Manager::handleGnssAsyncResult(const chreAsyncResult *result) {
   }
 }
 
-void Manager::handleAudioDataEvent(const chreAudioDataEvent *event) {
-  uint64_t timestamp = event->timestamp;
-
-  checkTimestamp(timestamp, mPrevAudioEventTimestampMs);
-  mPrevAudioEventTimestampMs = timestamp;
-}
-
-void Manager::handleAudioSamplingChangeEvent(
-    const chreAudioSourceStatusEvent *event) {
-  LOGI("Received audio sampling change event - suspended: %d",
-       event->status.suspended);
-}
-
 void Manager::validateGnssAsyncResult(const chreAsyncResult *result,
                                       Optional<AsyncRequest> &request,
                                       uint32_t *asyncTimerHandle) {
@@ -357,17 +285,6 @@ void Manager::checkTimestamp(uint64_t timestamp, uint64_t pastTimestamp) {
     sendFailure("Timestamp was too old");
   } else if (timestamp == pastTimestamp) {
     sendFailure("Timestamp was duplicate");
-  }
-}
-
-void Manager::checkTimestampInterval(uint64_t timestamp, uint64_t pastTimestamp,
-                                     uint64_t maxInterval) {
-  checkTimestamp(timestamp, pastTimestamp);
-  if (timestamp - pastTimestamp > maxInterval) {
-    LOGE("Timestamp is later than expected");
-    LOGI("Current timestamp %" PRIu64, timestamp);
-    LOGI("past timestamp %" PRIu64, pastTimestamp);
-    LOGI("Timestamp difference %" PRIu64, timestamp - pastTimestamp);
   }
 }
 
@@ -408,70 +325,6 @@ void Manager::handleWifiScanEvent(const chreWifiScanEvent *event) {
         nullptr, 0,
         chre_stress_test_MessageType_TEST_WIFI_SCAN_MONITOR_TRIGGERED,
         mHostEndpoint.value(), nullptr /* freeCallback */);
-  }
-}
-
-void Manager::handleAccelSensorDataEvent(
-    const chreSensorThreeAxisData *eventData) {
-  const auto &header = eventData->header;
-  uint64_t timestamp = header.baseTimestamp;
-
-  // Note: The stress test sends streaming data request for accel, so only
-  // non-batched data are checked for timestamp. The allowed interval between
-  // data events is selected 1 ms higher than the sensor sampling interval to
-  // account for processing delays.
-  if (header.readingCount == 1) {
-    if (mPrevAccelEventTimestampNs != 0) {
-      checkTimestampInterval(timestamp, mPrevAccelEventTimestampNs,
-                             mSensors[kAccelSensorIndex].samplingInterval +
-                                 kOneMillisecondInNanoseconds);
-    }
-    mPrevAccelEventTimestampNs = timestamp;
-  }
-}
-
-void Manager::handleGyroSensorDataEvent(
-    const chreSensorThreeAxisData *eventData) {
-  const auto &header = eventData->header;
-  uint64_t timestamp = header.baseTimestamp;
-
-  // Note: The stress test sends streaming data request for gyro, so only
-  // non-batched data are checked for timestamp. The interval is selected 1ms
-  // higher than the sensor sampling interval to account for processing delays.
-  if (header.readingCount == 1) {
-    if (mPrevGyroEventTimestampNs != 0) {
-      checkTimestampInterval(timestamp, mPrevGyroEventTimestampNs,
-                             mSensors[kGyroSensorIndex].samplingInterval +
-                                 kOneMillisecondInNanoseconds);
-    }
-    mPrevGyroEventTimestampNs = timestamp;
-  }
-}
-
-void Manager::handleInstantMotionSensorDataEvent(
-    const chreSensorOccurrenceData *eventData) {
-  const auto &header = eventData->header;
-  uint64_t timestamp = header.baseTimestamp;
-
-  mSensors[kInstantMotionSensorIndex].enabled = false;
-  checkTimestamp(timestamp, mPrevInstantMotionEventTimestampNs);
-  mPrevInstantMotionEventTimestampNs = timestamp;
-}
-
-void Manager::handleSensorSamplingChangeEvent(
-    const chreSensorSamplingStatusEvent *eventData) {
-  LOGI("Sampling Change: handle %" PRIu32 ", status: interval %" PRIu64
-       " latency %" PRIu64 " enabled %d",
-       eventData->sensorHandle, eventData->status.interval,
-       eventData->status.latency, eventData->status.enabled);
-  if (eventData->sensorHandle == mSensors[kAccelSensorIndex].handle &&
-      eventData->status.interval !=
-          mSensors[kAccelSensorIndex].samplingInterval) {
-    mSensors[kAccelSensorIndex].samplingInterval = eventData->status.interval;
-  } else if (eventData->sensorHandle == mSensors[kGyroSensorIndex].handle &&
-             eventData->status.interval !=
-                 mSensors[kGyroSensorIndex].samplingInterval) {
-    mSensors[kGyroSensorIndex].samplingInterval = eventData->status.interval;
   }
 }
 
@@ -574,56 +427,6 @@ void Manager::handleWifiScanMonitoringCommand(bool start) {
   }
 }
 
-void Manager::handleSensorStartCommand(bool start) {
-  mSensorTestStarted = start;
-  bool sensorsFound = true;
-
-  for (size_t i = 0; i < ARRAY_SIZE(mSensors); i++) {
-    SensorState &sensor = mSensors[i];
-    bool isInitialized = chreSensorFindDefault(sensor.type, &sensor.handle);
-    if (!isInitialized) {
-      sensorsFound = false;
-    } else {
-      chreSensorInfo &info = sensor.info;
-      bool infoStatus = chreGetSensorInfo(sensor.handle, &info);
-      if (infoStatus) {
-        sensor.samplingInterval = info.minInterval;
-        LOGI("SensorInfo: %s, Type=%" PRIu8
-             " OnChange=%d OneShot=%d Passive=%d "
-             "minInterval=%" PRIu64 "nsec",
-             info.sensorName, info.sensorType, info.isOnChange, info.isOneShot,
-             info.supportsPassiveMode, info.minInterval);
-      } else {
-        LOGE("chreGetSensorInfo failed");
-      }
-    }
-    LOGI("Sensor %zu initialized: %s with handle %" PRIu32, i,
-         isInitialized ? "true" : "false", sensor.handle);
-  }
-
-  if (sensorsFound) {
-    if (start) {
-      makeSensorRequests();
-    } else {
-      stopSensorRequests();
-      cancelTimer(&mSensorTimerHandle);
-    }
-  } else {
-    sendFailure("Platform has no sensor capability");
-  }
-}
-
-void Manager::handleAudioStartCommand(bool start) {
-  mAudioTestStarted = start;
-  mAudioEnabled = true;
-
-  if (mAudioTestStarted) {
-    makeAudioRequest();
-  } else {
-    cancelTimer(&mAudioTimerHandle);
-  }
-}
-
 void Manager::setTimer(uint64_t delayNs, bool oneShot, uint32_t *timerHandle) {
   *timerHandle = chreTimerSet(delayNs, timerHandle, oneShot);
   if (*timerHandle == CHRE_TIMER_INVALID) {
@@ -640,57 +443,6 @@ void Manager::cancelTimer(uint32_t *timerHandle) {
       LOGW("Failed to cancel timer");
     }
     *timerHandle = CHRE_TIMER_INVALID;
-  }
-}
-
-void Manager::makeSensorRequests() {
-  bool anySensorConfigured = false;
-  for (size_t i = 0; i < ARRAY_SIZE(mSensors); i++) {
-    SensorState &sensor = mSensors[i];
-    bool status = false;
-    if (!sensor.enabled) {
-      if (sensor.info.isOneShot) {
-        status = chreSensorConfigure(
-            sensor.handle, CHRE_SENSOR_CONFIGURE_MODE_ONE_SHOT,
-            CHRE_SENSOR_INTERVAL_DEFAULT, kSensorSamplingDelayNs);
-      } else {
-        status = chreSensorConfigure(
-            sensor.handle, CHRE_SENSOR_CONFIGURE_MODE_CONTINUOUS,
-            sensor.samplingInterval, kSensorSamplingDelayNs);
-      }
-    } else {
-      status = chreSensorConfigureModeOnly(sensor.handle,
-                                           CHRE_SENSOR_CONFIGURE_MODE_DONE);
-      if (i == kAccelSensorIndex) {
-        mPrevAccelEventTimestampNs = 0;
-      } else if (i == kGyroSensorIndex) {
-        mPrevGyroEventTimestampNs = 0;
-      }
-    }
-    if (status) {
-      sensor.enabled = !sensor.enabled;
-    }
-    LOGI("Configure [enable %d, status %d]: %s", sensor.enabled, status,
-         sensor.info.sensorName);
-    anySensorConfigured = anySensorConfigured || status;
-  }
-  if (anySensorConfigured) {
-    setTimer(kSensorRequestInterval.toRawNanoseconds(), true /* oneShot */,
-             &mSensorTimerHandle);
-  } else {
-    sendFailure("Failed to make sensor request");
-  }
-}
-
-void Manager::stopSensorRequests() {
-  for (size_t i = 0; i < ARRAY_SIZE(mSensors); i++) {
-    SensorState &sensor = mSensors[i];
-    if (sensor.enabled) {
-      if (!chreSensorConfigureModeOnly(sensor.handle,
-                                       CHRE_SENSOR_CONFIGURE_MODE_DONE)) {
-        LOGE("Failed to disable sensor: %s", sensor.info.sensorName);
-      }
-    }
   }
 }
 
@@ -794,78 +546,11 @@ void Manager::makeWwanCellInfoRequest() {
   }
 }
 
-void Manager::makeAudioRequest() {
-  bool success = false;
-  struct chreAudioSource source;
-  if (mAudioEnabled) {
-    for (uint32_t i = 0; chreAudioGetSource(i, &source); i++) {
-      if (chreAudioConfigureSource(i, true, source.minBufferDuration,
-                                   source.minBufferDuration)) {
-        LOGI("Successfully enabled audio for source %" PRIu32, i);
-        success = true;
-      } else {
-        LOGE("Failed to enable audio");
-      }
-    }
-  } else {
-    for (uint32_t i = 0; chreAudioGetSource(i, &source); i++) {
-      if (chreAudioConfigureSource(i, false, 0, 0)) {
-        LOGI("Successfully disabled audio for source %" PRIu32, i);
-        success = true;
-      } else {
-        LOGE("Failed to disable audio");
-      }
-    }
-  }
-
-  if (success) {
-    mAudioEnabled = !mAudioEnabled;
-    setTimer(kAudioRequestInterval.toRawNanoseconds(), true /* oneShot */,
-             &mAudioTimerHandle);
-  } else {
-    sendFailure("Failed to make audio request");
-  }
-}
-
 void Manager::sendFailure(const char *errorMessage) {
   test_shared::sendTestResultWithMsgToHost(
       mHostEndpoint.value(),
       chre_stress_test_MessageType_TEST_RESULT /* messageType */,
       false /* success */, errorMessage, false /* abortOnFailure */);
-}
-
-void Manager::sendCapabilitiesMessage() {
-  if (!mHostEndpoint.has_value()) {
-    LOGE("mHostEndpoint is not initialized");
-    return;
-  }
-
-  chre_stress_test_Capabilities capabilities =
-      chre_stress_test_Capabilities_init_default;
-  capabilities.wifi = chreWifiGetCapabilities();
-
-  size_t size;
-  if (!pb_get_encoded_size(&size, chre_stress_test_Capabilities_fields,
-                           &capabilities)) {
-    LOGE("Failed to get message size");
-    return;
-  }
-
-  pb_byte_t *bytes = static_cast<pb_byte_t *>(chreHeapAlloc(size));
-  if (size > 0 && bytes == nullptr) {
-    LOG_OOM();
-  } else {
-    pb_ostream_t stream = pb_ostream_from_buffer(bytes, size);
-    if (!pb_encode(&stream, chre_stress_test_Capabilities_fields,
-                   &capabilities)) {
-      LOGE("Failed to encode capabilities error %s", PB_GET_ERROR(&stream));
-      chreHeapFree(bytes);
-    } else {
-      chreSendMessageToHostEndpoint(
-          bytes, size, chre_stress_test_MessageType_CAPABILITIES,
-          mHostEndpoint.value(), heapFreeMessageCallback);
-    }
-  }
 }
 
 }  // namespace stress_test
