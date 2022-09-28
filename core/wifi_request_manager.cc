@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include "chre/core/wifi_request_manager.h"
+
 #include <cinttypes>
 #include <cstddef>
 #include <cstdint>
@@ -21,12 +23,13 @@
 
 #include "chre/core/event_loop_manager.h"
 #include "chre/core/settings.h"
-#include "chre/core/wifi_request_manager.h"
+#include "chre/core/system_health_monitor.h"
 #include "chre/platform/fatal_error.h"
 #include "chre/platform/log.h"
 #include "chre/platform/system_time.h"
 #include "chre/util/nested_data_ptr.h"
 #include "chre/util/system/debug_dump.h"
+#include "chre/util/system/event_callbacks.h"
 #include "chre_api/chre/version.h"
 #include "include/chre/core/event_loop_common.h"
 #include "include/chre/core/wifi_request_manager.h"
@@ -116,6 +119,9 @@ bool WifiRequestManager::requestRangingByType(RangingType type,
         static_cast<const struct chreWifiNanRangingParams *>(rangingParams);
     success = mPlatformWifi.requestNanRanging(params);
   }
+  if (success) {
+    mRequestRangingTimeoutHandle = setRangingRequestTimer();
+  }
   return success;
 }
 
@@ -140,6 +146,7 @@ bool WifiRequestManager::updateRangingRequest(RangingType type,
 
 bool WifiRequestManager::sendRangingRequest(PendingRangingRequest &request) {
   bool success = false;
+
   if (request.type == RangingType::WIFI_AP) {
     struct chreWifiRangingParams params = {};
     params.targetListLen = static_cast<uint8_t>(request.targetList.size());
@@ -151,7 +158,34 @@ bool WifiRequestManager::sendRangingRequest(PendingRangingRequest &request) {
                 CHRE_WIFI_BSSID_LEN);
     success = mPlatformWifi.requestNanRanging(&params);
   }
+  if (success) {
+    mRequestRangingTimeoutHandle = setRangingRequestTimer();
+  }
   return success;
+}
+
+void WifiRequestManager::handleRangingRequestTimeout() {
+  if (mPendingRangingRequests.empty()) {
+    LOGE("Request ranging timer timedout with no pending request.");
+  } else {
+    EventLoopManagerSingleton::get()->getSystemHealthMonitor().onFailure(
+        HealthCheckId::WifiRequestRangingTimeout);
+    mPendingRangingRequests.pop();
+    while (!mPendingRangingRequests.empty() && !dispatchQueuedRangingRequest())
+      ;
+  }
+}
+
+TimerHandle WifiRequestManager::setRangingRequestTimer() {
+  auto callback = [](uint16_t /*type*/, void * /*data*/, void * /*extraData*/) {
+    EventLoopManagerSingleton::get()
+        ->getWifiRequestManager()
+        .handleRangingRequestTimeout();
+  };
+
+  return EventLoopManagerSingleton::get()->setDelayedCallback(
+      SystemCallbackType::WifiHandleRangingEvent, nullptr, callback,
+      Nanoseconds(CHRE_WIFI_RANGING_RESULT_TIMEOUT_NS));
 }
 
 bool WifiRequestManager::requestRanging(RangingType rangingType,
@@ -168,7 +202,6 @@ bool WifiRequestManager::requestRanging(RangingType rangingType,
     PendingRangingRequest &req = mPendingRangingRequests.back();
     req.nanoappInstanceId = nanoapp->getInstanceId();
     req.cookie = cookie;
-
     if (mPendingRangingRequests.size() == 1) {
       // First in line; dispatch request immediately
       if (!areRequiredSettingsEnabled()) {
@@ -182,16 +215,8 @@ bool WifiRequestManager::requestRanging(RangingType rangingType,
         mPendingRangingRequests.pop_back();
       } else {
         success = true;
-        mRangingResponseTimeout =
-            SystemTime::getMonotonicTime() +
-            Nanoseconds(CHRE_WIFI_RANGING_RESULT_TIMEOUT_NS);
       }
     } else {
-      // Dispatch request later, after prior requests finish
-      // TODO(b/65331248): use a timer to ensure the platform is meeting its
-      // contract
-      CHRE_ASSERT_LOG(SystemTime::getMonotonicTime() <= mRangingResponseTimeout,
-                      "WiFi platform didn't give callback in time");
       success = updateRangingRequest(rangingType, req, rangingParams);
       if (!success) {
         LOG_OOM();
@@ -213,7 +238,7 @@ bool WifiRequestManager::requestScan(Nanoapp *nanoapp,
        mLastScanRequestTime + Nanoseconds(CHRE_WIFI_SCAN_RESULT_TIMEOUT_NS) <
            SystemTime::getMonotonicTime());
   if (timedOut) {
-    LOGE("Scan request async response timed out");
+    SystemHealthMonitor::onFailure(HealthCheckId::WifiScanResponseTimeout);
     mScanRequestingNanoappInstanceId.reset();
   }
 
@@ -228,6 +253,7 @@ bool WifiRequestManager::requestScan(Nanoapp *nanoapp,
 
   bool success = false;
   if (mScanRequestingNanoappInstanceId.has_value()) {
+    SystemHealthMonitor::onFailure(HealthCheckId::UnexpectedWifiPalCallback);
     LOGE("Active wifi scan request made by 0x%" PRIx64
          " while a request by 0x%" PRIx64 " is in flight",
          nanoapp->getAppId(),
@@ -303,6 +329,8 @@ void WifiRequestManager::handleScanResponse(bool pending, uint8_t errorCode) {
 
 void WifiRequestManager::handleRangingEvent(
     uint8_t errorCode, struct chreWifiRangingEvent *event) {
+  EventLoopManagerSingleton::get()->cancelDelayedCallback(
+      mRequestRangingTimeoutHandle);
   auto callback = [](uint16_t /*type*/, void *data, void *extraData) {
     uint8_t cbErrorCode = NestedDataPtr<uint8_t>(extraData);
     EventLoopManagerSingleton::get()
@@ -833,7 +861,6 @@ void WifiRequestManager::handleScanMonitorStateChangeSync(bool enabled,
       CHRE_ASSERT_LOG(false, "Invalid scan monitor state");
       break;
     }
-
     mPendingScanMonitorRequests.pop();
   }
 }
@@ -944,8 +971,6 @@ bool WifiRequestManager::dispatchQueuedRangingRequest() {
     asyncError = CHRE_ERROR;
   } else {
     success = true;
-    mRangingResponseTimeout = SystemTime::getMonotonicTime() +
-                              Nanoseconds(CHRE_WIFI_RANGING_RESULT_TIMEOUT_NS);
   }
 
   if (asyncError != CHRE_ERROR_NONE) {
