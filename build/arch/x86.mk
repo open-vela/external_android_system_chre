@@ -9,14 +9,13 @@ $(error "You should supply an ANDROID_BUILD_TOP environment variable \
          containing a path to the Android source tree. This is typically \
          provided by initializing the Android build environment.")
 endif
-
-include $(CHRE_PREFIX)/build/clang.mk
+export X86_TOOLS_PREFIX=$(ANDROID_BUILD_TOP)/prebuilts/clang/host/linux-x86/clang-r458507/bin/
 
 # x86 Tools ####################################################################
 
-TARGET_AR  = $(CLANG_TOOLCHAIN_PATH)/bin/llvm-ar
-TARGET_CC  = $(CLANG_TOOLCHAIN_PATH)/bin/clang++
-TARGET_LD  = $(CLANG_TOOLCHAIN_PATH)/bin/clang++
+TARGET_AR  = $(X86_TOOLS_PREFIX)llvm-ar
+TARGET_CC  = $(X86_TOOLS_PREFIX)clang++
+TARGET_LD  = $(X86_TOOLS_PREFIX)clang++
 
 # x86 Compiler Flags ###########################################################
 
