@@ -12,7 +12,10 @@ ifneq ($(PW_RPC_SRCS),)
 
 # Location of various Pigweed modules
 PIGWEED_DIR = $(ANDROID_BUILD_TOP)/external/pigweed
-CHRE_UTIL_DIR = $(ANDROID_BUILD_TOP)/system/chre/util
+CHRE_PREFIX = $(ANDROID_BUILD_TOP)/system/chre
+CHRE_UTIL_DIR = $(CHRE_PREFIX)/util
+CHRE_API_DIR = $(CHRE_PREFIX)/chre_api
+PIGWEED_CHRE_DIR=$(CHRE_PREFIX)/external/pigweed
 PIGWEED_CHRE_UTIL_DIR = $(CHRE_UTIL_DIR)/pigweed
 
 ifeq ($(NANOPB_PREFIX),)
@@ -41,8 +44,13 @@ PW_RPC_GENERATOR_CMD = PYTHONPATH=$$PYTHONPATH:$(PW_RPC_GEN_PATH)/py:$\
 
 $(PW_RPC_GENERATOR_COMPILED_PROTO): $(PW_RPC_GENERATOR_PROTO_SRCS)
 	@echo " [PW_RPC] $<"
-	$(V)mkdir -p $(PW_RPC_GEN_PATH)/py/
+	$(V)mkdir -p $(PW_RPC_GEN_PATH)/py/pw_rpc/internal
+	$(V)mkdir -p $(PW_RPC_GEN_PATH)/py/pw_protobuf_codegen_protos
 	$(V)cp -R $(PIGWEED_DIR)/pw_rpc/py/pw_rpc $(PW_RPC_GEN_PATH)/py/
+	$(PROTOC) -I$(PIGWEED_DIR)/pw_protobuf/pw_protobuf_codegen_protos \
+	  --experimental_allow_proto3_optional \
+		--python_out=$(PW_RPC_GEN_PATH)/py/pw_protobuf_codegen_protos \
+	  $(PIGWEED_DIR)/pw_protobuf/pw_protobuf_codegen_protos/options.proto
 	$(V)$(PW_RPC_GENERATOR_CMD) $(PW_RPC_PROTO_GENERATOR) --out-dir=$(PW_RPC_GEN_PATH)/py/pw_rpc/internal \
 	  --compile-dir=$(dir $<) --sources $(PW_RPC_GENERATOR_PROTO_SRCS) \
 	  --language python
@@ -67,16 +75,11 @@ COMMON_SRCS += $(PW_RPC_GEN_SRCS)
 # PW RPC library ###############################################################
 
 # Pigweed RPC include paths
-COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_assert/assert_lite_public_overrides
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_assert/public
-COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_assert_log/public
-COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_assert_log/public_overrides
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_bytes/public
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_containers/public
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_function/public
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_log/public
-COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_log_null/public
-COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_log_null/public_overrides
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_polyfill/public
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_polyfill/public_overrides
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_polyfill/standard_library_public
@@ -86,6 +89,7 @@ COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_result/public
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_rpc/
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_rpc/nanopb/public
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_rpc/public
+COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_rpc/pwpb/public
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_rpc/raw/public
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_span/public
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_span/public_overrides
@@ -99,8 +103,10 @@ COMMON_SRCS += $(PIGWEED_DIR)/pw_assert_log/assert_log.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_containers/intrusive_list.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_protobuf/decoder.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_protobuf/encoder.cc
+COMMON_SRCS += $(PIGWEED_DIR)/pw_protobuf/stream_decoder.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/call.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/channel.cc
+COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/channel_list.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/client.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/client_call.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/client_server.cc
@@ -112,11 +118,14 @@ COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/service.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/nanopb/common.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/nanopb/method.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/nanopb/server_reader_writer.cc
+COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/pwpb/server_reader_writer.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_stream/memory_stream.cc
+COMMON_SRCS += $(PIGWEED_DIR)/pw_varint/stream.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_varint/varint.cc
 
 # NanoPB header includes
 COMMON_CFLAGS += -I$(NANOPB_PREFIX)
+COMMON_CFLAGS += -DPW_RPC_USE_GLOBAL_MUTEX=0
 
 # NanoPB sources
 COMMON_SRCS += $(NANOPB_PREFIX)/pb_common.c
@@ -125,7 +134,12 @@ COMMON_SRCS += $(NANOPB_PREFIX)/pb_encode.c
 
 # Add CHRE Pigweed util sources since nanoapps should always use these
 COMMON_SRCS += $(PIGWEED_CHRE_UTIL_DIR)/chre_channel_output.cc
+COMMON_SRCS += $(PIGWEED_CHRE_UTIL_DIR)/rpc_server.cc
 COMMON_SRCS += $(CHRE_UTIL_DIR)/nanoapp/callbacks.cc
+
+# CHRE Pigwweed overrides
+COMMON_CFLAGS += -I$(PIGWEED_CHRE_DIR)/pw_log_nanoapp/public_overrides
+COMMON_CFLAGS += -I$(PIGWEED_CHRE_DIR)/pw_assert_nanoapp/public_overrides
 
 # Generate PW RPC headers ######################################################
 
@@ -142,12 +156,20 @@ $(PW_RPC_GEN_PATH)/%.pb.c \
 	  --out-dir=$(PW_RPC_GEN_PATH)/$(dir $<) --compile-dir=$(dir $<) --language nanopb \
 	  --sources $<
 	$(V)$(PW_RPC_GENERATOR_CMD) $(PW_RPC_PROTO_GENERATOR) \
+	  --plugin-path=$(PIGWEED_DIR)/pw_protobuf/py/pw_protobuf/plugin.py \
+	  --out-dir=$(PW_RPC_GEN_PATH)/$(dir $<) --compile-dir=$(dir $<) --language pwpb \
+		--sources $<
+	$(V)$(PW_RPC_GENERATOR_CMD) $(PW_RPC_PROTO_GENERATOR) \
 	  --plugin-path=$(PIGWEED_DIR)/pw_rpc/py/pw_rpc/plugin_nanopb.py \
 	  --out-dir=$(PW_RPC_GEN_PATH)/$(dir $<) --compile-dir=$(dir $<) --language nanopb_rpc \
 	  --sources $<
 	$(V)$(PW_RPC_GENERATOR_CMD) $(PW_RPC_PROTO_GENERATOR) \
 	  --plugin-path=$(PIGWEED_DIR)/pw_rpc/py/pw_rpc/plugin_raw.py \
 	  --out-dir=$(PW_RPC_GEN_PATH)/$(dir $<) --compile-dir=$(dir $<) --language raw_rpc \
+	  --sources $<
+	$(V)$(PW_RPC_GENERATOR_CMD) $(PW_RPC_PROTO_GENERATOR) \
+	  --plugin-path=$(PIGWEED_DIR)/pw_rpc/py/pw_rpc/plugin_pwpb.py \
+	  --out-dir=$(PW_RPC_GEN_PATH)/$(dir $<) --compile-dir=$(dir $<) --language pwpb_rpc \
 	  --sources $<
 
 endif

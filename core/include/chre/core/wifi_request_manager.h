@@ -20,6 +20,7 @@
 #include "chre/core/api_manager_common.h"
 #include "chre/core/nanoapp.h"
 #include "chre/core/settings.h"
+#include "chre/core/timer_pool.h"
 #include "chre/platform/platform_wifi.h"
 #include "chre/util/buffer.h"
 #include "chre/util/non_copyable.h"
@@ -416,8 +417,8 @@ class WifiRequestManager : public NonCopyable {
   static constexpr size_t kNumWifiRequestLogs = 10;
   ArrayQueue<WifiScanRequestLog, kNumWifiRequestLogs> mWifiScanRequestLogs;
 
-  //! Helps ensure we don't get stuck if platform isn't behaving as expected
-  Nanoseconds mRangingResponseTimeout;
+  //! Manages the timer when a ranging request is dispatched to the PAL.
+  TimerHandle mRequestRangingTimeoutHandle;
 
   //! System time when the last WiFi scan event was received.
   Milliseconds mLastScanEventTime;
@@ -832,6 +833,20 @@ class WifiRequestManager : public NonCopyable {
    * @param enable Indicates if a NAN enable or disable is being requested.
    */
   void sendNanConfiguration(bool enable);
+
+  /**
+   * Invoked on no respond for a ranging request in the expected window.
+   */
+  void handleRangingRequestTimeout();
+
+  /**
+   * Sets up the system timer that invokes handleRangingRequestTimeout when the
+   * PAL does not response on time.
+   *
+   * @return TimerHandle that can be used later to cancel the timer if the PAL
+   * has responded in the expected time window..
+   */
+  TimerHandle setRangingRequestTimer();
 };
 
 }  // namespace chre
