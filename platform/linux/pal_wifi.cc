@@ -47,6 +47,9 @@ bool gScanMonitoringActive = false;
 //! Whether PAL should respond to RRT ranging request.
 bool gEnableRangingResponse = true;
 
+//! Whether PAL should respond to configure scan monitor request.
+bool gEnableScanMonitorResponse = true;
+
 void sendScanResponse() {
   gCallbacks->scanResponseCallback(true, CHRE_ERROR_NONE);
 
@@ -61,7 +64,9 @@ void sendScanResponse() {
 }
 
 void sendScanMonitorResponse(bool enable) {
-  gCallbacks->scanMonitorStatusChangeCallback(enable, CHRE_ERROR_NONE);
+  if (gEnableScanMonitorResponse) {
+    return gCallbacks->scanMonitorStatusChangeCallback(enable, CHRE_ERROR_NONE);
+  }
 }
 
 void sendRangingResponse() {
@@ -195,6 +200,10 @@ void chrePalWifiEnableResponse(PalWifiAsyncRequestTypes requestType,
   switch (requestType) {
     case PalWifiAsyncRequestTypes::RANGING:
       gEnableRangingResponse = enableResponse;
+      break;
+
+    case PalWifiAsyncRequestTypes::SCAN_MONITORING:
+      gEnableScanMonitorResponse = enableResponse;
       break;
 
     default:

@@ -53,6 +53,59 @@ uint32_t WifiRequestManager::getCapabilities() {
   return mPlatformWifi.getCapabilities();
 }
 
+void WifiRequestManager::dispatchQueuedConfigureScanMonitorRequests() {
+  while (!mPendingScanMonitorRequests.empty()) {
+    const auto &stateTransition = mPendingScanMonitorRequests.front();
+    bool hasScanMonitorRequest =
+        nanoappHasScanMonitorRequest(stateTransition.nanoappInstanceId);
+    if (scanMonitorIsInRequestedState(stateTransition.enable,
+                                      hasScanMonitorRequest)) {
+      // We are already in the target state so just post an event indicating
+      // success
+      postScanMonitorAsyncResultEventFatal(
+          stateTransition.nanoappInstanceId, true /* success */,
+          stateTransition.enable, CHRE_ERROR_NONE, stateTransition.cookie);
+    } else if (scanMonitorStateTransitionIsRequired(stateTransition.enable,
+                                                    hasScanMonitorRequest)) {
+      if (!mPlatformWifi.configureScanMonitor(stateTransition.enable)) {
+        postScanMonitorAsyncResultEventFatal(
+            stateTransition.nanoappInstanceId, false /* success */,
+            stateTransition.enable, CHRE_ERROR, stateTransition.cookie);
+      } else {
+        mConfigureScanMonitorTimeoutHandle = setConfigureScanMonitorTimer();
+        break;
+      }
+    } else {
+      CHRE_ASSERT_LOG(false, "Invalid scan monitor state");
+    }
+    mPendingScanMonitorRequests.pop();
+  }
+}
+
+void WifiRequestManager::handleConfigureScanMonitorTimeout() {
+  if (mPendingScanMonitorRequests.empty()) {
+    LOGE("Configure Scan Monitor timer timedout with no pending request.");
+  } else {
+    EventLoopManagerSingleton::get()->getSystemHealthMonitor().onFailure(
+        HealthCheckId::WifiConfigureScanMonitorTimeout);
+    mPendingScanMonitorRequests.pop();
+
+    dispatchQueuedConfigureScanMonitorRequests();
+  }
+}
+
+TimerHandle WifiRequestManager::setConfigureScanMonitorTimer() {
+  auto callback = [](uint16_t /*type*/, void * /*data*/, void * /*extraData*/) {
+    EventLoopManagerSingleton::get()
+        ->getWifiRequestManager()
+        .handleConfigureScanMonitorTimeout();
+  };
+
+  return EventLoopManagerSingleton::get()->setDelayedCallback(
+      SystemCallbackType::WifiScanMonitorStateChange, nullptr, callback,
+      Nanoseconds(CHRE_ASYNC_RESULT_TIMEOUT_NS));
+}
+
 bool WifiRequestManager::configureScanMonitor(Nanoapp *nanoapp, bool enable,
                                               const void *cookie) {
   CHRE_ASSERT(nanoapp);
@@ -76,6 +129,8 @@ bool WifiRequestManager::configureScanMonitor(Nanoapp *nanoapp, bool enable,
         mPendingScanMonitorRequests.pop_back();
         LOGE("Failed to enable the scan monitor for nanoapp instance %" PRIu16,
              instanceId);
+      } else {
+        mConfigureScanMonitorTimeoutHandle = setConfigureScanMonitorTimer();
       }
     }
   } else {
@@ -286,6 +341,8 @@ bool WifiRequestManager::requestScan(Nanoapp *nanoapp,
 
 void WifiRequestManager::handleScanMonitorStateChange(bool enabled,
                                                       uint8_t errorCode) {
+  EventLoopManagerSingleton::get()->cancelDelayedCallback(
+      mConfigureScanMonitorTimeoutHandle);
   struct CallbackState {
     bool enabled;
     uint8_t errorCode;
@@ -837,32 +894,7 @@ void WifiRequestManager::handleScanMonitorStateChangeSync(bool enabled,
     mPendingScanMonitorRequests.pop();
   }
 
-  while (!mPendingScanMonitorRequests.empty()) {
-    const auto &stateTransition = mPendingScanMonitorRequests.front();
-    bool hasScanMonitorRequest =
-        nanoappHasScanMonitorRequest(stateTransition.nanoappInstanceId);
-    if (scanMonitorIsInRequestedState(stateTransition.enable,
-                                      hasScanMonitorRequest)) {
-      // We are already in the target state so just post an event indicating
-      // success
-      postScanMonitorAsyncResultEventFatal(
-          stateTransition.nanoappInstanceId, true /* success */,
-          stateTransition.enable, CHRE_ERROR_NONE, stateTransition.cookie);
-    } else if (scanMonitorStateTransitionIsRequired(stateTransition.enable,
-                                                    hasScanMonitorRequest)) {
-      if (mPlatformWifi.configureScanMonitor(stateTransition.enable)) {
-        break;
-      } else {
-        postScanMonitorAsyncResultEventFatal(
-            stateTransition.nanoappInstanceId, false /* success */,
-            stateTransition.enable, CHRE_ERROR, stateTransition.cookie);
-      }
-    } else {
-      CHRE_ASSERT_LOG(false, "Invalid scan monitor state");
-      break;
-    }
-    mPendingScanMonitorRequests.pop();
-  }
+  dispatchQueuedConfigureScanMonitorRequests();
 }
 
 void WifiRequestManager::postNanAsyncResultEvent(uint16_t nanoappInstanceId,
