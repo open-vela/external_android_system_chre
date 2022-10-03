@@ -22,6 +22,7 @@
 #include <dirent.h>
 #include <utils/String16.h>
 
+#include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <future>
@@ -51,18 +52,51 @@ constexpr uint32_t kContextHubId = 0;
 constexpr int32_t kLoadTransactionId = 1;
 constexpr int32_t kUnloadTransactionId = 2;
 constexpr auto kTimeOutThresholdInSec = std::chrono::seconds(5);
+// Locations should be searched in the sequence defined below:
+const std::vector<std::string> kPredefinedNanoappPaths{
+    "/vendor/etc/chre/",
+    "/vendor/dsp/adsp/",
+    "/vendor/dsp/sdsp/",
+    "/vendor/lib/rfsa/adsp/",
+};
 constexpr char kUsage[] = R"(
 Usage: chre_aidl_hal_client COMMAND [ARGS]
 COMMAND ARGS...:
-  list <PATH_OF_NANOAPPS>        - list all the nanoapps' header info in the path
-  load <ABSOLUTE_PATH>           - load the nanoapp specified by the absolute path
-                                   of the nanoapp. For example, load /path/to/awesome.so
-  query                          - show all loaded nanoapps (system apps excluded)
-  unload <HEX_NANOAPP_ID | ABSOLUTE_PATH>
-                                 - unload the nanoapp specified by either the nanoapp
-                                   id in hex format or the absolute path.  For example,
-                                   unload 0x123def or unload /path/to/awesome.so
+  list <PATH_OF_NANOAPPS>     - list all the nanoapps' header info in the path.
+  load <APP_NAME>             - load the nanoapp specified by the name.
+                                If an absolute path like /path/to/awesome.so,
+                                which is optional, is not provided then default
+                                locations are searched.
+  query                       - show all loaded nanoapps (system apps excluded)
+  unload <HEX_NANOAPP_ID | APP_NAME>
+                              - unload the nanoapp specified by either the
+                                nanoapp id in hex format or the app name.
+                                If an absolute path like /path/to/awesome.so,
+                                which is optional, is not provided then default
+                                locations are searched.
 )";
+
+inline void throwError(const std::string &message) {
+  throw std::system_error{std::error_code(), message};
+}
+
+bool isValidNanoappHexId(const std::string &number) {
+  if (number.empty() ||
+      (number.substr(0, 2) != "0x" && number.substr(0, 2) != "0X")) {
+    return false;
+  }
+  // Once the input has the hex prefix, an exception will be thrown if it is
+  // malformed because it shouldn't be treated as an app name anymore.
+  if (number.size() > 18 || number.size() < 3) {
+    throwError("Hex app id must has a length of [3, 18] including the prefix.");
+  }
+  for (int i = 2; i < number.size(); i++) {
+    if (!isxdigit(number[i])) {
+      throwError("Hex app id " + number + " contains invalid character.");
+    }
+  }
+  return true;
+}
 
 std::string parseAppVersion(uint32_t version) {
   std::ostringstream stringStream;
@@ -121,10 +155,6 @@ class ContextHubCallback : public BnContextHubCallback {
   std::promise<void> promise;
 };
 
-inline void throwError(const std::string &message) {
-  throw std::system_error{std::error_code(), message};
-}
-
 std::shared_ptr<IContextHub> getContextHub(std::future<void> &callbackSignal) {
   auto aidlServiceName = std::string() + IContextHub::descriptor + "/default";
   ndk::SpAIBinder binder(
@@ -153,11 +183,36 @@ void printNanoappHeader(const NanoAppBinaryHeader &header) {
             << std::endl;
 }
 
+std::unique_ptr<NanoAppBinaryHeader> findHeaderByName(
+    const std::string &appName, const std::string &binaryPath) {
+  DIR *dir = opendir(binaryPath.c_str());
+  if (dir == nullptr) {
+    return nullptr;
+  }
+  std::regex regex(appName + ".napp_header");
+  std::cmatch match;
+
+  std::unique_ptr<NanoAppBinaryHeader> result = nullptr;
+  for (struct dirent *entry; (entry = readdir(dir)) != nullptr;) {
+    if (!std::regex_match(entry->d_name, match, regex)) {
+      continue;
+    }
+    std::ifstream input(std::string(binaryPath) + "/" + entry->d_name,
+                        std::ios::binary);
+    result = std::make_unique<NanoAppBinaryHeader>();
+    input.read(reinterpret_cast<char *>(result.get()),
+               sizeof(NanoAppBinaryHeader));
+    break;
+  }
+  closedir(dir);
+  return result;
+}
+
 void readNanoappHeaders(std::map<std::string, NanoAppBinaryHeader> &nanoapps,
                         const std::string &binaryPath) {
   DIR *dir = opendir(binaryPath.c_str());
   if (dir == nullptr) {
-    throwError("Unable to access the nanoapp path");
+    return;
   }
   std::regex regex("(\\w+)\\.napp_header");
   std::cmatch match;
@@ -186,39 +241,65 @@ void verifyStatusAndSignal(const std::string &operation,
                ToString(kTimeOutThresholdInSec.count()) + " seconds");
   }
 }
-
-NanoAppBinaryHeader findHeaderByPath(const std::string &pathAndName) {
-  std::map<std::string, NanoAppBinaryHeader> nanoapps{};
-  // To match the file pattern of [path][name].so
-  std::regex pathNameRegex("(.*?)(\\w+)\\.so");
+/** Finds the .napp_header file associated to the nanoapp.
+ *
+ * This function guarantees to return a non-null {@link NanoAppBinaryHeader}
+ * pointer. In case a .napp_header file cannot be found an exception will be
+ * raised.
+ *
+ * @param pathAndName name of the nanoapp that might be prefixed with it path.
+ * It will be normalized to the format of <absolute-path><name>.so at the end.
+ * For example, "abc" will be changed to "/path/to/abc.so".
+ * @return a unique pointer to the {@link NanoAppBinaryHeader} found
+ */
+std::unique_ptr<NanoAppBinaryHeader> findHeaderAndNormalizePath(
+    std::string &pathAndName) {
+  // To match the file pattern of [path]<name>[.so]
+  std::regex pathNameRegex("(.*?)(\\w+)(\\.so)?");
   std::smatch smatch;
   if (!std::regex_match(pathAndName, smatch, pathNameRegex)) {
     throwError("Invalid nanoapp: " + pathAndName);
   }
   std::string fullPath = smatch[1];
   std::string appName = smatch[2];
-  readNanoappHeaders(nanoapps, fullPath);
-  if (nanoapps.find(appName) == nanoapps.end()) {
-    throwError("Cannot find the nanoapp: " + appName);
+  // absolute path is provided:
+  if (!fullPath.empty() && fullPath[0] == '/') {
+    auto result = findHeaderByName(appName, fullPath);
+    if (result == nullptr) {
+      throwError("Unable to find the nanoapp header for " + pathAndName);
+    }
+    pathAndName = fullPath + appName + ".so";
+    return result;
   }
-  return nanoapps[appName];
+  // relative path is searched form predefined locations:
+  for (const std::string &predefinedPath : kPredefinedNanoappPaths) {
+    auto result = findHeaderByName(appName, predefinedPath);
+    if (result == nullptr) {
+      continue;
+    }
+    pathAndName = predefinedPath + appName + ".so";
+    std::cout << "Found the nanoapp header for " << pathAndName << std::endl;
+    return result;
+  }
+  throwError("Unable to find the nanoapp header for " + pathAndName);
+  return nullptr;
 }
 
-void loadNanoapp(const std::string &pathAndName) {
-  NanoAppBinaryHeader header = findHeaderByPath(pathAndName);
+void loadNanoapp(std::string &pathAndName) {
+  auto header = findHeaderAndNormalizePath(pathAndName);
   std::vector<uint8_t> soBuffer{};
   if (!readFileContents(pathAndName.c_str(), &soBuffer)) {
     throwError("Failed to open the content of " + pathAndName);
   }
   NanoappBinary binary;
-  binary.nanoappId = static_cast<int64_t>(header.appId);
+  binary.nanoappId = static_cast<int64_t>(header->appId);
   binary.customBinary = soBuffer;
-  binary.flags = static_cast<int32_t>(header.flags);
+  binary.flags = static_cast<int32_t>(header->flags);
   binary.targetChreApiMajorVersion =
-      static_cast<int8_t>(header.targetChreApiMajorVersion);
+      static_cast<int8_t>(header->targetChreApiMajorVersion);
   binary.targetChreApiMinorVersion =
-      static_cast<int8_t>(header.targetChreApiMinorVersion);
-  binary.nanoappVersion = static_cast<int32_t>(header.appVersion);
+      static_cast<int8_t>(header->targetChreApiMinorVersion);
+  binary.nanoappVersion = static_cast<int32_t>(header->appVersion);
 
   std::future<void> callbackSignal;
   auto status = getContextHub(callbackSignal)
@@ -227,19 +308,19 @@ void loadNanoapp(const std::string &pathAndName) {
                         status, callbackSignal);
 }
 
-void unloadNanoapp(const std::string &appIdentifier) {
+void unloadNanoapp(std::string &appIdOrName) {
   std::future<void> callbackSignal;
   int64_t appId;
-  try {
-    // check if user provided the hex appId
-    appId = std::stoll(appIdentifier, nullptr, 16);
-  } catch (std::invalid_argument &e) {
-    // Treat the appIdentifier as the absolute path and name and try again
-    appId = static_cast<int64_t>(findHeaderByPath(appIdentifier).appId);
+  if (isValidNanoappHexId(appIdOrName)) {
+    appId = std::stoll(appIdOrName, nullptr, 16);
+  } else {
+    // Treat the appIdOrName as the app name and try again
+    appId =
+        static_cast<int64_t>(findHeaderAndNormalizePath(appIdOrName)->appId);
   }
   auto status = getContextHub(callbackSignal)
                     ->unloadNanoapp(kContextHubId, appId, kUnloadTransactionId);
-  verifyStatusAndSignal(/* operation= */ "unloading nanoapp " + appIdentifier,
+  verifyStatusAndSignal(/* operation= */ "unloading nanoapp " + appIdOrName,
                         status, callbackSignal);
 }
 
