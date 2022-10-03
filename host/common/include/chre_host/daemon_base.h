@@ -30,7 +30,6 @@
 #include <map>
 #include <queue>
 #include <string>
-#include <thread>
 
 #include "chre_host/host_protocol_host.h"
 #include "chre_host/log_message_parser.h"
@@ -47,9 +46,7 @@ namespace chre {
 class ChreDaemonBase {
  public:
   ChreDaemonBase();
-  virtual ~ChreDaemonBase() {
-    mSignalHandlerThread.join();
-  }
+  virtual ~ChreDaemonBase() {}
 
   /**
    * Initialize the CHRE daemon. We're expected to fail here and not start
@@ -77,15 +74,6 @@ class ChreDaemonBase {
    */
   virtual bool sendMessageToChre(uint16_t clientId, void *data,
                                  size_t dataLen) = 0;
-
-  /**
-   * Function to be invoked on a shutdown request (eg: from a signal handler)
-   * to initiate a graceful shutdown of the daemon.
-   */
-  virtual void onShutdown() {
-    setShutdownRequested(true);
-    mServer.shutdownServer();
-  }
 
   /**
    * Function to query if a graceful shutdown of CHRE was requested
@@ -261,8 +249,6 @@ class ChreDaemonBase {
 
  private:
   LogMessageParser mLogger;
-
-  std::thread mSignalHandlerThread;
 
   //! Set to true when we request a graceful shutdown of CHRE
   std::atomic<bool> mChreShutdownRequested;
