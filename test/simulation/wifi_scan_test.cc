@@ -135,7 +135,7 @@ TEST_F(WifiScanRequestQueueTestBase, WifiScanActiveScanFromDistinctNanoapps) {
   EXPECT_TRUE(success);
   sendEventToNanoapp(secondApp, SCAN_REQUEST, secondRequestCookie);
   waitForEvent(SCAN_REQUEST, &success);
-  EXPECT_FALSE(success);
+  EXPECT_TRUE(success);
 
   uint32_t cookie;
   waitForEvent(CHRE_EVENT_WIFI_ASYNC_RESULT, &cookie);

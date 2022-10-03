@@ -68,6 +68,7 @@ enum class SystemCallbackType : uint16_t {
   BleAdvertisementEvent,
   BleScanResponse,
   BleRequestResyncEvent,
+  RequestTimeoutEvent,
 };
 
 //! Deferred/delayed callbacks use the event subsystem but are invariably sent
