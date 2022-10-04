@@ -91,6 +91,12 @@ bool RpcServer::handleEvent(uint32_t senderInstanceId, uint16_t eventType,
 
 bool RpcServer::handleMessageFromHost(const void *eventData) {
   auto *hostMessage = static_cast<const chreMessageFromHostData *>(eventData);
+
+  if (hostMessage->messageType !=
+      ChreChannelOutputBase::PW_RPC_CHRE_HOST_MESSAGE_TYPE) {
+    return false;
+  }
+
   mOutput.setHostEndpoint(hostMessage->hostEndpoint);
 
   std::span packet(static_cast<const std::byte *>(hostMessage->message),
