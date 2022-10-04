@@ -98,6 +98,7 @@ SLPI_SRCS += platform/shared/chre_api_user_settings.cc
 SLPI_SRCS += platform/shared/chre_api_version.cc
 SLPI_SRCS += platform/shared/chre_api_wifi.cc
 SLPI_SRCS += platform/shared/chre_api_wwan.cc
+SLPI_SRCS += platform/shared/host_link.cc
 SLPI_SRCS += platform/shared/host_protocol_chre.cc
 SLPI_SRCS += platform/shared/host_protocol_common.cc
 SLPI_SRCS += platform/shared/memory_manager.cc
@@ -388,6 +389,7 @@ EXYNOS_CFLAGS += -I$(CHRE_PREFIX)/platform/exynos/include
 EXYNOS_CFLAGS += -I$(CHRE_PREFIX)/platform/shared/audio_pal/include
 
 EXYNOS_SRCS += $(CHRE_PREFIX)/platform/exynos/chre_api_re.cc
+EXYNOS_SRCS += $(CHRE_PREFIX)/platform/shared/host_link.cc
 EXYNOS_SRCS += $(CHRE_PREFIX)/platform/exynos/host_link.cc
 EXYNOS_SRCS += $(CHRE_PREFIX)/platform/exynos/memory.cc
 EXYNOS_SRCS += $(CHRE_PREFIX)/platform/exynos/platform_cache_management.cc

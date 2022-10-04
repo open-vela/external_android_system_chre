@@ -86,7 +86,6 @@ COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_polyfill/standard_library_public
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_preprocessor/public
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_protobuf/public
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_result/public
-COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_rpc/
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_rpc/nanopb/public
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_rpc/public
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_rpc/pwpb/public
