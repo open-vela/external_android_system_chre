@@ -10,5 +10,5 @@ $(error "You should supply an ANDROID_BUILD_TOP environment variable \
 endif
 
 # Clang toolchain path ########################################################
-CLANG_TOOLCHAIN_PATH=$(ANDROID_BUILD_TOP)/prebuilts/clang/host/linux-x86/clang-r458507
+CLANG_TOOLCHAIN_PATH=$(ANDROID_BUILD_TOP)/prebuilts/clang/host/linux-x86/clang-r468909
 IS_CLANG_TOOLCHAIN=true
