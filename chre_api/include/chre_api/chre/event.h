@@ -831,7 +831,8 @@ void chreConfigureDebugDumpEvent(bool enable);
  * endpoint that is connected with the Context Hub.
  *
  * If this API succeeds, the nanoapp will receive disconnection notifications,
- * via the CHRE_EVENT_HOST_ENDPOINT_NOTIFICATION event with type
+ * via the CHRE_EVENT_HOST_ENDPOINT_NOTIFICATION event with an eventData of type
+ * chreHostEndpointNotification with its notificationType set to
  * HOST_ENDPOINT_NOTIFICATION_TYPE_DISCONNECT, which can be invoked if the host
  * has disconnected from the Context Hub either explicitly or implicitly (e.g.
  * crashes). Nanoapps can use this notifications to clean up any resources

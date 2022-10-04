@@ -147,6 +147,10 @@ DLL_EXPORT extern "C" const struct chreNslNanoappInfo _chreNslDsoNanoappInfo = {
     /* appPermissions */ kNanoappPermissions,
 };
 
+const struct chreNslNanoappInfo *getChreNslDsoNanoappInfo() {
+  return &_chreNslDsoNanoappInfo;
+}
+
 // The code section below provides default implementations for new symbols
 // introduced in CHRE API v1.2+ to provide binary compatibility with previous
 // CHRE implementations. Note that we don't presently include symbols for v1.1,
