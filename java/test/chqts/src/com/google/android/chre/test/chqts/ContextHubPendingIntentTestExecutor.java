@@ -79,7 +79,7 @@ public class ContextHubPendingIntentTestExecutor {
         mTestHelper = new ContextHubServiceTestHelper(contextHubInfo, contextHubManager);
         mNanoAppId = mNanoAppBinary.getNanoAppId();
         IntentFilter filter = new IntentFilter(ACTION);
-        mContext.registerReceiver(mReceiver, filter);
+        mContext.registerReceiver(mReceiver, filter, Context.RECEIVER_EXPORTED/*UNAUDITED*/);
         Intent intent = new Intent(ACTION);
         mPendingIntent =
                 PendingIntent.getBroadcast(
