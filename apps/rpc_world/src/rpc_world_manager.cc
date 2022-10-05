@@ -19,15 +19,9 @@
 #include "chre/util/macros.h"
 #include "chre/util/nanoapp/log.h"
 #include "chre/util/time.h"
+#include "pw_rpc/echo.rpc.pb.h"
 
 #define LOG_TAG "[RpcWorld]"
-
-// TODO(b/242301032): Create a client helper.
-chre::ChreNanoappChannelOutput channelOutput{
-    chre::ChreNanoappChannelOutput::Role::CLIENT};
-pw::rpc::Channel channel;
-std::span channels(&channel, 1 /*count*/);
-pw::rpc::Client rpcClient(channels);
 
 pw::Status EchoService::Echo(const pw_rpc_EchoMessage &request,
                              pw_rpc_EchoMessage &response) {
@@ -54,36 +48,25 @@ bool RpcWorldManager::start() {
 void RpcWorldManager::handleEvent(uint32_t senderInstanceId, uint16_t eventType,
                                   const void *eventData) {
   if (!mServer.handleEvent(senderInstanceId, eventType, eventData)) {
-    LOGE("An RPC error occurred");
+    LOGE("[Server] An RPC error occurred");
+  }
+
+  if (!mClient.handleEvent(senderInstanceId, eventType, eventData)) {
+    LOGE("[Client] An RPC error occurred");
   }
 
   switch (eventType) {
-    case chre::ChreChannelOutputBase::PW_RPC_CHRE_NAPP_RESPONSE_EVENT_TYPE: {
-      // Decode the response from the RPC server.
-      auto data =
-          static_cast<const chre::ChrePigweedNanoappMessage *>(eventData);
-      std::span packet(static_cast<const std::byte *>(data->msg),
-                       data->msgSize);
-
-      rpcClient.ProcessPacket(packet);
-
-      break;
-    }
-
     case CHRE_EVENT_TIMER:
-      // Send a request to the RPC server.
-      const uint32_t id = chreGetInstanceId();
+      auto client = mClient.get<pw::rpc::pw_rpc::nanopb::EchoService::Client>();
+      if (client.has_value()) {
+        const char kMsg[] = "RPC";
+        pw_rpc_EchoMessage requestParams;
+        memcpy(&requestParams.msg, kMsg, ARRAY_SIZE(kMsg) + 1);
 
-      channelOutput.setNanoappEndpoint(id);
-      channel.Configure(id, channelOutput);
-      pw::rpc::pw_rpc::nanopb::EchoService::Client client(rpcClient, id);
-
-      const char kMsg[] = "RPC";
-      pw_rpc_EchoMessage requestParams;
-      memcpy(&requestParams.msg, kMsg, ARRAY_SIZE(kMsg) + 1);
-
-      mCall = client.Echo(requestParams, echoResponse);
-
-      CHRE_ASSERT(mCall.active());
+        mCall = client->Echo(requestParams, echoResponse);
+        CHRE_ASSERT(mCall.active());
+      } else {
+        LOGE("Error");
+      }
   }
 }

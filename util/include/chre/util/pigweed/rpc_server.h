@@ -31,7 +31,7 @@ namespace chre {
 /**
  * RPC Server wrapping a Pigweed RPC server.
  *
- * This helper class handle Pigweed RPC calls on the server side.
+ * This helper class handles Pigweed RPC calls on the server side.
  *
  * The services must be registered from the `nanoappStart` function using
  * the `registerService` method.
@@ -74,7 +74,7 @@ class RpcServer : public NonCopyable {
    * - PW_RPC_CHRE_NAPP_REQUEST_EVENT_TYPE: respond to nanoapp RPC requests,
    * - CHRE_EVENT_HOST_ENDPOINT_NOTIFICATION: close the channel when the host
    *   terminates,
-   * - CHRE_EVENT_NANOAPP_STOPPED: close the channel when a nanoapp goes
+   * - CHRE_EVENT_NANOAPP_STOPPED: close the channel when a nanoapp
    *   terminates.
    *
    * @param senderInstanceId The Instance ID for the source of this event.
