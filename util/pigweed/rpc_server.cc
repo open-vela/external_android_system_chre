@@ -138,9 +138,9 @@ bool RpcServer::handleMessageFromHost(const void *eventData) {
   mHostOutput.setHostEndpoint(hostMessage->hostEndpoint);
   mServer.OpenChannel(result.value(), mHostOutput);
 
-  pw::Status success = mServer.ProcessPacket(packet, mHostOutput);
+  pw::Status status = mServer.ProcessPacket(packet, mHostOutput);
 
-  if (success != pw::OkStatus()) {
+  if (status != pw::OkStatus()) {
     LOGE("Failed to process the packet");
     return false;
   }

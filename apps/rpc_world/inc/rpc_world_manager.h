@@ -23,7 +23,9 @@
 #include <span>
 
 #include "chre/util/macros.h"
+#include "chre/util/nanoapp/app_id.h"
 #include "chre/util/pigweed/chre_channel_output.h"
+#include "chre/util/pigweed/rpc_client.h"
 #include "chre/util/pigweed/rpc_server.h"
 #include "chre/util/singleton.h"
 #include "pw_rpc/echo.rpc.pb.h"
@@ -60,6 +62,7 @@ class RpcWorldManager {
 
  private:
   chre::RpcServer mServer;
+  chre::RpcClient mClient{chre::kRpcWorldAppId};
   // pw_rpc service used to process the echo RPC
   EchoService mEchoService;
   pw::rpc::NanopbUnaryReceiver<pw_rpc_EchoMessage> mCall;

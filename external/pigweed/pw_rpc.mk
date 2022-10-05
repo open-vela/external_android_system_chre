@@ -133,11 +133,12 @@ COMMON_SRCS += $(NANOPB_PREFIX)/pb_encode.c
 
 # Add CHRE Pigweed util sources since nanoapps should always use these
 COMMON_SRCS += $(PIGWEED_CHRE_UTIL_DIR)/chre_channel_output.cc
+COMMON_SRCS += $(PIGWEED_CHRE_UTIL_DIR)/rpc_client.cc
 COMMON_SRCS += $(PIGWEED_CHRE_UTIL_DIR)/rpc_server.cc
 COMMON_SRCS += $(CHRE_UTIL_DIR)/nanoapp/callbacks.cc
 COMMON_SRCS += $(CHRE_UTIL_DIR)/dynamic_vector_base.cc
 
-# CHRE Pigwweed overrides
+# CHRE Pigweed overrides
 COMMON_CFLAGS += -I$(PIGWEED_CHRE_DIR)/pw_log_nanoapp/public_overrides
 COMMON_CFLAGS += -I$(PIGWEED_CHRE_DIR)/pw_assert_nanoapp/public_overrides
 
