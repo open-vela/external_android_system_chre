@@ -19,6 +19,7 @@
 
 #include <span>
 
+#include "chre/util/dynamic_vector.h"
 #include "chre/util/macros.h"
 #include "chre/util/non_copyable.h"
 #include "chre/util/pigweed/chre_channel_output.h"
@@ -51,6 +52,7 @@ class RpcServer : public NonCopyable {
   };
 
   RpcServer() : mServer(std::span(mChannels, ARRAY_SIZE(mChannels))) {}
+  ~RpcServer();
 
   /**
    * Registers services to the server and to CHRE.
@@ -68,7 +70,12 @@ class RpcServer : public NonCopyable {
    * Handles events related to RPC services.
    *
    * Handles the following events:
-   * - CHRE_EVENT_MESSAGE_FROM_HOST: respond to RPC requests.
+   * - CHRE_EVENT_MESSAGE_FROM_HOST: respond to host RPC requests,
+   * - PW_RPC_CHRE_NAPP_REQUEST_EVENT_TYPE: respond to nanoapp RPC requests,
+   * - CHRE_EVENT_HOST_ENDPOINT_NOTIFICATION: close the channel when the host
+   *   terminates,
+   * - CHRE_EVENT_NANOAPP_STOPPED: close the channel when a nanoapp goes
+   *   terminates.
    *
    * @param senderInstanceId The Instance ID for the source of this event.
    * @param eventType The event type.
@@ -81,7 +88,7 @@ class RpcServer : public NonCopyable {
 
  private:
   /**
-   * Handles messages from host client.
+   * Handles messages from host clients.
    *
    * This method must be called when nanoapps receive a
    * CHRE_EVENT_MESSAGE_FROM_HOST event.
@@ -92,11 +99,31 @@ class RpcServer : public NonCopyable {
   bool handleMessageFromHost(const void *eventData);
 
   /**
+   * Handles messages from nanoapp clients.
+   *
+   * This method must be called when nanoapps receive a
+   * PW_RPC_CHRE_NAPP_REQUEST_EVENT_TYPE event.
+   *
+   * @param eventData  The associated data, if any.
+   * @return whether the RPC was handled successfully.
+   */
+  bool handleMessageFromNanoapp(uint32_t senderInstanceId,
+                                const void *eventData);
+
+  /**
    * Closes the Pigweed channel when a host client disconnects.
    *
    * @param notification The notification from the host client
    */
   void handleHostClientNotification(const void *eventData);
+
+  /**
+   * Closes the Pigweed channel when a nanoapp client disconnects.
+   *
+   * @param notification The eventData associated to a
+   *    CHRE_EVENT_NANOAPP_STOPPED event.
+   */
+  void handleNanoappStopped(const void *eventData);
 
   /**
    * Validates that the host client sending the message matches the expected
@@ -130,7 +157,12 @@ class RpcServer : public NonCopyable {
   pw::rpc::Channel mChannels[5];
   pw::rpc::Server mServer;
 
-  ChreHostChannelOutput mOutput;
+  ChreHostChannelOutput mHostOutput;
+  ChreNanoappChannelOutput mNanoappOutput{
+      ChreNanoappChannelOutput::Role::SERVER};
+
+  // Host endpoints for the connected clients.
+  DynamicVector<uint16_t> mConnectedHosts;
 };
 
 }  // namespace chre
