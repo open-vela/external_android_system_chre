@@ -103,6 +103,8 @@ class HalChreSocketConnection {
                         uint16_t hostEndpointId, const unsigned char *payload,
                         size_t payloadLength);
 
+  bool sendDebugConfiguration();
+
   bool loadNanoapp(chre::FragmentedLoadTransaction &transaction);
 
   bool unloadNanoapp(uint64_t appId, uint32_t transactionId);
