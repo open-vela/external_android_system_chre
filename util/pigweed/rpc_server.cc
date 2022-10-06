@@ -72,7 +72,7 @@ bool RpcServer::registerServices(size_t numServices,
   for (size_t i = 0; i < numServices; ++i) {
     const Service &service = services[i];
     chreNanoappRpcService chreService = {
-        .id = static_cast<uint64_t>(service.service.id()),
+        .id = service.id,
         .version = service.version,
     };
 
