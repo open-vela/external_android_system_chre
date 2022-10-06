@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-#include "chre/platform/linux/pal_wifi.h"
+#include "chre/pal/wifi.h"
+
+#include "chre/util/memory.h"
+#include "chre/util/unique_ptr.h"
+
+#include "chre/platform/linux/pal_nan.h"
 
 #include <chrono>
 #include <cinttypes>
 #include <thread>
-
-#include "chre/pal/wifi.h"
-#include "chre/platform/linux/pal_nan.h"
-#include "chre/util/memory.h"
-#include "chre/util/unique_ptr.h"
 
 /**
  * A simulated implementation of the WiFi PAL for the linux platform.
@@ -38,17 +38,8 @@ std::thread gScanEventsThread;
 //! Thread to use when delivering a scan monitor status update.
 std::thread gScanMonitorStatusThread;
 
-//! Thread to deliver Wifi request ranging results after a CHRE request.
-std::thread gRequestRangingThread;
-
 //! Whether scan monitoring is active.
 bool gScanMonitoringActive = false;
-
-//! Whether PAL should respond to RRT ranging request.
-bool gEnableRangingResponse = true;
-
-//! Whether PAL should respond to configure scan monitor request.
-bool gEnableScanMonitorResponse = true;
 
 void sendScanResponse() {
   gCallbacks->scanResponseCallback(true, CHRE_ERROR_NONE);
@@ -64,26 +55,18 @@ void sendScanResponse() {
 }
 
 void sendScanMonitorResponse(bool enable) {
-  if (gEnableScanMonitorResponse) {
-    return gCallbacks->scanMonitorStatusChangeCallback(enable, CHRE_ERROR_NONE);
+  gCallbacks->scanMonitorStatusChangeCallback(enable, CHRE_ERROR_NONE);
+}
+
+void stopScanEventThreads() {
+  if (gScanEventsThread.joinable()) {
+    gScanEventsThread.join();
   }
 }
 
-void sendRangingResponse() {
-  if (!gEnableRangingResponse) {
-    return;
-  }
-  auto event = chre::MakeUniqueZeroFill<struct chreWifiRangingEvent>();
-  auto result = chre::MakeUniqueZeroFill<struct chreWifiRangingResult>();
-  event->resultCount = 1;
-  event->results = result.release();
-
-  gCallbacks->rangingEventCallback(CHRE_ERROR_NONE, event.release());
-}
-
-void stopAsyncEventThread(std::thread &asyncRequestThread) {
-  if (asyncRequestThread.joinable()) {
-    asyncRequestThread.join();
+void stopScanMonitorThreads() {
+  if (gScanMonitorStatusThread.joinable()) {
+    gScanMonitorStatusThread.join();
   }
 }
 
@@ -93,7 +76,7 @@ uint32_t chrePalWifiGetCapabilities() {
 }
 
 bool chrePalWifiConfigureScanMonitor(bool enable) {
-  stopAsyncEventThread(gScanMonitorStatusThread);
+  stopScanMonitorThreads();
 
   gScanMonitorStatusThread = std::thread(sendScanMonitorResponse, enable);
   gScanMonitoringActive = enable;
@@ -102,7 +85,7 @@ bool chrePalWifiConfigureScanMonitor(bool enable) {
 }
 
 bool chrePalWifiApiRequestScan(const struct chreWifiScanParams * /* params */) {
-  stopAsyncEventThread(gScanEventsThread);
+  stopScanEventThreads();
 
   gScanEventsThread = std::thread(sendScanResponse);
 
@@ -111,10 +94,8 @@ bool chrePalWifiApiRequestScan(const struct chreWifiScanParams * /* params */) {
 
 bool chrePalWifiApiRequestRanging(
     const struct chreWifiRangingParams * /* params */) {
-  stopAsyncEventThread(gRequestRangingThread);
-  gRequestRangingThread = std::thread(sendRangingResponse);
-
-  return true;
+  // unimplemented
+  return false;
 }
 
 void chrePalWifiApiReleaseScanEvent(struct chreWifiScanEvent *event) {
@@ -171,9 +152,8 @@ bool chrePalWifiApiRequestNanRanging(
 }
 
 void chrePalWifiApiClose() {
-  stopAsyncEventThread(gScanEventsThread);
-  stopAsyncEventThread(gScanMonitorStatusThread);
-  stopAsyncEventThread(gRequestRangingThread);
+  stopScanEventThreads();
+  stopScanMonitorThreads();
 }
 
 bool chrePalWifiApiOpen(const struct chrePalSystemApi *systemApi,
@@ -194,23 +174,6 @@ bool chrePalWifiApiOpen(const struct chrePalSystemApi *systemApi,
 }
 
 }  // anonymous namespace
-
-void chrePalWifiEnableResponse(PalWifiAsyncRequestTypes requestType,
-                               bool enableResponse) {
-  switch (requestType) {
-    case PalWifiAsyncRequestTypes::RANGING:
-      gEnableRangingResponse = enableResponse;
-      break;
-
-    case PalWifiAsyncRequestTypes::SCAN_MONITORING:
-      gEnableScanMonitorResponse = enableResponse;
-      break;
-
-    default:
-      LOGE("Cannot enable/disable request type: %" PRIu8,
-           static_cast<uint8_t>(requestType));
-  }
-}
 
 bool chrePalWifiIsScanMonitoringActive() {
   return gScanMonitoringActive;
