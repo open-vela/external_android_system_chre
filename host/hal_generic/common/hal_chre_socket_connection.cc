@@ -95,6 +95,12 @@ bool HalChreSocketConnection::getContextHubs(
   return mHubInfoValid;
 }
 
+bool HalChreSocketConnection::sendDebugConfiguration() {
+  FlatBufferBuilder builder;
+  HostProtocolHost::encodeDebugConfiguration(builder);
+  return mClient.sendMessage(builder.GetBufferPointer(), builder.GetSize());
+}
+
 bool HalChreSocketConnection::sendMessageToHub(long nanoappId,
                                                uint32_t messageType,
                                                uint16_t hostEndpointId,
@@ -189,6 +195,7 @@ void HalChreSocketConnection::SocketCallbacks::onConnected() {
     ALOGI("Reconnected to CHRE daemon");
     mCallback->onContextHubRestarted();
   }
+  mParent.sendDebugConfiguration();
   mHaveConnected = true;
 }
 

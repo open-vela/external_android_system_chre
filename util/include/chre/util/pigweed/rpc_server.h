@@ -20,6 +20,7 @@
 #include <span>
 
 #include "chre/util/macros.h"
+#include "chre/util/non_copyable.h"
 #include "chre/util/pigweed/chre_channel_output.h"
 #include "pw_rpc/server.h"
 #include "pw_rpc/service.h"
@@ -37,7 +38,7 @@ namespace chre {
  * The `handleEvent` method must be called at the beginning of the
  * `nanoappHandleEvent` function to respond to RPC calls from the clients.
  */
-class RpcServer {
+class RpcServer : public NonCopyable {
  public:
   struct Service {
     /** A Pigweed service. */
