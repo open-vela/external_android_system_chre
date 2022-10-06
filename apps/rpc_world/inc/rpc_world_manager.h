@@ -22,26 +22,33 @@
 #include <cstdint>
 #include <span>
 
+#include "chre/re.h"
 #include "chre/util/macros.h"
 #include "chre/util/nanoapp/app_id.h"
 #include "chre/util/pigweed/chre_channel_output.h"
 #include "chre/util/pigweed/rpc_client.h"
 #include "chre/util/pigweed/rpc_server.h"
 #include "chre/util/singleton.h"
-#include "pw_rpc/echo.rpc.pb.h"
+#include "rpc/rpc_world.rpc.pb.h"
 
-class EchoService final
-    : public pw::rpc::pw_rpc::nanopb::EchoService::Service<EchoService> {
+class RpcWorldService final
+    : public chre::rpc::pw_rpc::nanopb::RpcWorldService::Service<
+          RpcWorldService> {
  public:
-  // Echo RPC service definition. See auto-generated EchoService::Service for
-  // more details.
-  pw::Status Echo(const pw_rpc_EchoMessage &request,
-                  pw_rpc_EchoMessage &response);
+  // Increment RPC unary service definition.
+  // See generated IncrementService::Service for more details.
+  pw::Status Increment(const chre_rpc_NumberMessage &request,
+                       chre_rpc_NumberMessage &response);
+
+  // Timer RPC server streaming service definition.
+  // See generated TimerService::Service for more details.
+  void Timer(const chre_rpc_TimerRequest &request,
+             pw::rpc::ServerWriter<chre_rpc_TimerResponse> &writer);
 };
 
 /**
  * Acts both as a RPC server and a RPC client.
- * The client calls the Echo service provided by the server.
+ * The client calls the RPCWorld service provided by the server.
  */
 class RpcWorldManager {
  public:
@@ -60,12 +67,31 @@ class RpcWorldManager {
   void handleEvent(uint32_t senderInstanceId, uint16_t eventType,
                    const void *eventData);
 
+  /**
+   * Allows the manager to do any cleanup necessary as part of nanoappEnd.
+   */
+  void end();
+
+  /**
+   * Starts the tick timer.
+   *
+   * @param numTicks Number of ticks to stream.
+   * @param writer Used to stream the responses.
+   */
+  void timerStart(uint32_t numTicks,
+                  pw::rpc::ServerWriter<chre_rpc_TimerResponse> &writer);
+
  private:
   chre::RpcServer mServer;
   chre::RpcClient mClient{chre::kRpcWorldAppId};
-  // pw_rpc service used to process the echo RPC
-  EchoService mEchoService;
-  pw::rpc::NanopbUnaryReceiver<pw_rpc_EchoMessage> mCall;
+  // pw_rpc service used to process the RPCs.
+  RpcWorldService mRpcWorldService;
+  pw::rpc::ServerWriter<chre_rpc_TimerResponse> mTimerWriter;
+  uint32_t mTimerId = CHRE_TIMER_INVALID;
+  uint32_t mTimerCurrentTick;
+  uint32_t mTimerTotalTicks;
+  pw::rpc::NanopbUnaryReceiver<chre_rpc_NumberMessage> mIncrementCall;
+  pw::rpc::NanopbClientReader<chre_rpc_TimerResponse> mTimerCall;
 };
 
 typedef chre::Singleton<RpcWorldManager> RpcWorldManagerSingleton;
