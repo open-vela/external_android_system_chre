@@ -76,6 +76,7 @@ public class ContextHubAudioConcurrencyTestExecutor extends ContextHubClientCall
         mNanoAppId = mNanoAppBinary.getNanoAppId();
 
         mContextHubClient = mContextHubManager.createClient(mContextHubInfo, this);
+        Assert.assertTrue(mContextHubClient != null);
     }
 
     @Override
