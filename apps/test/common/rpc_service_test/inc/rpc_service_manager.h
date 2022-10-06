@@ -17,27 +17,20 @@
 #ifndef CHRE_RPC_SERVICE_MANAGER_H_
 #define CHRE_RPC_SERVICE_MANAGER_H_
 
+#include <chre.h>
 #include <cinttypes>
 #include <cstdint>
-
-#include <chre.h>
-
-#include "chre/util/macros.h"
-#include "chre/util/singleton.h"
-
-#ifdef PW_RPC_SERVICE_ENABLED
 #include <span>
 
+#include "chre/util/macros.h"
 #include "chre/util/pigweed/chre_channel_output.h"
-
+#include "chre/util/pigweed/rpc_server.h"
+#include "chre/util/singleton.h"
 #include "pw_rpc/echo.rpc.pb.h"
-#include "pw_rpc/server.h"
-#endif  // PW_RPC_SERVICE_ENABLED
 
 namespace chre {
 namespace rpc_service_test {
 
-#ifdef PW_RPC_SERVICE_ENABLED
 class EchoService final
     : public pw::rpc::pw_rpc::nanopb::EchoService::Service<EchoService> {
  public:
@@ -46,17 +39,12 @@ class EchoService final
   pw::Status Echo(const pw_rpc_EchoMessage &request,
                   pw_rpc_EchoMessage &response);
 };
-#endif  // PW_RPC_SERVICE_ENABLED
 
 /**
  * Class to manage the CHRE rpc service nanoapp.
  */
 class RpcServiceManager {
  public:
-#ifdef PW_RPC_SERVICE_ENABLED
-  RpcServiceManager() : mServer(std::span(mChannels, ARRAY_SIZE(mChannels))) {}
-#endif
-
   /**
    * Allows the manager to do any init necessary as part of nanoappStart.
    */
@@ -73,16 +61,9 @@ class RpcServiceManager {
                    const void *eventData);
 
  private:
-#ifdef PW_RPC_SERVICE_ENABLED
+  RpcServer mServer;
   // pw_rpc service used to process the echo RPC
   EchoService mEchoService;
-
-  // TODO(b/210138227): Make # of channels dynamic
-  pw::rpc::Channel mChannels[5];
-  pw::rpc::Server mServer;
-
-  ChreHostChannelOutput mOutput;
-#endif  // PW_RPC_SERVICE_ENABLED
 };
 
 typedef chre::Singleton<RpcServiceManager> RpcServiceManagerSingleton;
