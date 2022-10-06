@@ -180,6 +180,7 @@ const ExportedData kExportedData[] = {
     ADD_EXPORTED_C_SYMBOL(chreAudioGetSource),
     ADD_EXPORTED_C_SYMBOL(chreBleGetCapabilities),
     ADD_EXPORTED_C_SYMBOL(chreBleGetFilterCapabilities),
+    ADD_EXPORTED_C_SYMBOL(chreBleFlushAsync),
     ADD_EXPORTED_C_SYMBOL(chreBleStartScanAsync),
     ADD_EXPORTED_C_SYMBOL(chreBleStopScanAsync),
     ADD_EXPORTED_C_SYMBOL(chreConfigureDebugDumpEvent),
