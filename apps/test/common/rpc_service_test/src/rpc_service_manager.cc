@@ -32,7 +32,8 @@ pw::Status EchoService::Echo(const pw_rpc_EchoMessage &request,
 }
 
 bool RpcServiceManager::start() {
-  RpcServer::Service service = {mEchoService, 0x01020034 /* version */};
+  RpcServer::Service service = {mEchoService, 0xca8f7150a3f05847 /* id */,
+                                0x01020034 /* version */};
   return mServer.registerServices(1, &service);
 }
 
