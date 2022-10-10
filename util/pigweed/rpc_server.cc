@@ -22,41 +22,13 @@
 #include "chre/event.h"
 #include "chre/re.h"
 #include "chre/util/nanoapp/log.h"
+#include "chre/util/pigweed/rpc_helper.h"
 
 #ifndef LOG_TAG
 #define LOG_TAG "[RpcServer]"
 #endif  // LOG_TAG
 
 namespace chre {
-namespace {
-
-constexpr uint32_t kChannelIdHostClient = 1 << 16;
-
-// Mask to extract the host ID / nanoapp ID from a channel ID.
-constexpr uint32_t kClientIdMask = 0xffff;
-
-constexpr uint32_t kNanoappMaxId = 0xffff;
-
-// Returns whether the host / nanoapp IDs match.
-bool endpointsMatch(uint32_t expectedId, uint32_t actualId) {
-  if ((expectedId & kClientIdMask) != (actualId & kClientIdMask)) {
-    LOGE("Invalid endpoint 0x%04" PRIx32 " expected 0x%04" PRIx32, actualId,
-         expectedId);
-    return false;
-  }
-
-  return true;
-}
-
-bool isChannelIdHostClient(uint32_t id) {
-  return id >> 16 == 1;
-}
-
-bool isChannelIdNanoappClient(uint32_t id) {
-  return id >> 16 == 0;
-}
-
-}  // namespace
 
 RpcServer::~RpcServer() {
   chreConfigureNanoappInfoEvents(false);
@@ -200,38 +172,11 @@ void RpcServer::handleHostClientNotification(const void *eventData) {
 void RpcServer::handleNanoappStopped(const void *eventData) {
   auto info = static_cast<const struct chreNanoappInfo *>(eventData);
 
-  if (info->instanceId > kNanoappMaxId) {
+  if (info->instanceId > kRpcNanoappMaxId) {
     LOGE("Invalid nanoapp Id 0x%08" PRIx32, info->instanceId);
   } else {
     mServer.CloseChannel(info->instanceId);
   }
-}
-
-bool RpcServer::validateHostChannelId(const chreMessageFromHostData *msg,
-                                      uint32_t channelId) {
-  struct chreHostEndpointInfo info;
-
-  if (!isChannelIdHostClient(channelId) ||
-      !chreGetHostEndpointInfo(msg->hostEndpoint, &info)) {
-    LOGE("Invalid channelId for a host client 0x%08" PRIx32, channelId);
-    return false;
-  }
-
-  return endpointsMatch(channelId, static_cast<uint32_t>(msg->hostEndpoint));
-}
-
-bool RpcServer::validateNanoappChannelId(uint32_t nappId, uint32_t channelId) {
-  if (nappId > kNanoappMaxId) {
-    LOGE("Invalid nanoapp Id 0x%08" PRIx32, nappId);
-    return false;
-  }
-
-  if (!isChannelIdNanoappClient(channelId)) {
-    LOGE("Invalid channelId for a nanoapp client 0x%08" PRIx32, channelId);
-    return false;
-  }
-
-  return endpointsMatch(channelId, nappId);
 }
 
 pw::Status RpcServer::closeChannel(uint32_t id) {
