@@ -26,6 +26,7 @@
 #include "chre/util/pigweed/chre_channel_output.h"
 #include "chre/util/unique_ptr.h"
 #include "pw_rpc/client.h"
+#include "rpc_helper.h"
 
 namespace chre {
 
@@ -126,7 +127,7 @@ Optional<T> RpcClient::get() {
     struct chreNanoappInfo info;
 
     if (!chreGetNanoappInfoByAppId(mServerNanoappId, &info) ||
-        info.instanceId > 0xffff) {
+        info.instanceId > kRpcNanoappMaxId) {
       return Optional<T>();
     }
 
