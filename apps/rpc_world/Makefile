@@ -38,7 +38,7 @@ COMMON_CFLAGS += -I$(NANOAPP_PATH)/inc
 
 # PW RPC protos ################################################################
 
-PW_RPC_SRCS = $(ANDROID_BUILD_TOP)/external/pigweed/pw_rpc/echo.proto
+PW_RPC_SRCS = $(NANOAPP_PATH)/rpc/rpc_world.proto
 
 # Makefile Includes ############################################################
 

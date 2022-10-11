@@ -22,68 +22,100 @@
 
 #define LOG_TAG "[RpcWorld]"
 
-// TODO(b/242301032): Create a client helper.
-chre::ChreNanoappChannelOutput channelOutput{
-    chre::ChreNanoappChannelOutput::Role::CLIENT};
-pw::rpc::Channel channel;
-std::span channels(&channel, 1 /*count*/);
-pw::rpc::Client rpcClient(channels);
-
-pw::Status EchoService::Echo(const pw_rpc_EchoMessage &request,
-                             pw_rpc_EchoMessage &response) {
-  memcpy(response.msg, request.msg,
-         MIN(ARRAY_SIZE(response.msg), ARRAY_SIZE(request.msg)));
+pw::Status RpcWorldService::Increment(const chre_rpc_NumberMessage &request,
+                                      chre_rpc_NumberMessage &response) {
+  response.number = request.number + 1;
   return pw::OkStatus();
 }
 
-void echoResponse(const pw_rpc_EchoMessage &response, pw::Status status) {
+void incrementResponse(const chre_rpc_NumberMessage &response,
+                       pw::Status status) {
   if (status.ok()) {
-    LOGI("Received echo response: %s", response.msg);
+    LOGI("Increment response: %d", response.number);
   } else {
-    LOGE("Echo failed with status %d", static_cast<int>(status.code()));
+    LOGE("Increment failed with status %d", static_cast<int>(status.code()));
   }
 }
 
+void RpcWorldService::Timer(
+    const chre_rpc_TimerRequest &request,
+    pw::rpc::ServerWriter<chre_rpc_TimerResponse> &writer) {
+  RpcWorldManagerSingleton::get()->timerStart(request.num_ticks, writer);
+}
+
+void timerResponse(const chre_rpc_TimerResponse &response) {
+  LOGI("Tick response: %d", response.tick_number);
+}
+
+void timerEnd(pw::Status status) {
+  LOGI("Tick stream end: %d", static_cast<int>(status.code()));
+}
+
 bool RpcWorldManager::start() {
-  chre::RpcServer::Service service = {mEchoService, 0x01020034 /* version */};
-  chreTimerSet(chre::kOneSecondInNanoseconds, nullptr /*cookie*/,
-               true /*oneShot*/);
-  return mServer.registerServices(1 /*numServices*/, &service);
+  chre::RpcServer::Service service = {
+      mRpcWorldService, 0xca8f7150a3f05847 /* id */, 0x01020034 /* version */};
+  if (!mServer.registerServices(1, &service)) {
+    LOGE("Error while registering the service");
+  }
+
+  auto client =
+      mClient.get<chre::rpc::pw_rpc::nanopb::RpcWorldService::Client>();
+
+  if (client.has_value()) {
+    chre_rpc_NumberMessage incrementRequest;
+    incrementRequest.number = 101;
+    mIncrementCall = client->Increment(incrementRequest, incrementResponse);
+    CHRE_ASSERT(mIncrementCall.active());
+
+    chre_rpc_TimerRequest timerRequest;
+    timerRequest.num_ticks = 5;
+    mTimerCall = client->Timer(timerRequest, timerResponse, timerEnd);
+    CHRE_ASSERT(mTimerCall.active());
+  } else {
+    LOGE("Error while retrieving the client");
+  }
+
+  return true;
 }
 
 void RpcWorldManager::handleEvent(uint32_t senderInstanceId, uint16_t eventType,
                                   const void *eventData) {
   if (!mServer.handleEvent(senderInstanceId, eventType, eventData)) {
-    LOGE("An RPC error occurred");
+    LOGE("[Server] An RPC error occurred");
+  }
+
+  if (!mClient.handleEvent(senderInstanceId, eventType, eventData)) {
+    LOGE("[Client] An RPC error occurred");
   }
 
   switch (eventType) {
-    case chre::ChreChannelOutputBase::PW_RPC_CHRE_NAPP_RESPONSE_EVENT_TYPE: {
-      // Decode the response from the RPC server.
-      auto data =
-          static_cast<const chre::ChrePigweedNanoappMessage *>(eventData);
-      std::span packet(static_cast<const std::byte *>(data->msg),
-                       data->msgSize);
-
-      rpcClient.ProcessPacket(packet);
-
-      break;
-    }
-
     case CHRE_EVENT_TIMER:
-      // Send a request to the RPC server.
-      const uint32_t id = chreGetInstanceId();
-
-      channelOutput.setNanoappEndpoint(id);
-      channel.Configure(id, channelOutput);
-      pw::rpc::pw_rpc::nanopb::EchoService::Client client(rpcClient, id);
-
-      const char kMsg[] = "RPC";
-      pw_rpc_EchoMessage requestParams;
-      memcpy(&requestParams.msg, kMsg, ARRAY_SIZE(kMsg) + 1);
-
-      mCall = client.Echo(requestParams, echoResponse);
-
-      CHRE_ASSERT(mCall.active());
+      chre_rpc_TimerResponse response;
+      response.tick_number = mTimerCurrentTick;
+      mTimerWriter.Write(response);
+      if (mTimerCurrentTick == mTimerTotalTicks) {
+        mTimerWriter.Finish(pw::OkStatus());
+        if (chreTimerCancel(mTimerId)) {
+          mTimerId = CHRE_TIMER_INVALID;
+        } else {
+          LOGE("Error while cancelling the timer");
+        }
+      }
+      mTimerCurrentTick++;
   }
+}
+
+void RpcWorldManager::end() {
+  if (mTimerId != CHRE_TIMER_INVALID) {
+    chreTimerCancel(mTimerId);
+  }
+}
+
+void RpcWorldManager::timerStart(
+    uint32_t numTicks, pw::rpc::ServerWriter<chre_rpc_TimerResponse> &writer) {
+  mTimerCurrentTick = 1;
+  mTimerTotalTicks = numTicks;
+  mTimerWriter = std::move(writer);
+  mTimerId = chreTimerSet(chre::kOneSecondInNanoseconds, nullptr /*cookie*/,
+                          false /*oneShot*/);
 }

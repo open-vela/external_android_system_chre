@@ -33,6 +33,7 @@ bool nanoappStart(void) {
 }
 
 void nanoappEnd(void) {
+  RpcWorldManagerSingleton::get()->end();
   RpcWorldManagerSingleton::deinit();
 }
 

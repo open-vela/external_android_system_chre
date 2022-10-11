@@ -68,7 +68,7 @@ PW_RPC_GEN_SRCS = $(patsubst %.proto, \
 # Include to-be-generated files
 COMMON_CFLAGS += -I$(PW_RPC_GEN_PATH)
 COMMON_CFLAGS += -I$(PW_RPC_GEN_PATH)/$(PIGWEED_DIR)
-COMMON_CFLAGS += $(addprefix -I$(PW_RPC_GEN_PATH)/, $(PW_RPC_INCLUDES))
+COMMON_CFLAGS += $(addprefix -I$(PW_RPC_GEN_PATH)/, $(abspath $(dir PW_RPC_SRCS)))
 
 COMMON_SRCS += $(PW_RPC_GEN_SRCS)
 
@@ -133,11 +133,13 @@ COMMON_SRCS += $(NANOPB_PREFIX)/pb_encode.c
 
 # Add CHRE Pigweed util sources since nanoapps should always use these
 COMMON_SRCS += $(PIGWEED_CHRE_UTIL_DIR)/chre_channel_output.cc
+COMMON_SRCS += $(PIGWEED_CHRE_UTIL_DIR)/rpc_client.cc
+COMMON_SRCS += $(PIGWEED_CHRE_UTIL_DIR)/rpc_helper.cc
 COMMON_SRCS += $(PIGWEED_CHRE_UTIL_DIR)/rpc_server.cc
 COMMON_SRCS += $(CHRE_UTIL_DIR)/nanoapp/callbacks.cc
 COMMON_SRCS += $(CHRE_UTIL_DIR)/dynamic_vector_base.cc
 
-# CHRE Pigwweed overrides
+# CHRE Pigweed overrides
 COMMON_CFLAGS += -I$(PIGWEED_CHRE_DIR)/pw_log_nanoapp/public_overrides
 COMMON_CFLAGS += -I$(PIGWEED_CHRE_DIR)/pw_assert_nanoapp/public_overrides
 
@@ -172,4 +174,32 @@ $(PW_RPC_GEN_PATH)/%.pb.c \
 	  --out-dir=$(PW_RPC_GEN_PATH)/$(dir $<) --compile-dir=$(dir $<) --language pwpb_rpc \
 	  --sources $<
 
+$(PW_RPC_GEN_PATH)/%.pb.c \
+        $(PW_RPC_GEN_PATH)/%.pb.h \
+        $(PW_RPC_GEN_PATH)/%.rpc.pb.h \
+        $(PW_RPC_GEN_PATH)/%.raw_rpc.pb.h: %.proto \
+                                           $(NANOPB_OPTIONS) \
+                                           $(NANOPB_GENERATOR_SRCS) \
+                                           $(PW_RPC_GENERATOR_COMPILED_PROTO)
+	@echo " [PW_RPC] $<"
+	$(V)$(PW_RPC_GENERATOR_CMD) $(PW_RPC_PROTO_GENERATOR) \
+	  --plugin-path=$(NANOPB_PROTOC) \
+	  --out-dir=$(PW_RPC_GEN_PATH)/$(dir $<) --compile-dir=$(dir $<) --language nanopb \
+	  --sources $<
+	$(V)$(PW_RPC_GENERATOR_CMD) $(PW_RPC_PROTO_GENERATOR) \
+	  --plugin-path=$(PIGWEED_DIR)/pw_protobuf/py/pw_protobuf/plugin.py \
+	  --out-dir=$(PW_RPC_GEN_PATH)/$(dir $<) --compile-dir=$(dir $<) --language pwpb \
+		--sources $<
+	$(V)$(PW_RPC_GENERATOR_CMD) $(PW_RPC_PROTO_GENERATOR) \
+	  --plugin-path=$(PIGWEED_DIR)/pw_rpc/py/pw_rpc/plugin_nanopb.py \
+	  --out-dir=$(PW_RPC_GEN_PATH)/$(dir $<) --compile-dir=$(dir $<) --language nanopb_rpc \
+	  --sources $<
+	$(V)$(PW_RPC_GENERATOR_CMD) $(PW_RPC_PROTO_GENERATOR) \
+	  --plugin-path=$(PIGWEED_DIR)/pw_rpc/py/pw_rpc/plugin_raw.py \
+	  --out-dir=$(PW_RPC_GEN_PATH)/$(dir $<) --compile-dir=$(dir $<) --language raw_rpc \
+	  --sources $<
+	$(V)$(PW_RPC_GENERATOR_CMD) $(PW_RPC_PROTO_GENERATOR) \
+	  --plugin-path=$(PIGWEED_DIR)/pw_rpc/py/pw_rpc/plugin_pwpb.py \
+	  --out-dir=$(PW_RPC_GEN_PATH)/$(dir $<) --compile-dir=$(dir $<) --language pwpb_rpc \
+	  --sources $<
 endif
