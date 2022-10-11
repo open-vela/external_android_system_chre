@@ -20,7 +20,6 @@
 #include <chre.h>
 #include <cinttypes>
 #include <cstdint>
-#include <span>
 
 #include "chre/util/macros.h"
 #include "chre/util/pigweed/chre_channel_output.h"

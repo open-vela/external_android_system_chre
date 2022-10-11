@@ -84,8 +84,8 @@ bool RpcServer::handleMessageFromHost(const void *eventData) {
     return false;
   }
 
-  std::span packet(static_cast<const std::byte *>(hostMessage->message),
-                   hostMessage->messageSize);
+  pw::span packet(static_cast<const std::byte *>(hostMessage->message),
+                  hostMessage->messageSize);
 
   pw::Result result = pw::rpc::ExtractChannelId(packet);
   if (result.status() != PW_STATUS_OK) {
@@ -110,7 +110,7 @@ bool RpcServer::handleMessageFromHost(const void *eventData) {
   mHostOutput.setHostEndpoint(hostMessage->hostEndpoint);
   mServer.OpenChannel(result.value(), mHostOutput);
 
-  pw::Status status = mServer.ProcessPacket(packet, mHostOutput);
+  pw::Status status = mServer.ProcessPacket(packet);
 
   if (status != pw::OkStatus()) {
     LOGE("Failed to process the packet");
@@ -124,7 +124,7 @@ bool RpcServer::handleMessageFromHost(const void *eventData) {
 bool RpcServer::handleMessageFromNanoapp(uint32_t senderInstanceId,
                                          const void *eventData) {
   const auto data = static_cast<const ChrePigweedNanoappMessage *>(eventData);
-  std::span packet(static_cast<const std::byte *>(data->msg), data->msgSize);
+  pw::span packet(static_cast<const std::byte *>(data->msg), data->msgSize);
 
   pw::Result result = pw::rpc::ExtractChannelId(packet);
   if (result.status() != PW_STATUS_OK) {
@@ -141,7 +141,7 @@ bool RpcServer::handleMessageFromNanoapp(uint32_t senderInstanceId,
   mNanoappOutput.setNanoappEndpoint(senderInstanceId);
   mServer.OpenChannel(result.value(), mNanoappOutput);
 
-  pw::Status success = mServer.ProcessPacket(packet, mNanoappOutput);
+  pw::Status success = mServer.ProcessPacket(packet);
 
   if (success != pw::OkStatus()) {
     LOGE("Failed to process the packet");

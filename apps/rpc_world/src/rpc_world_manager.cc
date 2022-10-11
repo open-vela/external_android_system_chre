@@ -39,7 +39,7 @@ void incrementResponse(const chre_rpc_NumberMessage &response,
 
 void RpcWorldService::Timer(
     const chre_rpc_TimerRequest &request,
-    pw::rpc::ServerWriter<chre_rpc_TimerResponse> &writer) {
+    RpcWorldService::ServerWriter<chre_rpc_TimerResponse> &writer) {
   RpcWorldManagerSingleton::get()->timerStart(request.num_ticks, writer);
 }
 
@@ -112,7 +112,8 @@ void RpcWorldManager::end() {
 }
 
 void RpcWorldManager::timerStart(
-    uint32_t numTicks, pw::rpc::ServerWriter<chre_rpc_TimerResponse> &writer) {
+    uint32_t numTicks,
+    RpcWorldService::ServerWriter<chre_rpc_TimerResponse> &writer) {
   mTimerCurrentTick = 1;
   mTimerTotalTicks = numTicks;
   mTimerWriter = std::move(writer);

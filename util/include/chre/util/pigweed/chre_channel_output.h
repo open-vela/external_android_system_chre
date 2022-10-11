@@ -19,9 +19,9 @@
 
 #include <chre.h>
 #include <cstdint>
-#include <span>
 
 #include "pw_rpc/channel.h"
+#include "pw_span/span.h"
 
 namespace chre {
 
@@ -94,7 +94,7 @@ class ChreNanoappChannelOutput : public ChreChannelOutputBase {
    */
   void setNanoappEndpoint(uint32_t nanoappInstanceId);
 
-  pw::Status Send(std::span<const std::byte> buffer) override;
+  pw::Status Send(pw::span<const std::byte> buffer) override;
 
  private:
   const enum Role mRole;
@@ -111,7 +111,7 @@ class ChreHostChannelOutput : public ChreChannelOutputBase {
    */
   void setHostEndpoint(uint16_t hostEndpoint);
 
-  pw::Status Send(std::span<const std::byte> buffer) override;
+  pw::Status Send(pw::span<const std::byte> buffer) override;
 };
 
 }  // namespace chre

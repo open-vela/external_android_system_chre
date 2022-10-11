@@ -47,7 +47,7 @@ void ChreNanoappChannelOutput::setNanoappEndpoint(uint32_t nanoappInstanceId) {
   }
 }
 
-pw::Status ChreNanoappChannelOutput::Send(std::span<const std::byte> buffer) {
+pw::Status ChreNanoappChannelOutput::Send(pw::span<const std::byte> buffer) {
   CHRE_ASSERT(mEndpointId != CHRE_HOST_ENDPOINT_UNSPECIFIED);
 
   if (buffer.size() > 0) {
@@ -76,7 +76,7 @@ void ChreHostChannelOutput::setHostEndpoint(uint16_t hostEndpoint) {
   setEndpointId(hostEndpoint);
 }
 
-pw::Status ChreHostChannelOutput::Send(std::span<const std::byte> buffer) {
+pw::Status ChreHostChannelOutput::Send(pw::span<const std::byte> buffer) {
   CHRE_ASSERT(mEndpointId != CHRE_HOST_ENDPOINT_UNSPECIFIED);
   pw::Status returnCode = PW_STATUS_OK;
 
