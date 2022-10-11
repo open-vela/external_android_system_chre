@@ -53,7 +53,7 @@ constexpr int32_t kLoadTransactionId = 1;
 constexpr int32_t kUnloadTransactionId = 2;
 constexpr auto kTimeOutThresholdInSec = std::chrono::seconds(5);
 // Locations should be searched in the sequence defined below:
-const std::vector<std::string> kPredefinedNanoappPaths{
+const char *kPredefinedNanoappPaths[] = {
     "/vendor/etc/chre/",
     "/vendor/dsp/adsp/",
     "/vendor/dsp/sdsp/",
