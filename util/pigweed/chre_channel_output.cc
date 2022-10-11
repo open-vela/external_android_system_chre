@@ -35,7 +35,7 @@ void ChreChannelOutputBase::setEndpointId(uint16_t endpointId) {
 }
 
 size_t ChreChannelOutputBase::MaximumTransmissionUnit() {
-  return CHRE_MESSAGE_TO_HOST_MAX_SIZE;
+  return CHRE_MESSAGE_TO_HOST_MAX_SIZE - sizeof(ChrePigweedNanoappMessage);
 }
 
 void ChreNanoappChannelOutput::setNanoappEndpoint(uint32_t nanoappInstanceId) {
