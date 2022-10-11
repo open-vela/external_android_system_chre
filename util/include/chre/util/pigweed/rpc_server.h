@@ -17,14 +17,13 @@
 #ifndef CHRE_UTIL_PIGWEED_RPC_SERVER_H_
 #define CHRE_UTIL_PIGWEED_RPC_SERVER_H_
 
-#include <span>
-
 #include "chre/util/dynamic_vector.h"
 #include "chre/util/macros.h"
 #include "chre/util/non_copyable.h"
 #include "chre/util/pigweed/chre_channel_output.h"
 #include "pw_rpc/server.h"
 #include "pw_rpc/service.h"
+#include "pw_span/span.h"
 
 namespace chre {
 
@@ -57,7 +56,7 @@ class RpcServer : public NonCopyable {
     uint32_t version;
   };
 
-  RpcServer() : mServer(std::span(mChannels, ARRAY_SIZE(mChannels))) {}
+  RpcServer() : mServer(pw::span(mChannels, ARRAY_SIZE(mChannels))) {}
   ~RpcServer();
 
   /**
@@ -130,26 +129,6 @@ class RpcServer : public NonCopyable {
    *    CHRE_EVENT_NANOAPP_STOPPED event.
    */
   void handleNanoappStopped(const void *eventData);
-
-  /**
-   * Validates that the host client sending the message matches the expected
-   * channel ID.
-   *
-   * @param msg Message received from the host client.
-   * @param channelId Channel ID extracted from the received packet.
-   * @return Whether the IDs match.
-   */
-  bool validateHostChannelId(const chreMessageFromHostData *msg,
-                             uint32_t channelId);
-  /**
-   * Validates that the nanoapp client sending the message matches the expected
-   * channel ID.
-   *
-   * @param senderInstanceId ID of the nanoapp sending the message.
-   * @param channelId Channel ID extracted from the received packet.
-   * @return Whether the IDs match.
-   */
-  bool validateNanoappChannelId(uint32_t senderInstanceId, uint32_t channelId);
 
   /**
    * Closes a Pigweed channel.

@@ -668,5 +668,9 @@ cc_binary {
         "libpower",
         "android.hardware.soundtrigger@2.0",
     ],
+    header_libs: [
+        "pw_span_headers",
+        "pw_polyfill_headers",
+    ],
     init_rc: ["host/exynos/chre_daemon_exynos.rc"],
 }

@@ -47,7 +47,7 @@ bool RpcClient::handleEvent(uint32_t senderInstanceId, uint16_t eventType,
 bool RpcClient::handleMessageFromServer(uint32_t senderInstanceId,
                                         const void *eventData) {
   auto data = static_cast<const chre::ChrePigweedNanoappMessage *>(eventData);
-  std::span packet(static_cast<const std::byte *>(data->msg), data->msgSize);
+  pw::span packet(static_cast<const std::byte *>(data->msg), data->msgSize);
 
   pw::Result result = pw::rpc::ExtractChannelId(packet);
   if (result.status() != PW_STATUS_OK) {
