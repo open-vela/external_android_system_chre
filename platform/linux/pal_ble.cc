@@ -114,10 +114,9 @@ bool chrePalBleStopScan() {
 void chrePalBleReleaseAdvertisingEvent(
     struct chreBleAdvertisementEvent *event) {
   for (size_t i = 0; i < event->numReports; i++) {
-    auto report = const_cast<chreBleAdvertisingReport *>(&(event->reports[i]));
-    chre::memoryFree(const_cast<uint8_t *>(report->data));
+    chre::memoryFree(
+        const_cast<chreBleAdvertisingReport *>(&(event->reports[i])));
   }
-  chre::memoryFree(const_cast<chreBleAdvertisingReport *>(event->reports));
   chre::memoryFree(event);
 }
 
