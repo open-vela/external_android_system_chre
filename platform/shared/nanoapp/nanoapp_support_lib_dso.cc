@@ -223,9 +223,9 @@ uint32_t chreBleGetFilterCapabilities() {
 }
 
 WEAK_SYMBOL
-bool chreBleFlushAsync() {
+bool chreBleFlushAsync(const void *cookie) {
   auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreBleFlushAsync);
-  return (fptr != nullptr) ? fptr() : false;
+  return (fptr != nullptr) ? fptr(cookie) : false;
 }
 
 WEAK_SYMBOL
