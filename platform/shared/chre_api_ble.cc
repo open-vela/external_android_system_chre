@@ -44,6 +44,10 @@ DLL_EXPORT uint32_t chreBleGetFilterCapabilities() {
 #endif  // CHRE_BLE_SUPPORT_ENABLED
 }
 
+DLL_EXPORT bool chreBleFlushAsync(const void * /* cookie */) {
+  return false;
+}
+
 DLL_EXPORT bool chreBleStartScanAsync(chreBleScanMode mode,
                                       uint32_t reportDelayMs,
                                       const struct chreBleScanFilter *filter) {

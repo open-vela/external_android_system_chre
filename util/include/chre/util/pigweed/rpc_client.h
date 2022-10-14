@@ -18,7 +18,6 @@
 #define CHRE_UTIL_PIGWEED_RPC_CLIENT_H_
 
 #include <cstdint>
-#include <span>
 
 #include "chre/event.h"
 #include "chre/util/non_copyable.h"
@@ -26,6 +25,7 @@
 #include "chre/util/pigweed/chre_channel_output.h"
 #include "chre/util/unique_ptr.h"
 #include "pw_rpc/client.h"
+#include "pw_span/span.h"
 #include "rpc_helper.h"
 
 namespace chre {
@@ -44,7 +44,7 @@ class RpcClient : public NonCopyable {
    * @param serverNanoappId Nanoapp ID of the server.
    */
   explicit RpcClient(uint64_t serverNanoappId)
-      : mChannels(std::span(&mChannel, 1)),
+      : mChannels(pw::span(&mChannel, 1)),
         mRpcClient(pw::rpc::Client(mChannels)),
         mServerNanoappId((serverNanoappId)) {}
 
@@ -102,20 +102,10 @@ class RpcClient : public NonCopyable {
    */
   void handleNanoappStopped(const void *eventData);
 
-  /**
-   * Validates that the nanoapp host sending the message matches the expected
-   * channel ID.
-   *
-   * @param senderInstanceId ID of the nanoapp sending the message.
-   * @param channelId Channel ID extracted from the received packet.
-   * @return Whether the IDs match.
-   */
-  bool validateNanoappChannelId(uint32_t senderInstanceId, uint32_t channelId);
-
   ChreNanoappChannelOutput mChannelOutput{
       ChreNanoappChannelOutput::Role::CLIENT};
   pw::rpc::Channel mChannel;
-  const std::span<pw::rpc::Channel> mChannels;
+  const pw::span<pw::rpc::Channel> mChannels;
   pw::rpc::Client mRpcClient;
   uint64_t mServerNanoappId;
   uint32_t mChannelId = 0;

@@ -19,16 +19,31 @@
 
 #include <stdint.h>
 
+#include <chrono>
+
 enum class PalWifiAsyncRequestTypes : uint8_t {
   SCAN,
   SCAN_MONITORING,
   RANGING,
+
+  // Must be last
+  NUM_WIFI_REQUEST_TYPE,
 };
 
 /**
  * @return whether scan monitoring is active.
  */
 bool chrePalWifiIsScanMonitoringActive();
+
+/**
+ * Sets how long each async request should hold before replying the result
+ * to CHRE.
+ *
+ * @param requestType select one request type to modify its behavior.
+ * @param seconds delayed response time.
+ */
+void chrePalWifiDelayResponse(PalWifiAsyncRequestTypes requestType,
+                              std::chrono::seconds seconds);
 
 /**
  * Sets if PAL should send back async request result for each async request.

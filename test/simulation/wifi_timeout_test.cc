@@ -41,6 +41,73 @@ class WifiTimeoutTestBase : public TestBase {
   }
 };
 
+TEST_F(WifiTimeoutTestBase, WifiScanRequestTimeoutTest) {
+  CREATE_CHRE_TEST_EVENT(SCAN_REQUEST, 1);
+
+  struct App : public TestNanoapp {
+    uint32_t perms = NanoappPermissions::CHRE_PERMS_WIFI;
+
+    void (*handleEvent)(uint32_t, uint16_t,
+                        const void *) = [](uint32_t, uint16_t eventType,
+                                           const void *eventData) {
+      static uint32_t cookie;
+
+      switch (eventType) {
+        case CHRE_EVENT_WIFI_ASYNC_RESULT: {
+          auto *event = static_cast<const chreAsyncResult *>(eventData);
+          if (event->success) {
+            TestEventQueueSingleton::get()->pushEvent(
+                CHRE_EVENT_WIFI_ASYNC_RESULT,
+                *(static_cast<const uint32_t *>(event->cookie)));
+          }
+          break;
+        }
+
+        case CHRE_EVENT_WIFI_SCAN_RESULT: {
+          TestEventQueueSingleton::get()->pushEvent(
+              CHRE_EVENT_WIFI_SCAN_RESULT);
+          break;
+        }
+
+        case CHRE_EVENT_TEST_EVENT: {
+          auto event = static_cast<const TestEvent *>(eventData);
+          switch (event->type) {
+            case SCAN_REQUEST:
+              cookie = *static_cast<uint32_t *>(event->data);
+              bool success = chreWifiRequestScanAsyncDefault(&cookie);
+              TestEventQueueSingleton::get()->pushEvent(SCAN_REQUEST, success);
+          }
+        }
+      }
+    };
+  };
+
+  auto app = loadNanoapp<App>();
+
+  constexpr uint32_t timeOutCookie = 0xdead;
+  chrePalWifiEnableResponse(PalWifiAsyncRequestTypes::SCAN, false);
+  sendEventToNanoapp(app, SCAN_REQUEST, timeOutCookie);
+  bool success;
+  waitForEvent(SCAN_REQUEST, &success);
+  EXPECT_TRUE(success);
+
+  // Add 1 second to prevent race condition.
+  constexpr uint8_t kWifiScanRequestTimeoutSec =
+      (CHRE_WIFI_SCAN_RESULT_TIMEOUT_NS / CHRE_NSEC_PER_SEC) + 1;
+  std::this_thread::sleep_for(std::chrono::seconds(kWifiScanRequestTimeoutSec));
+
+  // Make sure that we can still request scan after a timedout
+  // request.
+  constexpr uint32_t successCookie = 0x0101;
+  chrePalWifiEnableResponse(PalWifiAsyncRequestTypes::SCAN, true);
+  sendEventToNanoapp(app, SCAN_REQUEST, successCookie);
+  waitForEvent(SCAN_REQUEST, &success);
+  EXPECT_TRUE(success);
+  waitForEvent(CHRE_EVENT_WIFI_SCAN_RESULT);
+
+  unloadNanoapp(app);
+}
+
 TEST_F(WifiTimeoutTestBase, WifiScanMonitorTimeoutTest) {
   CREATE_CHRE_TEST_EVENT(SCAN_MONITOR_REQUEST, 1);
 

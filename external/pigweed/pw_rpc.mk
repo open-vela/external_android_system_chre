@@ -94,8 +94,11 @@ COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_span/public
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_span/public_overrides
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_status/public
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_stream/public
+COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_string/public
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_sync/public
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_varint/public
+COMMON_CFLAGS += -I$(PIGWEED_DIR)/third_party/fuchsia/repo/sdk/lib/fit/include
+COMMON_CFLAGS += -I$(PIGWEED_DIR)/third_party/fuchsia/repo/sdk/lib/stdcompat/include
 
 # Pigweed RPC sources
 COMMON_SRCS += $(PIGWEED_DIR)/pw_assert_log/assert_log.cc

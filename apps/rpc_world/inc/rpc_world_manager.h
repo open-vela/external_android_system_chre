@@ -20,7 +20,6 @@
 #include <chre.h>
 #include <cinttypes>
 #include <cstdint>
-#include <span>
 
 #include "chre/re.h"
 #include "chre/util/macros.h"
@@ -43,7 +42,7 @@ class RpcWorldService final
   // Timer RPC server streaming service definition.
   // See generated TimerService::Service for more details.
   void Timer(const chre_rpc_TimerRequest &request,
-             pw::rpc::ServerWriter<chre_rpc_TimerResponse> &writer);
+             RpcWorldService::ServerWriter<chre_rpc_TimerResponse> &writer);
 };
 
 /**
@@ -78,15 +77,16 @@ class RpcWorldManager {
    * @param numTicks Number of ticks to stream.
    * @param writer Used to stream the responses.
    */
-  void timerStart(uint32_t numTicks,
-                  pw::rpc::ServerWriter<chre_rpc_TimerResponse> &writer);
+  void timerStart(
+      uint32_t numTicks,
+      RpcWorldService::ServerWriter<chre_rpc_TimerResponse> &writer);
 
  private:
   chre::RpcServer mServer;
   chre::RpcClient mClient{chre::kRpcWorldAppId};
   // pw_rpc service used to process the RPCs.
   RpcWorldService mRpcWorldService;
-  pw::rpc::ServerWriter<chre_rpc_TimerResponse> mTimerWriter;
+  RpcWorldService::ServerWriter<chre_rpc_TimerResponse> mTimerWriter;
   uint32_t mTimerId = CHRE_TIMER_INVALID;
   uint32_t mTimerCurrentTick;
   uint32_t mTimerTotalTicks;
