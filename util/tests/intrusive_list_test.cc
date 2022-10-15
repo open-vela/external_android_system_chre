@@ -29,11 +29,13 @@ TEST(IntrusiveList, EmptyByDefault) {
 
 TEST(IntrusiveList, PushReadAndPop) {
   typedef ListNode<int> ListIntNode;
-  IntrusiveList<int> testLinkedList;
 
   ListIntNode nodeA(0);
   ListIntNode nodeB(1);
   ListIntNode nodeC(2);
+  ListIntNode nodeD(3);
+  IntrusiveList<int> testLinkedList;
+
   testLinkedList.link_back(&nodeA);
   testLinkedList.link_back(&nodeB);
   testLinkedList.link_back(&nodeC);
@@ -54,7 +56,6 @@ TEST(IntrusiveList, PushReadAndPop) {
   EXPECT_EQ(testLinkedList.size(), 0);
   EXPECT_TRUE(testLinkedList.empty());
 
-  ListIntNode nodeD(4);
   testLinkedList.link_back(&nodeD);
   EXPECT_EQ(testLinkedList.size(), 1);
   EXPECT_EQ(testLinkedList.back().item, nodeD.item);
@@ -69,21 +70,52 @@ TEST(IntrusiveList, CatchInvalidCallToEmptyList) {
   ASSERT_DEATH(testList.unlink_back(), "");
 }
 
-TEST(IntrusiveLinkedList, ForEachLoop) {
+TEST(IntrusiveList, DestructorCleanUpLink) {
   typedef ListNode<int> ListIntNode;
-  IntrusiveList<int> testLinkedList;
 
   ListIntNode testInput[]{
       ListIntNode(0), ListIntNode(1), ListIntNode(2),
       ListIntNode(3), ListIntNode(4),
   };
 
+  {
+    IntrusiveList<int> testLinkedList;
+    for (auto &node : testInput) {
+      testLinkedList.link_back(&node);
+    }
+
+    int idx = 0;
+    for (auto const &node : testLinkedList) {
+      EXPECT_EQ(node.item, idx++);
+    }
+  }
+
   for (auto &node : testInput) {
+    EXPECT_EQ(node.node.next, nullptr);
+    EXPECT_EQ(node.node.prev, nullptr);
+  }
+}
+
+TEST(IntrusiveList, AccessMiddleTest) {
+  typedef ListNode<int> ListIntNode;
+
+  ListIntNode testListIntNodes[]{
+      ListIntNode(0), ListIntNode(1), ListIntNode(2),
+      ListIntNode(3), ListIntNode(4),
+  };
+
+  IntrusiveList<int> testLinkedList;
+
+  for (auto &node : testListIntNodes) {
     testLinkedList.link_back(&node);
   }
 
-  int idx = 0;
-  for (auto const &node : testLinkedList) {
-    EXPECT_EQ(node.item, idx++);
-  }
+  testLinkedList.unlink_node(&testListIntNodes[1]);  // removes ListIntNode(1)
+  EXPECT_EQ(testListIntNodes[0].node.next, &testListIntNodes[2].node);
+  EXPECT_EQ(testLinkedList.size(), 4);
+
+  testLinkedList.link_after(&testListIntNodes[0],
+                            &testListIntNodes[1]);  // add back ListIntNode(1)
+  EXPECT_EQ(testListIntNodes[0].node.next, &testListIntNodes[1].node);
+  EXPECT_EQ(testLinkedList.size(), 5);
 }

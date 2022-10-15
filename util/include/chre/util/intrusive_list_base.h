@@ -23,15 +23,16 @@
 
 namespace chre {
 namespace intrusive_list_internal {
-struct Node : public NonCopyable {
-  Node *next;
-  Node *prev;
 
-  bool operator==(Node const &other) {
+struct Node : public NonCopyable {
+  Node *next = nullptr;
+  Node *prev = nullptr;
+
+  bool operator==(Node const &other) const {
     return &other == this;
   }
 
-  bool operator!=(Node const &other) {
+  bool operator!=(Node const &other) const {
     return &other != this;
   }
 };
@@ -67,6 +68,19 @@ class IntrusiveListBase : public NonCopyable {
    * @param node: The node to remove from the linked list.
    */
   void doUnlinkNode(Node *node);
+
+  /**
+   * Link a node after a given node.
+   *
+   * @param frontNode: The node that will lead the new node.
+   * @param newNode: The new node to link.
+   */
+  void doLinkAfter(Node *frontNode, Node *newNode);
+
+  /**
+   * Unlinks all node in this list.
+   */
+  void doUnlinkAll();
 };
 
 }  // namespace intrusive_list_internal
