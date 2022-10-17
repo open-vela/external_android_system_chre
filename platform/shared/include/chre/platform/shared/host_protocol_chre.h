@@ -59,6 +59,9 @@ class HostMessageHandlers {
 
   static void handleNanoappListRequest(uint16_t hostClientId);
 
+  static void handleDebugConfiguration(
+      const fbs::DebugConfiguration *debugConfiguration);
+
   static void handleLoadNanoappRequest(
       uint16_t hostClientId, uint32_t transactionId, uint64_t appId,
       uint32_t appVersion, uint32_t appFlags, uint32_t targetApiVersion,

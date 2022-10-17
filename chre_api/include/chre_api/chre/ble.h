@@ -52,6 +52,8 @@ extern "C" {
 
 //! CHRE BLE supports batching of scan results, either through Android-specific
 //! HCI (OCF: 0x156), or by the CHRE framework, internally.
+//! @since v1.7 Platforms with this capability must also support flushing scan
+//! results during a batched scan.
 #define CHRE_BLE_CAPABILITIES_SCAN_RESULT_BATCHING UINT32_C(1 << 1)
 
 //! CHRE BLE scan supports best-effort hardware filtering. If filtering is
@@ -121,6 +123,17 @@ extern "C" {
  * Provides results of a BLE scan.
  */
 #define CHRE_EVENT_BLE_ADVERTISEMENT CHRE_BLE_EVENT_ID(1)
+
+/**
+ * nanoappHandleEvent argument: struct chreAsyncResult
+ *
+ * Indicates that a flush request made via chreBleFlushAsync() is complete, and
+ * all batched advertisements resulting from the flush have been delivered via
+ * preceding CHRE_EVENT_BLE_ADVERTISEMENT events.
+ *
+ * @since v1.7
+ */
+#define CHRE_EVENT_BLE_FLUSH_COMPLETE CHRE_BLE_EVENT_ID(2)
 
 // NOTE: Do not add new events with ID > 15
 /** @} */
@@ -199,12 +212,20 @@ extern "C" {
 /** @} */
 
 /**
+ * The maximum amount of time allowed to elapse between the call to
+ * chreBleFlushAsync() and when CHRE_EVENT_BLE_FLUSH_COMPLETE is delivered to
+ * the nanoapp on a successful flush.
+ */
+#define CHRE_BLE_FLUSH_COMPLETE_TIMEOUT_NS (5 * CHRE_NSEC_PER_SEC)
+
+/**
  * Indicates a type of request made in this API. Used to populate the resultType
  * field of struct chreAsyncResult sent with CHRE_EVENT_BLE_ASYNC_RESULT.
  */
 enum chreBleRequestType {
   CHRE_BLE_REQUEST_TYPE_START_SCAN = 1,
   CHRE_BLE_REQUEST_TYPE_STOP_SCAN = 2,
+  CHRE_BLE_REQUEST_TYPE_FLUSH = 3,  //!< @since v1.7
 };
 
 /**
@@ -595,6 +616,42 @@ bool chreBleStartScanAsync(enum chreBleScanMode mode, uint32_t reportDelayMs,
 bool chreBleStopScanAsync(void);
 
 /**
+ * Requests to immediately deliver batched scan results. The nanoapp must
+ * have an active BLE scan request. If a request is accepted, it will be treated
+ * as though the reportDelayMs has expired for a batched scan. Upon accepting
+ * the request, CHRE works to immediately deliver scan results currently kept in
+ * batching memory, if any, via regular CHRE_EVENT_BLE_ADVERTISEMENT events,
+ * followed by a CHRE_EVENT_BLE_FLUSH_COMPLETE event.
+ *
+ * If the underlying system fails to complete the flush operation within
+ * CHRE_BLE_FLUSH_COMPLETE_TIMEOUT_NS, CHRE will send a
+ * CHRE_EVENT_BLE_FLUSH_COMPLETE event with CHRE_ERROR_TIMEOUT.
+ *
+ * If multiple flush requests are made prior to flush completion, then the
+ * requesting nanoapp will receive all batched samples existing at the time of
+ * the latest flush request. In this case, the number of
+ * CHRE_EVENT_BLE_FLUSH_COMPLETE events received must equal the number of flush
+ * requests made.
+ *
+ * If chreBleStopScanAsync() is called while a flush operation is in progress,
+ * it is unspecified whether the flush operation will complete successfully or
+ * return an error, such as CHRE_ERROR_FUNCTION_DISABLED, but in any case,
+ * CHRE_EVENT_BLE_FLUSH_COMPLETE must still be delivered. The same applies if
+ * the Bluetooth user setting is disabled during a flush operation.
+ *
+ * If called while running on a CHRE API version below v1.7, this function
+ * returns false and has no effect.
+ *
+ * @param cookie An opaque value that will be included in the chreAsyncResult
+ *               sent as a response to this request.
+ *
+ * @return True to indicate the request was accepted. False otherwise.
+ *
+ * @since v1.7
+ */
+bool chreBleFlushAsync(const void *cookie);
+
+/**
  * Definitions for handling unsupported CHRE BLE scenarios.
  */
 #else  // defined(CHRE_NANOAPP_USES_BLE) || !defined(CHRE_IS_NANOAPP_BUILD)
@@ -608,6 +665,9 @@ bool chreBleStopScanAsync(void);
 
 #define chreBleStopScanAsync(...) \
   CHRE_BUILD_ERROR(CHRE_BLE_PERM_ERROR_STRING "chreBleStopScanAsync")
+
+#define chreBleFlushAsync(...) \
+  CHRE_BUILD_ERROR(CHRE_BLE_PERM_ERROR_STRING "chreBleFlushAsync")
 
 #endif  // defined(CHRE_NANOAPP_USES_BLE) || !defined(CHRE_IS_NANOAPP_BUILD)
 
