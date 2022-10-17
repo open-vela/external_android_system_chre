@@ -35,7 +35,7 @@ void ChreChannelOutputBase::setEndpointId(uint16_t endpointId) {
 }
 
 size_t ChreChannelOutputBase::MaximumTransmissionUnit() {
-  return CHRE_MESSAGE_TO_HOST_MAX_SIZE;
+  return CHRE_MESSAGE_TO_HOST_MAX_SIZE - sizeof(ChrePigweedNanoappMessage);
 }
 
 void ChreNanoappChannelOutput::setNanoappEndpoint(uint32_t nanoappInstanceId) {
@@ -47,38 +47,41 @@ void ChreNanoappChannelOutput::setNanoappEndpoint(uint32_t nanoappInstanceId) {
   }
 }
 
-pw::Status ChreNanoappChannelOutput::Send(std::span<const std::byte> buffer) {
+pw::Status ChreNanoappChannelOutput::Send(pw::span<const std::byte> buffer) {
   CHRE_ASSERT(mEndpointId != CHRE_HOST_ENDPOINT_UNSPECIFIED);
-  pw::Status returnCode = PW_STATUS_OK;
 
   if (buffer.size() > 0) {
     auto *data = static_cast<ChrePigweedNanoappMessage *>(
         chreHeapAlloc(buffer.size() + sizeof(ChrePigweedNanoappMessage)));
     if (data == nullptr) {
-      returnCode = PW_STATUS_RESOURCE_EXHAUSTED;
-    } else {
-      data->msgSize = buffer.size();
-      memcpy(data->msg, buffer.data(), buffer.size());
-      if (!chreSendEvent(PW_RPC_CHRE_NAPP_EVENT_TYPE, data, nappMessageFreeCb,
-                         mEndpointId)) {
-        returnCode = PW_STATUS_INVALID_ARGUMENT;
-      }
+      return PW_STATUS_RESOURCE_EXHAUSTED;
+    }
+
+    data->msgSize = buffer.size();
+    data->msg = &data[1];
+    memcpy(data->msg, buffer.data(), buffer.size());
+
+    if (!chreSendEvent(mRole == Role::SERVER
+                           ? PW_RPC_CHRE_NAPP_RESPONSE_EVENT_TYPE
+                           : PW_RPC_CHRE_NAPP_REQUEST_EVENT_TYPE,
+                       data, nappMessageFreeCb, mEndpointId)) {
+      return PW_STATUS_INVALID_ARGUMENT;
     }
   }
 
-  return returnCode;
+  return PW_STATUS_OK;
 }
 
 void ChreHostChannelOutput::setHostEndpoint(uint16_t hostEndpoint) {
   setEndpointId(hostEndpoint);
 }
 
-pw::Status ChreHostChannelOutput::Send(std::span<const std::byte> buffer) {
+pw::Status ChreHostChannelOutput::Send(pw::span<const std::byte> buffer) {
   CHRE_ASSERT(mEndpointId != CHRE_HOST_ENDPOINT_UNSPECIFIED);
   pw::Status returnCode = PW_STATUS_OK;
 
   if (buffer.size() > 0) {
-    uint8_t *data = memoryAlloc<uint8_t>(buffer.size());
+    uint8_t *data = static_cast<uint8_t *>(memoryAlloc(buffer.size()));
     if (data == nullptr) {
       returnCode = PW_STATUS_RESOURCE_EXHAUSTED;
     } else {
