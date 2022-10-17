@@ -147,6 +147,10 @@ DLL_EXPORT extern "C" const struct chreNslNanoappInfo _chreNslDsoNanoappInfo = {
     /* appPermissions */ kNanoappPermissions,
 };
 
+const struct chreNslNanoappInfo *getChreNslDsoNanoappInfo() {
+  return &_chreNslDsoNanoappInfo;
+}
+
 // The code section below provides default implementations for new symbols
 // introduced in CHRE API v1.2+ to provide binary compatibility with previous
 // CHRE implementations. Note that we don't presently include symbols for v1.1,
@@ -216,6 +220,12 @@ WEAK_SYMBOL
 uint32_t chreBleGetFilterCapabilities() {
   auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreBleGetFilterCapabilities);
   return (fptr != nullptr) ? fptr() : CHRE_BLE_FILTER_CAPABILITIES_NONE;
+}
+
+WEAK_SYMBOL
+bool chreBleFlushAsync(const void *cookie) {
+  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreBleFlushAsync);
+  return (fptr != nullptr) ? fptr(cookie) : false;
 }
 
 WEAK_SYMBOL

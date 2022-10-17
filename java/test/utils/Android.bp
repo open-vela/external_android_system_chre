@@ -28,6 +28,7 @@ java_library {
 
     static_libs: [
         "androidx.test.rules",
+        "truth-prebuilt",
     ],
 
     sdk_version: "system_current",
