@@ -329,7 +329,7 @@ bool WifiRequestManager::requestScan(Nanoapp *nanoapp,
   }
 
   bool success = false;
-  uint64_t nanoappInstanceId = nanoapp->getInstanceId();
+  uint16_t nanoappInstanceId = nanoapp->getInstanceId();
   if (nanoappHasPendingScanRequest(nanoappInstanceId)) {
     LOGE("Can't issue new scan request: nanoapp: %" PRIx64
          " already has a pending request",
