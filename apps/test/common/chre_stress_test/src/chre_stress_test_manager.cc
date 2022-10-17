@@ -516,7 +516,7 @@ void Manager::handleGnssLocationStartCommand(bool start) {
       cancelTimer(&mGnssLocationTimerHandle);
     }
   } else {
-    sendFailure("Platform has no location capability");
+    LOGW("Platform has no location capability");
   }
 }
 
@@ -534,7 +534,7 @@ void Manager::handleGnssMeasurementStartCommand(bool start) {
       cancelTimer(&mGnssMeasurementTimerHandle);
     }
   } else {
-    sendFailure("Platform has no GNSS measurement capability");
+    LOGW("Platform has no GNSS measurement capability");
   }
 }
 
@@ -552,7 +552,7 @@ void Manager::handleWwanStartCommand(bool start) {
       cancelTimer(&mWwanTimerHandle);
     }
   } else {
-    sendFailure("Platform has no WWAN cell info capability");
+    LOGW("Platform has no WWAN cell info capability");
   }
 }
 
@@ -570,7 +570,7 @@ void Manager::handleWifiScanMonitoringCommand(bool start) {
                true /* oneShot */, &mWifiScanMonitorAsyncTimerHandle);
     }
   } else {
-    sendFailure("Platform has no WiFi scan monitoring capability");
+    LOGW("Platform has no WiFi scan monitoring capability");
   }
 }
 
@@ -609,7 +609,7 @@ void Manager::handleSensorStartCommand(bool start) {
       cancelTimer(&mSensorTimerHandle);
     }
   } else {
-    sendFailure("Platform has no sensor capability");
+    LOGW("Platform has no sensor capability");
   }
 }
 
@@ -678,7 +678,7 @@ void Manager::makeSensorRequests() {
     setTimer(kSensorRequestInterval.toRawNanoseconds(), true /* oneShot */,
              &mSensorTimerHandle);
   } else {
-    sendFailure("Failed to make sensor request");
+    LOGW("Failed to make sensor request");
   }
 }
 
@@ -768,7 +768,7 @@ void Manager::requestDelayedWifiScan() {
       setTimer(kWifiScanInterval.toRawNanoseconds(), true /* oneShot */,
                &mWifiScanTimerHandle);
     } else {
-      sendFailure("Platform has no on-demand scan capability");
+      LOGW("Platform has no on-demand scan capability");
     }
   }
 }
