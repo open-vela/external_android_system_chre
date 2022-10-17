@@ -84,9 +84,6 @@ extern "C" {
 #define CHPP_TRANSPORT_TIMEOUT_INFINITE UINT64_MAX
 #define CHPP_TRANSPORT_TIMEOUT_IMMEDIATE 0
 
-// This lint rule is meant to ensure we make appropriate test updates whenever
-// there are changes to the transport protocol.
-// LINT.IfChange
 /**
  * CHPP Transport header flags bitmap
  *
@@ -317,7 +314,6 @@ struct ChppTransportConfiguration {
   uint16_t timeoutInMs;
 } CHPP_PACKED_ATTR;
 CHPP_PACKED_END
-// LINT.ThenChange(chpp/test/packet_util.cpp)
 
 struct ChppRxStatus {
   //! Current receiving state, as described in ChppRxState.
