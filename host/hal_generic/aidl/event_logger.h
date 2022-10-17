@@ -51,8 +51,6 @@ class EventLogger {
 
   void logMessageFromNanoapp(const ::chre::fbs::NanoappMessageT &message);
 
-  void logMessageFromNanoapp(const ContextHubMessage &message);
-
   /** Returns a textual representation of the logged events. */
   std::string dump() const;
 
