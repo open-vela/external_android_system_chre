@@ -14,28 +14,28 @@
  * limitations under the License.
  */
 
-#include "chre/util/intrusive_linked_list_base.h"
+#include "chre/util/intrusive_list_base.h"
 
 #include "chre/util/container_support.h"
 
 namespace chre {
 
-void IntrusiveLinkedListBase::doLinkBack(Node &newNode) {
+void IntrusiveListBase::doLinkBack(Node *newNode) {
   Node *prevNode = mSentinelNode.prev;
-  prevNode->next = &newNode;
-  newNode.prev = prevNode;
-  newNode.next = &mSentinelNode;
-  mSentinelNode.prev = &newNode;
+  prevNode->next = newNode;
+  newNode->prev = prevNode;
+  newNode->next = &mSentinelNode;
+  mSentinelNode.prev = newNode;
   mSize++;
 }
 
-void IntrusiveLinkedListBase::doUnlinkNode(Node &node) {
-  CHRE_ASSERT(node != mSentinelNode);
+void IntrusiveListBase::doUnlinkNode(Node *node) {
+  CHRE_ASSERT(*node != mSentinelNode);
 
-  node.prev->next = node.next;
-  node.next->prev = node.prev;
-  node.next = nullptr;
-  node.prev = nullptr;
+  node->prev->next = node->next;
+  node->next->prev = node->prev;
+  node->next = nullptr;
+  node->prev = nullptr;
   mSize--;
 }
 

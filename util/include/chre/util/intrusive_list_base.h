@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CHRE_UTIL_INTRUSIVE_LINKED_LIST_BASE_H_
-#define CHRE_UTIL_INTRUSIVE_LINKED_LIST_BASE_H_
+#ifndef CHRE_UTIL_INTRUSIVE_LIST_BASE_H_
+#define CHRE_UTIL_INTRUSIVE_LIST_BASE_H_
 
 #include <cstddef>
 
@@ -23,9 +23,10 @@
 
 namespace chre {
 
-struct Node {
-  Node *next = nullptr;
-  Node *prev = nullptr;
+namespace intrusive_list_internal {
+struct Node : public NonCopyable {
+  Node *next;
+  Node *prev;
 
   bool operator==(Node const &other) {
     return &other == this;
@@ -36,11 +37,14 @@ struct Node {
   }
 };
 
-class IntrusiveLinkedListBase : public NonCopyable {
+}  // namespace intrusive_list_internal
+
+class IntrusiveListBase : public NonCopyable {
  protected:
+  typedef intrusive_list_internal::Node Node;
   /**
-   * The sentinel node for easier access to the first and last element of the
-   * linked list
+   * The sentinel node for easier access to the first (mSentinelNode.next)
+   * and last (mSentinelNode.prev) element of the linked list.
    */
   Node mSentinelNode;
 
@@ -49,7 +53,7 @@ class IntrusiveLinkedListBase : public NonCopyable {
    */
   size_t mSize = 0;
 
-  IntrusiveLinkedListBase() {
+  IntrusiveListBase() {
     mSentinelNode.next = &mSentinelNode;
     mSentinelNode.prev = &mSentinelNode;
   };
@@ -59,16 +63,16 @@ class IntrusiveLinkedListBase : public NonCopyable {
    *
    * @param newNode: The node to push onto the linked list.
    */
-  void doLinkBack(Node &newNode);
+  void doLinkBack(Node *newNode);
 
   /**
    * Unlink a node from the linked list.
    *
    * @param node: The node to remove from the linked list.
    */
-  void doUnlinkNode(Node &node);
+  void doUnlinkNode(Node *node);
 };
 
 }  // namespace chre
 
-#endif  // CHRE_UTIL_INTRUSIVE_LINKED_LIST_BASE_H_
+#endif  // CHRE_UTIL_INTRUSIVE_LIST_BASE_H_
