@@ -143,3 +143,15 @@ TEST(UniquePtr, EqualityOperator) {
 
   EXPECT_EQ(Value::constructionCounter, 0);
 }
+
+TEST(UniquePtr, OverAlignedTest) {
+  // Explicitly overaligned structure larger than std::max_align_t.
+  struct alignas(32) OverAlignedStruct {
+    uint32_t x[32];
+  };
+  static_assert(alignof(OverAlignedStruct) > alignof(std::max_align_t));
+
+  UniquePtr<OverAlignedStruct> ptr = MakeUnique<OverAlignedStruct>();
+  ASSERT_EQ(reinterpret_cast<uintptr_t>(ptr.get()) % alignof(OverAlignedStruct),
+            0);
+}
