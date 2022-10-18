@@ -417,3 +417,22 @@ endif
 
 # ARM specific compiler flags
 ARM_CFLAGS += -I$(CHRE_PREFIX)/platform/arm/include
+
+# Tinysys Configurations ######################################################
+
+# Source files
+TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/host_link.cc
+
+# Compiler flags
+TINYSYS_CLANG_PREFIX = $(RISCV_PREFIX)/../../../../prebuilts/clang
+
+TINYSYS_CFLAGS += -I$(CHRE_PREFIX)/platform/tinysys/include
+TINYSYS_CFLAGS += -I$(CHRE_PREFIX)/platform/shared/include
+TINYSYS_CFLAGS += -I$(RISCV_PREFIX)/kernel/FreeRTOS_v10.1.0.1/FreeRTOS/Source/include
+TINYSYS_CFLAGS += -I$(RISCV_PREFIX)/kernel/FreeRTOS_v10.1.0.1/FreeRTOS/Source/portable/LLVM/RV55
+TINYSYS_CFLAGS += -I$(RISCV_PREFIX)/common/drivers/irq/v3/inc
+TINYSYS_CFLAGS += -I$(RISCV_PREFIX)/scp/drivers/RV55_A/mt6983/intc/inc
+TINYSYS_CFLAGS += -I$(RISCV_PREFIX)/scp/middleware/sensorhub/include
+TINYSYS_CFLAGS += -I$(RISCV_PREFIX)/scp/project/RV55_A/mt6983/platform/inc
+TINYSYS_CFLAGS += -I$(TINYSYS_CLANG_PREFIX)/md32rv/linux-x86/lib/clang/9.0.1/include
+TINYSYS_CFLAGS += -I$(TINYSYS_CLANG_PREFIX)/md32rv/linux-x86/dkwlib/MRV55E03v/include
