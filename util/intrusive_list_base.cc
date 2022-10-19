@@ -19,6 +19,7 @@
 #include "chre/util/container_support.h"
 
 namespace chre {
+namespace intrusive_list_internal {
 
 void IntrusiveListBase::doLinkBack(Node *newNode) {
   Node *prevNode = mSentinelNode.prev;
@@ -39,4 +40,5 @@ void IntrusiveListBase::doUnlinkNode(Node *node) {
   mSize--;
 }
 
+}  // namespace intrusive_list_internal
 }  // namespace chre

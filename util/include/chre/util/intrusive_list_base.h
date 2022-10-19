@@ -22,7 +22,6 @@
 #include "chre/util/non_copyable.h"
 
 namespace chre {
-
 namespace intrusive_list_internal {
 struct Node : public NonCopyable {
   Node *next;
@@ -37,11 +36,8 @@ struct Node : public NonCopyable {
   }
 };
 
-}  // namespace intrusive_list_internal
-
 class IntrusiveListBase : public NonCopyable {
  protected:
-  typedef intrusive_list_internal::Node Node;
   /**
    * The sentinel node for easier access to the first (mSentinelNode.next)
    * and last (mSentinelNode.prev) element of the linked list.
@@ -73,6 +69,7 @@ class IntrusiveListBase : public NonCopyable {
   void doUnlinkNode(Node *node);
 };
 
+}  // namespace intrusive_list_internal
 }  // namespace chre
 
 #endif  // CHRE_UTIL_INTRUSIVE_LIST_BASE_H_

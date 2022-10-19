@@ -80,7 +80,7 @@ struct ListNode {
  * list.
  */
 template <typename ElementType>
-class IntrusiveList : private IntrusiveListBase {
+class IntrusiveList : private intrusive_list_internal::IntrusiveListBase {
   // Check if the ListNode layout is appropriate. Inappropriate or
   // ListNode will lead to wrong behavior of the reinterpret_cast between
   // Node and ListNode that we use the retrieve item.
@@ -88,6 +88,41 @@ class IntrusiveList : private IntrusiveListBase {
                 "node must be the first element");
 
  public:
+  class Iterator {
+    using Node = ::chre::intrusive_list_internal::Node;
+
+   public:
+    Iterator(Node *node) : mNode(node){};
+
+    ListNode<ElementType> &operator*() const {
+      return *reinterpret_cast<ListNode<ElementType> *>(mNode);
+    }
+
+    ListNode<ElementType> *operator->() {
+      return reinterpret_cast<ListNode<ElementType> *>(mNode);
+    }
+
+    Iterator &operator++() {
+      mNode = mNode->next;
+      return *this;
+    }
+
+    Iterator &operator--() {
+      mNode = mNode->prev;
+      return *this;
+    }
+
+    bool operator==(Iterator other) const {
+      return mNode == other.mNode;
+    }
+    bool operator!=(Iterator other) const {
+      return mNode != other.mNode;
+    }
+
+   private:
+    Node *mNode;
+  };
+
   /**
    * Default construct a new Intrusive Linked List.
    */
@@ -149,6 +184,20 @@ class IntrusiveList : private IntrusiveListBase {
    * Note that this function does not free the memory of the node.
    */
   void unlink_back();
+
+  /**
+   * @return Iterator from the beginning of the linked list.
+   */
+  Iterator begin() {
+    return mSentinelNode.next;
+  }
+
+  /**
+   * @return Iterator from the end of the linked list.
+   */
+  Iterator end() {
+    return &mSentinelNode;
+  }
 };
 
 }  // namespace chre
