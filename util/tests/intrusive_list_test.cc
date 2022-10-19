@@ -68,3 +68,22 @@ TEST(IntrusiveList, CatchInvalidCallToEmptyList) {
   ASSERT_DEATH(testList.unlink_front(), "");
   ASSERT_DEATH(testList.unlink_back(), "");
 }
+
+TEST(IntrusiveLinkedList, ForEachLoop) {
+  typedef ListNode<int> ListIntNode;
+  IntrusiveList<int> testLinkedList;
+
+  ListIntNode testInput[]{
+      ListIntNode(0), ListIntNode(1), ListIntNode(2),
+      ListIntNode(3), ListIntNode(4),
+  };
+
+  for (auto &node : testInput) {
+    testLinkedList.link_back(&node);
+  }
+
+  int idx = 0;
+  for (auto const &node : testLinkedList) {
+    EXPECT_EQ(node.item, idx++);
+  }
+}
