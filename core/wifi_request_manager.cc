@@ -307,11 +307,12 @@ TimerHandle WifiRequestManager::setScanRequestTimer() {
 
 bool WifiRequestManager::nanoappHasPendingScanRequest(
     uint16_t instanceId) const {
-  return std::any_of(mPendingScanRequests.begin(), mPendingScanRequests.end(),
-                     [instanceId](PendingScanRequest pendingScanRequest) {
-                       return pendingScanRequest.nanoappInstanceId ==
-                              instanceId;
-                     });
+  for (const auto &scanRequest : mPendingScanRequests) {
+    if (scanRequest.nanoappInstanceId == instanceId) {
+      return true;
+    }
+  }
+  return false;
 }
 
 bool WifiRequestManager::requestScan(Nanoapp *nanoapp,
