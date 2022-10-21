@@ -25,6 +25,7 @@ GOOGLETEST_SRCS += $(CHRE_PREFIX)/util/tests/array_queue_test.cc
 GOOGLETEST_SRCS += $(CHRE_PREFIX)/util/tests/atomic_spsc_queue_test.cc
 GOOGLETEST_SRCS += $(CHRE_PREFIX)/util/tests/blocking_queue_test.cc
 GOOGLETEST_SRCS += $(CHRE_PREFIX)/util/tests/buffer_test.cc
+GOOGLETEST_SRCS += $(CHRE_PREFIX)/util/tests/copyable_fixed_size_vector_test.cc
 GOOGLETEST_SRCS += $(CHRE_PREFIX)/util/tests/debug_dump_test.cc
 GOOGLETEST_SRCS += $(CHRE_PREFIX)/util/tests/dynamic_vector_test.cc
 GOOGLETEST_SRCS += $(CHRE_PREFIX)/util/tests/fixed_size_vector_test.cc
