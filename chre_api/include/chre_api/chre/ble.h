@@ -303,10 +303,10 @@ struct chreBleGenericFilter {
   uint8_t len;
 
   //! Used in combination with dataMask to filter an advertisement
-  uint8_t data[CHRE_BLE_DATA_LEN_MAX];
+  char data[CHRE_BLE_DATA_LEN_MAX];
 
   //! Used in combination with data to filter an advertisement
-  uint8_t dataMask[CHRE_BLE_DATA_LEN_MAX];
+  char dataMask[CHRE_BLE_DATA_LEN_MAX];
 };
 
 /**
