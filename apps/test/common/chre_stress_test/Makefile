@@ -17,10 +17,12 @@ endif
 NANOAPP_NAME = chre_stress_test
 NANOAPP_ID = 0x476f6f675400000a
 NANOAPP_NAME_STRING = \"CHRE\ Stress\ Test\"
-NANOAPP_VERSION = 0x00000004
+NANOAPP_VERSION = 0x00000006
 
 NANOAPP_PATH = $(CHRE_PREFIX)/apps/test/common/chre_stress_test
 TEST_SHARED_PATH = $(CHRE_PREFIX)/apps/test/common/shared
+
+CHRE_STD_OVERRIDES_ALLOWED = true
 
 # Protobuf Sources #############################################################
 
@@ -51,6 +53,7 @@ COMMON_CFLAGS += -I$(TEST_SHARED_PATH)/inc
 CHRE_NANOAPP_USES_WIFI = true
 CHRE_NANOAPP_USES_GNSS = true
 CHRE_NANOAPP_USES_WWAN = true
+CHRE_NANOAPP_USES_AUDIO = true
 
 # Makefile Includes ############################################################
 
