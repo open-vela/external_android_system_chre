@@ -99,7 +99,7 @@ class TransportTests : public testing::TestWithParam<int> {
  * chppEnqueueTxPacket to run.
  *
  * TODO: (b/177616847) Improve test robustness / synchronization without adding
- * overhead to CHPP
+ * overhead to CHPP, by replacing with chpp::test::FakeLink or equivalent.
  */
 void WaitForTransport(struct ChppTransportState *transportContext) {
   // Wait for linkParams.notifier.signal to be triggered and processed
