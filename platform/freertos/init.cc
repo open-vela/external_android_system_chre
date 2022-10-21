@@ -16,9 +16,7 @@
 
 #include "chre/core/init.h"
 
-#ifdef CHRE_ENABLE_CHPP
 #include "chpp/platform/chpp_init.h"
-#endif
 #include "chre/core/event_loop_manager.h"
 #include "chre/core/static_nanoapps.h"
 #include "chre/platform/shared/dram_vote_client.h"
@@ -115,9 +113,7 @@ BaseType_t init() {
 
   CHRE_ASSERT(rc == pdPASS);
 
-#ifdef CHRE_ENABLE_CHPP
   chpp::init();
-#endif
 
   return rc;
 }
@@ -129,9 +125,7 @@ void deinit() {
     chre::EventLoopManagerSingleton::get()->getEventLoop().stop();
   }
 
-#ifdef CHRE_ENABLE_CHPP
   chpp::deinit();
-#endif
 }
 
 const char *getChreTaskName() {
