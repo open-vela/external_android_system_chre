@@ -11,7 +11,7 @@ COMMON_CFLAGS += -I$(CHRE_PREFIX)/util/include
 
 COMMON_SRCS += $(CHRE_PREFIX)/util/buffer_base.cc
 COMMON_SRCS += $(CHRE_PREFIX)/util/dynamic_vector_base.cc
-COMMON_SRCS += $(CHRE_PREFIX)/util/intrusive_linked_list_base.cc
+COMMON_SRCS += $(CHRE_PREFIX)/util/intrusive_list_base.cc
 COMMON_SRCS += $(CHRE_PREFIX)/util/nanoapp/audio.cc
 COMMON_SRCS += $(CHRE_PREFIX)/util/nanoapp/callbacks.cc
 COMMON_SRCS += $(CHRE_PREFIX)/util/nanoapp/debug.cc
@@ -30,7 +30,7 @@ GOOGLETEST_SRCS += $(CHRE_PREFIX)/util/tests/debug_dump_test.cc
 GOOGLETEST_SRCS += $(CHRE_PREFIX)/util/tests/dynamic_vector_test.cc
 GOOGLETEST_SRCS += $(CHRE_PREFIX)/util/tests/fixed_size_vector_test.cc
 GOOGLETEST_SRCS += $(CHRE_PREFIX)/util/tests/heap_test.cc
-GOOGLETEST_SRCS += $(CHRE_PREFIX)/util/tests/intrusive_linked_list_test.cc
+GOOGLETEST_SRCS += $(CHRE_PREFIX)/util/tests/intrusive_list_test.cc
 GOOGLETEST_SRCS += $(CHRE_PREFIX)/util/tests/lock_guard_test.cc
 GOOGLETEST_SRCS += $(CHRE_PREFIX)/util/tests/memory_pool_test.cc
 GOOGLETEST_SRCS += $(CHRE_PREFIX)/util/tests/optional_test.cc

@@ -14,49 +14,55 @@
  * limitations under the License.
  */
 
+#include "chre/util/intrusive_list.h"
+
 #include "gtest/gtest.h"
 
-#include "chre/util/intrusive_linked_list.h"
+using chre::IntrusiveList;
+using chre::ListNode;
 
-using chre::IntrusiveLinkedList;
-using chre::LinkedNode;
-
-TEST(IntrusiveLinkedList, EmptyByDefault) {
-  IntrusiveLinkedList testLinkedList;
+TEST(IntrusiveList, EmptyByDefault) {
+  IntrusiveList<int> testLinkedList;
   EXPECT_EQ(testLinkedList.size(), 0);
   EXPECT_TRUE(testLinkedList.empty());
 }
 
-TEST(IntrusiveLinkedList, PushReadAndPop) {
-  typedef LinkedNode<int> LinkedIntNode;
-  IntrusiveLinkedList<LinkedIntNode> testLinkedList;
+TEST(IntrusiveList, PushReadAndPop) {
+  typedef ListNode<int> ListIntNode;
+  IntrusiveList<int> testLinkedList;
 
-  LinkedIntNode nodeA(0);
-  LinkedIntNode nodeB(1);
-  LinkedIntNode nodeC(2);
-  testLinkedList.link_back(nodeA);
-  testLinkedList.link_back(nodeB);
-  testLinkedList.link_back(nodeC);
+  ListIntNode nodeA(0);
+  ListIntNode nodeB(1);
+  ListIntNode nodeC(2);
+  testLinkedList.link_back(&nodeA);
+  testLinkedList.link_back(&nodeB);
+  testLinkedList.link_back(&nodeC);
   EXPECT_EQ(testLinkedList.size(), 3);
 
-  EXPECT_EQ(testLinkedList.front().mItem, nodeA.mItem);
-  EXPECT_EQ(testLinkedList.back().mItem, nodeC.mItem);
+  EXPECT_EQ(testLinkedList.front().item, nodeA.item);
+  EXPECT_EQ(testLinkedList.back().item, nodeC.item);
 
   testLinkedList.unlink_front();
   EXPECT_EQ(testLinkedList.size(), 2);
-  EXPECT_EQ(testLinkedList.front().mItem, nodeB.mItem);
+  EXPECT_EQ(testLinkedList.front().item, nodeB.item);
 
   testLinkedList.unlink_back();
   EXPECT_EQ(testLinkedList.size(), 1);
-  EXPECT_EQ(testLinkedList.back().mItem, nodeB.mItem);
+  EXPECT_EQ(testLinkedList.back().item, nodeB.item);
 
   testLinkedList.unlink_back();
   EXPECT_EQ(testLinkedList.size(), 0);
   EXPECT_TRUE(testLinkedList.empty());
+
+  ListIntNode nodeD(4);
+  testLinkedList.link_back(&nodeD);
+  EXPECT_EQ(testLinkedList.size(), 1);
+  EXPECT_EQ(testLinkedList.back().item, nodeD.item);
+  EXPECT_EQ(testLinkedList.front().item, nodeD.item);
 }
 
-TEST(IntrusiveLinkedList, CatchInvalidCallToEmptyList) {
-  IntrusiveLinkedList testList;
+TEST(IntrusiveList, CatchInvalidCallToEmptyList) {
+  IntrusiveList<int> testList;
   ASSERT_DEATH(testList.front(), "");
   ASSERT_DEATH(testList.back(), "");
   ASSERT_DEATH(testList.unlink_front(), "");
