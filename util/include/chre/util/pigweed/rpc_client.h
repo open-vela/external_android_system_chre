@@ -20,7 +20,6 @@
 #include <cstdint>
 
 #include "chre/event.h"
-#include "chre/re.h"
 #include "chre/util/non_copyable.h"
 #include "chre/util/optional.h"
 #include "chre/util/pigweed/chre_channel_output.h"
@@ -122,9 +121,8 @@ Optional<T> RpcClient::get() {
       return Optional<T>();
     }
 
-    mChannelId = chreGetInstanceId();
+    mChannelId = info.instanceId;
     mChannelOutput.setNanoappEndpoint(mChannelId);
-    mChannelOutput.setServer(info.instanceId);
     mChannel.Configure(mChannelId, mChannelOutput);
   }
 
