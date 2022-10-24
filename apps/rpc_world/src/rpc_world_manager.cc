@@ -52,9 +52,8 @@ void timerEnd(pw::Status status) {
 }
 
 bool RpcWorldManager::start() {
-  chre::RpcServer::Service service = {.service = mRpcWorldService,
-                                      .id = 0xca8f7150a3f05847,
-                                      .version = 0x01020034};
+  chre::RpcServer::Service service = {
+      mRpcWorldService, 0xca8f7150a3f05847 /* id */, 0x01020034 /* version */};
   if (!mServer.registerServices(1, &service)) {
     LOGE("Error while registering the service");
   }
