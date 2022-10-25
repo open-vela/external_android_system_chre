@@ -94,10 +94,20 @@ class ChreNanoappChannelOutput : public ChreChannelOutputBase {
    */
   void setNanoappEndpoint(uint32_t nanoappInstanceId);
 
+  /**
+   * Sets the server instance ID.
+   *
+   * This method must only be called for clients.
+   *
+   * @param instanceId The instance ID of the server.
+   */
+  void setServer(uint32_t instanceId);
+
   pw::Status Send(pw::span<const std::byte> buffer) override;
 
  private:
   const enum Role mRole;
+  uint32_t mServerInstanceId = 0;
 };
 
 /**
