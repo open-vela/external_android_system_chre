@@ -48,14 +48,14 @@ bool RpcClient::handleMessageFromServer(uint32_t senderInstanceId,
                                         const void *eventData) {
   auto data = static_cast<const chre::ChrePigweedNanoappMessage *>(eventData);
   pw::span packet(static_cast<const std::byte *>(data->msg), data->msgSize);
+  struct chreNanoappInfo info;
 
-  pw::Result result = pw::rpc::ExtractChannelId(packet);
-  if (result.status() != PW_STATUS_OK) {
-    LOGE("Unable to extract channel ID from packet");
+  if (!chreGetNanoappInfoByAppId(mServerNanoappId, &info) ||
+      info.instanceId > kRpcNanoappMaxId) {
     return false;
   }
 
-  if (!validateNanoappChannelId(senderInstanceId, result.value())) {
+  if (!validateNanoappChannelId(senderInstanceId, info.instanceId)) {
     return false;
   }
 

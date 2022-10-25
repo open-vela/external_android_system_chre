@@ -18,6 +18,7 @@
 
 #include "chre/util/memory.h"
 #include "chre/util/nanoapp/callbacks.h"
+#include "chre/util/pigweed/rpc_helper.h"
 
 namespace chre {
 namespace {
@@ -39,16 +40,26 @@ size_t ChreChannelOutputBase::MaximumTransmissionUnit() {
 }
 
 void ChreNanoappChannelOutput::setNanoappEndpoint(uint32_t nanoappInstanceId) {
-  CHRE_ASSERT(nanoappInstanceId <= UINT16_MAX);
-  if (nanoappInstanceId <= UINT16_MAX) {
+  CHRE_ASSERT(nanoappInstanceId <= kRpcNanoappMaxId);
+  if (nanoappInstanceId <= kRpcNanoappMaxId) {
     mEndpointId = static_cast<uint16_t>(nanoappInstanceId);
   } else {
     mEndpointId = CHRE_HOST_ENDPOINT_UNSPECIFIED;
   }
 }
 
+void ChreNanoappChannelOutput::setServer(uint32_t instanceId) {
+  CHRE_ASSERT(instanceId <= kRpcNanoappMaxId);
+  if (instanceId <= kRpcNanoappMaxId) {
+    mServerInstanceId = static_cast<uint16_t>(instanceId);
+  } else {
+    mServerInstanceId = 0;
+  }
+}
+
 pw::Status ChreNanoappChannelOutput::Send(pw::span<const std::byte> buffer) {
   CHRE_ASSERT(mEndpointId != CHRE_HOST_ENDPOINT_UNSPECIFIED);
+  CHRE_ASSERT(mRole == Role::SERVER || mServerInstanceId != 0);
 
   if (buffer.size() > 0) {
     auto *data = static_cast<ChrePigweedNanoappMessage *>(
@@ -61,10 +72,11 @@ pw::Status ChreNanoappChannelOutput::Send(pw::span<const std::byte> buffer) {
     data->msg = &data[1];
     memcpy(data->msg, buffer.data(), buffer.size());
 
-    if (!chreSendEvent(mRole == Role::SERVER
-                           ? PW_RPC_CHRE_NAPP_RESPONSE_EVENT_TYPE
-                           : PW_RPC_CHRE_NAPP_REQUEST_EVENT_TYPE,
-                       data, nappMessageFreeCb, mEndpointId)) {
+    if (!chreSendEvent(
+            mRole == Role::SERVER ? PW_RPC_CHRE_NAPP_RESPONSE_EVENT_TYPE
+                                  : PW_RPC_CHRE_NAPP_REQUEST_EVENT_TYPE,
+            data, nappMessageFreeCb,
+            mRole == Role::SERVER ? mEndpointId : mServerInstanceId)) {
       return PW_STATUS_INVALID_ARGUMENT;
     }
   }
