@@ -35,9 +35,19 @@ namespace chre {
 namespace freertos {
 namespace {
 
-constexpr configSTACK_DEPTH_TYPE kChreTaskStackDepthWords = 0x800;
-
+#ifdef CHRE_FREERTOS_TASK_PRIORITY
+constexpr UBaseType_t kChreTaskPriority =
+    tskIDLE_PRIORITY + CHRE_FREERTOS_TASK_PRIORITY;
+#else
 constexpr UBaseType_t kChreTaskPriority = tskIDLE_PRIORITY + 1;
+#endif
+
+#ifdef CHRE_FREERTOS_STACK_DEPTH_IN_WORDS
+constexpr configSTACK_DEPTH_TYPE kChreTaskStackDepthWords =
+    CHRE_FREERTOS_STACK_DEPTH_IN_WORDS;
+#else
+constexpr configSTACK_DEPTH_TYPE kChreTaskStackDepthWords = 0x800;
+#endif
 
 TaskHandle_t gChreTaskHandle;
 

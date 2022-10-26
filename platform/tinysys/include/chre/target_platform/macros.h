@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,22 +14,7 @@
  * limitations under the License.
  */
 
-#ifndef CHRE_PLATFORM_FREERTOS_ATOMIC_BASE_H_
-#define CHRE_PLATFORM_FREERTOS_ATOMIC_BASE_H_
+#ifndef CHRE_PLATFORM_TINYSYS_MACROS_H_
+#define CHRE_PLATFORM_TINYSYS_MACROS_H_
 
-#include <atomic>
-
-namespace chre {
-
-template <typename AtomicType>
-class AtomicBase {
- protected:
-  std::atomic<AtomicType> mAtomic;
-};
-
-typedef AtomicBase<bool> AtomicBoolBase;
-typedef AtomicBase<uint32_t> AtomicUint32Base;
-
-}  // namespace chre
-
-#endif  // CHRE_PLATFORM_FREERTOS_ATOMIC_BASE_H_
+#endif  // CHRE_PLATFORM_TINYSYS_MACROS_H_

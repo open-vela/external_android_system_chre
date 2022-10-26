@@ -423,12 +423,16 @@ ARM_CFLAGS += -I$(CHRE_PREFIX)/platform/arm/include
 # Source files
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/host_link.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/system_timer.cc
+TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/chre_init.cc
+TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/log_buffer.cc
+TINYSYS_SRCS += $(CHRE_PREFIX)/platform/freertos/init.cc
 
 # Compiler flags
 TINYSYS_CLANG_PREFIX = $(RISCV_PREFIX)/../../../../prebuilts/clang
 
 TINYSYS_CFLAGS += -I$(CHRE_PREFIX)/platform/tinysys/include
 TINYSYS_CFLAGS += -I$(CHRE_PREFIX)/platform/shared/include
+TINYSYS_CFLAGS += -I$(CHRE_PREFIX)/platform/freertos/include
 TINYSYS_CFLAGS += -I$(RISCV_PREFIX)/kernel/FreeRTOS_v10.1.0.1/FreeRTOS/Source/include
 TINYSYS_CFLAGS += -I$(RISCV_PREFIX)/kernel/FreeRTOS_v10.1.0.1/FreeRTOS/Source/portable/LLVM/RV55
 TINYSYS_CFLAGS += -I$(RISCV_PREFIX)/common/drivers/irq/v3/inc
