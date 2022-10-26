@@ -48,6 +48,18 @@ class Nanoapp : public PlatformNanoapp {
   Nanoapp();
 
   /**
+   * Calls the start function of the nanoapp. For dynamically loaded nanoapps,
+   * this must also result in calling through to any of the nanoapp's static
+   * global constructors/init functions, etc., prior to invoking the
+   * nanoappStart.
+   *
+   * @return true if the app was able to start successfully
+   *
+   * @see nanoappStart
+   */
+  bool start();
+
+  /**
    * @return The unique identifier for this Nanoapp instance
    */
   uint16_t getInstanceId() const {
@@ -213,7 +225,7 @@ class Nanoapp : public PlatformNanoapp {
                           size_t numServices);
 
   /**
-   * @return The list of RPC services pushblished by this nanoapp.
+   * @return The list of RPC services published by this nanoapp.
    */
   const DynamicVector<struct chreNanoappRpcService> &getRpcServices() const {
     return mRpcServices;
@@ -295,6 +307,9 @@ class Nanoapp : public PlatformNanoapp {
 
   //! The list of RPC services for this nanoapp.
   DynamicVector<struct chreNanoappRpcService> mRpcServices;
+
+  //! Whether nanoappStart is being executed.
+  bool mIsInNanoappStart = false;
 
   //! @return index of event registration if found. mRegisteredEvents.size() if
   //!     not.

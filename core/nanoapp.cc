@@ -39,6 +39,13 @@ Nanoapp::Nanoapp() {
   cycleWakeupBuckets(1);
 }
 
+bool Nanoapp::start() {
+  mIsInNanoappStart = true;
+  bool success = PlatformNanoapp::start();
+  mIsInNanoappStart = false;
+  return success;
+}
+
 bool Nanoapp::isRegisteredForBroadcastEvent(const Event *event) const {
   bool registered = false;
   uint16_t eventType = event->eventType;
@@ -235,13 +242,37 @@ bool Nanoapp::configureHostEndpointNotifications(uint16_t hostEndpointId,
 
 bool Nanoapp::publishRpcServices(struct chreNanoappRpcService *services,
                                  size_t numServices) {
-  // TODO(b/204426460): Validate this code is only called from nanoappStart().
+  if (!mIsInNanoappStart) {
+    LOGE("publishRpcServices must be called from nanoappStart");
+    return false;
+  }
+
   bool success = true;
+  const size_t startSize = mRpcServices.size();
+
+  mRpcServices.reserve(startSize + numServices);
+
   for (size_t i = 0; i < numServices; i++) {
     if (!mRpcServices.push_back(services[i])) {
       LOG_OOM();
       success = false;
     }
+  }
+
+  if (success && mRpcServices.size() > 1) {
+    for (size_t i = 0; i < mRpcServices.size() - 1; i++) {
+      for (size_t j = i + 1; j < mRpcServices.size(); j++) {
+        if (mRpcServices[i].id == mRpcServices[j].id) {
+          LOGE("Service id = 0x%016" PRIx64 " can only be published once",
+               mRpcServices[i].id);
+          success = false;
+        }
+      }
+    }
+  }
+
+  if (!success) {
+    mRpcServices.resize(startSize);
   }
 
   return success;
