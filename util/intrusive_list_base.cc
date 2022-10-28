@@ -19,7 +19,6 @@
 #include "chre/util/container_support.h"
 
 namespace chre {
-namespace intrusive_list_internal {
 
 void IntrusiveListBase::doLinkBack(Node *newNode) {
   Node *prevNode = mSentinelNode.prev;
@@ -31,6 +30,8 @@ void IntrusiveListBase::doLinkBack(Node *newNode) {
 }
 
 void IntrusiveListBase::doUnlinkNode(Node *node) {
+  CHRE_ASSERT(*node != mSentinelNode);
+
   node->prev->next = node->next;
   node->next->prev = node->prev;
   node->next = nullptr;
@@ -38,26 +39,4 @@ void IntrusiveListBase::doUnlinkNode(Node *node) {
   mSize--;
 }
 
-void IntrusiveListBase::doLinkAfter(Node *frontNode, Node *newNode) {
-  Node *backNode = frontNode->next;
-  frontNode->next = newNode;
-  newNode->prev = frontNode;
-  newNode->next = backNode;
-  backNode->prev = newNode;
-  mSize++;
-}
-
-void IntrusiveListBase::doUnlinkAll() {
-  Node *currentNodePtr, *nextNodePtr;
-  currentNodePtr = mSentinelNode.next;
-
-  while (currentNodePtr != &mSentinelNode) {
-    nextNodePtr = currentNodePtr->next;
-    currentNodePtr->next = nullptr;
-    currentNodePtr->prev = nullptr;
-    currentNodePtr = nextNodePtr;
-  }
-}
-
-}  // namespace intrusive_list_internal
 }  // namespace chre
