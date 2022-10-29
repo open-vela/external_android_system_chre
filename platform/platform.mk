@@ -422,6 +422,7 @@ ARM_CFLAGS += -I$(CHRE_PREFIX)/platform/arm/include
 
 # Source files
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/host_link.cc
+TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/system_timer.cc
 
 # Compiler flags
 TINYSYS_CLANG_PREFIX = $(RISCV_PREFIX)/../../../../prebuilts/clang

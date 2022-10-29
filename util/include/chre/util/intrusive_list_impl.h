@@ -24,6 +24,11 @@
 namespace chre {
 
 template <typename ElementType>
+IntrusiveList<ElementType>::~IntrusiveList() {
+  IntrusiveListBase::doUnlinkAll();
+}
+
+template <typename ElementType>
 void IntrusiveList<ElementType>::link_back(ListNode<ElementType> *newNode) {
   return IntrusiveListBase::doLinkBack(&newNode->node);
 }
@@ -62,6 +67,18 @@ template <typename ElementType>
 void IntrusiveList<ElementType>::unlink_back() {
   CHRE_ASSERT(mSize > 0);
   IntrusiveListBase::doUnlinkNode(mSentinelNode.prev);
+}
+
+template <typename ElementType>
+void IntrusiveList<ElementType>::unlink_node(ListNode<ElementType> *node) {
+  CHRE_ASSERT(mSize > 0);
+  IntrusiveListBase::doUnlinkNode(&node->node);
+}
+
+template <typename ElementType>
+void IntrusiveList<ElementType>::link_after(ListNode<ElementType> *frontNode,
+                                            ListNode<ElementType> *newNode) {
+  IntrusiveListBase::doLinkAfter(&frontNode->node, &newNode->node);
 }
 
 }  // namespace chre

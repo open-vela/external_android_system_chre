@@ -22,6 +22,8 @@
 
 #include "chre/util/intrusive_list_base.h"
 
+#include "chre/util/container_support.h"
+
 namespace chre {
 
 template <typename ElementType>
@@ -54,6 +56,10 @@ struct ListNode {
    */
   template <typename... Args>
   ListNode(Args &&...args) : item(std::forward<Args>(args)...) {}
+
+  ~ListNode() {
+    CHRE_ASSERT(node.prev == nullptr && node.next == nullptr);
+  }
 };
 
 /**
@@ -70,17 +76,20 @@ struct ListNode {
  * Note that although ListNode.node is accessible to client code, user should
  * not modify them directly without using the linked list.
  *
- * For example:
+ * Example:
  *  typedef ListNode<int> ListIntNode;
  *  ListIntNode node(10);
  *  IntrusiveList<int> myList;
  *  myList.push_back(node);
  *
+ * Note that myList is declared after node so that myList will be destructed
+ * before node.
+ *
  * @tparam ElementType: The data type that wants to be stored using the link
  * list.
  */
 template <typename ElementType>
-class IntrusiveList : private IntrusiveListBase {
+class IntrusiveList : private intrusive_list_internal::IntrusiveListBase {
   // Check if the ListNode layout is appropriate. Inappropriate or
   // ListNode will lead to wrong behavior of the reinterpret_cast between
   // Node and ListNode that we use the retrieve item.
@@ -88,10 +97,50 @@ class IntrusiveList : private IntrusiveListBase {
                 "node must be the first element");
 
  public:
+  class Iterator {
+    using Node = ::chre::intrusive_list_internal::Node;
+
+   public:
+    Iterator(Node *node) : mNode(node){};
+
+    ListNode<ElementType> &operator*() const {
+      return *reinterpret_cast<ListNode<ElementType> *>(mNode);
+    }
+
+    ListNode<ElementType> *operator->() {
+      return reinterpret_cast<ListNode<ElementType> *>(mNode);
+    }
+
+    Iterator &operator++() {
+      mNode = mNode->next;
+      return *this;
+    }
+
+    Iterator &operator--() {
+      mNode = mNode->prev;
+      return *this;
+    }
+
+    bool operator==(Iterator other) const {
+      return mNode == other.mNode;
+    }
+    bool operator!=(Iterator other) const {
+      return mNode != other.mNode;
+    }
+
+   private:
+    Node *mNode;
+  };
+
   /**
    * Default construct a new Intrusive Linked List.
    */
   IntrusiveList() = default;
+
+  /**
+   * Unlink all node when destroy the Intrusive List object.
+   */
+  ~IntrusiveList();
 
   /**
    * Examines if the linked list is empty.
@@ -149,6 +198,36 @@ class IntrusiveList : private IntrusiveListBase {
    * Note that this function does not free the memory of the node.
    */
   void unlink_back();
+
+  /**
+   * Remove a node from its list.
+   *
+   * @param node: Node that need to be unlinked.
+   */
+  void unlink_node(ListNode<ElementType> *node);
+
+  /**
+   * Link a node after a given node.
+   *
+   * @param frontNode the old node that will be in front of the new node.
+   * @param newNode the new node that will be link to the list.
+   */
+  void link_after(ListNode<ElementType> *frontNode,
+                  ListNode<ElementType> *newNode);
+
+  /**
+   * @return Iterator from the beginning of the linked list.
+   */
+  Iterator begin() {
+    return mSentinelNode.next;
+  }
+
+  /**
+   * @return Iterator from the end of the linked list.
+   */
+  Iterator end() {
+    return &mSentinelNode;
+  }
 };
 
 }  // namespace chre
