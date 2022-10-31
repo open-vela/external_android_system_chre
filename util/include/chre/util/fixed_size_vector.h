@@ -198,7 +198,7 @@ class FixedSizeVector : public NonCopyable {
   typename FixedSizeVector<ElementType, kCapacity>::const_iterator end() const;
   typename FixedSizeVector<ElementType, kCapacity>::const_iterator cend() const;
 
- private:
+ protected:
   //! Storage for vector elements. To avoid static initialization of members,
   //! std::aligned_storage is used.
   typename std::aligned_storage<sizeof(ElementType), alignof(ElementType)>::type

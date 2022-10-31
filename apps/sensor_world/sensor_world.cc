@@ -343,7 +343,8 @@ bool nanoappStart() {
         bool status = chreSensorConfigure(sensor.handle,
                                           CHRE_SENSOR_CONFIGURE_MODE_CONTINUOUS,
                                           sensor.interval, sensor.latency);
-        LOGI("Requested data: odr %f Hz, latency %f sec, %s", odrHz, latencySec,
+        LOGI("Requested data: odr %f Hz, latency %f sec, %s",
+             static_cast<double>(odrHz), static_cast<double>(latencySec),
              status ? "success" : "failure");
       }
     }
@@ -389,8 +390,10 @@ void nanoappHandleEvent(uint32_t senderInstanceId, uint16_t eventType,
       z /= header.readingCount;
 
       CLOGI("%s, %d samples: %f %f %f, accuracy: %u, t=%" PRIu64 " ms",
-            getSensorName(header.sensorHandle), header.readingCount, x, y, z,
-            accuracy, header.baseTimestamp / kOneMillisecondInNanoseconds);
+            getSensorName(header.sensorHandle), header.readingCount,
+            static_cast<double>(x), static_cast<double>(y),
+            static_cast<double>(z), accuracy,
+            header.baseTimestamp / kOneMillisecondInNanoseconds);
 
       if (eventType == CHRE_EVENT_SENSOR_UNCALIBRATED_GYROSCOPE_DATA) {
         CLOGI("UncalGyro time: first %" PRIu64 " last %" PRIu64 " chre %" PRIu64
@@ -419,8 +422,8 @@ void nanoappHandleEvent(uint32_t senderInstanceId, uint16_t eventType,
       v /= header.readingCount;
 
       CLOGI("%s, %d samples: %f, accuracy = %u, t=%" PRIu64 " ms",
-            getSensorName(header.sensorHandle), header.readingCount, v,
-            header.accuracy,
+            getSensorName(header.sensorHandle), header.readingCount,
+            static_cast<double>(v), header.accuracy,
             header.baseTimestamp / kOneMillisecondInNanoseconds);
       break;
     }
