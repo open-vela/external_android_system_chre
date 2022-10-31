@@ -251,15 +251,9 @@ TEST(ArrayQueueTest, ElementsDestructedWhenQueueDestructed) {
       q.push(e);
       q[i].setValue(i);
     }
-
-    q.~ArrayQueue();
-
-    for (size_t i = 0; i < 3; ++i) {
-      EXPECT_EQ(1, destructor_count[i]);
-    }
   }
 
-  // Check destructor count.
+  // q should now be destroyed - check destructor count.
   for (size_t i = 0; i < 3; ++i) {
     EXPECT_EQ(1, destructor_count[i]);
   }
