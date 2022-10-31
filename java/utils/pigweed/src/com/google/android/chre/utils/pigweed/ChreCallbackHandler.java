@@ -64,7 +64,7 @@ public class ChreCallbackHandler {
      * This method ensures all outstanding RPCs are canceled.
      */
     public void onHubReset() {
-        // TODO(b/210138227): Close all outsanding RPCs.
+        // TODO(b/210138227): Close all outstanding RPCs.
     }
 
 
@@ -77,7 +77,7 @@ public class ChreCallbackHandler {
      */
     public void onNanoappUnloaded(long nanoappId) {
         if (nanoappId == mNanoappId) {
-            // TODO(b/210138227): Close all outsanding RPCs.
+            // TODO(b/210138227): Close all outstanding RPCs.
         }
     }
 
@@ -90,7 +90,7 @@ public class ChreCallbackHandler {
      */
     public void onNanoappDisabled(long nanoappId) {
         if (nanoappId == mNanoappId) {
-            // TODO(b/210138227): Close all outsanding RPCs.
+            // TODO(b/210138227): Close all outstanding RPCs.
         }
     }
 
@@ -103,7 +103,7 @@ public class ChreCallbackHandler {
      */
     public void onNanoppAborted(long nanoappId) {
         if (nanoappId == mNanoappId) {
-            // TODO(b/210138227): Close all outsanding RPCs.
+            // TODO(b/210138227): Close all outstanding RPCs.
         }
     }
 
@@ -119,7 +119,7 @@ public class ChreCallbackHandler {
         if (nanoappId == mNanoappId) {
             if (authorization == AUTHORIZATION_DENIED) {
                 mChannelOutput.setAuthDenied(true /* denied */);
-                // TODO(b/210138227): Close all outsanding RPCs.
+                // TODO(b/210138227): Close all outstanding RPCs.
             } else if (authorization == AUTHORIZATION_GRANTED) {
                 mChannelOutput.setAuthDenied(false /* denied */);
             }
