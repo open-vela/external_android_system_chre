@@ -129,6 +129,9 @@ COMMON_SRCS += $(PIGWEED_DIR)/pw_varint/varint.cc
 COMMON_CFLAGS += -I$(NANOPB_PREFIX)
 COMMON_CFLAGS += -DPW_RPC_USE_GLOBAL_MUTEX=0
 
+# Enable closing a client stream.
+COMMON_CFLAGS += -DPW_RPC_CLIENT_STREAM_END_CALLBACK
+
 # NanoPB sources
 COMMON_SRCS += $(NANOPB_PREFIX)/pb_common.c
 COMMON_SRCS += $(NANOPB_PREFIX)/pb_decode.c
