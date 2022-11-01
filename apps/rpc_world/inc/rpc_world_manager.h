@@ -40,7 +40,12 @@ class RpcWorldService final
   // Timer RPC server streaming service definition.
   // See generated TimerService::Service for more details.
   void Timer(const chre_rpc_TimerRequest &request,
-             RpcWorldService::ServerWriter<chre_rpc_TimerResponse> &writer);
+             ServerWriter<chre_rpc_TimerResponse> &writer);
+
+  // Add RPC client streaming service definition.
+  // See generated AddService::Service for more details.
+  void Add(
+      ServerReader<chre_rpc_NumberMessage, chre_rpc_NumberMessage> &reader);
 };
 
 /**
@@ -79,17 +84,31 @@ class RpcWorldManager {
       uint32_t numTicks,
       RpcWorldService::ServerWriter<chre_rpc_TimerResponse> &writer);
 
+  /**
+   * Starts a client streamed add.
+   *
+   * @param reader Used to read the streamed requests.
+   */
+  void addStart(RpcWorldService::ServerReader<chre_rpc_NumberMessage,
+                                              chre_rpc_NumberMessage> &reader);
+
+  uint32_t mSum = 0;
+
  private:
   chre::RpcServer mServer;
   chre::RpcClient mClient{chre::kRpcWorldAppId};
   // pw_rpc service used to process the RPCs.
   RpcWorldService mRpcWorldService;
   RpcWorldService::ServerWriter<chre_rpc_TimerResponse> mTimerWriter;
+  RpcWorldService::ServerReader<chre_rpc_NumberMessage, chre_rpc_NumberMessage>
+      mAddReader;
   uint32_t mTimerId = CHRE_TIMER_INVALID;
   uint32_t mTimerCurrentTick;
   uint32_t mTimerTotalTicks;
   pw::rpc::NanopbUnaryReceiver<chre_rpc_NumberMessage> mIncrementCall;
   pw::rpc::NanopbClientReader<chre_rpc_TimerResponse> mTimerCall;
+  pw::rpc::NanopbClientWriter<chre_rpc_NumberMessage, chre_rpc_NumberMessage>
+      mAddCall;
 };
 
 typedef chre::Singleton<RpcWorldManager> RpcWorldManagerSingleton;

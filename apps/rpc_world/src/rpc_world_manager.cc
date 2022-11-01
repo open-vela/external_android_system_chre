@@ -22,12 +22,26 @@
 
 #define LOG_TAG "[RpcWorld]"
 
+// [Server] Service implementations.
 pw::Status RpcWorldService::Increment(const chre_rpc_NumberMessage &request,
                                       chre_rpc_NumberMessage &response) {
   response.number = request.number + 1;
   return pw::OkStatus();
 }
 
+void RpcWorldService::Timer(
+    const chre_rpc_TimerRequest &request,
+    RpcWorldService::ServerWriter<chre_rpc_TimerResponse> &writer) {
+  RpcWorldManagerSingleton::get()->timerStart(request.num_ticks, writer);
+}
+
+void RpcWorldService::Add(
+    RpcWorldService::ServerReader<chre_rpc_NumberMessage,
+                                  chre_rpc_NumberMessage> &reader) {
+  RpcWorldManagerSingleton::get()->addStart(reader);
+}
+
+// [Client] callbacks.
 void incrementResponse(const chre_rpc_NumberMessage &response,
                        pw::Status status) {
   if (status.ok()) {
@@ -37,18 +51,20 @@ void incrementResponse(const chre_rpc_NumberMessage &response,
   }
 }
 
-void RpcWorldService::Timer(
-    const chre_rpc_TimerRequest &request,
-    RpcWorldService::ServerWriter<chre_rpc_TimerResponse> &writer) {
-  RpcWorldManagerSingleton::get()->timerStart(request.num_ticks, writer);
-}
-
 void timerResponse(const chre_rpc_TimerResponse &response) {
   LOGI("Tick response: %d", response.tick_number);
 }
 
 void timerEnd(pw::Status status) {
   LOGI("Tick stream end: %d", static_cast<int>(status.code()));
+}
+
+void addResponse(const chre_rpc_NumberMessage &response, pw::Status status) {
+  if (status.ok()) {
+    LOGI("Add response: %d", response.number);
+  } else {
+    LOGE("Add failed with status %d", static_cast<int>(status.code()));
+  }
 }
 
 bool RpcWorldManager::start() {
@@ -63,15 +79,27 @@ bool RpcWorldManager::start() {
       mClient.get<chre::rpc::pw_rpc::nanopb::RpcWorldService::Client>();
 
   if (client.has_value()) {
+    // [Client] Invoking a unary RPC.
     chre_rpc_NumberMessage incrementRequest;
     incrementRequest.number = 101;
     mIncrementCall = client->Increment(incrementRequest, incrementResponse);
     CHRE_ASSERT(mIncrementCall.active());
 
+    // [Client] Invoking a server streaming RPC.
     chre_rpc_TimerRequest timerRequest;
     timerRequest.num_ticks = 5;
     mTimerCall = client->Timer(timerRequest, timerResponse, timerEnd);
     CHRE_ASSERT(mTimerCall.active());
+
+    // [Client] Invoking a client streaming RPC.
+    chre_rpc_NumberMessage addRequest;
+    addRequest.number = 1;
+    mAddCall = client->Add(addResponse);
+    CHRE_ASSERT(mAddCall.active());
+    mAddCall.Write(addRequest);
+    mAddCall.Write(addRequest);
+    mAddCall.Write(addRequest);
+    mAddCall.CloseClientStream();
   } else {
     LOGE("Error while retrieving the client");
   }
@@ -91,6 +119,7 @@ void RpcWorldManager::handleEvent(uint32_t senderInstanceId, uint16_t eventType,
 
   switch (eventType) {
     case CHRE_EVENT_TIMER:
+      // [Server] stream responses.
       chre_rpc_TimerResponse response;
       response.tick_number = mTimerCurrentTick;
       mTimerWriter.Write(response);
@@ -120,4 +149,19 @@ void RpcWorldManager::timerStart(
   mTimerWriter = std::move(writer);
   mTimerId = chreTimerSet(chre::kOneSecondInNanoseconds, nullptr /*cookie*/,
                           false /*oneShot*/);
+}
+
+void RpcWorldManager::addStart(
+    RpcWorldService::ServerReader<chre_rpc_NumberMessage,
+                                  chre_rpc_NumberMessage> &reader) {
+  mSum = 0;
+  reader.set_on_next([](const chre_rpc_NumberMessage &request) {
+    RpcWorldManagerSingleton::get()->mSum += request.number;
+  });
+  reader.set_on_client_stream_end([]() {
+    chre_rpc_NumberMessage response;
+    response.number = RpcWorldManagerSingleton::get()->mSum;
+    RpcWorldManagerSingleton::get()->mAddReader.Finish(response);
+  });
+  mAddReader = std::move(reader);
 }
