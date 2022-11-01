@@ -27,7 +27,6 @@
 #include "chre/util/fixed_size_vector.h"
 #include "chre/util/system/debug_dump.h"
 #include "chre/util/system/napp_permissions.h"
-#include "chre/util/system/stats_container.h"
 #include "chre_api/chre/event.h"
 
 namespace chre {
@@ -46,18 +45,6 @@ namespace chre {
 class Nanoapp : public PlatformNanoapp {
  public:
   Nanoapp();
-
-  /**
-   * Calls the start function of the nanoapp. For dynamically loaded nanoapps,
-   * this must also result in calling through to any of the nanoapp's static
-   * global constructors/init functions, etc., prior to invoking the
-   * nanoappStart.
-   *
-   * @return true if the app was able to start successfully
-   *
-   * @see nanoappStart
-   */
-  bool start();
 
   /**
    * @return The unique identifier for this Nanoapp instance
@@ -225,7 +212,7 @@ class Nanoapp : public PlatformNanoapp {
                           size_t numServices);
 
   /**
-   * @return The list of RPC services published by this nanoapp.
+   * @return The list of RPC services pushblished by this nanoapp.
    */
   const DynamicVector<struct chreNanoappRpcService> &getRpcServices() const {
     return mRpcServices;
@@ -283,9 +270,6 @@ class Nanoapp : public PlatformNanoapp {
   //! wakeups over time intervals.
   FixedSizeVector<uint16_t, kMaxSizeWakeupBuckets> mWakeupBuckets;
 
-  //! Collects process time in nanoseconds of each event
-  StatsContainer<uint64_t> mEventProcessTime;
-
   //! Metadata needed for keeping track of the registered events for this
   //! nanoapp.
   struct EventRegistration {
@@ -307,9 +291,6 @@ class Nanoapp : public PlatformNanoapp {
 
   //! The list of RPC services for this nanoapp.
   DynamicVector<struct chreNanoappRpcService> mRpcServices;
-
-  //! Whether nanoappStart is being executed.
-  bool mIsInNanoappStart = false;
 
   //! @return index of event registration if found. mRegisteredEvents.size() if
   //!     not.
