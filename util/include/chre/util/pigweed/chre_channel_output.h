@@ -17,11 +17,11 @@
 #ifndef CHRE_CHANNEL_OUTPUT_H_
 #define CHRE_CHANNEL_OUTPUT_H_
 
-#include <span>
-
 #include <chre.h>
+#include <cstdint>
 
 #include "pw_rpc/channel.h"
+#include "pw_span/span.h"
 
 namespace chre {
 
@@ -31,7 +31,7 @@ namespace chre {
  */
 struct ChrePigweedNanoappMessage {
   size_t msgSize;
-  uint8_t msg[];
+  void *msg;
 };
 
 /**
@@ -45,9 +45,12 @@ class ChreChannelOutputBase : public pw::rpc::ChannelOutput {
   // to not conflict with other CHRE messages the nanoapp and client may send.
   static constexpr uint32_t PW_RPC_CHRE_HOST_MESSAGE_TYPE = INT32_MAX - 10;
 
-  // Random value chosen to be towards the end of the nanoapp event type region
+  // Random values chosen to be towards the end of the nanoapp event type region
   // so it doesn't conflict with existing nanoapp messages that can be sent.
-  static constexpr uint16_t PW_RPC_CHRE_NAPP_EVENT_TYPE = UINT16_MAX - 10;
+  static constexpr uint16_t PW_RPC_CHRE_NAPP_REQUEST_EVENT_TYPE =
+      UINT16_MAX - 10;
+  static constexpr uint16_t PW_RPC_CHRE_NAPP_RESPONSE_EVENT_TYPE =
+      UINT16_MAX - 9;
 
   size_t MaximumTransmissionUnit() override;
 
@@ -72,12 +75,39 @@ class ChreChannelOutputBase : public pw::rpc::ChannelOutput {
 class ChreNanoappChannelOutput : public ChreChannelOutputBase {
  public:
   /**
+   * Whether the channel output is used on the server or the client side.
+   */
+  enum class Role : uint8_t {
+    SERVER = 0,
+    CLIENT = 1,
+  };
+
+  /**
+   * @param role Whether the channel output is used on the server or the client
+   *    side.
+   */
+  ChreNanoappChannelOutput(enum Role role) : mRole(role){};
+
+  /**
    * Sets the nanoapp instance ID that is being communicated with over this
    * channel output.
    */
   void setNanoappEndpoint(uint32_t nanoappInstanceId);
 
-  pw::Status Send(std::span<const std::byte> buffer) override;
+  /**
+   * Sets the server instance ID.
+   *
+   * This method must only be called for clients.
+   *
+   * @param instanceId The instance ID of the server.
+   */
+  void setServer(uint32_t instanceId);
+
+  pw::Status Send(pw::span<const std::byte> buffer) override;
+
+ private:
+  const enum Role mRole;
+  uint32_t mServerInstanceId = 0;
 };
 
 /**
@@ -91,7 +121,7 @@ class ChreHostChannelOutput : public ChreChannelOutputBase {
    */
   void setHostEndpoint(uint16_t hostEndpoint);
 
-  pw::Status Send(std::span<const std::byte> buffer) override;
+  pw::Status Send(pw::span<const std::byte> buffer) override;
 };
 
 }  // namespace chre

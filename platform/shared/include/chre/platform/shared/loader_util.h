@@ -17,6 +17,12 @@
 #ifndef CHRE_PLATFORM_SHARED_LOADER_UTIL_H_
 #define CHRE_PLATFORM_SHARED_LOADER_UTIL_H_
 
+// Macros used to define a symbol that can be exported by the nanoapp loader
+#define ADD_EXPORTED_SYMBOL(function_name, function_string) \
+  { reinterpret_cast<void *>(function_name), function_string }
+#define ADD_EXPORTED_C_SYMBOL(function_name) \
+  ADD_EXPORTED_SYMBOL(function_name, STRINGIFY(function_name))
+
 // The below macros allow switching the ELF symbol type between 32/64-bit
 // depending on what the chipset supports.
 #ifndef ELFW
@@ -224,6 +230,8 @@ typedef struct elf32_sym {
 #define R_ARM_GLOB_DAT 21
 #define R_ARM_JUMP_SLOT 22
 #define R_ARM_RELATIVE 23
+// Undefined symbol.
+#define SHN_UNDEF 0
 
 // The following (legal values for segment flags) are copied from
 // bionic's elf.h
