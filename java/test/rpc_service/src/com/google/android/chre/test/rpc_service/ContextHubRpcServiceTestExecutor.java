@@ -23,7 +23,8 @@ import android.hardware.location.NanoAppBinary;
 import android.hardware.location.NanoAppMessage;
 import android.hardware.location.NanoAppState;
 
-import com.google.android.chre.utils.pigweed.ChreRpcClient;
+import com.google.android.chre.utils.pigweed.ChreCallbackHandler;
+import com.google.android.chre.utils.pigweed.ChreChannelOutput;
 import com.google.android.utils.chre.ChreTestUtil;
 
 import org.junit.Assert;
@@ -33,6 +34,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import dev.pigweed.pw_rpc.Call.UnaryFuture;
+import dev.pigweed.pw_rpc.Channel;
+import dev.pigweed.pw_rpc.Client;
 import dev.pigweed.pw_rpc.MethodClient;
 import dev.pigweed.pw_rpc.Service;
 import dev.pigweed.pw_rpc.UnaryResult;
@@ -56,10 +59,16 @@ public class ContextHubRpcServiceTestExecutor extends ContextHubClientCallback {
 
     private final ContextHubInfo mContextHubInfo;
 
-    private final ChreRpcClient mRpcClient;
+    private final Client mRpcClient;
+    private final Channel mChannel;
+    private final ChreCallbackHandler mCallbackHandler;
+
+    // TODO(b/218677634): Remove flag once pigweed RPC can be used in nanoapps.
+    private final boolean mPwRpcEnabled = false;
 
     // The ID and version of the "rpc_service_test" nanoapp. Must be synchronized with the
     // value defined in the nanoapp code.
+    private static final int NUM_RPC_SERVICES = 1;
     private static final long RPC_SERVICE_ID = 0xca8f7150a3f05847L;
     private static final int RPC_SERVICE_VERSION = 0x01020034;
     private static final String RPC_ECHO_STRING = "HELLO_WORLD";
@@ -72,22 +81,27 @@ public class ContextHubRpcServiceTestExecutor extends ContextHubClientCallback {
         mNanoAppId = mNanoAppBinary.getNanoAppId();
 
         mContextHubClient = mContextHubManager.createClient(mContextHubInfo, this);
+        Assert.assertTrue(mContextHubClient != null);
 
         Service echoService = new Service("pw.rpc.EchoService",
                 Service.unaryMethod("Echo", Echo.EchoMessage.class,
                         Echo.EchoMessage.class));
-        mRpcClient = new ChreRpcClient(mContextHubClient, mNanoAppId, List.of(echoService));
+        ChreChannelOutput channelOutput = new ChreChannelOutput(mContextHubClient, mNanoAppId);
+        mChannel = new Channel(channelOutput.getChannelId(), channelOutput);
+        mRpcClient = Client.create(List.of(mChannel), List.of(echoService));
+        mCallbackHandler =
+                new ChreCallbackHandler(mContextHubClient, mNanoAppId, mRpcClient, channelOutput);
     }
 
     @Override
     public void onHubReset(ContextHubClient client) {
         mChreReset.set(true);
-        mRpcClient.getCallbackHandler().onHubReset();
+        mCallbackHandler.onHubReset();
     }
 
     @Override
     public void onMessageFromNanoApp(ContextHubClient client, NanoAppMessage message) {
-        mRpcClient.getCallbackHandler().onMessageFromNanoApp(message);
+        mCallbackHandler.onMessageFromNanoApp(message);
     }
 
     /**
@@ -105,27 +119,34 @@ public class ContextHubRpcServiceTestExecutor extends ContextHubClientCallback {
                     ChreTestUtil.queryNanoAppsAssertSuccess(mContextHubManager, mContextHubInfo);
         boolean serviceFound = false;
         for (NanoAppState state : stateList) {
-            if (mRpcClient.hasService(state, RPC_SERVICE_ID, RPC_SERVICE_VERSION)) {
-                // The service is provided only by the test nanoapp.
-                Assert.assertFalse(serviceFound);
+            if (state.getNanoAppId() == mNanoAppId) {
+                Assert.assertEquals(state.getRpcServices().size(), NUM_RPC_SERVICES);
+
+                Assert.assertEquals(state.getRpcServices().get(0).getId(), RPC_SERVICE_ID);
+                Assert.assertEquals(
+                            state.getRpcServices().get(0).getVersion(), RPC_SERVICE_VERSION);
                 serviceFound = true;
+                break;
             }
         }
         Assert.assertTrue(serviceFound);
 
-        MethodClient methodClient = mRpcClient.getMethodClient("pw.rpc.EchoService.Echo");
+        if (mPwRpcEnabled) {
+            MethodClient methodClient = mRpcClient.method(mChannel.id(), "pw.rpc.EchoService.Echo");
+            Assert.assertNotNull(methodClient);
 
-        Echo.EchoMessage message =
-                Echo.EchoMessage.newBuilder().setMsg(RPC_ECHO_STRING).build();
-        UnaryFuture<Echo.EchoMessage> responseFuture = methodClient.invokeUnaryFuture(message);
+            Echo.EchoMessage message =
+                    Echo.EchoMessage.newBuilder().setMsg(RPC_ECHO_STRING).build();
+            UnaryFuture<Echo.EchoMessage> responseFuture = methodClient.invokeUnaryFuture(message);
 
-        UnaryResult<Echo.EchoMessage> responseResult = responseFuture.get(2, TimeUnit.SECONDS);
-        Assert.assertNotNull(responseResult);
-        Assert.assertTrue(responseResult.status().ok());
+            UnaryResult<Echo.EchoMessage> responseResult = responseFuture.get(2, TimeUnit.SECONDS);
+            Assert.assertNotNull(responseResult);
+            Assert.assertTrue(responseResult.status().ok());
 
-        Echo.EchoMessage response = responseResult.response();
-        Assert.assertNotNull(response);
-        Assert.assertEquals(RPC_ECHO_STRING, response.getMsg());
+            Echo.EchoMessage response = responseResult.response();
+            Assert.assertNotNull(response);
+            Assert.assertEquals(RPC_ECHO_STRING, response.getMsg());
+        }
     }
 
     /**
