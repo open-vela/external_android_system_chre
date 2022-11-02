@@ -424,6 +424,7 @@ ARM_CFLAGS += -I$(CHRE_PREFIX)/platform/arm/include
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/host_link.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/system_timer.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/chre_init.cc
+TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/condition_variable_base.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/log_buffer.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/freertos/init.cc
 
