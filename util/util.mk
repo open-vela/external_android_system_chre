@@ -35,6 +35,7 @@ GOOGLETEST_SRCS += $(CHRE_PREFIX)/util/tests/lock_guard_test.cc
 GOOGLETEST_SRCS += $(CHRE_PREFIX)/util/tests/memory_pool_test.cc
 GOOGLETEST_SRCS += $(CHRE_PREFIX)/util/tests/optional_test.cc
 GOOGLETEST_SRCS += $(CHRE_PREFIX)/util/tests/priority_queue_test.cc
+GOOGLETEST_SRCS += $(CHRE_PREFIX)/util/tests/raw_storage_test.cc
 GOOGLETEST_SRCS += $(CHRE_PREFIX)/util/tests/ref_base_test.cc
 GOOGLETEST_SRCS += $(CHRE_PREFIX)/util/tests/shared_ptr_test.cc
 GOOGLETEST_SRCS += $(CHRE_PREFIX)/util/tests/singleton_test.cc
