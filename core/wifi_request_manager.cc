@@ -335,19 +335,15 @@ bool WifiRequestManager::requestScan(Nanoapp *nanoapp,
     LOGE("Can't issue new scan request: nanoapp: %" PRIx64
          " already has a pending request",
          nanoapp->getAppId());
+  } else if (!mPendingScanRequests.emplace(nanoappInstanceId, cookie, params)) {
+    LOG_OOM();
   } else if (!EventLoopManagerSingleton::get()
                   ->getSettingManager()
                   .getSettingEnabled(Setting::WIFI_AVAILABLE)) {
     // Treat as success, but send an async failure per API contract.
     success = true;
     handleScanResponse(false /* pending */, CHRE_ERROR_FUNCTION_DISABLED);
-  } else if (!mPendingScanRequests.emplace()) {
-    LOG_OOM();
   } else {
-    PendingScanRequest &req = mPendingScanRequests.back();
-    req.cookie = cookie;
-    req.nanoappInstanceId = nanoappInstanceId;
-    req.scanParams = *params;
     if (mPendingScanRequests.size() == 1) {
       success = dispatchQueuedScanRequests(false /* postAsyncResult */);
     } else {
@@ -937,6 +933,7 @@ void WifiRequestManager::postNanAsyncResultEvent(uint16_t nanoappInstanceId,
         nanoappInstanceId);
   }
 }
+
 void WifiRequestManager::handleScanResponseSync(bool pending,
                                                 uint8_t errorCode) {
   // TODO(b/65206783): re-enable this assertion
@@ -1138,7 +1135,6 @@ void WifiRequestManager::handleFreeWifiScanEvent(chreWifiScanEvent *scanEvent) {
       } else if (!nanoappHasScanMonitorRequest(pendingNanoappInstanceId)) {
         nanoapp->unregisterForBroadcastEvent(CHRE_EVENT_WIFI_SCAN_RESULT);
       }
-
       mPendingScanRequests.pop();
       dispatchQueuedScanRequests(true /* postAsyncResult */);
     }
