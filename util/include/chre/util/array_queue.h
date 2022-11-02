@@ -22,6 +22,7 @@
 #include <type_traits>
 
 #include "chre/util/non_copyable.h"
+#include "chre/util/raw_storage.h"
 
 /**
  * @file
@@ -259,33 +260,6 @@ class ArrayQueueCore : public StorageType {
 };
 
 /**
- * Storage for ArrayQueue based on an array allocated inside this object.
- */
-template <typename ElementType, size_t kCapacity>
-class ArrayQueueInternalStorage : public NonCopyable {
- public:
-  ElementType *data() {
-    return reinterpret_cast<ElementType *>(mData);
-  }
-
-  const ElementType *data() const {
-    return reinterpret_cast<const ElementType *>(mData);
-  }
-
-  size_t capacity() const {
-    return kCapacity;
-  }
-
- private:
-  /**
-   * Storage for array queue elements. To avoid static initialization of
-   * members, std::aligned_storage is used.
-   */
-  typename std::aligned_storage<sizeof(ElementType), alignof(ElementType)>::type
-      mData[kCapacity];
-};
-
-/**
  * Storage for ArrayQueue based on a pointer to an array allocated elsewhere.
  */
 template <typename ElementType>
@@ -319,9 +293,8 @@ class ArrayQueueExternalStorage : public NonCopyable {
  */
 template <typename ElementType, size_t kCapacity>
 class ArrayQueue
-    : public internal::ArrayQueueCore<
-          ElementType,
-          internal::ArrayQueueInternalStorage<ElementType, kCapacity>> {
+    : public internal::ArrayQueueCore<ElementType,
+                                      RawStorage<ElementType, kCapacity>> {
  public:
   typedef ElementType value_type;
 };
