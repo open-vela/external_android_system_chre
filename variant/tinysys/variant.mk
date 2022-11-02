@@ -1,0 +1,41 @@
+
+ifeq ($(ANDROID_BUILD_TOP),)
+$(error "You should supply an ANDROID_BUILD_TOP environment variable \
+         containing a path to the Android source tree. This is typically \
+         provided by initializing the Android build environment.")
+endif
+
+# Variant Prefix ###############################################################
+
+VARIANT_PREFIX = $(ANDROID_BUILD_TOP)/system/chre/variant
+
+# Chre Version String ##########################################################
+
+COMMIT_HASH_COMMAND = git describe --always --long --dirty
+COMMIT_HASH = $(shell $(COMMIT_HASH_COMMAND))
+
+COMMON_CFLAGS += -DCHRE_VERSION_STRING="\"chre=tinysys@$(COMMIT_HASH)\""
+
+# Common Compiler Flags ########################################################
+
+# Supply a symbol to indicate that the build variant supplies the static
+# nanoapp list.
+COMMON_CFLAGS += -DCHRE_VARIANT_SUPPLIES_STATIC_NANOAPP_LIST
+
+# CHRE event count #############################################################
+
+TINYSYS_CFLAGS += -DCHRE_MAX_EVENT_COUNT=128
+TINYSYS_CFLAGS += -DCHRE_MAX_UNSCHEDULED_EVENT_COUNT=128
+
+# Optional Features ############################################################
+
+CHRE_AUDIO_SUPPORT_ENABLED = false
+CHRE_GNSS_SUPPORT_ENABLED = false
+CHRE_SENSORS_SUPPORT_ENABLED = false
+CHRE_WIFI_SUPPORT_ENABLED = false
+CHRE_WWAN_SUPPORT_ENABLED = false
+CHRE_BLE_SUPPORT_ENABLED = false
+
+# Common Source Files ##########################################################
+
+COMMON_SRCS += $(VARIANT_PREFIX)/tinysys/static_nanoapps.cc
