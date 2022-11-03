@@ -72,6 +72,9 @@ bool getFeature(const chre_settings_test_TestCommand &command,
     case chre_settings_test_TestCommand_Feature_AUDIO:
       *feature = Manager::Feature::AUDIO;
       break;
+    case chre_settings_test_TestCommand_Feature_BLE_SCANNING:
+      *feature = Manager::Feature::BLE_SCANNING;
+      break;
     default:
       LOGE("Unknown feature %d", command.feature);
       success = false;
@@ -176,6 +179,12 @@ bool Manager::isFeatureSupported(Feature feature) {
     case Feature::AUDIO: {
       struct chreAudioSource source;
       supported = chreAudioGetSource(0 /* handle */, &source);
+      break;
+    }
+    case Feature::BLE_SCANNING: {
+      uint32_t capabilities = chreBleGetCapabilities();
+      supported = (version >= CHRE_API_VERSION_1_7) &&
+                  ((capabilities & CHRE_BLE_CAPABILITIES_SCAN) != 0);
       break;
     }
     default:
@@ -290,6 +299,10 @@ void Manager::handleDataFromChre(uint16_t eventType, const void *eventData) {
             static_cast<const chreWwanCellInfoResult *>(eventData));
         break;
 
+      case CHRE_EVENT_BLE_ASYNC_RESULT:
+        handleBleAsyncResult(static_cast<const chreAsyncResult *>(eventData));
+        break;
+
       default:
         LOGE("Unknown event type %" PRIu16, eventType);
     }
@@ -336,6 +349,13 @@ bool Manager::startTestForFeature(Feature feature) {
                                            source.minBufferDuration,
                                            source.minBufferDuration);
       }
+      break;
+    }
+
+    case Feature::BLE_SCANNING: {
+      success =
+          chreBleStartScanAsync(CHRE_BLE_SCAN_MODE_FOREGROUND /* mode */,
+                                0 /* reportDelayMs */, nullptr /* filter */);
       break;
     }
 
@@ -608,6 +628,25 @@ void Manager::handleTimeout(const void *eventData) {
   chreAudioConfigureSource(0 /*handle*/, false /*enable*/,
                            0 /*minBufferDuration*/, 0 /*maxBufferDuration*/);
   sendTestResult(mTestSession->hostEndpointId, testSuccess);
+}
+
+void Manager::handleBleAsyncResult(const chreAsyncResult *result) {
+  bool success = false;
+  switch (result->requestType) {
+    case CHRE_BLE_REQUEST_TYPE_START_SCAN: {
+      if (mTestSession->feature != Feature::BLE_SCANNING) {
+        LOGE("Unexpected BLE scan async result: test feature %" PRIu8,
+             static_cast<uint8_t>(mTestSession->feature));
+      } else {
+        success = validateAsyncResult(result, nullptr);
+      }
+      break;
+    }
+    default:
+      LOGE("Unexpected BLE request type %" PRIu8, result->requestType);
+  }
+
+  sendTestResult(mTestSession->hostEndpointId, success);
 }
 
 void Manager::sendTestResult(uint16_t hostEndpointId, bool success) {
