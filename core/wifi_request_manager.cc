@@ -1068,20 +1068,28 @@ void WifiRequestManager::dispatchQueuedNanSubscribeRequestWithRetry() {
 
 bool WifiRequestManager::dispatchQueuedScanRequests(bool postAsyncResult) {
   while (!mPendingScanRequests.empty()) {
+    uint8_t asyncError = CHRE_ERROR_NONE;
     const PendingScanRequest &currentScanRequest = mPendingScanRequests.front();
-    if (!mPlatformWifi.requestScan(&currentScanRequest.scanParams)) {
-      if (postAsyncResult) {
-        postScanRequestAsyncResultEventFatal(
-            currentScanRequest.nanoappInstanceId, false, CHRE_ERROR,
-            currentScanRequest.cookie);
-      } else {
-        LOGE("Wifi scan request failed");
-      }
-      mPendingScanRequests.pop();
+
+    if (!EventLoopManagerSingleton::get()
+             ->getSettingManager()
+             .getSettingEnabled(Setting::WIFI_AVAILABLE)) {
+      asyncError = CHRE_ERROR_FUNCTION_DISABLED;
+    } else if (!mPlatformWifi.requestScan(&currentScanRequest.scanParams)) {
+      asyncError = CHRE_ERROR;
     } else {
       mScanRequestTimeoutHandle = setScanRequestTimer();
       return true;
     }
+
+    if (postAsyncResult) {
+      postScanRequestAsyncResultEvent(currentScanRequest.nanoappInstanceId,
+                                      false /*success*/, asyncError,
+                                      currentScanRequest.cookie);
+    } else {
+      LOGE("Wifi scan request failed");
+    }
+    mPendingScanRequests.pop();
   }
   return false;
 }
