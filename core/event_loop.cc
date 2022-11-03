@@ -245,8 +245,8 @@ void EventLoop::postEventOrDie(uint16_t eventType, void *eventData,
                                uint16_t targetGroupMask) {
   if (mRunning) {
     if (!allocateAndPostEvent(eventType, eventData, freeCallback,
-                              kSystemInstanceId, targetInstanceId,
-                              targetGroupMask)) {
+                              false /*isLowPriority*/, kSystemInstanceId,
+                              targetInstanceId, targetGroupMask)) {
       FATAL_ERROR("Failed to post critical system event 0x%" PRIx16, eventType);
     }
   } else if (freeCallback != nullptr) {
@@ -277,9 +277,9 @@ bool EventLoop::postLowPriorityEventOrFree(
 
   if (mRunning) {
     if (mEventPool.getFreeBlockCount() > kMinReservedHighPriorityEventCount) {
-      eventPosted = allocateAndPostEvent(eventType, eventData, freeCallback,
-                                         senderInstanceId, targetInstanceId,
-                                         targetGroupMask);
+      eventPosted = allocateAndPostEvent(
+          eventType, eventData, freeCallback, true /*isLowPriority*/,
+          senderInstanceId, targetInstanceId, targetGroupMask);
       if (!eventPosted) {
         LOGE("Failed to allocate event 0x%" PRIx16 " to instanceId %" PRIu16,
              eventType, targetInstanceId);
@@ -360,14 +360,15 @@ void EventLoop::logStateToBuffer(DebugDumpWrapper &debugDump) const {
 
 bool EventLoop::allocateAndPostEvent(uint16_t eventType, void *eventData,
                                      chreEventCompleteFunction *freeCallback,
+                                     bool isLowPriority,
                                      uint16_t senderInstanceId,
                                      uint16_t targetInstanceId,
                                      uint16_t targetGroupMask) {
   bool success = false;
 
   Event *event =
-      mEventPool.allocate(eventType, eventData, freeCallback, senderInstanceId,
-                          targetInstanceId, targetGroupMask);
+      mEventPool.allocate(eventType, eventData, freeCallback, isLowPriority,
+                          senderInstanceId, targetInstanceId, targetGroupMask);
   if (event != nullptr) {
     success = mEvents.push(event);
   }

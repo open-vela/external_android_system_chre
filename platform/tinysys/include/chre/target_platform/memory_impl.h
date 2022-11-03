@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,23 @@
  * limitations under the License.
  */
 
-#include "chre/platform/shared/log_buffer_manager.h"
+#ifndef CHRE_PLATFORM_TINYSYS_MEMORY_H_
+#define CHRE_PLATFORM_TINYSYS_MEMORY_H_
+
+#include <cstddef>
+#include "encoding.h"
+#include "sensorhub/heap.h"
 
 namespace chre {
 
-void LogBufferManager::preSecondaryBufferUse() const {
-  // Do nothing
+inline void *memoryAlloc(size_t size) {
+  return heap_alloc(size);
+}
+
+inline void memoryFree(void *pointer) {
+  heap_free(pointer);
 }
 
 }  // namespace chre
+
+#endif  // CHRE_PLATFORM_TINYSYS_MEMORY_H_

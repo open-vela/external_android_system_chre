@@ -21,6 +21,7 @@
 #include <type_traits>
 
 #include "chre/util/non_copyable.h"
+#include "chre/util/raw_storage.h"
 
 namespace chre {
 
@@ -107,8 +108,7 @@ class MemoryPool : public NonCopyable {
 
   //! Storage for memory pool blocks. To avoid static initialization of members,
   //! std::aligned_storage is used.
-  typename std::aligned_storage<sizeof(MemoryPoolBlock),
-                                alignof(MemoryPoolBlock)>::type mBlocks[kSize];
+  RawStorage<MemoryPoolBlock, kSize> mBlocks;
 
   //! The index of the head of the free slot list.
   size_t mNextFreeBlockIndex = 0;

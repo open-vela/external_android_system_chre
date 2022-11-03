@@ -48,8 +48,8 @@ class CopyableFixedSizeVector : public FixedSizeVector<ElementType, kCapacity> {
   void copyFrom(const CopyableFixedSizeVector &other) {
     this->mSize = other.mSize;
     if (std::is_trivially_copy_constructible<ElementType>::value) {
-      std::memcpy(this->mData, other.mData,
-                  sizeof(this->mData[0]) * this->mSize);
+      std::memcpy(this->data(), other.data(),
+                  sizeof(ElementType) * this->mSize);
     } else {
       for (size_t i = 0; i < this->mSize; i++) {
         new (&this->data()[i]) ElementType(other[i]);

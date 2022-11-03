@@ -400,7 +400,7 @@ class EventLoop : public NonCopyable {
    */
   bool allocateAndPostEvent(uint16_t eventType, void *eventData,
                             chreEventCompleteFunction *freeCallback,
-                            uint16_t senderInstanceId,
+                            bool isLowPriority, uint16_t senderInstanceId,
                             uint16_t targetInstanceId,
                             uint16_t targetGroupMask);
 
