@@ -17,6 +17,12 @@
 #include "chre/target_platform/host_link_base.h"
 
 namespace chre {
+
+void sendDebugDumpResultToHost(uint16_t /*hostClientId*/,
+                               const char * /*debugStr*/,
+                               size_t /*debugStrSize*/, bool /*complete*/,
+                               uint32_t /*dataCount*/) {}
+
 void HostLinkBase::receive(void * /*cookie*/, void * /*message*/,
                            int /*messageLen*/) {}
 bool HostLinkBase::send(uint8_t * /*data*/, size_t /*dataLen*/) {
