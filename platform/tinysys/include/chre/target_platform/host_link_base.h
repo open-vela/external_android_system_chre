@@ -21,6 +21,14 @@
 #include <cstddef>
 
 namespace chre {
+
+/**
+ * Helper function to send debug dump result to host.
+ */
+void sendDebugDumpResultToHost(uint16_t hostClientId, const char *debugStr,
+                               size_t debugStrSize, bool complete,
+                               uint32_t dataCount);
+
 /**
  * @brief Platform specific host link.
  */
