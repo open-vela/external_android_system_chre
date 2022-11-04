@@ -431,7 +431,7 @@ class WifiRequestManager : public NonCopyable {
 
   //! Manages the timer that starts when a configure scan request is dispatched
   //! to the PAL.
-  TimerHandle mScanRequestTimeoutHandle;
+  TimerHandle mScanRequestTimeoutHandle = CHRE_TIMER_INVALID;
 
   //! System time when the last WiFi scan event was received.
   Milliseconds mLastScanEventTime;
