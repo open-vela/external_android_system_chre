@@ -35,6 +35,11 @@ namespace {
 
 CREATE_CHRE_TEST_EVENT(SCAN_REQUEST, 20);
 
+struct WifiAsyncData {
+  const uint32_t *cookie;
+  chreError errorCode;
+};
+
 class WifiScanRequestQueueTestBase : public TestBase {
  public:
   void SetUp() {
@@ -64,11 +69,11 @@ struct WifiScanTestNanoapp : public TestNanoapp {
     switch (eventType) {
       case CHRE_EVENT_WIFI_ASYNC_RESULT: {
         auto *event = static_cast<const chreAsyncResult *>(eventData);
-        if (event->success) {
-          TestEventQueueSingleton::get()->pushEvent(
-              CHRE_EVENT_WIFI_ASYNC_RESULT,
-              *(static_cast<const uint32_t *>(event->cookie)));
-        }
+        TestEventQueueSingleton::get()->pushEvent(
+            CHRE_EVENT_WIFI_ASYNC_RESULT,
+            WifiAsyncData{
+                .cookie = static_cast<const uint32_t *>(event->cookie),
+                .errorCode = static_cast<chreError>(event->errorCode)});
         break;
       }
 
@@ -98,6 +103,80 @@ struct WifiScanTestNanoapp : public TestNanoapp {
   };
 };
 
+TEST_F(TestBase, WifiScanBasicSettingTest) {
+  auto app = loadNanoapp<WifiScanTestNanoapp>();
+
+  EventLoopManagerSingleton::get()->getSettingManager().postSettingChange(
+      Setting::WIFI_AVAILABLE, true /* enabled */);
+
+  constexpr uint32_t firstCookie = 0x1010;
+  bool success;
+  WifiAsyncData wifiAsyncData;
+
+  sendEventToNanoapp(app, SCAN_REQUEST, firstCookie);
+  waitForEvent(SCAN_REQUEST, &success);
+  EXPECT_TRUE(success);
+
+  waitForEvent(CHRE_EVENT_WIFI_ASYNC_RESULT, &wifiAsyncData);
+  EXPECT_EQ(wifiAsyncData.errorCode, CHRE_ERROR_NONE);
+  EXPECT_EQ(*wifiAsyncData.cookie, firstCookie);
+  waitForEvent(CHRE_EVENT_WIFI_SCAN_RESULT);
+
+  EventLoopManagerSingleton::get()->getSettingManager().postSettingChange(
+      Setting::WIFI_AVAILABLE, false /* enabled */);
+
+  constexpr uint32_t secondCookie = 0x2020;
+  sendEventToNanoapp(app, SCAN_REQUEST, secondCookie);
+  waitForEvent(SCAN_REQUEST, &success);
+  EXPECT_TRUE(success);
+
+  waitForEvent(CHRE_EVENT_WIFI_ASYNC_RESULT, &wifiAsyncData);
+  EXPECT_EQ(wifiAsyncData.errorCode, CHRE_ERROR_FUNCTION_DISABLED);
+  EXPECT_EQ(*wifiAsyncData.cookie, secondCookie);
+
+  EventLoopManagerSingleton::get()->getSettingManager().postSettingChange(
+      Setting::WIFI_AVAILABLE, true /* enabled */);
+  unloadNanoapp(app);
+}
+
+TEST_F(WifiScanRequestQueueTestBase, WifiQueuedScanSettingChangeTest) {
+  struct WifiScanTestNanoappTwo : public WifiScanTestNanoapp {
+    uint64_t id = 0x1123456789abcdef;
+  };
+
+  auto firstApp = loadNanoapp<WifiScanTestNanoapp>();
+  auto secondApp = loadNanoapp<WifiScanTestNanoappTwo>();
+
+  constexpr uint32_t firstRequestCookie = 0x1010;
+  constexpr uint32_t secondRequestCookie = 0x2020;
+  bool success;
+  sendEventToNanoapp(firstApp, SCAN_REQUEST, firstRequestCookie);
+  waitForEvent(SCAN_REQUEST, &success);
+  EXPECT_TRUE(success);
+  sendEventToNanoapp(secondApp, SCAN_REQUEST, secondRequestCookie);
+  waitForEvent(SCAN_REQUEST, &success);
+  EXPECT_TRUE(success);
+
+  EventLoopManagerSingleton::get()->getSettingManager().postSettingChange(
+      Setting::WIFI_AVAILABLE, false /* enabled */);
+
+  WifiAsyncData wifiAsyncData;
+  waitForEvent(CHRE_EVENT_WIFI_ASYNC_RESULT, &wifiAsyncData);
+  EXPECT_EQ(wifiAsyncData.errorCode, CHRE_ERROR_NONE);
+  EXPECT_EQ(*wifiAsyncData.cookie, firstRequestCookie);
+  waitForEvent(CHRE_EVENT_WIFI_SCAN_RESULT);
+
+  waitForEvent(CHRE_EVENT_WIFI_ASYNC_RESULT, &wifiAsyncData);
+  EXPECT_EQ(wifiAsyncData.errorCode, CHRE_ERROR_FUNCTION_DISABLED);
+  EXPECT_EQ(*wifiAsyncData.cookie, secondRequestCookie);
+
+  EventLoopManagerSingleton::get()->getSettingManager().postSettingChange(
+      Setting::WIFI_AVAILABLE, true /* enabled */);
+
+  unloadNanoapp(firstApp);
+  unloadNanoapp(secondApp);
+}
+
 TEST_F(WifiScanRequestQueueTestBase, WifiScanRejectRequestFromSameNanoapp) {
   auto app = loadNanoapp<WifiScanTestNanoapp>();
 
@@ -111,9 +190,10 @@ TEST_F(WifiScanRequestQueueTestBase, WifiScanRejectRequestFromSameNanoapp) {
   waitForEvent(SCAN_REQUEST, &success);
   EXPECT_FALSE(success);
 
-  uint32_t cookie;
-  waitForEvent(CHRE_EVENT_WIFI_ASYNC_RESULT, &cookie);
-  EXPECT_EQ(cookie, firstRequestCookie);
+  WifiAsyncData wifiAsyncData;
+  waitForEvent(CHRE_EVENT_WIFI_ASYNC_RESULT, &wifiAsyncData);
+  EXPECT_EQ(wifiAsyncData.errorCode, CHRE_ERROR_NONE);
+  EXPECT_EQ(*wifiAsyncData.cookie, firstRequestCookie);
   waitForEvent(CHRE_EVENT_WIFI_SCAN_RESULT);
 
   unloadNanoapp(app);
@@ -137,13 +217,16 @@ TEST_F(WifiScanRequestQueueTestBase, WifiScanActiveScanFromDistinctNanoapps) {
   waitForEvent(SCAN_REQUEST, &success);
   EXPECT_TRUE(success);
 
-  uint32_t cookie;
-  waitForEvent(CHRE_EVENT_WIFI_ASYNC_RESULT, &cookie);
+  WifiAsyncData wifiAsyncData;
+  waitForEvent(CHRE_EVENT_WIFI_ASYNC_RESULT, &wifiAsyncData);
+  EXPECT_EQ(wifiAsyncData.errorCode, CHRE_ERROR_NONE);
+  EXPECT_EQ(*wifiAsyncData.cookie, firstRequestCookie);
   waitForEvent(CHRE_EVENT_WIFI_SCAN_RESULT);
-  EXPECT_EQ(cookie, firstRequestCookie);
-  waitForEvent(CHRE_EVENT_WIFI_ASYNC_RESULT, &cookie);
+
+  waitForEvent(CHRE_EVENT_WIFI_ASYNC_RESULT, &wifiAsyncData);
+  EXPECT_EQ(wifiAsyncData.errorCode, CHRE_ERROR_NONE);
+  EXPECT_EQ(*wifiAsyncData.cookie, secondRequestCookie);
   waitForEvent(CHRE_EVENT_WIFI_SCAN_RESULT);
-  EXPECT_EQ(cookie, secondRequestCookie);
 
   unloadNanoapp(firstApp);
   unloadNanoapp(secondApp);
