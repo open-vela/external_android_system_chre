@@ -18,6 +18,8 @@
 #define CHRE_CORE_NANOAPP_H_
 
 #include <cinttypes>
+#include <cstdint>
+#include <limits>
 
 #include "chre/core/event.h"
 #include "chre/core/event_ref_queue.h"
@@ -45,6 +47,13 @@ namespace chre {
  */
 class Nanoapp : public PlatformNanoapp {
  public:
+  /** @see chrePublishRpcServices */
+  static constexpr size_t kMaxRpcServices = UINT8_MAX;
+  static_assert(
+      std::numeric_limits<decltype(chreNanoappInfo::rpcServiceCount)>::max() >=
+          kMaxRpcServices,
+      "Revisit the constant");
+
   Nanoapp();
 
   /**

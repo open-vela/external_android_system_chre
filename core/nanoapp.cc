@@ -25,6 +25,7 @@
 #include "chre_api/chre/version.h"
 
 #include <algorithm>
+#include <cstdint>
 
 #if CHRE_FIRST_SUPPORTED_API_VERSION < CHRE_API_VERSION_1_5
 #define CHRE_GNSS_MEASUREMENT_BACK_COMPAT_ENABLED
@@ -247,15 +248,21 @@ bool Nanoapp::publishRpcServices(struct chreNanoappRpcService *services,
     return false;
   }
 
-  bool success = true;
   const size_t startSize = mRpcServices.size();
+  const size_t endSize = startSize + numServices;
+  if (endSize > kMaxRpcServices) {
+    return false;
+  }
 
-  mRpcServices.reserve(startSize + numServices);
+  mRpcServices.reserve(endSize);
+
+  bool success = true;
 
   for (size_t i = 0; i < numServices; i++) {
     if (!mRpcServices.push_back(services[i])) {
       LOG_OOM();
       success = false;
+      break;
     }
   }
 

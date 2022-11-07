@@ -16,6 +16,7 @@
 
 #include "chre/core/event_loop.h"
 #include <cinttypes>
+#include <cstdint>
 
 #include "chre/core/event.h"
 #include "chre/core/event_loop_manager.h"
@@ -57,6 +58,12 @@ bool populateNanoappInfo(const Nanoapp *app, struct chreNanoappInfo *info) {
     info->appId = app->getAppId();
     info->version = app->getAppVersion();
     info->instanceId = app->getInstanceId();
+    if (app->getTargetApiVersion() >= CHRE_API_VERSION_1_8) {
+      CHRE_ASSERT(app->getRpcServices().size() <= Nanoapp::kMaxRpcServices);
+      info->rpcServiceCount =
+          static_cast<uint8_t>(app->getRpcServices().size());
+      info->rpcServices = app->getRpcServices().data();
+    }
     success = true;
   }
 
