@@ -17,16 +17,7 @@
 #ifndef CHRE_PLATFORM_TINYSYS_FATAL_ERROR_H_
 #define CHRE_PLATFORM_TINYSYS_FATAL_ERROR_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#include "FreeRTOS.h"
-#include "task.h"
-
-#ifdef __cplusplus
-}  // extern "C"
-#endif
+#include "FreeRTOSConfig.h"
 
 #define FATAL_ERROR_QUIT() configASSERT(0)
 

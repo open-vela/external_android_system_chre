@@ -18,16 +18,7 @@
 #define CHRE_PLATFORM_TINYSYS_ATOMIC_BASE_H_
 
 #include <cinttypes>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "mtk_atomic.h"
-
-#ifdef __cplusplus
-}  // extern "C"
-#endif
 
 namespace chre {
 
@@ -112,6 +103,7 @@ class AtomicUint32Base : public AtomicBase<uint32_t> {
    * @return Pre-subtraction value of the stored word.
    */
   uint32_t sub(uint32_t arg) {
+    // TODO(b/254340082): replace it with MTK's implementation of subtraction
     return atomic_add(&mValue, ~arg + 1);
   }
 };

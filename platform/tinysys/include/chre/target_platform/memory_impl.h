@@ -18,17 +18,8 @@
 #define CHRE_PLATFORM_TINYSYS_MEMORY_H_
 
 #include <cstddef>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "encoding.h"
 #include "sensorhub/heap.h"
-
-#ifdef __cplusplus
-}  // extern "C"
-#endif
 
 namespace chre {
 
