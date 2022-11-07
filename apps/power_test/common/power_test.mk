@@ -17,6 +17,7 @@ endif
 # Nanoapp Configuration ########################################################
 
 NANOAPP_VERSION = 0x00020000
+CHRE_STD_OVERRIDES_ALLOWED = true
 
 # Common Compiler Flags ########################################################
 
