@@ -23,7 +23,6 @@
 namespace chre {
 
 class PowerControlManagerBase {
- public:
   /**
    * Updates internal wake/suspend flag and pushes awake/sleep notification
    * to nanoapps that are listening for it.
