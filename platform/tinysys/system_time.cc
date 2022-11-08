@@ -14,24 +14,29 @@
  * limitations under the License.
  */
 
-#ifndef CHRE_PLATFORM_TINYSYS_LOG_H_
-#define CHRE_PLATFORM_TINYSYS_LOG_H_
+#include <cstdint>
 
-#ifdef __cplusplus
+#include "chre/platform/system_time.h"
+
 extern "C" {
-#endif
+#include "xgpt.h"
+}
 
-#include "mt_printf.h"
+namespace chre {
 
-#ifdef __cplusplus
-}  // extern "C"
-#endif
+namespace {
+int64_t gEstimatedHostTimeOffset = 0;
+}  // anonymous namespace
 
-// TODO(b/254292126): We should also print logs to logcat after hostlink
-// implementation is ready.
-#define LOGE(fmt, arg...) PRINTF_E(fmt, ##arg)
-#define LOGW(fmt, arg...) PRINTF_W(fmt, ##arg)
-#define LOGI(fmt, arg...) PRINTF_I(fmt, ##arg)
-#define LOGD(fmt, arg...) PRINTF_D(fmt, ##arg)
+Nanoseconds SystemTime::getMonotonicTime() {
+  return Nanoseconds(get_boot_time_ns());
+}
 
-#endif  // CHRE_PLATFORM_TINYSYS_LOG_H_
+int64_t SystemTime::getEstimatedHostTimeOffset() {
+  return gEstimatedHostTimeOffset;
+}
+
+void SystemTime::setEstimatedHostTimeOffset(int64_t offset) {
+  gEstimatedHostTimeOffset = offset;
+}
+}  // namespace chre

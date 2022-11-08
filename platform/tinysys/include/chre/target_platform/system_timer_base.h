@@ -21,8 +21,16 @@
 #include <csignal>
 #include <ctime>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "sensorhub/rt_timer.h"
 #include "task.h"
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
 
 namespace chre {
 

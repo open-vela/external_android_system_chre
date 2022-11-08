@@ -14,24 +14,13 @@
  * limitations under the License.
  */
 
-#ifndef CHRE_PLATFORM_TINYSYS_LOG_H_
-#define CHRE_PLATFORM_TINYSYS_LOG_H_
+#include "chre/target_platform/host_cpu_update.h"
+#include "chre/core/event_loop_manager.h"
+#include "chre/target_platform/power_control_manager_base.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#include "mt_printf.h"
-
-#ifdef __cplusplus
-}  // extern "C"
-#endif
-
-// TODO(b/254292126): We should also print logs to logcat after hostlink
-// implementation is ready.
-#define LOGE(fmt, arg...) PRINTF_E(fmt, ##arg)
-#define LOGW(fmt, arg...) PRINTF_W(fmt, ##arg)
-#define LOGI(fmt, arg...) PRINTF_I(fmt, ##arg)
-#define LOGD(fmt, arg...) PRINTF_D(fmt, ##arg)
-
-#endif  // CHRE_PLATFORM_TINYSYS_LOG_H_
+void chreNotifyHostWakeSuspend(bool isAwake) {
+  chre::EventLoopManagerSingleton::get()
+      ->getEventLoop()
+      .getPowerControlManager()
+      .onHostWakeSuspendEvent(isAwake);
+}

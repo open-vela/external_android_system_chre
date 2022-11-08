@@ -395,9 +395,10 @@ struct chreNanoappInfo {
      * address an event specifically to this nanoapp.  This identifier is
      * guaranteed to be unique among all nanoapps in the system.
      *
-     * As of CHRE API v1.6, instance ID is guaranteed to never be greater than
-     * UINT16_MAX. This allows for the instance ID be packed with other data
-     * inside a 32-bit integer (useful for RPC routing).
+     * @since v1.6
+     * Instance ID is guaranteed to never go beyond INT16_MAX. This helps the
+     * instance ID be packed into other information inside an int (useful for
+     * RPC routing).
      */
     uint32_t instanceId;
 };
