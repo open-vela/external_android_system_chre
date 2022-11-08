@@ -37,6 +37,11 @@ SegmentedQueue<ElementType, kBlockSize>::SegmentedQueue(size_t maxBlockCount)
 }
 
 template <typename ElementType, size_t kBlockSize>
+SegmentedQueue<ElementType, kBlockSize>::~SegmentedQueue() {
+  clear();
+}
+
+template <typename ElementType, size_t kBlockSize>
 bool SegmentedQueue<ElementType, kBlockSize>::push_back(
     const ElementType &element) {
   if (!prepareForPush()) {
@@ -98,6 +103,55 @@ const ElementType &SegmentedQueue<ElementType, kBlockSize>::back() const {
   CHRE_ASSERT(!empty());
 
   return locateData(mTail);
+}
+
+template <typename ElementType, size_t kBlockSize>
+ElementType &SegmentedQueue<ElementType, kBlockSize>::front() {
+  CHRE_ASSERT(!empty());
+
+  return locateData(mHead);
+}
+
+template <typename ElementType, size_t kBlockSize>
+const ElementType &SegmentedQueue<ElementType, kBlockSize>::front() const {
+  CHRE_ASSERT(!empty());
+
+  return locateData(mHead);
+}
+
+template <typename ElementType, size_t kBlockSize>
+void SegmentedQueue<ElementType, kBlockSize>::pop_front() {
+  CHRE_ASSERT(!empty());
+
+  doRemove(mHead);
+
+  if (mSize == 0) {
+    // TODO(b/258860898), Define a more proactive way to deallocate unused
+    // block.
+    resetEmptyQueue();
+  } else {
+    mHead = advanceOrWrapAround(mHead);
+  }
+}
+
+template <typename ElementType, size_t kBlockSize>
+bool SegmentedQueue<ElementType, kBlockSize>::remove(size_t index) {
+  if (index >= mSize) {
+    return false;
+  }
+  size_t absoluteIndex = relativeIndexToAbsolute(index);
+  doRemove(absoluteIndex);
+  if (mSize == 0) {
+    resetEmptyQueue();
+  } else {
+    // TODO(b/258557394): optimize by adding check to see if pull from head
+    // to tail is more efficient.
+    moveElements(advanceOrWrapAround(absoluteIndex), absoluteIndex,
+                 absoluteIndexToRelative(mTail) -
+                     absoluteIndexToRelative(absoluteIndex - 1));
+    mTail = mTail == 0 ? capacity() - 1 : mTail - 1;
+  }
+  return true;
 }
 
 template <typename ElementType, size_t kBlockSize>
@@ -175,6 +229,15 @@ size_t SegmentedQueue<ElementType, kBlockSize>::relativeIndexToAbsolute(
 }
 
 template <typename ElementType, size_t kBlockSize>
+size_t SegmentedQueue<ElementType, kBlockSize>::absoluteIndexToRelative(
+    size_t index) {
+  if (mHead > index) {
+    index += capacity();
+  }
+  return index - mHead;
+}
+
+template <typename ElementType, size_t kBlockSize>
 bool SegmentedQueue<ElementType, kBlockSize>::prepareForPush() {
   bool success = false;
   if (full()) {
@@ -197,6 +260,19 @@ bool SegmentedQueue<ElementType, kBlockSize>::prepareForPush() {
 }
 
 template <typename ElementType, size_t kBlockSize>
+void SegmentedQueue<ElementType, kBlockSize>::clear() {
+  if (!std::is_trivially_destructible<ElementType>::value) {
+    while (!empty()) {
+      pop_front();
+    }
+  } else {
+    mSize = 0;
+    mHead = 0;
+    mTail = capacity() - 1;
+  }
+}
+
+template <typename ElementType, size_t kBlockSize>
 ElementType &SegmentedQueue<ElementType, kBlockSize>::locateData(size_t index) {
   return mRawStoragePtrs[index / kBlockSize].get()->data()[index % kBlockSize];
 }
@@ -205,6 +281,23 @@ template <typename ElementType, size_t kBlockSize>
 size_t SegmentedQueue<ElementType, kBlockSize>::advanceOrWrapAround(
     size_t index) {
   return index >= capacity() - 1 ? 0 : index + 1;
+}
+
+template <typename ElementType, size_t kBlockSize>
+void SegmentedQueue<ElementType, kBlockSize>::doRemove(size_t index) {
+  mSize--;
+  locateData(index).~ElementType();
+}
+
+template <typename ElementType, size_t kBlockSize>
+void SegmentedQueue<ElementType, kBlockSize>::resetEmptyQueue() {
+  CHRE_ASSERT(empty());
+
+  while (mRawStoragePtrs.size() != kInitBlockCount) {
+    mRawStoragePtrs.pop_back();
+  }
+  mHead = 0;
+  mTail = capacity() - 1;
 }
 
 }  // namespace chre
