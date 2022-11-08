@@ -423,6 +423,7 @@ ARM_CFLAGS += -I$(CHRE_PREFIX)/platform/arm/include
 # Tinysys sources
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/chre_init.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/condition_variable_base.cc
+TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/host_cpu_update.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/host_link.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/memory.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/system_time.cc
