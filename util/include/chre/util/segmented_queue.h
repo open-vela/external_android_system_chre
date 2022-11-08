@@ -53,6 +53,8 @@ class SegmentedQueue : public NonCopyable {
    */
   SegmentedQueue(size_t maxBlockCount);
 
+  ~SegmentedQueue();
+
   /**
    * @return size_t: Number of elements that this segmented queue holds.
    */
@@ -127,6 +129,29 @@ class SegmentedQueue : public NonCopyable {
    */
   ElementType &back();
   const ElementType &back() const;
+
+  /**
+   * Obtain the first element in the queue.
+   * It is illegal to call this function when empty() == true.
+   *
+   * @return ElementType&: Reference to the first element.
+   */
+  ElementType &front();
+  const ElementType &front() const;
+
+  /**
+   * Remove the first element from the queue.
+   * It is illegal to call this function when empty() == true.
+   */
+  void pop_front();
+
+  /**
+   * Removes an element from the queue by given index.
+   *
+   * @param index: Index of the item that will be removed.
+   * @return false: Returns false if index >= size().
+   */
+  bool remove(size_t index);
 
  private:
   /**
@@ -210,6 +235,35 @@ class SegmentedQueue : public NonCopyable {
    * @return ElementType&: Reference to the data.
    */
   ElementType &locateData(size_t index);
+
+  /**
+   * Removes all the elements of the queue.
+   */
+  void clear();
+
+  /**
+   * Remove and destroy an object by the given index.
+   * Note that this function does not change any pointer nor fill the gap
+   * after removing.
+   *
+   * @param index: The absolute index for the item that will be removed.
+   */
+  void doRemove(size_t index);
+
+  /**
+   * Calculate the index with respect to the start of the storage to relevant
+   * index with respect to mHead.
+   *
+   * @param index: Absolute index in the range [0, capacity() - 1].
+   * @return size_t: Relative index in the range [0, mSize - 1].
+   */
+  size_t absoluteIndexToRelative(size_t index);
+
+  /**
+   * Resets the current queue to its initial state if the queue is empty.
+   * It is illegal to call this function if the queue is not empty.
+   */
+  void resetEmptyQueue();
 
   // TODO(b/258771255): See if we can change the container to
   // ArrayQueue<UniquePtr<Block>> to minimize block moving during push_back.
