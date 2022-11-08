@@ -14,24 +14,23 @@
  * limitations under the License.
  */
 
-#ifndef CHRE_PLATFORM_TINYSYS_LOG_H_
-#define CHRE_PLATFORM_TINYSYS_LOG_H_
+#ifndef CHRE_PLATFORM_TINYSYS_HOST_CPU_UPDATE_H_
+#define CHRE_PLATFORM_TINYSYS_HOST_CPU_UPDATE_H_
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include "mt_printf.h"
+/**
+ * Updates host CPU's status to CHRE.
+ *
+ * This function should be called by the module of Tinysys that handles the host
+ * CPU's wake/suspend events.
+ */
+void chreNotifyHostWakeSuspend(bool isAwake);
 
 #ifdef __cplusplus
 }  // extern "C"
 #endif
 
-// TODO(b/254292126): We should also print logs to logcat after hostlink
-// implementation is ready.
-#define LOGE(fmt, arg...) PRINTF_E(fmt, ##arg)
-#define LOGW(fmt, arg...) PRINTF_W(fmt, ##arg)
-#define LOGI(fmt, arg...) PRINTF_I(fmt, ##arg)
-#define LOGD(fmt, arg...) PRINTF_D(fmt, ##arg)
-
-#endif  // CHRE_PLATFORM_TINYSYS_LOG_H_
+#endif  // CHRE_PLATFORM_TINYSYS_HOST_CPU_UPDATE_H_
