@@ -120,7 +120,7 @@ void PlatformNanoapp::logStateToBuffer(DebugDumpWrapper &debugDump) const {
     size_t versionLen = 0;
     const char *version = getAppVersionString(&versionLen);
     debugDump.print("%s (%s) @ build: %.*s", mAppInfo->name, mAppInfo->vendor,
-                    versionLen, version);
+                    static_cast<int>(versionLen), version);
   }
 }
 
