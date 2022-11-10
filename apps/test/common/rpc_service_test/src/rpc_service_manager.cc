@@ -26,6 +26,8 @@ namespace rpc_service_test {
 
 pw::Status EchoService::Echo(const pw_rpc_EchoMessage &request,
                              pw_rpc_EchoMessage &response) {
+  RpcServiceManagerSingleton::get()->setPermissionForNextMessage(
+      CHRE_MESSAGE_PERMISSION_NONE);
   memcpy(response.msg, request.msg,
          MIN(ARRAY_SIZE(response.msg), ARRAY_SIZE(request.msg)));
   return pw::OkStatus();
@@ -42,6 +44,10 @@ void RpcServiceManager::handleEvent(uint32_t senderInstanceId,
   if (!mServer.handleEvent(senderInstanceId, eventType, eventData)) {
     LOGE("An RPC error occurred");
   }
+}
+
+void RpcServiceManager::setPermissionForNextMessage(uint32_t permission) {
+  mServer.setPermissionForNextMessage(permission);
 }
 
 }  // namespace rpc_service_test

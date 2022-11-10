@@ -20,11 +20,15 @@
 #include "chre/util/nanoapp/log.h"
 #include "chre/util/time.h"
 
+#ifndef LOG_TAG
 #define LOG_TAG "[RpcWorld]"
+#endif  // LOG_TAG
 
 // [Server] Service implementations.
 pw::Status RpcWorldService::Increment(const chre_rpc_NumberMessage &request,
                                       chre_rpc_NumberMessage &response) {
+  RpcWorldManagerSingleton::get()->setPermissionForNextMessage(
+      CHRE_MESSAGE_PERMISSION_NONE);
   response.number = request.number + 1;
   return pw::OkStatus();
 }
@@ -107,6 +111,10 @@ bool RpcWorldManager::start() {
   return true;
 }
 
+void RpcWorldManager::setPermissionForNextMessage(uint32_t permission) {
+  mServer.setPermissionForNextMessage(permission);
+}
+
 void RpcWorldManager::handleEvent(uint32_t senderInstanceId, uint16_t eventType,
                                   const void *eventData) {
   if (!mServer.handleEvent(senderInstanceId, eventType, eventData)) {
@@ -122,8 +130,10 @@ void RpcWorldManager::handleEvent(uint32_t senderInstanceId, uint16_t eventType,
       // [Server] stream responses.
       chre_rpc_TimerResponse response;
       response.tick_number = mTimerCurrentTick;
+      setPermissionForNextMessage(CHRE_MESSAGE_PERMISSION_NONE);
       mTimerWriter.Write(response);
       if (mTimerCurrentTick == mTimerTotalTicks) {
+        setPermissionForNextMessage(CHRE_MESSAGE_PERMISSION_NONE);
         mTimerWriter.Finish(pw::OkStatus());
         if (chreTimerCancel(mTimerId)) {
           mTimerId = CHRE_TIMER_INVALID;
@@ -161,6 +171,8 @@ void RpcWorldManager::addStart(
   reader.set_on_client_stream_end([]() {
     chre_rpc_NumberMessage response;
     response.number = RpcWorldManagerSingleton::get()->mSum;
+    RpcWorldManagerSingleton::get()->setPermissionForNextMessage(
+        CHRE_MESSAGE_PERMISSION_NONE);
     RpcWorldManagerSingleton::get()->mAddReader.Finish(response);
   });
   mAddReader = std::move(reader);

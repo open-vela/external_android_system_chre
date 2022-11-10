@@ -21,6 +21,7 @@
 #include "chre/util/macros.h"
 #include "chre/util/non_copyable.h"
 #include "chre/util/pigweed/chre_channel_output.h"
+#include "chre/util/pigweed/permission.h"
 #include "pw_rpc/server.h"
 #include "pw_rpc/service.h"
 #include "pw_span/span.h"
@@ -56,7 +57,10 @@ class RpcServer : public NonCopyable {
     uint32_t version;
   };
 
-  RpcServer() : mServer(pw::span(mChannels, ARRAY_SIZE(mChannels))) {}
+  RpcServer()
+      : mServer(pw::span(mChannels, ARRAY_SIZE(mChannels))),
+        mHostOutput(mPermission),
+        mNanoappOutput(mPermission) {}
   ~RpcServer();
 
   /**
@@ -70,6 +74,27 @@ class RpcServer : public NonCopyable {
    * @return whether the registration was successful.
    */
   bool registerServices(size_t numServices, Service *services);
+
+  /**
+   * Sets the permission for the next message to a client.
+   *
+   * While the permission are only actually used for messages to host clients,
+   * the value passed here only applies to the next message whether the client
+   * is a host client or a nanoapp.
+   *
+   * This method must be called:
+   * - from the body of a service implementation method in the case of unary
+   *   RPCs,
+   * - right before invoking ServerReader.Finish for client streaming and
+   *   bidirectional streaming RPCs,
+   * - right before invoking ServerWriter.Write and ServerWriter.Finish for
+   *   server streaming and bidirectional streaming RPCs.
+   *
+   * @params permission Bitmasked CHRE_MESSAGE_PERMISSION_.
+   *
+   * @see chreSendMessageWithPermissions
+   */
+  void setPermissionForNextMessage(uint32_t permission);
 
   /**
    * Handles events related to RPC services.
@@ -138,13 +163,15 @@ class RpcServer : public NonCopyable {
    */
   pw::Status closeChannel(uint32_t id);
 
+  // Permission for the next message sent by mServer.
+  RpcPermission mPermission;
+
   // TODO(b/210138227): Make # of channels dynamic
   pw::rpc::Channel mChannels[5];
   pw::rpc::Server mServer;
 
-  ChreHostChannelOutput mHostOutput;
-  ChreNanoappChannelOutput mNanoappOutput{
-      ChreNanoappChannelOutput::Role::SERVER};
+  ChreServerHostChannelOutput mHostOutput;
+  ChreServerNanoappChannelOutput mNanoappOutput;
 
   // Host endpoints for the connected clients.
   DynamicVector<uint16_t> mConnectedHosts;
