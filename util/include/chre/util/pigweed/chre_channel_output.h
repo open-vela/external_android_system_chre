@@ -20,6 +20,7 @@
 #include <chre.h>
 #include <cstdint>
 
+#include "chre/util/pigweed/permission.h"
 #include "pw_rpc/channel.h"
 #include "pw_span/span.h"
 
@@ -56,44 +57,35 @@ class ChreChannelOutputBase : public pw::rpc::ChannelOutput {
 
  protected:
   ChreChannelOutputBase();
-
-  /**
-   * Sets the endpoint ID that the message should be sent to.
-   *
-   * @param endpointId Either a host endpoint ID or nanoapp instance ID
-   *     corresponding to the endpoint that should receive messages sent through
-   *     this channel output.
-   */
-  void setEndpointId(uint16_t endpointId);
-
-  uint16_t mEndpointId = CHRE_HOST_ENDPOINT_UNSPECIFIED;
 };
 
 /**
- * Channel output that must be used if the channel is between two nanoapps.
+ * Channel output that must be used on the server side of the channel between
+ * two nanoapps.
  */
-class ChreNanoappChannelOutput : public ChreChannelOutputBase {
+class ChreServerNanoappChannelOutput : public ChreChannelOutputBase {
  public:
-  /**
-   * Whether the channel output is used on the server or the client side.
-   */
-  enum class Role : uint8_t {
-    SERVER = 0,
-    CLIENT = 1,
-  };
-
-  /**
-   * @param role Whether the channel output is used on the server or the client
-   *    side.
-   */
-  ChreNanoappChannelOutput(enum Role role) : mRole(role){};
-
+  explicit ChreServerNanoappChannelOutput(RpcPermission &permission)
+      : mPermission(permission) {}
   /**
    * Sets the nanoapp instance ID that is being communicated with over this
    * channel output.
    */
-  void setNanoappEndpoint(uint32_t nanoappInstanceId);
+  void setClient(uint32_t nanoappInstanceId);
 
+  pw::Status Send(pw::span<const std::byte> buffer) override;
+
+ private:
+  uint16_t mClientInstanceId = 0;
+  RpcPermission &mPermission;
+};
+
+/**
+ * Channel output that must be used on the client side of the channel between
+ * two nanoapps.
+ */
+class ChreClientNanoappChannelOutput : public ChreChannelOutputBase {
+ public:
   /**
    * Sets the server instance ID.
    *
@@ -106,22 +98,27 @@ class ChreNanoappChannelOutput : public ChreChannelOutputBase {
   pw::Status Send(pw::span<const std::byte> buffer) override;
 
  private:
-  const enum Role mRole;
-  uint32_t mServerInstanceId = 0;
+  uint16_t mServerInstanceId = 0;
 };
 
 /**
  * Channel output that must be used if the channel is between a nanoapp and
  * host client.
  */
-class ChreHostChannelOutput : public ChreChannelOutputBase {
+class ChreServerHostChannelOutput : public ChreChannelOutputBase {
  public:
+  explicit ChreServerHostChannelOutput(RpcPermission &permission)
+      : mPermission(permission) {}
   /**
    * Sets the host endpoint being communicated with.
    */
   void setHostEndpoint(uint16_t hostEndpoint);
 
   pw::Status Send(pw::span<const std::byte> buffer) override;
+
+ private:
+  uint16_t mEndpointId = CHRE_HOST_ENDPOINT_UNSPECIFIED;
+  RpcPermission &mPermission;
 };
 
 }  // namespace chre

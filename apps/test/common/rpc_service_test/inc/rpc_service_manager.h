@@ -59,6 +59,13 @@ class RpcServiceManager {
   void handleEvent(uint32_t senderInstanceId, uint16_t eventType,
                    const void *eventData);
 
+  /**
+   * Sets the permission for the next server message.
+   *
+   * @params permission Bitmasked CHRE_MESSAGE_PERMISSION_.
+   */
+  void setPermissionForNextMessage(uint32_t permission);
+
  private:
   RpcServer mServer;
   // pw_rpc service used to process the echo RPC
