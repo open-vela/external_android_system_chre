@@ -354,18 +354,6 @@ class Manager {
       const chre_cross_validation_sensor_SensorInfoResponse &infoResponse);
 
   /**
-   * Sends the provided message to the host.
-   *
-   * @param hostEndpoint The endpoint to send the message to.
-   * @param messageType The type of message being sent to the host.
-   * @param fields The fields of the provided struct that should be encoded.
-   * @param srcStruct The struct that should be encoded prior to sending to the
-   *     host.
-   */
-  void sendMessageToHost(uint16_t hostEndpoint, uint16_t messageType,
-                         const pb_field_t fields[], const void *srcStruct);
-
-  /**
    * Determine if nanoapp is ready to process new sensor data.
    *
    * @param header The sensor data header that was received with data.
