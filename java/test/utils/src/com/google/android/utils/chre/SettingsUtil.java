@@ -172,6 +172,8 @@ public class SettingsUtil {
     public boolean isBluetoothScanningAlwaysEnabled() {
         String out = ChreTestUtil.executeShellCommand(
                 mInstrumentation, "settings get global ble_scan_always_enabled");
-        return ChreTestUtil.convertToIntegerOrFail(out) > 0;
+
+        // by default, this setting returns null, which is equivalent to 0 or disabled
+        return ChreTestUtil.convertToIntegerOrReturnZero(out) > 0;
     }
 }

@@ -198,6 +198,18 @@ public class ChreTestUtil {
     }
 
     /**
+     * @param input The string input of an integer.
+     * @return The converted integer.
+     */
+    public static int convertToIntegerOrReturnZero(String input) {
+        try {
+            return Integer.parseInt(input);
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    /**
      * Get all the nanoapps currently loaded on device.
      *
      * @return The nanoapps loaded currently.
