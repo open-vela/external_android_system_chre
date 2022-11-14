@@ -120,9 +120,10 @@ cc_binary {
         "host/common/chre_aidl_hal_client.cc",
     ],
     shared_libs: [
-        "android.hardware.contexthub-V1-ndk",
+        "android.hardware.contexthub-V2-ndk",
         "libbase",
         "libbinder_ndk",
+        "libjsoncpp",
         "liblog",
         "libutils",
     ],
@@ -293,7 +294,7 @@ cc_library_static {
         "host/common/include",
     ],
     shared_libs: [
-        "android.hardware.contexthub-V1-ndk",
+        "android.hardware.contexthub-V2-ndk",
         "libcutils",
         "libutils",
     ],
@@ -318,7 +319,7 @@ cc_test_host {
         "host/common/include",
     ],
     static_libs: [
-        "android.hardware.contexthub-V1-ndk",
+        "android.hardware.contexthub-V2-ndk",
         "event_logger",
         "libgmock",
     ],

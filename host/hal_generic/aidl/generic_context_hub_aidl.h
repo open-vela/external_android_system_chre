@@ -19,6 +19,7 @@
 
 #include <aidl/android/hardware/contexthub/BnContextHub.h>
 #include <log/log.h>
+#include <future>
 #include <map>
 #include <mutex>
 #include <optional>
@@ -38,7 +39,6 @@ class ContextHub : public BnContextHub,
   ContextHub()
       : mDeathRecipient(
             AIBinder_DeathRecipient_new(ContextHub::onServiceDied)) {}
-
   ::ndk::ScopedAStatus getContextHubs(
       std::vector<ContextHubInfo> *out_contextHubInfos) override;
   ::ndk::ScopedAStatus loadNanoapp(int32_t contextHubId,
@@ -52,6 +52,8 @@ class ContextHub : public BnContextHub,
                                      int32_t transactionId) override;
   ::ndk::ScopedAStatus onSettingChanged(Setting setting, bool enabled) override;
   ::ndk::ScopedAStatus queryNanoapps(int32_t contextHubId) override;
+  ::ndk::ScopedAStatus getPreloadedNanoappIds(
+      std::vector<int64_t> *out_preloadedNanoappIds) override;
   ::ndk::ScopedAStatus registerCallback(
       int32_t contextHubId,
       const std::shared_ptr<IContextHubCallback> &cb) override;
@@ -110,6 +112,10 @@ class ContextHub : public BnContextHub,
   // Logs events to be reported in debug dumps.
   EventLogger mEventLogger;
 
+  // A mutex to synchronize access to the list of preloaded nanoapp IDs
+  std::mutex mPreloadedNanoappIdsMutex;
+  std::optional<std::vector<int64_t>> mPreloadedNanoappIds;
+
   bool isSettingEnabled(Setting setting) {
     return mSettingEnabled.count(setting) > 0 && mSettingEnabled[setting];
   }
@@ -118,6 +124,16 @@ class ContextHub : public BnContextHub,
     return enabled ? chre::fbs::SettingState::ENABLED
                    : chre::fbs::SettingState::DISABLED;
   }
+
+  /**
+   * Get the preloaded nanoapp IDs from the config file and headers
+   *
+   * @param preloadedNanoappIds         out parameter, nanoapp IDs
+   * @return true                       operation was successful
+   * @return false                      operation was not successful
+   */
+  bool getPreloadedNanoappIdsFromConfigFile(
+      std::vector<int64_t> &preloadedNanoappIds) const;
 };
 
 }  // namespace aidl::android::hardware::contexthub
