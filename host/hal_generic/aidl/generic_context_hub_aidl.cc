@@ -17,8 +17,11 @@
 #include "generic_context_hub_aidl.h"
 
 #include "chre_api/chre/event.h"
+#include "chre_host/config_util.h"
+#include "chre_host/file_stream.h"
 #include "chre_host/fragmented_load_transaction.h"
 #include "chre_host/host_protocol_host.h"
+#include "chre_host/napp_header.h"
 #include "permissions_util.h"
 
 namespace aidl::android::hardware::contexthub {
@@ -28,7 +31,10 @@ namespace aidl::android::hardware::contexthub {
 namespace fbs = ::chre::fbs;
 
 using ::android::chre::FragmentedLoadTransaction;
+using ::android::chre::getPreloadedNanoappsFromConfigFile;
 using ::android::chre::getStringFromByteVector;
+using ::android::chre::NanoAppBinaryHeader;
+using ::android::chre::readFileContents;
 using ::android::hardware::contexthub::common::implementation::
     chreToAndroidPermissions;
 using ::android::hardware::contexthub::common::implementation::
@@ -37,6 +43,8 @@ using ::ndk::ScopedAStatus;
 
 namespace {
 constexpr uint32_t kDefaultHubId = 0;
+constexpr char kPreloadedNanoappsConfigPath[] =
+    "/vendor/etc/chre/preloaded_nanoapps.json";
 
 inline constexpr int8_t extractChreApiMajorVersion(uint32_t chreVersion) {
   return static_cast<int8_t>(chreVersion >> 24);
@@ -202,6 +210,34 @@ ScopedAStatus ContextHub::queryNanoapps(int32_t contextHubId) {
   return toServiceSpecificError(mConnection.queryNanoapps());
 }
 
+::ndk::ScopedAStatus ContextHub::getPreloadedNanoappIds(
+    std::vector<int64_t> *out_preloadedNanoappIds) {
+  if (out_preloadedNanoappIds == nullptr) {
+    return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
+  }
+
+  std::unique_lock<std::mutex> lock(mPreloadedNanoappIdsMutex);
+  if (mPreloadedNanoappIds.has_value()) {
+    for (auto iter = mPreloadedNanoappIds->begin();
+         iter != mPreloadedNanoappIds->end(); ++iter) {
+      out_preloadedNanoappIds->push_back(*iter);
+    }
+    return ScopedAStatus::ok();
+  }
+
+  std::vector<int64_t> preloadedNanoappIds;
+  if (!getPreloadedNanoappIdsFromConfigFile(preloadedNanoappIds)) {
+    return ScopedAStatus::fromExceptionCode(EX_SERVICE_SPECIFIC);
+  }
+
+  mPreloadedNanoappIds = preloadedNanoappIds;
+  for (auto iter = mPreloadedNanoappIds->begin();
+       iter != mPreloadedNanoappIds->end(); ++iter) {
+    out_preloadedNanoappIds->push_back(*iter);
+  }
+  return ScopedAStatus::ok();
+}
+
 ScopedAStatus ContextHub::registerCallback(
     int32_t contextHubId, const std::shared_ptr<IContextHubCallback> &cb) {
   if (contextHubId != kDefaultHubId) {
@@ -330,6 +366,7 @@ void ContextHub::onNanoappListResponse(
       appInfoList.push_back(appInfo);
     }
   }
+
   mCallback->handleNanoappInfo(appInfoList);
 }
 
@@ -401,6 +438,43 @@ void ContextHub::writeToDebugFile(const char *str) {
   if (!::android::base::WriteStringToFd(std::string(str), getDebugFd())) {
     ALOGW("Failed to write %zu bytes to debug dump fd", strlen(str));
   }
+}
+
+bool ContextHub::getPreloadedNanoappIdsFromConfigFile(
+    std::vector<int64_t> &preloadedNanoappIds) const {
+  std::string directory;
+  std::vector<std::string> nanoapps;
+  bool success = getPreloadedNanoappsFromConfigFile(
+      kPreloadedNanoappsConfigPath,
+      [](const std::string &error) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-security"
+        ALOGE(error.c_str());
+#pragma GCC diagnostic pop
+      },
+      directory, nanoapps);
+  if (!success) {
+    ALOGE("Failed to parse preloaded nanoapps config file");
+  }
+
+  for (const std::string &nanoapp : nanoapps) {
+    std::string headerFile = directory + "/" + nanoapp + ".napp_header";
+    std::vector<uint8_t> headerBuffer;
+    if (!readFileContents(headerFile.c_str(), &headerBuffer)) {
+      ALOGE("Cannot read header file: %s", headerFile.c_str());
+      continue;
+    }
+
+    if (headerBuffer.size() != sizeof(NanoAppBinaryHeader)) {
+      ALOGE("Header size mismatch");
+      continue;
+    }
+
+    const auto *appHeader =
+        reinterpret_cast<const NanoAppBinaryHeader *>(headerBuffer.data());
+    preloadedNanoappIds.push_back(appHeader->appId);
+  }
+  return true;
 }
 
 }  // namespace aidl::android::hardware::contexthub

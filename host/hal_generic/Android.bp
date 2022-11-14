@@ -53,12 +53,13 @@ cc_binary {
     shared_libs: [
         "android.frameworks.stats-V1-ndk",
         "libcutils",
+        "libjsoncpp",
         "liblog",
         "libprotobuf-cpp-lite",
         "libutils",
         "libbase",
         "libbinder_ndk",
-        "android.hardware.contexthub-V1-ndk",
+        "android.hardware.contexthub-V2-ndk",
         "//hardware/google/pixel:pixelatoms-cpp",
     ],
     header_libs: [
@@ -66,6 +67,7 @@ cc_binary {
     ],
     static_libs: [
         "chre_client",
+        "chre_config_util",
         "event_logger",
     ],
     vintf_fragments: ["aidl/android.hardware.contexthub-service.generic.xml"],
