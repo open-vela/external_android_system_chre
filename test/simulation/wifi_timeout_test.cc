@@ -47,9 +47,8 @@ TEST_F(WifiTimeoutTestBase, WifiScanRequestTimeoutTest) {
   struct App : public TestNanoapp {
     uint32_t perms = NanoappPermissions::CHRE_PERMS_WIFI;
 
-    void (*handleEvent)(uint32_t, uint16_t,
-                        const void *) = [](uint32_t, uint16_t eventType,
-                                           const void *eventData) {
+    decltype(nanoappHandleEvent) *handleEvent = [](uint32_t, uint16_t eventType,
+                                                   const void *eventData) {
       static uint32_t cookie;
 
       switch (eventType) {
@@ -119,7 +118,7 @@ TEST_F(WifiTimeoutTestBase, WifiScanMonitorTimeoutTest) {
   struct App : public TestNanoapp {
     uint32_t perms = NanoappPermissions::CHRE_PERMS_WIFI;
 
-    void (*handleEvent)(uint32_t, uint16_t, const void *) =
+    decltype(nanoappHandleEvent) *handleEvent =
         [](uint32_t, uint16_t eventType, const void *eventData) {
           static uint32_t cookie;
 
@@ -198,7 +197,7 @@ TEST_F(WifiTimeoutTestBase, WifiRequestRangingTimeoutTest) {
   struct App : public TestNanoapp {
     uint32_t perms = NanoappPermissions::CHRE_PERMS_WIFI;
 
-    void (*handleEvent)(uint32_t, uint16_t, const void *) =
+    decltype(nanoappHandleEvent) *handleEvent =
         [](uint32_t, uint16_t eventType, const void *eventData) {
           static uint32_t cookie;
 
