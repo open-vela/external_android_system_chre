@@ -53,7 +53,7 @@ TEST_F(TestBase, HostEndpointDisconnectedTest) {
   };
 
   struct App : public TestNanoapp {
-    void (*handleEvent)(uint32_t, uint16_t, const void *) =
+    decltype(nanoappHandleEvent) *handleEvent =
         [](uint32_t, uint16_t eventType, const void *eventData) {
           switch (eventType) {
             case CHRE_EVENT_HOST_ENDPOINT_NOTIFICATION: {
