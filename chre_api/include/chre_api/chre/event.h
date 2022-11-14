@@ -896,7 +896,7 @@ bool chreConfigureHostEndpointNotifications(uint16_t hostEndpointId,
  *
  * Although nanoapps are recommended to only call this API once with all
  * services it intends to publish, if it is called multiple times, each
- * call will append to the list of published services
+ * call will append to the list of published services.
  *
  * Starting in CHRE API v1.8, the implementation must allow for a nanoapp to
  * publish at least CHRE_MINIMUM_RPC_SERVICE_LIMIT services and at most
