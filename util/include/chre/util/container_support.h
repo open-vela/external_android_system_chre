@@ -29,6 +29,12 @@
 
 #include "chre/util/nanoapp/assert.h"
 
+#ifdef CHRE_STANDALONE_POSIX_ALIGNED_ALLOC
+#include <stdlib.h>
+#else
+#include "chre/util/always_false.h"
+#endif  // CHRE_STANDALONE_POSIX_ALIGNED_ALLOC
+
 namespace chre {
 
 /**
@@ -40,6 +46,22 @@ namespace chre {
  */
 inline void *memoryAlloc(size_t size) {
   return chreHeapAlloc(static_cast<uint32_t>(size));
+}
+
+template <typename T>
+inline T *memoryAlignedAlloc() {
+#ifdef CHRE_STANDALONE_POSIX_ALIGNED_ALLOC
+  void *ptr;
+  int result = posix_memalign(&ptr, alignof(T), sizeof(T));
+  if (result != 0) {
+    ptr = nullptr;
+  }
+  return static_cast<T *>(ptr);
+#else
+  static_assert(AlwaysFalse<T>::value,
+                "memoryAlignedAlloc is unsupported on this platform");
+  return nullptr;
+#endif  // CHRE_STANDALONE_POSIX_ALIGNED_ALLOC
 }
 
 /**
@@ -62,6 +84,16 @@ namespace chre {
 
 inline void *memoryAlloc(size_t size) {
   return malloc(size);
+}
+
+template <typename T>
+inline T *memoryAlignedAlloc() {
+  void *ptr;
+  int result = posix_memalign(&ptr, alignof(T), sizeof(T));
+  if (result != 0) {
+    ptr = nullptr;
+  }
+  return static_cast<T *>(ptr);
 }
 
 inline void memoryFree(void *pointer) {

@@ -21,6 +21,7 @@
 #include <chre.h>
 
 #include <general_test/basic_audio_test.h>
+#include <general_test/basic_ble_test.h>
 #include <general_test/basic_flush_async_test.h>
 #include <general_test/basic_gnss_test.h>
 #include <general_test/basic_sensor_tests.h>
@@ -232,6 +233,7 @@ void App::createTest(const void *eventData) {
     CASE(kBasicGnssTest, BasicGnssTest);
     CASE(kBasicWifiTest, BasicWifiTest);
     CASE(kBasicSensorFlushAsyncTest, BasicSensorFlushAsyncTest);
+    CASE(kBasicBleTest, BasicBleTest);
 
 #undef CASE
 

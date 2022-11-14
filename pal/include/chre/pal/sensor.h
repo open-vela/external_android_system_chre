@@ -17,8 +17,8 @@
 #ifndef CHRE_PAL_SENSOR_H_
 #define CHRE_PAL_SENSOR_H_
 
-#include <cstdbool>
-#include <cstdint>
+#include <stdbool.h>
+#include <stdint.h>
 
 #include "chre/pal/system.h"
 #include "chre/pal/version.h"
