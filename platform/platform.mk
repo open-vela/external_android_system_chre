@@ -428,6 +428,7 @@ TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/host_cpu_update.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/host_link.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/memory.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/platform_cache_management.cc
+TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/platform_pal.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/system_time.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/system_timer.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/power_control_manager.cc
@@ -454,12 +455,17 @@ TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/dlfcn.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/log_buffer.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/memory_manager.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/pal_sensor_stub.cc
+TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/pal_system_api.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/platform_debug_dump_manager.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/nanoapp_loader.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/system_time.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/version.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/nanoapp/nanoapp_dso_util.cc
 
+ifeq ($(CHRE_BLE_SUPPORT_ENABLED), true)
+TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/platform_ble.cc
+TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/pal_ble_stub.cc
+endif
 
 # Compiler flags
 

@@ -34,7 +34,7 @@ CHRE_GNSS_SUPPORT_ENABLED = false
 CHRE_SENSORS_SUPPORT_ENABLED = false
 CHRE_WIFI_SUPPORT_ENABLED = false
 CHRE_WWAN_SUPPORT_ENABLED = false
-CHRE_BLE_SUPPORT_ENABLED = false
+CHRE_BLE_SUPPORT_ENABLED = true
 
 # Common Source Files ##########################################################
 
