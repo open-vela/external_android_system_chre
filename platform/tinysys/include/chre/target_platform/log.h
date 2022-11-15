@@ -29,9 +29,9 @@ extern "C" {
 
 // TODO(b/254292126): We should also print logs to logcat after hostlink
 // implementation is ready.
-#define LOGE(fmt, arg...) PRINTF_E(fmt, ##arg)
-#define LOGW(fmt, arg...) PRINTF_W(fmt, ##arg)
-#define LOGI(fmt, arg...) PRINTF_I(fmt, ##arg)
-#define LOGD(fmt, arg...) PRINTF_D(fmt, ##arg)
+#define LOGE(fmt, arg...) PRINTF_E(fmt "\n", ##arg)
+#define LOGW(fmt, arg...) PRINTF_W(fmt "\n", ##arg)
+#define LOGI(fmt, arg...) PRINTF_I(fmt "\n", ##arg)
+#define LOGD(fmt, arg...) PRINTF_D(fmt "\n", ##arg)
 
 #endif  // CHRE_PLATFORM_TINYSYS_LOG_H_
