@@ -22,17 +22,18 @@ namespace chre {
 
 //! The default list of static nanoapps to load.
 const StaticNanoappInitFunction kStaticNanoappList[] = {
-    //  initializeStaticNanoappAudioWorld,
-    //  initializeStaticNanoappDebugDumpWorld,
-    //  initializeStaticNanoappGnssWorld,
-    //  initializeStaticNanoappHelloWorld,
-    //  initializeStaticNanoappMessageWorld,
-    //  initializeStaticNanoappSensorWorld,
-    //  initializeStaticNanoappSpammer,
-    //  initializeStaticNanoappTimerWorld,
-    //  initializeStaticNanoappUnloadTester,
-    //  initializeStaticNanoappWifiWorld,
-    //  initializeStaticNanoappWwanWorld,
+    // initializeStaticNanoappAudioWorld,
+    // initializeStaticNanoappBleWorld,
+    // initializeStaticNanoappDebugDumpWorld,
+    // initializeStaticNanoappGnssWorld,
+    // initializeStaticNanoappHelloWorld,
+    // initializeStaticNanoappMessageWorld,
+    // initializeStaticNanoappSensorWorld,
+    // initializeStaticNanoappSpammer,
+    // initializeStaticNanoappTimerWorld,
+    // initializeStaticNanoappUnloadTester,
+    // initializeStaticNanoappWifiWorld,
+    // initializeStaticNanoappWwanWorld,
 };
 
 //! The size of the default static nanoapp list.

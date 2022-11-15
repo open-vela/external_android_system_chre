@@ -159,7 +159,7 @@ void handleAsyncResultEvent(const chreAsyncResult *result) {
 void handleAdvertismentEvent(const chreBleAdvertisementEvent *event) {
   for (uint8_t i = 0; i < event->numReports; i++) {
     LOGD("BLE Report %" PRIu32, static_cast<uint32_t>(i + 1));
-    LOGD("Event type and data status: %" PRIx16,
+    LOGD("Event type and data status: 0x%" PRIx8,
          event->reports[i].eventTypeAndDataStatus);
     LOGD("Timestamp: %" PRIu64 " ms",
          event->reports[i].timestamp / chre::kOneMillisecondInNanoseconds);
