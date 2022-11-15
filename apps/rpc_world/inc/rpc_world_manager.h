@@ -92,6 +92,13 @@ class RpcWorldManager {
   void addStart(RpcWorldService::ServerReader<chre_rpc_NumberMessage,
                                               chre_rpc_NumberMessage> &reader);
 
+  /**
+   * Sets the permission for the next server message.
+   *
+   * @params permission Bitmasked CHRE_MESSAGE_PERMISSION_.
+   */
+  void setPermissionForNextMessage(uint32_t permission);
+
   uint32_t mSum = 0;
 
  private:

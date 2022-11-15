@@ -103,8 +103,7 @@ class RpcClient : public NonCopyable {
    */
   void handleNanoappStopped(const void *eventData);
 
-  ChreNanoappChannelOutput mChannelOutput{
-      ChreNanoappChannelOutput::Role::CLIENT};
+  ChreClientNanoappChannelOutput mChannelOutput;
   pw::rpc::Channel mChannel;
   const pw::span<pw::rpc::Channel> mChannels;
   pw::rpc::Client mRpcClient;
@@ -123,7 +122,6 @@ Optional<T> RpcClient::get() {
     }
 
     mChannelId = chreGetInstanceId();
-    mChannelOutput.setNanoappEndpoint(mChannelId);
     mChannelOutput.setServer(info.instanceId);
     mChannel.Configure(mChannelId, mChannelOutput);
   }

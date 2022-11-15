@@ -58,6 +58,10 @@ bool RpcServer::registerServices(size_t numServices,
   return true;
 }
 
+void RpcServer::setPermissionForNextMessage(uint32_t permission) {
+  mPermission.set(permission);
+}
+
 bool RpcServer::handleEvent(uint32_t senderInstanceId, uint16_t eventType,
                             const void *eventData) {
   switch (eventType) {
@@ -138,7 +142,7 @@ bool RpcServer::handleMessageFromNanoapp(uint32_t senderInstanceId,
 
   chreConfigureNanoappInfoEvents(true);
 
-  mNanoappOutput.setNanoappEndpoint(senderInstanceId);
+  mNanoappOutput.setClient(senderInstanceId);
   mServer.OpenChannel(result.value(), mNanoappOutput);
 
   pw::Status success = mServer.ProcessPacket(packet);

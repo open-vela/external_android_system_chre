@@ -31,6 +31,7 @@ COMMON_SRCS += $(NANOAPP_PATH)/src/chre_cross_validator_gnss.cc
 
 # Defines
 COMMON_CFLAGS += -DNANOAPP_MINIMUM_LOG_LEVEL=CHRE_LOG_LEVEL_INFO
+COMMON_CFLAGS += -DCHRE_ASSERTIONS_ENABLED
 
 # Permission declarations ######################################################
 
