@@ -14,37 +14,12 @@
  * limitations under the License.
  */
 
-#include "chre/platform/memory.h"
-#include "chre/platform/shared/memory.h"
-
+#include "chre/platform/shared/authentication.h"
 namespace chre {
 
-void forceDramAccess() {}
-
-void nanoappBinaryFree(void *pointer) {
-  memoryFree(pointer);
-}
-
-void nanoappBinaryDramFree(void *pointer) {
-  memoryFree(pointer);
-}
-
-void *memoryAllocDram(size_t size) {
-  return memoryAlloc(size);
-}
-
-void memoryFreeDram(void *pointer) {
-  memoryFree(pointer);
-}
-
-void *nanoappBinaryAlloc(size_t /*size*/, size_t /*alignment*/) {
+bool authenticateBinary(void * /*binary*/, void ** /*realBinaryStart*/) {
   // TODO(b/252874047): Implementation is only required for dynamic loading.
-  return nullptr;
-}
-
-void *nanoappBinaryDramAlloc(size_t /*size*/, size_t /*alignment*/) {
-  // TODO(b/252874047): Implementation is only required for dynamic loading.
-  return nullptr;
+  return true;
 }
 
 }  // namespace chre
