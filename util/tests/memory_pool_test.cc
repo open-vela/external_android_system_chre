@@ -36,6 +36,18 @@ TEST(MemoryPool, ExhaustPool) {
   EXPECT_EQ(memoryPool.getFreeBlockCount(), 0);
 }
 
+TEST(MemoryPool, OwnershipDeallocation) {
+  MemoryPool<int, 3> firstMemoryPool;
+  MemoryPool<int, 3> secondMemoryPool;
+
+  int *firstMemoryElement = firstMemoryPool.allocate();
+  EXPECT_TRUE(firstMemoryPool.containsAddress(firstMemoryElement));
+  EXPECT_FALSE(secondMemoryPool.containsAddress(firstMemoryElement));
+
+  EXPECT_DEATH(secondMemoryPool.deallocate(firstMemoryElement), "");
+  firstMemoryPool.deallocate(firstMemoryElement);
+}
+
 TEST(MemoryPool, ExhaustPoolThenDeallocateOneAndAllocateOne) {
   MemoryPool<int, 3> memoryPool;
 
