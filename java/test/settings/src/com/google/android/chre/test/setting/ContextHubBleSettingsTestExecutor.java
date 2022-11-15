@@ -118,8 +118,7 @@ public class ContextHubBleSettingsTestExecutor {
         BluetoothUpdateListener bluetoothUpdateListener = new BluetoothUpdateListener(enable);
         mContext.registerReceiver(
                 bluetoothUpdateListener.mBluetoothUpdateReceiver,
-                new IntentFilter(BluetoothAdapter.EXTRA_STATE),
-                Context.RECEIVER_EXPORTED);
+                new IntentFilter(BluetoothAdapter.EXTRA_STATE));
 
         mSettingsUtil.setBluetooth(enable);
         mSettingsUtil.setBluetoothScanningSettings(enableBluetoothScanning);
