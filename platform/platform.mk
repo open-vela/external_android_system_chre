@@ -475,6 +475,12 @@ TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/sensor_pal/platform_sensor.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/sensor_pal/platform_sensor_type_helpers.cc
 endif
 
+ifeq ($(CHRE_AUDIO_SUPPORT_ENABLED), true)
+TINYSYS_CFLAGS += -I$(CHRE_PREFIX)/platform/shared/audio_pal/include
+TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/audio_pal/platform_audio.cc
+TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/pal_audio_stub.cc
+endif
+
 # Compiler flags
 
 # Variables
