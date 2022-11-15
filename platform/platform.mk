@@ -467,6 +467,14 @@ TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/platform_ble.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/pal_ble_stub.cc
 endif
 
+ifeq ($(CHRE_SENSORS_SUPPORT_ENABLED), true)
+TINYSYS_CFLAGS += -I$(CHRE_PREFIX)/platform/shared/sensor_pal/include
+TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/chre_api_sensor.cc
+TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/sensor_pal/platform_sensor_manager.cc
+TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/sensor_pal/platform_sensor.cc
+TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/sensor_pal/platform_sensor_type_helpers.cc
+endif
+
 # Compiler flags
 
 # Variables
