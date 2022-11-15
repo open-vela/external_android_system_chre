@@ -421,16 +421,19 @@ ARM_CFLAGS += -I$(CHRE_PREFIX)/platform/arm/include
 # Tinysys Configurations ######################################################
 
 # Tinysys sources
+TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/authentication.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/chre_init.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/condition_variable_base.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/host_cpu_update.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/host_link.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/memory.cc
+TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/platform_cache_management.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/system_time.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/system_timer.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/power_control_manager.cc
 
 # Freertos sources
+TINYSYS_SRCS += $(CHRE_PREFIX)/platform/freertos/context.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/freertos/init.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/freertos/platform_nanoapp.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/freertos/memory_manager.cc
