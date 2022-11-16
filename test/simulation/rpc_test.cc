@@ -259,6 +259,9 @@ TEST_F(TestBase, PwRpcGetNanoappInfoByAppIdReturnsServices) {
   EXPECT_EQ(pInfo->rpcServices[0].version, 2);
   EXPECT_EQ(pInfo->rpcServices[1].id, 2);
   EXPECT_EQ(pInfo->rpcServices[1].version, 3);
+  EXPECT_EQ(pInfo->reserved[0], 0);
+  EXPECT_EQ(pInfo->reserved[1], 0);
+  EXPECT_EQ(pInfo->reserved[2], 0);
 }
 
 }  // namespace
