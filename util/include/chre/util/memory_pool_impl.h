@@ -69,7 +69,7 @@ size_t MemoryPool<ElementType, kSize>::getFreeBlockCount() const {
 template <typename ElementType, size_t kSize>
 typename MemoryPool<ElementType, kSize>::MemoryPoolBlock *
 MemoryPool<ElementType, kSize>::blocks() {
-  return mBlocks.data();
+  return reinterpret_cast<MemoryPoolBlock *>(mBlocks);
 }
 
 }  // namespace chre
