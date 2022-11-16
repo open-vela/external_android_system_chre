@@ -430,6 +430,15 @@ bool chreGetHostEndpointInfo(uint16_t hostEndpointId,
   return (fptr != nullptr) ? fptr(hostEndpointId, info) : false;
 }
 
+namespace {
+// Populate chreNanoappInfo for CHRE API pre v1.8.
+void populateChreNanoappInfoPre18(struct chreNanoappInfo *info) {
+  info->rpcServiceCount = 0;
+  info->rpcServices = nullptr;
+  memset(&info->reserved, 0, sizeof(info->reserved));
+}
+}  // namespace
+
 bool chreGetNanoappInfoByAppId(uint64_t appId, struct chreNanoappInfo *info) {
   auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreGetNanoappInfoByAppId);
   bool success = (fptr != nullptr) ? fptr(appId, info) : false;
