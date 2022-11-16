@@ -106,6 +106,15 @@ void nanoappHandleEventCompat(uint32_t senderInstanceId, uint16_t eventType,
 }
 #endif
 
+// Populare chreNanoappInfo for CHRE API pre v1.8.
+void populateChreNanoappInfoPre18(struct chreNanoappInfo *info) {
+  info->rpcServiceCount = 0;
+  info->rpcServices = nullptr;
+  info->reserved[0] = 0;
+  info->reserved[1] = 0;
+  info->reserved[2] = 0;
+}
+
 }  // anonymous namespace
 
 //! Used to determine the given unstable ID that was provided when building this
@@ -146,6 +155,10 @@ DLL_EXPORT extern "C" const struct chreNslNanoappInfo _chreNslDsoNanoappInfo = {
     /* appVersionString */ _chreNanoappUnstableId,
     /* appPermissions */ kNanoappPermissions,
 };
+
+const struct chreNslNanoappInfo *getChreNslDsoNanoappInfo() {
+  return &_chreNslDsoNanoappInfo;
+}
 
 // The code section below provides default implementations for new symbols
 // introduced in CHRE API v1.2+ to provide binary compatibility with previous
@@ -216,6 +229,12 @@ WEAK_SYMBOL
 uint32_t chreBleGetFilterCapabilities() {
   auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreBleGetFilterCapabilities);
   return (fptr != nullptr) ? fptr() : CHRE_BLE_FILTER_CAPABILITIES_NONE;
+}
+
+WEAK_SYMBOL
+bool chreBleFlushAsync(const void *cookie) {
+  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreBleFlushAsync);
+  return (fptr != nullptr) ? fptr(cookie) : false;
 }
 
 WEAK_SYMBOL
@@ -407,6 +426,25 @@ bool chreGetHostEndpointInfo(uint16_t hostEndpointId,
                              struct chreHostEndpointInfo *info) {
   auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreGetHostEndpointInfo);
   return (fptr != nullptr) ? fptr(hostEndpointId, info) : false;
+}
+
+bool chreGetNanoappInfoByAppId(uint64_t appId, struct chreNanoappInfo *info) {
+  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreGetNanoappInfoByAppId);
+  bool success = (fptr != nullptr) ? fptr(appId, info) : false;
+  if (success && chreGetApiVersion() < CHRE_API_VERSION_1_8) {
+    populateChreNanoappInfoPre18(info);
+  }
+  return success;
+}
+
+bool chreGetNanoappInfoByInstanceId(uint32_t instanceId,
+                                    struct chreNanoappInfo *info) {
+  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreGetNanoappInfoByInstanceId);
+  bool success = (fptr != nullptr) ? fptr(instanceId, info) : false;
+  if (success && chreGetApiVersion() < CHRE_API_VERSION_1_8) {
+    populateChreNanoappInfoPre18(info);
+  }
+  return success;
 }
 
 #endif  // CHRE_NANOAPP_DISABLE_BACKCOMPAT

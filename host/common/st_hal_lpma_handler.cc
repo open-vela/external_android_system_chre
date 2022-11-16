@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <cassert>
 #include <cinttypes>
 
 #include "chre_host/st_hal_lpma_handler.h"
@@ -55,9 +56,21 @@ StHalLpmaHandler::StHalLpmaHandler(bool allowed) : mIsLpmaAllowed(allowed) {
   mDeathRecipient = new StHalDeathRecipient(cb);
 }
 
+StHalLpmaHandler::~StHalLpmaHandler() {
+  if (mTargetLpmaEnabled) {
+    stopAndUnload();
+  }
+  if (mThread.has_value()) {
+    mStThreadShouldExit = true;
+    mCondVar.notify_all();
+    mThread->join();
+  }
+  releaseWakeLock();
+}
+
 void StHalLpmaHandler::init() {
   if (mIsLpmaAllowed) {
-    mThread = std::thread(&StHalLpmaHandler::StHalLpmaHandlerThreadEntry, this);
+    mThread = std::thread(&StHalLpmaHandler::stHalLpmaHandlerThreadEntry, this);
   }
 }
 
@@ -127,6 +140,51 @@ void StHalLpmaHandler::unload() {
   }
 }
 
+bool StHalLpmaHandler::start() {
+#ifdef CHRE_LPMA_REQUEST_START_RECOGNITION
+  // mLpmaHandle
+  ISoundTriggerHw::RecognitionConfig config = {};
+
+  Return<int32_t> hidlResult = mStHalService->startRecognition(
+      mLpmaHandle, config, nullptr /* callback */, 0 /* cookie */);
+
+  int32_t result = hidlResult.withDefault(-EPIPE);
+  if (result != 0) {
+    LOGE("Failed to start LPMA: %" PRId32, result);
+  }
+  return (result == 0);
+#else
+  return true;
+#endif  // CHRE_LPMA_REQUEST_START_RECOGNITION
+}
+
+void StHalLpmaHandler::stop() {
+#ifdef CHRE_LPMA_REQUEST_START_RECOGNITION
+  Return<int32_t> hidlResult = mStHalService->stopRecognition(mLpmaHandle);
+
+  int32_t result = hidlResult.withDefault(-EPIPE);
+  if (result != 0) {
+    LOGW("Failed to stop LPMA: %" PRId32, result);
+  }
+#endif
+}
+
+bool StHalLpmaHandler::loadAndStart() {
+  if (load()) {
+    if (start()) {
+      return true;
+    } else {
+      unload();
+    }
+  }
+  return false;
+}
+
+void StHalLpmaHandler::stopAndUnload() {
+  stop();
+  unload();
+}
+
 void StHalLpmaHandler::checkConnectionToStHalServiceLocked() {
   if (mStHalService == nullptr) {
     mStHalService = ISoundTriggerHw::getService();
@@ -137,58 +195,57 @@ void StHalLpmaHandler::checkConnectionToStHalServiceLocked() {
   }
 }
 
-bool StHalLpmaHandler::waitOnStHalRequestAndProcess() {
-  bool noDelayNeeded = true;
-  std::unique_lock<std::mutex> lock(mMutex);
-
+void StHalLpmaHandler::stHalRequestAndProcessLocked(
+    std::unique_lock<std::mutex> const &locked) {
+  // Cannot use assert(locked.owns_lock()) since locked are not use in other
+  // places and non-debug version will not use assert. Compiler will not compile
+  // if there is unused parameter.
+  if (!locked.owns_lock()) {
+    assert(false);
+  }
   if (mCurrentLpmaEnabled == mTargetLpmaEnabled) {
-    mRetryDelay = 0;
-    mRetryCount = 0;
-    releaseWakeLock();  // Allow the system to suspend while waiting.
-    mCondVar.wait(lock, [this] { return mCondVarPredicate; });
-    mCondVarPredicate = false;
-    acquireWakeLock();  // Ensure the system stays up while retrying.
-  } else if (mTargetLpmaEnabled && load()) {
+    return;
+  } else if (mTargetLpmaEnabled && loadAndStart()) {
     mCurrentLpmaEnabled = mTargetLpmaEnabled;
   } else if (!mTargetLpmaEnabled) {
     // Regardless of whether the use case fails to unload, set the
     // currentLpmaEnabled to the targetLpmaEnabled. This will allow the next
     // enable request to proceed. After a failure to unload occurs, the
     // supplied handle is invalid and should not be unloaded again.
-    unload();
+    stopAndUnload();
     mCurrentLpmaEnabled = mTargetLpmaEnabled;
-  } else {
-    noDelayNeeded = false;
   }
-
-  return noDelayNeeded;
 }
 
-void StHalLpmaHandler::delay() {
+void StHalLpmaHandler::stHalLpmaHandlerThreadEntry() {
+  LOGD("Starting LPMA thread");
   constexpr useconds_t kInitialRetryDelayUs = 500000;
   constexpr int kRetryGrowthFactor = 2;
   constexpr int kRetryGrowthLimit = 5;     // Terminates at 8s retry interval.
   constexpr int kRetryWakeLockLimit = 10;  // Retry with a wakelock 10 times.
-
-  if (mRetryDelay == 0) {
-    mRetryDelay = kInitialRetryDelayUs;
-  } else if (mRetryCount < kRetryGrowthLimit) {
-    mRetryDelay *= kRetryGrowthFactor;
-  }
-  usleep(mRetryDelay);
-  mRetryCount++;
-  if (mRetryCount > kRetryWakeLockLimit) {
+  std::unique_lock<std::mutex> lock(mMutex);
+  while (!mStThreadShouldExit) {
+    stHalRequestAndProcessLocked(lock);
+    bool retryNeeded = (mCurrentLpmaEnabled != mTargetLpmaEnabled);
     releaseWakeLock();
-  }
-}
 
-void StHalLpmaHandler::StHalLpmaHandlerThreadEntry() {
-  LOGD("Starting LPMA thread");
-
-  while (true) {
-    if (!waitOnStHalRequestAndProcess()) {
-      // processing an LPMA state update failed, retry after a little while
-      delay();
+    if (retryNeeded) {
+      if (mRetryCount < kRetryGrowthLimit) {
+        mRetryCount += 1;
+        mRetryDelay = mRetryDelay * kRetryGrowthFactor;
+      }
+      mCondVar.wait_for(lock, std::chrono::microseconds(mRetryDelay), [this] {
+        return mCondVarPredicate || mStThreadShouldExit;
+      });
+    } else {
+      mRetryCount = 0;
+      mRetryDelay = kInitialRetryDelayUs;
+      mCondVar.wait(
+          lock, [this] { return mCondVarPredicate || mStThreadShouldExit; });
+    }
+    mCondVarPredicate = false;
+    if (mRetryCount <= kRetryWakeLockLimit) {
+      acquireWakeLock();
     }
   }
 }
