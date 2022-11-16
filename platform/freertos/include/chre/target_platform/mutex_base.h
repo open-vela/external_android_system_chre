@@ -37,14 +37,20 @@ class MutexBase {
    * to avoid heap allocations
    */
   void initStaticMutex() {
+#ifdef CHRE_CREATE_MUTEX_ON_HEAP
+    mSemaphoreHandle = xSemaphoreCreateMutex();
+#else
     mSemaphoreHandle = xSemaphoreCreateMutexStatic(&mStaticSemaphore);
     if (mSemaphoreHandle == NULL) {
       FATAL_ERROR("Failed to initialize mutex");
     }
+#endif
   }
 
  private:
+#ifndef CHRE_CREATE_MUTEX_ON_HEAP
   StaticSemaphore_t mStaticSemaphore;
+#endif
 };
 
 }  // namespace chre
