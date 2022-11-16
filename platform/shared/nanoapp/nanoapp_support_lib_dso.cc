@@ -106,15 +106,6 @@ void nanoappHandleEventCompat(uint32_t senderInstanceId, uint16_t eventType,
 }
 #endif
 
-// Populare chreNanoappInfo for CHRE API pre v1.8.
-void populateChreNanoappInfoPre18(struct chreNanoappInfo *info) {
-  info->rpcServiceCount = 0;
-  info->rpcServices = nullptr;
-  info->reserved[0] = 0;
-  info->reserved[1] = 0;
-  info->reserved[2] = 0;
-}
-
 }  // anonymous namespace
 
 //! Used to determine the given unstable ID that was provided when building this
@@ -173,6 +164,17 @@ const struct chreNslNanoappInfo *getChreNslDsoNanoappInfo() {
 #ifndef CHRE_NANOAPP_DISABLE_BACKCOMPAT
 
 #include <dlfcn.h>
+
+namespace {
+// Populate chreNanoappInfo for CHRE API pre v1.8.
+void populateChreNanoappInfoPre18(struct chreNanoappInfo *info) {
+  info->rpcServiceCount = 0;
+  info->rpcServices = nullptr;
+  info->reserved[0] = 0;
+  info->reserved[1] = 0;
+  info->reserved[2] = 0;
+}
+}  // namespace
 
 /**
  * Lazily calls dlsym to find the function pointer for a given function
