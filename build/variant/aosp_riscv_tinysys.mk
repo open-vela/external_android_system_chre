@@ -36,7 +36,12 @@ TARGET_CFLAGS += -DCHRE_CREATE_MUTEX_ON_HEAP
 
 # Compiling flags ##############################################################
 
+# -fpic and -shared are only needed for dynamic linking
+ifeq ($(IS_ARCHIVE_ONLY_BUILD),)
+TARGET_SO_LDFLAGS += -shared
 TARGET_CFLAGS += -fpic
+endif
+
 TARGET_CFLAGS += --target=riscv32-unknown-elf
 TARGET_CFLAGS += -march=rv32imafcv
 TARGET_CFLAGS += -mcpu=MRV55E03

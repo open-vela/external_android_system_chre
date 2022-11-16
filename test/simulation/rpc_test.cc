@@ -37,7 +37,7 @@ namespace {
 
 TEST_F(TestBase, PwRpcCanPublishServicesInNanoappStart) {
   struct App : public TestNanoapp {
-    bool (*start)() = []() -> bool {
+    decltype(nanoappStart) *start = []() -> bool {
       struct chreNanoappRpcService servicesA[] = {
           {.id = 1, .version = 0},
           {.id = 2, .version = 0},
@@ -75,7 +75,7 @@ TEST_F(TestBase, PwRpcCanPublishServicesInNanoappStart) {
 
 TEST_F(TestBase, PwRpcCanNotPublishDuplicateServices) {
   struct App : public TestNanoapp {
-    bool (*start)() = []() -> bool {
+    decltype(nanoappStart) *start = []() -> bool {
       struct chreNanoappRpcService servicesA[] = {
           {.id = 1, .version = 0},
           {.id = 2, .version = 0},
@@ -118,7 +118,7 @@ TEST_F(TestBase, PwRpcDifferentAppCanPublishSameServices) {
   struct App1 : public TestNanoapp {
     uint64_t id = 0x01;
 
-    bool (*start)() = []() -> bool {
+    decltype(nanoappStart) *start = []() -> bool {
       struct chreNanoappRpcService services[] = {
           {.id = 1, .version = 0},
           {.id = 2, .version = 0},
@@ -170,7 +170,7 @@ TEST_F(TestBase, PwRpcCanNotPublishServicesOutsideOfNanoappStart) {
   CREATE_CHRE_TEST_EVENT(PUBLISH_SERVICES, 0);
 
   struct App : public TestNanoapp {
-    void (*handleEvent)(uint32_t, uint16_t, const void *) =
+    decltype(nanoappHandleEvent) *handleEvent =
         [](uint32_t, uint16_t eventType, const void *eventData) {
           switch (eventType) {
             case CHRE_EVENT_TEST_EVENT: {
@@ -213,6 +213,52 @@ TEST_F(TestBase, PwRpcCanNotPublishServicesOutsideOfNanoappStart) {
   ASSERT_FALSE(napp == nullptr);
 
   EXPECT_EQ(napp->getRpcServices().size(), 0);
+}
+
+TEST_F(TestBase, PwRpcGetNanoappInfoByAppIdReturnsServices) {
+  CREATE_CHRE_TEST_EVENT(QUERY_INFO, 0);
+
+  struct App : public TestNanoapp {
+    decltype(nanoappStart) *start = []() -> bool {
+      struct chreNanoappRpcService services[] = {
+          {.id = 1, .version = 2},
+          {.id = 2, .version = 3},
+      };
+
+      return chrePublishRpcServices(services, 2 /* numServices */);
+    };
+
+    decltype(nanoappHandleEvent) *handleEvent = [](uint32_t, uint16_t eventType,
+                                                   const void *eventData) {
+      static struct chreNanoappInfo info;
+      switch (eventType) {
+        case CHRE_EVENT_TEST_EVENT: {
+          auto event = static_cast<const TestEvent *>(eventData);
+          switch (event->type) {
+            case QUERY_INFO: {
+              auto id = static_cast<uint64_t *>(event->data);
+              bool success = chreGetNanoappInfoByAppId(*id, &info);
+              const struct chreNanoappInfo *pInfo = success ? &info : nullptr;
+              TestEventQueueSingleton::get()->pushEvent(QUERY_INFO, pInfo);
+              break;
+            }
+          }
+        }
+      }
+    };
+  };
+
+  auto app = loadNanoapp<App>();
+
+  struct chreNanoappInfo *pInfo = nullptr;
+  sendEventToNanoapp(app, QUERY_INFO, app.id);
+  waitForEvent(QUERY_INFO, &pInfo);
+  EXPECT_TRUE(pInfo != nullptr);
+  EXPECT_EQ(pInfo->rpcServiceCount, 2);
+  EXPECT_EQ(pInfo->rpcServices[0].id, 1);
+  EXPECT_EQ(pInfo->rpcServices[0].version, 2);
+  EXPECT_EQ(pInfo->rpcServices[1].id, 2);
+  EXPECT_EQ(pInfo->rpcServices[1].version, 3);
 }
 
 }  // namespace

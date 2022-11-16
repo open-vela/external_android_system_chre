@@ -59,9 +59,8 @@ class WifiScanRequestQueueTestBase : public TestBase {
 struct WifiScanTestNanoapp : public TestNanoapp {
   uint32_t perms = NanoappPermissions::CHRE_PERMS_WIFI;
 
-  void (*handleEvent)(uint32_t, uint16_t,
-                      const void *) = [](uint32_t, uint16_t eventType,
-                                         const void *eventData) {
+  decltype(nanoappHandleEvent) *handleEvent = [](uint32_t, uint16_t eventType,
+                                                 const void *eventData) {
     constexpr uint8_t kMaxPendingCookie = 10;
     static uint32_t cookies[kMaxPendingCookie];
     static uint8_t nextFreeCookieIndex = 0;

@@ -157,13 +157,12 @@ struct TestNanoapp {
   uint32_t version = 0;
   uint32_t perms = NanoappPermissions::CHRE_PERMS_NONE;
 
-  bool (*start)() = []() { return true; };
+  decltype(nanoappStart) *start = []() { return true; };
 
-  void (*handleEvent)(uint32_t senderInstanceId, uint16_t eventType,
-                      const void *eventData) = [](uint32_t, uint16_t,
-                                                  const void *) {};
+  decltype(nanoappHandleEvent) *handleEvent = [](uint32_t, uint16_t,
+                                                 const void *) {};
 
-  void (*end)() = []() {};
+  decltype(nanoappEnd) *end = []() {};
 };
 
 /**

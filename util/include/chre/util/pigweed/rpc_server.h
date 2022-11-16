@@ -66,8 +66,11 @@ class RpcServer : public NonCopyable {
   /**
    * Registers services to the server and to CHRE.
    *
-   * This method must be called from `nanoappStart`. It is valid to call this
-   * method more than once.
+   * This method must be called from `nanoappStart`.
+   *
+   * Although nanoapps are recommended to only call this API once with all
+   * services it intends to publish, if it is called multiple times, each
+   * call will append to the list of published services.
    *
    * @param numServices The number of services to register.
    * @param services Service definitions.

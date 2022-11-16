@@ -309,6 +309,13 @@ extern "C" {
 /** @} */
 
 /**
+ * @see chrePublishRpcServices
+ *
+ * @since v1.8
+ */
+#define CHRE_MINIMUM_RPC_SERVICE_LIMIT UINT8_C(4)
+
+/**
  * Data provided with CHRE_EVENT_MESSAGE_FROM_HOST.
  */
 struct chreMessageFromHostData {
@@ -400,6 +407,33 @@ struct chreNanoappInfo {
      * inside a 32-bit integer (useful for RPC routing).
      */
     uint32_t instanceId;
+
+    /**
+     * Reserved for future use.
+     * Always set to 0.
+     */
+    uint8_t reserved[3];
+
+    /**
+     * The number of RPC services exposed by this nanoapp.
+     * The service details are available in the rpcServices array.
+     * Must always be set to 0 when running on a CHRE implementation prior to
+     * v1.8
+     *
+     * @since v1.8
+     */
+    uint8_t rpcServiceCount;
+
+    /*
+     * Array of RPC services published by this nanoapp.
+     * Services are published via chrePublishRpcServices.
+     * The array contains rpcServiceCount entries.
+     *
+     * The pointer is only valid when rpcServiceCount is greater than 0.
+     *
+     * @since v1.8
+     */
+    const struct chreNanoappRpcService *rpcServices;
 };
 
 /**
@@ -852,13 +886,22 @@ bool chreConfigureHostEndpointNotifications(uint16_t hostEndpointId,
                                             bool enable);
 
 /**
- * Publishes an RPC service from this nanoapp.
+ * Publishes RPC services from this nanoapp.
  *
  * When this API is invoked, the list of RPC services will be provided to
  * host applications interacting with the nanoapp.
  *
  * This function must be invoked from nanoappStart(), to guarantee stable output
  * of the list of RPC services supported by the nanoapp.
+ *
+ * Although nanoapps are recommended to only call this API once with all
+ * services it intends to publish, if it is called multiple times, each
+ * call will append to the list of published services.
+ *
+ * Starting in CHRE API v1.8, the implementation must allow for a nanoapp to
+ * publish at least CHRE_MINIMUM_RPC_SERVICE_LIMIT services and at most
+ * UINT8_MAX services. If calling this function would result in exceeding
+ * the limit, the services must not be published and it must return false.
  *
  * @param services A non-null pointer to the list of RPC services to publish.
  * @param numServices The number of services to publish, i.e. the length of the
