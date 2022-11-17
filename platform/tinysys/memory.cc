@@ -37,6 +37,14 @@ void memoryFreeDram(void *pointer) {
   memoryFree(pointer);
 }
 
+void *palSystemApiMemoryAlloc(size_t size) {
+  return memoryAlloc(size);
+}
+
+void palSystemApiMemoryFree(void *pointer) {
+  memoryFree(pointer);
+}
+
 void *nanoappBinaryAlloc(size_t /*size*/, size_t /*alignment*/) {
   // TODO(b/252874047): Implementation is only required for dynamic loading.
   return nullptr;

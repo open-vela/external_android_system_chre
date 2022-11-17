@@ -29,12 +29,12 @@ TINYSYS_CFLAGS += -DCHRE_MAX_UNSCHEDULED_EVENT_COUNT=128
 
 # Optional Features ############################################################
 
-CHRE_AUDIO_SUPPORT_ENABLED = false
+CHRE_AUDIO_SUPPORT_ENABLED = true
 CHRE_GNSS_SUPPORT_ENABLED = false
-CHRE_SENSORS_SUPPORT_ENABLED = false
+CHRE_SENSORS_SUPPORT_ENABLED = true
 CHRE_WIFI_SUPPORT_ENABLED = false
 CHRE_WWAN_SUPPORT_ENABLED = false
-CHRE_BLE_SUPPORT_ENABLED = false
+CHRE_BLE_SUPPORT_ENABLED = true
 
 # Common Source Files ##########################################################
 

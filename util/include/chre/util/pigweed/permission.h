@@ -22,6 +22,7 @@
 
 #include "chre/util/nanoapp/assert.h"
 #include "chre/util/non_copyable.h"
+#include "chre/util/optional.h"
 
 namespace chre {
 
@@ -45,7 +46,7 @@ class RpcPermission : public NonCopyable {
 
  private:
   /** Bitmasked CHRE_MESSAGE_PERMISSION_ */
-  std::optional<uint32_t> mPermission;
+  Optional<uint32_t> mPermission;
 };
 
 }  // namespace chre

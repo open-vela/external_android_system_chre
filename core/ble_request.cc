@@ -179,9 +179,9 @@ void BleRequest::logStateToBuffer(DebugDumpWrapper &debugDump,
   }
   debugDump.print(" %s", mEnabled ? " enable" : " disable\n");
   if (mEnabled) {
-    debugDump.print(" mode=%" PRIu8 " reportDelayMs=%" PRIu32
-                    " rssiThreshold=%" PRId8,
-                    mMode, mReportDelayMs, mRssiThreshold);
+    debugDump.print(
+        " mode=%" PRIu8 " reportDelayMs=%" PRIu32 " rssiThreshold=%" PRId8,
+        static_cast<uint8_t>(mMode), mReportDelayMs, mRssiThreshold);
     if (isPlatformRequest) {
       debugDump.print(" filters=[");
       for (const chreBleGenericFilter &filter : mFilters) {
