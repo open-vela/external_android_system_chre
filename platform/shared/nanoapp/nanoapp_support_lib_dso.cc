@@ -170,9 +170,7 @@ namespace {
 void populateChreNanoappInfoPre18(struct chreNanoappInfo *info) {
   info->rpcServiceCount = 0;
   info->rpcServices = nullptr;
-  info->reserved[0] = 0;
-  info->reserved[1] = 0;
-  info->reserved[2] = 0;
+  memset(&info->reserved, 0, sizeof(info->reserved));
 }
 }  // namespace
 
@@ -429,15 +427,6 @@ bool chreGetHostEndpointInfo(uint16_t hostEndpointId,
   auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreGetHostEndpointInfo);
   return (fptr != nullptr) ? fptr(hostEndpointId, info) : false;
 }
-
-namespace {
-// Populate chreNanoappInfo for CHRE API pre v1.8.
-void populateChreNanoappInfoPre18(struct chreNanoappInfo *info) {
-  info->rpcServiceCount = 0;
-  info->rpcServices = nullptr;
-  memset(&info->reserved, 0, sizeof(info->reserved));
-}
-}  // namespace
 
 bool chreGetNanoappInfoByAppId(uint64_t appId, struct chreNanoappInfo *info) {
   auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreGetNanoappInfoByAppId);
