@@ -63,6 +63,7 @@ bool populateNanoappInfo(const Nanoapp *app, struct chreNanoappInfo *info) {
       info->rpcServiceCount =
           static_cast<uint8_t>(app->getRpcServices().size());
       info->rpcServices = app->getRpcServices().data();
+      memset(&info->reserved, 0, sizeof(info->reserved));
     }
     success = true;
   }

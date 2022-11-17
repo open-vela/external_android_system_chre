@@ -77,6 +77,20 @@ class MemoryPool : public NonCopyable {
   void deallocate(ElementType *element);
 
   /**
+   * Checks if the address of the element provided is within the range managed
+   * by this event pool.
+   * NOTE: If this method returns true, that does not mean that the provided
+   * element has not already been deallocated. It's up to the caller to ensure
+   * they don't double deallocate a given element.
+   *
+   * @param element Address to the element to check if it is in the current
+   * memory pool.
+   * @return true Returns true if the address of the provided element is
+   * managed by this pool.
+   */
+  bool containsAddress(ElementType *element);
+
+  /**
    * @return the number of unused blocks in this memory pool.
    */
   size_t getFreeBlockCount() const;
@@ -105,6 +119,17 @@ class MemoryPool : public NonCopyable {
    * @return A pointer to the memory pool block storage.
    */
   MemoryPoolBlock *blocks();
+
+  /**
+   * Calculate the block index that allocates the element if it belongs to
+   * this memory pool.
+   *
+   * @param element Address to the element.
+   * @param indexOutput Calculated block index output.
+   * @return false if the address of element does not belong to this memory
+   * pool.
+   */
+  bool getBlockIndex(ElementType *element, size_t *indexOutput);
 
   //! Storage for memory pool blocks. To avoid static initialization of members,
   //! std::aligned_storage is used.
