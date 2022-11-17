@@ -44,6 +44,21 @@ bool RpcClient::handleEvent(uint32_t senderInstanceId, uint16_t eventType,
   return true;
 }
 
+bool RpcClient::hasService(uint64_t id, uint32_t version) {
+  struct chreNanoappInfo info;
+  if (!chreGetNanoappInfoByAppId(mServerNanoappId, &info)) {
+    return false;
+  }
+
+  for (uint32_t i = 0; i < info.rpcServiceCount; i++) {
+    if (info.rpcServices[i].id == id) {
+      return info.rpcServices[i].version == version;
+    }
+  }
+
+  return false;
+}
+
 bool RpcClient::handleMessageFromServer(uint32_t senderInstanceId,
                                         const void *eventData) {
   auto data = static_cast<const chre::ChrePigweedNanoappMessage *>(eventData);
