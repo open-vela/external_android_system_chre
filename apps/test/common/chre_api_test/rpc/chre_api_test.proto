@@ -15,16 +15,18 @@ service ChreApiTestService {
   rpc ChreSensorFindDefault(ChreSensorFindDefaultInput)
       returns (ChreSensorFindDefaultOutput) {}
 
-  rpc ChreGetSensorInfo(ChreSensorHandleInput)
-      returns (ChreGetSensorInfoOutput) {}
+  rpc ChreGetSensorInfo(ChreHandleInput) returns (ChreGetSensorInfoOutput) {}
 
   // Gets the sampling status for the sensor
-  rpc ChreGetSensorSamplingStatus(ChreSensorHandleInput)
+  rpc ChreGetSensorSamplingStatus(ChreHandleInput)
       returns (ChreGetSensorSamplingStatusOutput) {}
 
   // Configures a sensor's mode
   rpc ChreSensorConfigureModeOnly(ChreSensorConfigureModeOnlyInput)
       returns (Status) {}
+
+  // Gets the audio source's information
+  rpc ChreAudioGetSource(ChreHandleInput) returns (ChreAudioGetSourceOutput) {}
 }
 
 // General messages
@@ -42,9 +44,9 @@ message Status {
   bool status = 1;
 }
 
-// Input with a sensor handle
-message ChreSensorHandleInput {
-  uint32 sensorHandle = 1;
+// Input with a handle
+message ChreHandleInput {
+  uint32 handle = 1;
 }
 
 // Function specific messages
@@ -87,4 +89,14 @@ message ChreGetSensorSamplingStatusOutput {
 message ChreSensorConfigureModeOnlyInput {
   uint32 sensorHandle = 1;
   uint32 mode = 2;
+}
+
+// Return value for ChreAudioGetSource
+message ChreAudioGetSourceOutput {
+  bool status = 1;
+  string name = 2;
+  uint32 sampleRate = 3;
+  uint64 minBufferDuration = 4;
+  uint64 maxBufferDuration = 5;
+  uint32 format = 6;
 }

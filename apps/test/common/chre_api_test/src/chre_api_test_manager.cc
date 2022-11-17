@@ -62,7 +62,7 @@ pw::Status ChreApiTestService::ChreSensorFindDefault(
 }
 
 pw::Status ChreApiTestService::ChreGetSensorInfo(
-    const chre_rpc_ChreSensorHandleInput &request,
+    const chre_rpc_ChreHandleInput &request,
     chre_rpc_ChreGetSensorInfoOutput &response) {
   ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
       CHRE_MESSAGE_PERMISSION_NONE);
@@ -70,7 +70,7 @@ pw::Status ChreApiTestService::ChreGetSensorInfo(
   struct chreSensorInfo sensorInfo;
   memset(&sensorInfo, 0, sizeof(sensorInfo));
 
-  response.status = chreGetSensorInfo(request.sensorHandle, &sensorInfo);
+  response.status = chreGetSensorInfo(request.handle, &sensorInfo);
 
   if (response.status) {
     copyString(response.sensorName, sensorInfo.sensorName, kMaxNameStringSize);
@@ -101,7 +101,7 @@ pw::Status ChreApiTestService::ChreGetSensorInfo(
 }
 
 pw::Status ChreApiTestService::ChreGetSensorSamplingStatus(
-    const chre_rpc_ChreSensorHandleInput &request,
+    const chre_rpc_ChreHandleInput &request,
     chre_rpc_ChreGetSensorSamplingStatusOutput &response) {
   ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
       CHRE_MESSAGE_PERMISSION_NONE);
@@ -110,7 +110,7 @@ pw::Status ChreApiTestService::ChreGetSensorSamplingStatus(
   memset(&samplingStatus, 0, sizeof(samplingStatus));
 
   response.status =
-      chreGetSensorSamplingStatus(request.sensorHandle, &samplingStatus);
+      chreGetSensorSamplingStatus(request.handle, &samplingStatus);
   response.interval = samplingStatus.interval;
   response.latency = samplingStatus.latency;
   response.enabled = samplingStatus.enabled;
@@ -134,6 +134,37 @@ pw::Status ChreApiTestService::ChreSensorConfigureModeOnly(
 
   LOGD("ChreSensorConfigureModeOnly: status: %s",
        response.status ? "true" : "false");
+  return pw::OkStatus();
+}
+
+pw::Status ChreApiTestService::ChreAudioGetSource(
+    const chre_rpc_ChreHandleInput &request,
+    chre_rpc_ChreAudioGetSourceOutput &response) {
+  ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
+      CHRE_MESSAGE_PERMISSION_NONE);
+
+  struct chreAudioSource audioSource;
+  memset(&audioSource, 0, sizeof(audioSource));
+
+  response.status = chreAudioGetSource(request.handle, &audioSource);
+
+  if (response.status) {
+    copyString(response.name, audioSource.name, kMaxNameStringSize);
+  } else {
+    response.name[0] = '\0';
+  }
+
+  response.sampleRate = audioSource.sampleRate;
+  response.minBufferDuration = audioSource.minBufferDuration;
+  response.maxBufferDuration = audioSource.maxBufferDuration;
+  response.format = audioSource.format;
+
+  LOGD("ChreAudioGetSource: status: %s, name: %s, sampleRate %" PRIu32
+       ", "
+       "minBufferDuration: %" PRIu64 ", maxBufferDuration %" PRIu64
+       ", format: %" PRIu32,
+       response.status ? "true" : "false", response.name, response.sampleRate,
+       response.minBufferDuration, response.maxBufferDuration, response.format);
   return pw::OkStatus();
 }
 

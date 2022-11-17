@@ -64,22 +64,22 @@ class ChreApiTestService final
   /**
    * Gets the sensor information.
    *
-   * @param request         the request (ChreSensorHandleInput)
+   * @param request         the request (ChreHandleInput)
    * @param response        the response (ChreGetSensorInfoOutput)
    * @return                status
    */
-  pw::Status ChreGetSensorInfo(const chre_rpc_ChreSensorHandleInput &request,
+  pw::Status ChreGetSensorInfo(const chre_rpc_ChreHandleInput &request,
                                chre_rpc_ChreGetSensorInfoOutput &response);
 
   /**
    * Gets the sensor sampling status for a given sensor.
    *
-   * @param request         the request (ChreSensorHandleInput)
+   * @param request         the request (ChreHandleInput)
    * @param response        the response (ChreGetSensorSamplingStatusOutput)
    * @return                status
    */
   pw::Status ChreGetSensorSamplingStatus(
-      const chre_rpc_ChreSensorHandleInput &request,
+      const chre_rpc_ChreHandleInput &request,
       chre_rpc_ChreGetSensorSamplingStatusOutput &response);
 
   /**
@@ -92,6 +92,16 @@ class ChreApiTestService final
   pw::Status ChreSensorConfigureModeOnly(
       const chre_rpc_ChreSensorConfigureModeOnlyInput &request,
       chre_rpc_Status &response);
+
+  /**
+   * Gets the audio source information.
+   *
+   * @param request         the request (ChreHandleInput)
+   * @param response        the response (ChreAudioGetSourceOutput)
+   * @return                status
+   */
+  pw::Status ChreAudioGetSource(const chre_rpc_ChreHandleInput &request,
+                                chre_rpc_ChreAudioGetSourceOutput &response);
 
  private:
   /**
