@@ -137,23 +137,21 @@ public class ChreRpcClient {
 
 
     /**
-     * Returns whether the state matches the server nanoapp and the service is provided.
+     * Returns whether the nanoapp supports the service.
      *
-     * @param state           A nanoapp state
-     * @param serverNanoappId The ID of the RPC server nanoapp
-     * @param serviceId       ID of the service
-     * @param serviceVersion  Version of the service
-     * @return the state matches the server nanoapp and the service is provided
+     * @param state   A nanoapp state
+     * @param id      ID of the service
+     * @param version Version of the service
+     * @return whether the nanoapp provides the service at the given ID and version
      */
-    public static boolean hasService(NanoAppState state, long serverNanoappId, long serviceId,
-            int serviceVersion) {
-        if (state.getNanoAppId() != serverNanoappId) {
+    public boolean hasService(NanoAppState state, long id, int version) {
+        if (state.getNanoAppId() != mServerNanoappId) {
             return false;
         }
 
         for (NanoAppRpcService service : state.getRpcServices()) {
-            if (service.getId() == serviceId) {
-                return service.getVersion() == serviceVersion;
+            if (service.getId() == id) {
+                return service.getVersion() == version;
             }
         }
 
