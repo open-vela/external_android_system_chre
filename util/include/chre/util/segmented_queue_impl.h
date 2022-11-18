@@ -30,6 +30,7 @@ template <typename ElementType, size_t kBlockSize>
 SegmentedQueue<ElementType, kBlockSize>::SegmentedQueue(size_t maxBlockCount)
     : kMaxBlockCount(maxBlockCount) {
   CHRE_ASSERT(kMaxBlockCount >= kInitBlockCount);
+  CHRE_ASSERT(kMaxBlockCount * kBlockSize < SIZE_MAX);
   mRawStoragePtrs.reserve(kMaxBlockCount);
   for (size_t i = 0; i < kInitBlockCount; i++) {
     pushOneBlock();
@@ -147,8 +148,7 @@ bool SegmentedQueue<ElementType, kBlockSize>::remove(size_t index) {
     // TODO(b/258557394): optimize by adding check to see if pull from head
     // to tail is more efficient.
     moveElements(advanceOrWrapAround(absoluteIndex), absoluteIndex,
-                 absoluteIndexToRelative(mTail) -
-                     absoluteIndexToRelative(absoluteIndex - 1));
+                 absoluteIndexToRelative(mTail) - index);
     mTail = mTail == 0 ? capacity() - 1 : mTail - 1;
   }
   return true;
@@ -196,6 +196,8 @@ template <typename ElementType, size_t kBlockSize>
 void SegmentedQueue<ElementType, kBlockSize>::moveElements(size_t srcIndex,
                                                            size_t destIndex,
                                                            size_t count) {
+  // TODO(b/259281024): Make sure SegmentedQueue::moveElement() does not
+  // incorrectly overwrites elements.
   while (count--) {
     doMove(srcIndex, destIndex,
            typename std::is_move_constructible<ElementType>::type());
@@ -246,8 +248,7 @@ bool SegmentedQueue<ElementType, kBlockSize>::prepareForPush() {
     if (mSize == capacity()) {
       // TODO(b/258771255): index-based insert block should go away when we
       // have a ArrayQueue based container.
-      size_t insertBlockIndex =
-          mTail == mSize - 1 ? mRawStoragePtrs.size() : mTail / kBlockSize;
+      size_t insertBlockIndex = (mTail + 1) / kBlockSize;
       success = insertBlock(insertBlockIndex);
     } else {
       success = true;

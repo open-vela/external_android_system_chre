@@ -81,6 +81,15 @@ class RpcClient : public NonCopyable {
   template <typename T>
   Optional<T> get();
 
+  /**
+   * Returns whether the server nanoapp supports the service.
+   *
+   * Also returns false when the nanoapp is not loaded.
+   *
+   * @return whether the service is published by the server.
+   */
+  bool hasService(uint64_t id, uint32_t version);
+
  private:
   /**
    * Handles responses from the server.

@@ -20,7 +20,6 @@ import android.hardware.location.ContextHubClientCallback;
 import android.hardware.location.ContextHubInfo;
 import android.hardware.location.ContextHubManager;
 import android.hardware.location.NanoAppBinary;
-import android.hardware.location.NanoAppMessage;
 import android.hardware.location.NanoAppState;
 
 import com.google.android.chre.utils.pigweed.ChreRpcClient;
@@ -48,8 +47,6 @@ public class ContextHubRpcServiceTestExecutor extends ContextHubClientCallback {
 
     private final long mNanoAppId;
 
-    private final ContextHubClient mContextHubClient;
-
     private final AtomicBoolean mChreReset = new AtomicBoolean(false);
 
     private final ContextHubManager mContextHubManager;
@@ -71,23 +68,15 @@ public class ContextHubRpcServiceTestExecutor extends ContextHubClientCallback {
         mNanoAppBinary = binary;
         mNanoAppId = mNanoAppBinary.getNanoAppId();
 
-        mContextHubClient = mContextHubManager.createClient(mContextHubInfo, this);
-
         Service echoService = new Service("pw.rpc.EchoService",
                 Service.unaryMethod("Echo", Echo.EchoMessage.class,
                         Echo.EchoMessage.class));
-        mRpcClient = new ChreRpcClient(mContextHubClient, mNanoAppId, List.of(echoService));
+        mRpcClient = new ChreRpcClient(manager, info, mNanoAppId, List.of(echoService), this);
     }
 
     @Override
     public void onHubReset(ContextHubClient client) {
         mChreReset.set(true);
-        mRpcClient.getCallbackHandler().onHubReset();
-    }
-
-    @Override
-    public void onMessageFromNanoApp(ContextHubClient client, NanoAppMessage message) {
-        mRpcClient.getCallbackHandler().onMessageFromNanoApp(message);
     }
 
     /**
@@ -137,6 +126,6 @@ public class ContextHubRpcServiceTestExecutor extends ContextHubClientCallback {
         }
 
         ChreTestUtil.unloadNanoAppAssertSuccess(mContextHubManager, mContextHubInfo, mNanoAppId);
-        mContextHubClient.close();
+        mRpcClient.close();
     }
 }
