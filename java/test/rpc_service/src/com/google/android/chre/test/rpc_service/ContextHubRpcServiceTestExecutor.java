@@ -94,7 +94,7 @@ public class ContextHubRpcServiceTestExecutor extends ContextHubClientCallback {
                     ChreTestUtil.queryNanoAppsAssertSuccess(mContextHubManager, mContextHubInfo);
         boolean serviceFound = false;
         for (NanoAppState state : stateList) {
-            if (mRpcClient.hasService(state, RPC_SERVICE_ID, RPC_SERVICE_VERSION)) {
+            if (ChreRpcClient.hasService(state, mNanoAppId, RPC_SERVICE_ID, RPC_SERVICE_VERSION)) {
                 // The service is provided only by the test nanoapp.
                 Assert.assertFalse(serviceFound);
                 serviceFound = true;
