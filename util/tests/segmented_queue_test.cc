@@ -16,36 +16,36 @@
 
 #include "chre/util/segmented_queue.h"
 
+#include <cstdlib>
+#include <deque>
+
+#include "chre/util/enum.h"
 #include "chre/util/non_copyable.h"
 #include "gtest/gtest.h"
+
 using chre::SegmentedQueue;
+using std::deque;
 
-TEST(SegmentedQueue, InitialzedState) {
-  SegmentedQueue<int, 10> segmentedQueue(10);
+namespace {
 
-  EXPECT_NE(segmentedQueue.block_count(), 0);
-  EXPECT_NE(segmentedQueue.capacity(), 0);
-  EXPECT_EQ(segmentedQueue.size(), 0);
-}
-
-TEST(SegmentedQueue, pushAndRead) {
-  constexpr uint8_t blockSize = 5;
-  constexpr uint8_t maxBlockCount = 3;
-  SegmentedQueue<int, blockSize> segmentedQueue(maxBlockCount);
-
-  for (uint8_t blockIndex = 0; blockIndex < maxBlockCount; blockIndex++) {
-    for (uint8_t index = 0; index < blockSize; index++) {
-      int value = blockIndex * blockSize + index;
-      EXPECT_TRUE(segmentedQueue.push_back(value));
-      EXPECT_EQ(segmentedQueue.size(), value + 1);
-      EXPECT_EQ(segmentedQueue[value], value);
-      EXPECT_EQ(segmentedQueue.back(), value);
-    }
+class ConstructorCount {
+ public:
+  ConstructorCount(int value_, ssize_t *constructedCount)
+      : sConstructedCounter(constructedCount), value(value_) {
+    (*sConstructedCounter)++;
   }
-  EXPECT_FALSE(segmentedQueue.push_back(10000));
-  EXPECT_EQ(segmentedQueue.size(), maxBlockCount * blockSize);
-  EXPECT_TRUE(segmentedQueue.full());
-}
+  ~ConstructorCount() {
+    (*sConstructedCounter)--;
+  }
+  int getValue() {
+    return value;
+  }
+
+  ssize_t *sConstructedCounter;
+
+ private:
+  int value;
+};
 
 constexpr int kConstructedMagic = 0xdeadbeef;
 class CopyableButNonMovable {
@@ -74,24 +74,6 @@ class CopyableButNonMovable {
   int mValue;
 };
 
-TEST(SegmentedQueue, pushAndReadCopyableButNonMovable) {
-  constexpr uint8_t blockSize = 5;
-  constexpr uint8_t maxBlockCount = 3;
-  SegmentedQueue<CopyableButNonMovable, blockSize> segmentedQueue(
-      maxBlockCount);
-
-  for (uint8_t blockIndex = 0; blockIndex < maxBlockCount; blockIndex++) {
-    for (uint8_t index = 0; index < blockSize; index++) {
-      int value = blockIndex * blockSize + index;
-      CopyableButNonMovable cbnm(value);
-      EXPECT_TRUE(segmentedQueue.push_back(cbnm));
-      EXPECT_EQ(segmentedQueue.size(), value + 1);
-      EXPECT_EQ(segmentedQueue[value].getValue(), value);
-      EXPECT_EQ(segmentedQueue.back().getValue(), value);
-    }
-  }
-}
-
 class MovableButNonCopyable : public chre::NonCopyable {
  public:
   MovableButNonCopyable(int value) : mValue(value) {}
@@ -117,7 +99,81 @@ class MovableButNonCopyable : public chre::NonCopyable {
   int mValue;
 };
 
-TEST(SegmentedQueue, pushAndReadMovableButNonCopyable) {
+enum class OperationType : uint8_t {
+  EMPLACE_BACK = 0,
+  PUSH_BACK,
+  POP_FRONT,
+  REMOVE,
+
+  OPERATION_TYPE_COUNT,  // Must be at the end.
+};
+
+}  // namespace
+
+TEST(SegmentedQueue, InitialzedState) {
+  SegmentedQueue<int, 10> segmentedQueue(10);
+
+  EXPECT_NE(segmentedQueue.block_count(), 0);
+  EXPECT_NE(segmentedQueue.capacity(), 0);
+  EXPECT_EQ(segmentedQueue.size(), 0);
+}
+
+TEST(SegmentedQueue, PushAndRead) {
+  constexpr uint8_t blockSize = 5;
+  constexpr uint8_t maxBlockCount = 3;
+  SegmentedQueue<int, blockSize> segmentedQueue(maxBlockCount);
+
+  for (uint32_t queueSize = 0; queueSize < blockSize * maxBlockCount;
+       queueSize++) {
+    EXPECT_TRUE(segmentedQueue.push_back(queueSize));
+    EXPECT_EQ(segmentedQueue.size(), queueSize + 1);
+    EXPECT_EQ(segmentedQueue[queueSize], queueSize);
+    EXPECT_EQ(segmentedQueue.back(), queueSize);
+  }
+
+  EXPECT_FALSE(segmentedQueue.push_back(10000));
+  EXPECT_EQ(segmentedQueue.size(), maxBlockCount * blockSize);
+  EXPECT_TRUE(segmentedQueue.full());
+}
+
+TEST(SegmentedQueue, EmplaceAndRead) {
+  constexpr uint8_t blockSize = 5;
+  constexpr uint8_t maxBlockCount = 3;
+  ssize_t constructorCount = 0;
+  SegmentedQueue<ConstructorCount, blockSize> segmentedQueue(maxBlockCount);
+
+  for (uint32_t queueSize = 0; queueSize < blockSize * maxBlockCount;
+       queueSize++) {
+    ssize_t oldConstructedCounter = constructorCount;
+    EXPECT_TRUE(segmentedQueue.emplace_back(queueSize, &constructorCount));
+    EXPECT_EQ(segmentedQueue.size(), queueSize + 1);
+    EXPECT_EQ(segmentedQueue[queueSize].getValue(), queueSize);
+    EXPECT_EQ(segmentedQueue.back().getValue(), queueSize);
+    EXPECT_EQ(constructorCount, oldConstructedCounter + 1);
+  }
+
+  EXPECT_FALSE(segmentedQueue.emplace_back(10000, &constructorCount));
+  EXPECT_EQ(segmentedQueue.size(), maxBlockCount * blockSize);
+  EXPECT_TRUE(segmentedQueue.full());
+}
+
+TEST(SegmentedQueue, PushAndReadCopyableButNonMovable) {
+  constexpr uint8_t blockSize = 5;
+  constexpr uint8_t maxBlockCount = 3;
+  SegmentedQueue<CopyableButNonMovable, blockSize> segmentedQueue(
+      maxBlockCount);
+
+  for (uint32_t queueSize = 0; queueSize < blockSize * maxBlockCount;
+       queueSize++) {
+    CopyableButNonMovable cbnm(queueSize);
+    EXPECT_TRUE(segmentedQueue.push_back(cbnm));
+    EXPECT_EQ(segmentedQueue.size(), queueSize + 1);
+    EXPECT_EQ(segmentedQueue[queueSize].getValue(), queueSize);
+    EXPECT_EQ(segmentedQueue.back().getValue(), queueSize);
+  }
+}
+
+TEST(SegmentedQueue, PushAndReadMovableButNonCopyable) {
   constexpr uint8_t blockSize = 5;
   constexpr uint8_t maxBlockCount = 3;
   SegmentedQueue<MovableButNonCopyable, blockSize> segmentedQueue(
@@ -125,7 +181,7 @@ TEST(SegmentedQueue, pushAndReadMovableButNonCopyable) {
 
   for (uint8_t blockIndex = 0; blockIndex < maxBlockCount; blockIndex++) {
     for (uint8_t index = 0; index < blockSize; index++) {
-      int value = blockIndex * blockSize + index;
+      int value = segmentedQueue.size();
       EXPECT_TRUE(segmentedQueue.emplace_back(value));
       EXPECT_EQ(segmentedQueue.size(), value + 1);
       EXPECT_EQ(segmentedQueue[value].getValue(), value);
@@ -137,22 +193,25 @@ TEST(SegmentedQueue, pushAndReadMovableButNonCopyable) {
 TEST(SegmentedQueue, ReadAndPop) {
   constexpr uint8_t blockSize = 5;
   constexpr uint8_t maxBlockCount = 3;
-  SegmentedQueue<int, blockSize> segmentedQueue(maxBlockCount);
+  SegmentedQueue<ConstructorCount, blockSize> segmentedQueue(maxBlockCount);
+  ssize_t constructedCounter = 0;
 
   for (uint32_t index = 0; index < blockSize * maxBlockCount; index++) {
-    EXPECT_TRUE(segmentedQueue.push_back(index));
+    EXPECT_TRUE(segmentedQueue.emplace_back(index, &constructedCounter));
   }
 
   uint8_t originalQueueSize = segmentedQueue.size();
   for (uint8_t index = 0; index < originalQueueSize; index++) {
-    EXPECT_EQ(segmentedQueue[index], index);
+    EXPECT_EQ(segmentedQueue[index].getValue(), index);
   }
 
   size_t capacityBeforePop = segmentedQueue.capacity();
   while (!segmentedQueue.empty()) {
-    ASSERT_EQ(segmentedQueue.front(),
+    ASSERT_EQ(segmentedQueue.front().getValue(),
               originalQueueSize - segmentedQueue.size());
+    ssize_t oldConstructedCounter = constructedCounter;
     segmentedQueue.pop_front();
+    EXPECT_EQ(oldConstructedCounter - 1, constructedCounter);
   }
 
   EXPECT_EQ(segmentedQueue.size(), 0);
@@ -227,5 +286,98 @@ TEST(SegmentedQueue, MiddleBlockTest) {
 
   for (int i = 0; i < segmentedQueue.size(); i++) {
     EXPECT_EQ(segmentedQueue[i], i + 2);
+  }
+}
+
+TEST(SegmentedQueue, PseudoRandomStressTest) {
+  // This test uses std::deque as reference implementation to make sure
+  // that chre::SegmentedQueue is functioning correctly.
+
+  constexpr uint32_t maxIteration = 200;
+
+  constexpr uint32_t totalSize = 1024;
+  constexpr uint32_t blockSize = 16;
+
+  ssize_t referenceQueueConstructedCounter = 0;
+  ssize_t segmentedQueueConstructedCounter = 0;
+
+  std::srand(0xbeef);
+
+  deque<ConstructorCount> referenceDeque;
+  SegmentedQueue<ConstructorCount, blockSize> testSegmentedQueue(totalSize /
+                                                                 blockSize);
+
+  for (uint32_t i = 0; i < maxIteration; i++) {
+    OperationType operationType = static_cast<OperationType>(
+        std::rand() % chre::asBaseType(OperationType::OPERATION_TYPE_COUNT));
+    int temp = std::rand();
+    switch (operationType) {
+      case OperationType::PUSH_BACK:
+        if (referenceDeque.size() < totalSize) {
+          ASSERT_TRUE(testSegmentedQueue.push_back(
+              ConstructorCount(temp, &segmentedQueueConstructedCounter)));
+          referenceDeque.push_back(
+              ConstructorCount(temp, &referenceQueueConstructedCounter));
+        } else {
+          ASSERT_FALSE(testSegmentedQueue.push_back(
+              ConstructorCount(temp, &segmentedQueueConstructedCounter)));
+        }
+        break;
+
+      case OperationType::EMPLACE_BACK:
+        if (referenceDeque.size() < totalSize) {
+          ASSERT_TRUE(testSegmentedQueue.emplace_back(
+              temp, &segmentedQueueConstructedCounter));
+          referenceDeque.emplace_back(temp, &referenceQueueConstructedCounter);
+        } else {
+          ASSERT_FALSE(testSegmentedQueue.emplace_back(
+              temp, &segmentedQueueConstructedCounter));
+        }
+        break;
+
+      case OperationType::POP_FRONT:
+        ASSERT_EQ(testSegmentedQueue.empty(), referenceDeque.empty());
+        if (!testSegmentedQueue.empty()) {
+          testSegmentedQueue.pop_front();
+          referenceDeque.pop_front();
+        }
+        break;
+
+      case OperationType::REMOVE: {
+        ASSERT_EQ(testSegmentedQueue.size(), referenceDeque.size());
+        if (!testSegmentedQueue.empty()) {
+          // Creates 50% chance for removing index that is out of bound
+          size_t index = std::rand() % (testSegmentedQueue.size() * 2);
+          if (index >= referenceDeque.size()) {
+            ASSERT_FALSE(testSegmentedQueue.remove(index));
+          } else {
+            ASSERT_TRUE(testSegmentedQueue.remove(index));
+            referenceDeque.erase(referenceDeque.begin() + index);
+          }
+        }
+      } break;
+
+      case OperationType::OPERATION_TYPE_COUNT:
+        // Should not be here, create this to prevent compiler error from
+        // -Wswitch.
+        FAIL();
+        break;
+    }
+
+    // Complete check
+    ASSERT_EQ(segmentedQueueConstructedCounter,
+              referenceQueueConstructedCounter);
+    ASSERT_EQ(testSegmentedQueue.size(), referenceDeque.size());
+    ASSERT_EQ(testSegmentedQueue.empty(), referenceDeque.empty());
+    if (!testSegmentedQueue.empty()) {
+      ASSERT_EQ(testSegmentedQueue.back().getValue(),
+                referenceDeque.back().getValue());
+      ASSERT_EQ(testSegmentedQueue.front().getValue(),
+                referenceDeque.front().getValue());
+    }
+    for (size_t idx = 0; idx < testSegmentedQueue.size(); idx++) {
+      ASSERT_EQ(testSegmentedQueue[idx].getValue(),
+                referenceDeque[idx].getValue());
+    }
   }
 }
