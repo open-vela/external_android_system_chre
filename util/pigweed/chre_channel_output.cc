@@ -18,7 +18,6 @@
 
 #include <cstdint>
 
-#include "chre/util/memory.h"
 #include "chre/util/nanoapp/callbacks.h"
 #include "chre/util/pigweed/rpc_helper.h"
 
@@ -114,7 +113,7 @@ pw::Status ChreServerHostChannelOutput::Send(pw::span<const std::byte> buffer) {
 
   if (buffer.size() > 0) {
     uint32_t permission = mPermission.getAndReset();
-    uint8_t *data = static_cast<uint8_t *>(memoryAlloc(buffer.size()));
+    uint8_t *data = static_cast<uint8_t *>(chreHeapAlloc(buffer.size()));
     if (data == nullptr) {
       returnCode = PW_STATUS_RESOURCE_EXHAUSTED;
     } else {
