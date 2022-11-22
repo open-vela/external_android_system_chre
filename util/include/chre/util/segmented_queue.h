@@ -105,6 +105,16 @@ class SegmentedQueue : public NonCopyable {
   bool push_back(ElementType &&element);
 
   /**
+   * Provide the same push API like std::queue/chre::ArrayQueue that do
+   * push_back().
+   *
+   * @param element: The element that will be push to the back of the queue.
+   * @return false: Return false if the queue is full.
+   */
+  bool push(const ElementType &element);
+  bool push(ElementType &&element);
+
+  /**
    * Constructs an element onto the back of the segmented queue.
    *
    * @param Arguments to the constructor of ElementType.
@@ -147,6 +157,12 @@ class SegmentedQueue : public NonCopyable {
    * It is illegal to call this function when empty() == true.
    */
   void pop_front();
+
+  /**
+   * Provide the same pop API like std::queue/chre::ArrayQueue that do
+   * pop_front(). It is illegal to call this function when empty() == true.
+   */
+  void pop();
 
   /**
    * Removes an element from the queue by given index.
