@@ -45,13 +45,10 @@
 #include <cinttypes>
 
 #include <chre.h>
-#include <chre/util/nanoapp/log.h>
 
 #include <shared/send_message.h>
 #include <shared/test_success_marker.h>
 #include <shared/time_util.h>
-
-#define LOG_TAG "[BusyStartup]"
 
 using nanoapp_testing::MessageType;
 using nanoapp_testing::sendFatalFailureToHost;
@@ -168,27 +165,27 @@ extern "C" bool nanoappStart(void) {
   void *ptr = chreHeapAlloc(15);
   if (ptr == nullptr) {
     // TODO(b/32326854): We're not able to send messages from
-    //     nanoappStart(), so we just use LOGE() here, and make
+    //     nanoappStart(), so we just use chreLog() here, and make
     //     the user look through the logs to determine why this failed.
-    LOGE("Unable to malloc in start");
+    chreLog(CHRE_LOG_ERROR, "Unable to malloc in start");
     return false;
   }
   gInstanceId = chreGetInstanceId();
   if (gInstanceId == CHRE_INSTANCE_ID) {
-    LOGE("Got bad instance ID in start");
+    chreLog(CHRE_LOG_ERROR, "Got bad instance ID in start");
     return false;
   }
 
   // Send an event to ourself.
   if (!chreSendEvent(kEventType, &gInstanceId, nullptr, gInstanceId)) {
-    LOGE("Failed chreSendEvent in start");
+    chreLog(CHRE_LOG_ERROR, "Failed chreSendEvent in start");
     return false;
   }
 
   // One shot timer that should trigger very quickly.
   gTimerId = chreTimerSet(1, &gInstanceId, true);
   if (gTimerId == CHRE_TIMER_INVALID) {
-    LOGE("Failed chreTimerSet in start");
+    chreLog(CHRE_LOG_ERROR, "Failed chreTimerSet in start");
     return false;
   }
 
@@ -200,7 +197,7 @@ extern "C" bool nanoappStart(void) {
 
   // Confirm we can find and configure a sensor.
   if (!chreSensorFindDefault(CHRE_SENSOR_TYPE_ACCELEROMETER, &gSensorHandle)) {
-    LOGE("Failed sensorFindDefault in start");
+    chreLog(CHRE_LOG_ERROR, "Failed sensorFindDefault in start");
     return false;
   }
 
@@ -209,7 +206,7 @@ extern "C" bool nanoappStart(void) {
   if (!chreSensorConfigure(gSensorHandle, CHRE_SENSOR_CONFIGURE_MODE_CONTINUOUS,
                            20 * nanoapp_testing::kOneMillisecondInNanoseconds,
                            CHRE_SENSOR_LATENCY_ASAP)) {
-    LOGE("Failed sensorConfigure in start");
+    chreLog(CHRE_LOG_ERROR, "Failed sensorConfigure in start");
     return false;
   }
 

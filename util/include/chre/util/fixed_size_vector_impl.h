@@ -57,12 +57,12 @@ const ElementType &FixedSizeVector<ElementType, kCapacity>::front() const {
 
 template <typename ElementType, size_t kCapacity>
 ElementType *FixedSizeVector<ElementType, kCapacity>::data() {
-  return mData.data();
+  return reinterpret_cast<ElementType *>(mData);
 }
 
 template <typename ElementType, size_t kCapacity>
 const ElementType *FixedSizeVector<ElementType, kCapacity>::data() const {
-  return mData.data();
+  return reinterpret_cast<const ElementType *>(mData);
 }
 
 template <typename ElementType, size_t kCapacity>

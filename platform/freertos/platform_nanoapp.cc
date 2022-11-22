@@ -88,7 +88,7 @@ uint32_t PlatformNanoapp::getAppVersion() const {
 
 bool PlatformNanoapp::supportsAppPermissions() const {
   return (mAppInfo != nullptr) ? (mAppInfo->structMinorVersion >=
-                                  CHRE_NSL_NANOAPP_INFO_STRUCT_MINOR_VERSION_3)
+                                  CHRE_NSL_NANOAPP_INFO_STRUCT_MINOR_VERSION)
                                : false;
 }
 
@@ -120,7 +120,7 @@ void PlatformNanoapp::logStateToBuffer(DebugDumpWrapper &debugDump) const {
     size_t versionLen = 0;
     const char *version = getAppVersionString(&versionLen);
     debugDump.print("%s (%s) @ build: %.*s", mAppInfo->name, mAppInfo->vendor,
-                    static_cast<int>(versionLen), version);
+                    versionLen, version);
   }
 }
 
@@ -250,7 +250,7 @@ bool PlatformNanoappBase::verifyNanoappInfo() {
                mAppInfo->appVersionString, mAppInfo->isTcmNanoapp,
                mAppInfo->isSystemNanoapp);
           if (mAppInfo->structMinorVersion >=
-              CHRE_NSL_NANOAPP_INFO_STRUCT_MINOR_VERSION_3) {
+              CHRE_NSL_NANOAPP_INFO_STRUCT_MINOR_VERSION) {
             LOGI("Nanoapp permissions: 0x%" PRIx32, mAppInfo->appPermissions);
           }
         }
