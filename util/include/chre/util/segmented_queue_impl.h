@@ -27,12 +27,14 @@
 namespace chre {
 
 template <typename ElementType, size_t kBlockSize>
-SegmentedQueue<ElementType, kBlockSize>::SegmentedQueue(size_t maxBlockCount)
-    : kMaxBlockCount(maxBlockCount) {
-  CHRE_ASSERT(kMaxBlockCount >= kInitBlockCount);
+SegmentedQueue<ElementType, kBlockSize>::SegmentedQueue(size_t maxBlockCount,
+                                                        size_t staticBlockCount)
+    : kMaxBlockCount(maxBlockCount), kStaticBlockCount(staticBlockCount) {
+  CHRE_ASSERT(kMaxBlockCount >= kStaticBlockCount);
+  CHRE_ASSERT(kStaticBlockCount > 0);
   CHRE_ASSERT(kMaxBlockCount * kBlockSize < SIZE_MAX);
   mRawStoragePtrs.reserve(kMaxBlockCount);
-  for (size_t i = 0; i < kInitBlockCount; i++) {
+  for (size_t i = 0; i < kStaticBlockCount; i++) {
     pushOneBlock();
   }
 }
@@ -294,7 +296,7 @@ template <typename ElementType, size_t kBlockSize>
 void SegmentedQueue<ElementType, kBlockSize>::resetEmptyQueue() {
   CHRE_ASSERT(empty());
 
-  while (mRawStoragePtrs.size() != kInitBlockCount) {
+  while (mRawStoragePtrs.size() != kStaticBlockCount) {
     mRawStoragePtrs.pop_back();
   }
   mHead = 0;
