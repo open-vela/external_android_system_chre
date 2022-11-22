@@ -29,7 +29,6 @@
 #include <log/log.h>
 
 #include "IContextHubCallbackWrapper.h"
-#include "debug_dump_helper.h"
 #include "hal_chre_socket_connection.h"
 #include "permissions_util.h"
 
@@ -47,7 +46,6 @@ using ::android::hardware::hidl_handle;
 using ::android::hardware::hidl_string;
 using ::android::hardware::hidl_vec;
 using ::android::hardware::Return;
-using ::android::hardware::contexthub::DebugDumpHelper;
 using ::android::hardware::contexthub::common::implementation::
     chreToAndroidPermissions;
 using ::android::hardware::contexthub::V1_0::AsyncEventType;
@@ -96,21 +94,43 @@ inline int hidlHandleToFileDescriptor(const hidl_handle &hh) {
 }
 
 template <class IContexthubT>
-class GenericContextHubBase : public IContexthubT,
-                              public IChreSocketCallback,
-                              public DebugDumpHelper {
+class GenericContextHubBase : public IContexthubT, public IChreSocketCallback {
  public:
   GenericContextHubBase() {
     mDeathRecipient = new DeathRecipient(this);
   }
 
-  bool requestDebugDump() override {
-    return mConnection.requestDebugDump();
-  }
-
   Return<void> debug(const hidl_handle &fd,
                      const hidl_vec<hidl_string> & /* options */) override {
-    debugDumpStart(hidlHandleToFileDescriptor(fd));
+    // Timeout inside CHRE is typically 5 seconds, grant 500ms extra here to let
+    // the data reach us
+    constexpr auto kDebugDumpTimeout = std::chrono::milliseconds(5500);
+
+    mDebugFd = hidlHandleToFileDescriptor(fd);
+    if (mDebugFd < 0) {
+      ALOGW("Can't dump debug info to invalid fd");
+    } else {
+      writeToDebugFile("-- Dumping CHRE/ASH debug info --\n");
+
+      ALOGV("Sending debug dump request");
+      std::unique_lock<std::mutex> lock(mDebugDumpMutex);
+      mDebugDumpPending = true;
+      if (!mConnection.requestDebugDump()) {
+        ALOGW("Couldn't send debug dump request");
+      } else {
+        mDebugDumpCond.wait_for(lock, kDebugDumpTimeout,
+                                [this]() { return !mDebugDumpPending; });
+        if (mDebugDumpPending) {
+          ALOGI("Timed out waiting on debug dump data");
+          mDebugDumpPending = false;
+        }
+      }
+      writeToDebugFile("\n-- End of CHRE/ASH debug info --\n");
+
+      mDebugFd = kInvalidFd;
+      ALOGV("Debug dump complete");
+    }
+
     return Void();
   }
 
@@ -339,30 +359,22 @@ class GenericContextHubBase : public IContexthubT,
   }
 
   void onDebugDumpData(const ::chre::fbs::DebugDumpDataT &data) override {
-    auto str =
-        std::string(reinterpret_cast<const char *>(data.debug_str.data()),
-                    data.debug_str.size());
-    debugDumpAppend(str);
+    if (mDebugFd == kInvalidFd) {
+      ALOGW("Got unexpected debug dump data message");
+    } else {
+      writeToDebugFile(reinterpret_cast<const char *>(data.debug_str.data()),
+                       data.debug_str.size());
+    }
   }
 
   void onDebugDumpComplete(
       const ::chre::fbs::DebugDumpResponseT & /* response */) override {
-    debugDumpComplete();
-  }
-
-  // Write a string to the debug file.
-  void writeToDebugFile(const char *str) override {
-    if (checkDebugFd()) {
-      size_t len = strlen(str);
-      ssize_t written = write(getDebugFd(), str, len);
-      if (written != (ssize_t)len) {
-        ALOGW(
-            "Couldn't write to debug header: returned %zd, expected %zu (errno "
-            "%d)",
-            written, len, errno);
-      }
+    std::lock_guard<std::mutex> lock(mDebugDumpMutex);
+    if (!mDebugDumpPending) {
+      ALOGI("Ignoring duplicate/unsolicited debug dump response");
     } else {
-      ALOGE("Attempted to write to an invalid FD");
+      mDebugDumpPending = false;
+      mDebugDumpCond.notify_all();
     }
   }
 
@@ -395,6 +407,27 @@ class GenericContextHubBase : public IContexthubT,
   bool mHubInfoValid = false;
   std::mutex mHubInfoMutex;
   std::condition_variable mHubInfoCond;
+
+  static constexpr int kInvalidFd = -1;
+  int mDebugFd = kInvalidFd;
+  bool mDebugDumpPending = false;
+  std::mutex mDebugDumpMutex;
+  std::condition_variable mDebugDumpCond;
+
+  // Write a string to mDebugFd
+  void writeToDebugFile(const char *str) {
+    writeToDebugFile(str, strlen(str));
+  }
+
+  void writeToDebugFile(const char *str, size_t len) {
+    ssize_t written = write(mDebugFd, str, len);
+    if (written != (ssize_t)len) {
+      ALOGW(
+          "Couldn't write to debug header: returned %zd, expected %zu (errno "
+          "%d)",
+          written, len, errno);
+    }
+  }
 
   // Unregisters callback when context hub service dies
   void handleServiceDeath(uint32_t hubId) {
