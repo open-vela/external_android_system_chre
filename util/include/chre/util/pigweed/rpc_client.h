@@ -17,10 +17,9 @@
 #ifndef CHRE_UTIL_PIGWEED_RPC_CLIENT_H_
 #define CHRE_UTIL_PIGWEED_RPC_CLIENT_H_
 
+#include <chre.h>
 #include <cstdint>
 
-#include "chre/event.h"
-#include "chre/re.h"
 #include "chre/util/non_copyable.h"
 #include "chre/util/optional.h"
 #include "chre/util/pigweed/chre_channel_output.h"

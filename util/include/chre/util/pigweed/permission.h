@@ -17,6 +17,7 @@
 #ifndef CHRE_UTIL_PIGWEED_PERMISSION_H_
 #define CHRE_UTIL_PIGWEED_PERMISSION_H_
 
+#include <chre.h>
 #include <cstdint>
 #include <optional>
 
