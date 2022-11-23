@@ -75,7 +75,7 @@ bool RpcWorldManager::start() {
   chre::RpcServer::Service service = {.service = mRpcWorldService,
                                       .id = 0xca8f7150a3f05847,
                                       .version = 0x01020034};
-  if (!mServer.registerServices(1, &service)) {
+  if (!mServer.registerServices(1 /*numServices*/, &service)) {
     LOGE("Error while registering the service");
   }
 

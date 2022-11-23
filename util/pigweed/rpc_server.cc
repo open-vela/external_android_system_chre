@@ -32,7 +32,7 @@ namespace chre {
 RpcServer::~RpcServer() {
   chreConfigureNanoappInfoEvents(false);
   // TODO(b/251257328): Disable all notifications at once.
-  while (mConnectedHosts.size() > 0) {
+  while (!mConnectedHosts.empty()) {
     chreConfigureHostEndpointNotifications(mConnectedHosts[0], false);
     mConnectedHosts.erase(0);
   }
@@ -161,7 +161,7 @@ bool RpcServer::handleMessageFromNanoapp(uint32_t senderInstanceId,
 }
 
 void RpcServer::handleHostClientNotification(const void *eventData) {
-  if (mConnectedHosts.size() == 0) {
+  if (mConnectedHosts.empty()) {
     return;
   }
 
