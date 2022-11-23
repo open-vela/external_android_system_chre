@@ -16,11 +16,10 @@
 
 #include "chre/util/pigweed/rpc_server.h"
 
+#include <chre.h>
 #include <cinttypes>
 #include <cstdint>
 
-#include "chre/event.h"
-#include "chre/re.h"
 #include "chre/util/nanoapp/log.h"
 #include "chre/util/pigweed/rpc_helper.h"
 
@@ -42,14 +41,14 @@ RpcServer::~RpcServer() {
 bool RpcServer::registerServices(size_t numServices,
                                  RpcServer::Service *services) {
   // Avoid blowing up the stack with chreServices.
-  constexpr size_t kMaxServices = 32;
+  constexpr size_t kMaxServices = 8;
 
   if (numServices > kMaxServices) {
-    LOGE("Can not register more than %zu services", kMaxServices);
+    LOGE("Can not register more than %zu services at once", kMaxServices);
     return false;
   }
 
-  chreNanoappRpcService chreServices[numServices];
+  chreNanoappRpcService chreServices[kMaxServices];
 
   for (size_t i = 0; i < numServices; ++i) {
     const Service &service = services[i];
@@ -97,7 +96,7 @@ bool RpcServer::handleMessageFromHost(const void *eventData) {
   pw::span packet(static_cast<const std::byte *>(hostMessage->message),
                   hostMessage->messageSize);
 
-  pw::Result result = pw::rpc::ExtractChannelId(packet);
+  pw::Result<uint32_t> result = pw::rpc::ExtractChannelId(packet);
   if (result.status() != PW_STATUS_OK) {
     LOGE("Unable to extract channel ID from packet");
     return false;
@@ -136,7 +135,7 @@ bool RpcServer::handleMessageFromNanoapp(uint32_t senderInstanceId,
   const auto data = static_cast<const ChrePigweedNanoappMessage *>(eventData);
   pw::span packet(static_cast<const std::byte *>(data->msg), data->msgSize);
 
-  pw::Result result = pw::rpc::ExtractChannelId(packet);
+  pw::Result<uint32_t> result = pw::rpc::ExtractChannelId(packet);
   if (result.status() != PW_STATUS_OK) {
     LOGE("Unable to extract channel ID from packet");
     return false;
