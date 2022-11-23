@@ -111,7 +111,6 @@ COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/channel.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/channel_list.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/client.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/client_call.cc
-COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/client_server.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/endpoint.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/packet.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/server.cc
