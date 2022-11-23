@@ -95,6 +95,13 @@ class MemoryPool : public NonCopyable {
    */
   size_t getFreeBlockCount() const;
 
+  /**
+   * @return true Return true if this memory pool is empty.
+   */
+  bool empty() {
+    return mFreeBlockCount == kSize;
+  }
+
  private:
   /**
    * The unused storage for this MemoryPool maintains the list of free slots.
@@ -131,8 +138,7 @@ class MemoryPool : public NonCopyable {
    */
   bool getBlockIndex(ElementType *element, size_t *indexOutput);
 
-  //! Storage for memory pool blocks. To avoid static initialization of members,
-  //! std::aligned_storage is used.
+  //! Storage for memory pool blocks.
   RawStorage<MemoryPoolBlock, kSize> mBlocks;
 
   //! The index of the head of the free slot list.

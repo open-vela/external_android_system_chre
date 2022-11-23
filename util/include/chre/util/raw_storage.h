@@ -55,6 +55,7 @@ class RawStorage : public NonCopyable {
   }
 
  private:
+  //! To avoid static initialization of members, std::aligned_storage is used.
   std::aligned_storage_t<sizeof(ElementType), alignof(ElementType)>
       mStorage[kCapacity];
 };

@@ -40,9 +40,10 @@ GOOGLETEST_SRCS += $(CHRE_PREFIX)/util/tests/ref_base_test.cc
 GOOGLETEST_SRCS += $(CHRE_PREFIX)/util/tests/segmented_queue_test.cc
 GOOGLETEST_SRCS += $(CHRE_PREFIX)/util/tests/shared_ptr_test.cc
 GOOGLETEST_SRCS += $(CHRE_PREFIX)/util/tests/singleton_test.cc
+GOOGLETEST_SRCS += $(CHRE_PREFIX)/util/tests/stats_container_test.cc
+GOOGLETEST_SRCS += $(CHRE_PREFIX)/util/tests/synchronized_expandable_memory_pool_test.cc
 GOOGLETEST_SRCS += $(CHRE_PREFIX)/util/tests/time_test.cc
 GOOGLETEST_SRCS += $(CHRE_PREFIX)/util/tests/unique_ptr_test.cc
-GOOGLETEST_SRCS += $(CHRE_PREFIX)/util/tests/stats_container_test.cc
 
 # Pigweed Source Files #########################################################
 

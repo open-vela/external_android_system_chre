@@ -111,10 +111,14 @@ enum class OperationType : uint8_t {
 }  // namespace
 
 TEST(SegmentedQueue, InitialzedState) {
-  SegmentedQueue<int, 10> segmentedQueue(10);
+  constexpr uint8_t blockSize = 5;
+  constexpr uint8_t maxBlockCount = 3;
+  constexpr uint8_t staticBlockCount = 2;
+  SegmentedQueue<int, blockSize> segmentedQueue(maxBlockCount,
+                                                staticBlockCount);
 
-  EXPECT_NE(segmentedQueue.block_count(), 0);
-  EXPECT_NE(segmentedQueue.capacity(), 0);
+  EXPECT_EQ(segmentedQueue.block_count(), staticBlockCount);
+  EXPECT_EQ(segmentedQueue.capacity(), staticBlockCount * blockSize);
   EXPECT_EQ(segmentedQueue.size(), 0);
 }
 

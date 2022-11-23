@@ -100,6 +100,7 @@ class FixedSizeVector : public NonCopyable {
    * @param The element to push onto the vector.
    */
   void push_back(const ElementType &element);
+  void push_back(ElementType &&element);
 
   /**
    * Constructs an element onto the back of the vector. It is illegal to

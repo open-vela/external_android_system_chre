@@ -95,6 +95,14 @@ void FixedSizeVector<ElementType, kCapacity>::push_back(
 }
 
 template <typename ElementType, size_t kCapacity>
+void FixedSizeVector<ElementType, kCapacity>::push_back(ElementType &&element) {
+  CHRE_ASSERT(!full());
+  if (!full()) {
+    new (&data()[mSize++]) ElementType(std::move(element));
+  }
+}
+
+template <typename ElementType, size_t kCapacity>
 template <typename... Args>
 void FixedSizeVector<ElementType, kCapacity>::emplace_back(Args &&... args) {
   CHRE_ASSERT(!full());
