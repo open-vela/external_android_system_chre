@@ -131,6 +131,11 @@ COMMON_CFLAGS += -DPW_RPC_USE_GLOBAL_MUTEX=0
 # Enable closing a client stream.
 COMMON_CFLAGS += -DPW_RPC_CLIENT_STREAM_END_CALLBACK
 
+# Use dynamic channel allocation
+COMMON_CFLAGS += -DPW_RPC_DYNAMIC_ALLOCATION
+COMMON_CFLAGS += -DPW_RPC_DYNAMIC_CONTAINER\(type\)="chre::DynamicVector<type>"
+COMMON_CFLAGS += -DPW_RPC_DYNAMIC_CONTAINER_INCLUDE='"chre/util/dynamic_vector.h"'
+
 # NanoPB sources
 COMMON_SRCS += $(NANOPB_PREFIX)/pb_common.c
 COMMON_SRCS += $(NANOPB_PREFIX)/pb_decode.c
