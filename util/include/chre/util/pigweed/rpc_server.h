@@ -57,10 +57,7 @@ class RpcServer : public NonCopyable {
     uint32_t version;
   };
 
-  RpcServer()
-      : mServer(pw::span(mChannels, ARRAY_SIZE(mChannels))),
-        mHostOutput(mPermission),
-        mNanoappOutput(mPermission) {}
+  RpcServer() : mHostOutput(mPermission), mNanoappOutput(mPermission) {}
   ~RpcServer();
 
   /**
@@ -169,8 +166,6 @@ class RpcServer : public NonCopyable {
   // Permission for the next message sent by mServer.
   RpcPermission mPermission;
 
-  // TODO(b/210138227): Make # of channels dynamic
-  pw::rpc::Channel mChannels[5];
   pw::rpc::Server mServer;
 
   ChreServerHostChannelOutput mHostOutput;

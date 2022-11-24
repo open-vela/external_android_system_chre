@@ -17,10 +17,9 @@
 #ifndef CHRE_UTIL_PIGWEED_RPC_CLIENT_H_
 #define CHRE_UTIL_PIGWEED_RPC_CLIENT_H_
 
+#include <chre.h>
 #include <cstdint>
 
-#include "chre/event.h"
-#include "chre/re.h"
 #include "chre/util/non_copyable.h"
 #include "chre/util/optional.h"
 #include "chre/util/pigweed/chre_channel_output.h"
@@ -45,9 +44,7 @@ class RpcClient : public NonCopyable {
    * @param serverNanoappId Nanoapp ID of the server.
    */
   explicit RpcClient(uint64_t serverNanoappId)
-      : mChannels(pw::span(&mChannel, 1)),
-        mRpcClient(pw::rpc::Client(mChannels)),
-        mServerNanoappId((serverNanoappId)) {}
+      : mServerNanoappId((serverNanoappId)) {}
 
   ~RpcClient() {
     chreConfigureNanoappInfoEvents(false);
@@ -113,8 +110,6 @@ class RpcClient : public NonCopyable {
   void handleNanoappStopped(const void *eventData);
 
   ChreClientNanoappChannelOutput mChannelOutput;
-  pw::rpc::Channel mChannel;
-  const pw::span<pw::rpc::Channel> mChannels;
   pw::rpc::Client mRpcClient;
   uint64_t mServerNanoappId;
   uint32_t mChannelId = 0;
@@ -132,7 +127,7 @@ Optional<T> RpcClient::get() {
 
     mChannelId = chreGetInstanceId();
     mChannelOutput.setServer(info.instanceId);
-    mChannel.Configure(mChannelId, mChannelOutput);
+    mRpcClient.OpenChannel(mChannelId, mChannelOutput);
   }
 
   chreConfigureNanoappInfoEvents(true);

@@ -111,7 +111,6 @@ COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/channel.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/channel_list.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/client.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/client_call.cc
-COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/client_server.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/endpoint.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/packet.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_rpc/server.cc
@@ -131,6 +130,11 @@ COMMON_CFLAGS += -DPW_RPC_USE_GLOBAL_MUTEX=0
 
 # Enable closing a client stream.
 COMMON_CFLAGS += -DPW_RPC_CLIENT_STREAM_END_CALLBACK
+
+# Use dynamic channel allocation
+COMMON_CFLAGS += -DPW_RPC_DYNAMIC_ALLOCATION
+COMMON_CFLAGS += -DPW_RPC_DYNAMIC_CONTAINER\(type\)="chre::DynamicVector<type>"
+COMMON_CFLAGS += -DPW_RPC_DYNAMIC_CONTAINER_INCLUDE='"chre/util/dynamic_vector.h"'
 
 # NanoPB sources
 COMMON_SRCS += $(NANOPB_PREFIX)/pb_common.c

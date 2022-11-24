@@ -16,11 +16,10 @@
 
 #include "chre/util/pigweed/rpc_client.h"
 
+#include <chre.h>
 #include <cinttypes>
 #include <cstdint>
 
-#include "chre/event.h"
-#include "chre/re.h"
 #include "chre/util/macros.h"
 #include "chre/util/nanoapp/log.h"
 #include "chre/util/pigweed/rpc_helper.h"
