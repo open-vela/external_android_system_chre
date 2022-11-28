@@ -630,8 +630,27 @@ cc_defaults {
         "libbase",
         "libbinder_ndk",
         "libcutils",
+        "libjsoncpp",
         "libutils",
         "liblog",
+    ],
+    static_libs: [
+        "chre_config_util",
+    ]
+}
+
+cc_library_static {
+    name: "chre_config_util",
+    vendor: true,
+    host_supported: true,
+    export_include_dirs: [
+        "host/common/include",
+    ],
+    srcs: [
+        "host/common/config_util.cc",
+    ],
+    shared_libs: [
+        "libjsoncpp",
     ]
 }
 
@@ -654,7 +673,6 @@ cc_binary {
     ],
     shared_libs: [
         "libhidlbase",
-        "libjsoncpp",
         "libpower",
         "android.hardware.soundtrigger@2.0",
     ],
