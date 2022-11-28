@@ -21,7 +21,6 @@
 #include <cstdint>
 #include <optional>
 
-#include "chre/event.h"
 #include "chre/util/nanoapp/assert.h"
 #include "chre/util/non_copyable.h"
 #include "chre/util/optional.h"
