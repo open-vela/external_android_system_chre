@@ -296,7 +296,7 @@ class SegmentedQueue : public NonCopyable {
   const size_t kMaxBlockCount;
 
   //! How many blocks allocated in constructor.
-  const uint8_t kStaticBlockCount;
+  const size_t kStaticBlockCount;
 
   //! The offset of the first element of the queue starting from the start of
   //! the DynamicVector.
