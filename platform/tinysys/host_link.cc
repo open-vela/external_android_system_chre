@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "chre/target_platform/host_link_base.h"
+#include "chre/platform/host_link.h"
 
 namespace chre {
 
@@ -33,4 +33,8 @@ void HostLinkBase::sendTimeSyncRequest() {}
 void HostLinkBase::sendLogMessageV2(const uint8_t * /*logMessage*/,
                                     size_t /*logMessageSize*/,
                                     uint32_t /*num_logs_dropped*/) {}
+bool HostLink::sendMessage(HostMessage const * /*message*/) {
+  // Implement this
+  return false;
+}
 }  // namespace chre
