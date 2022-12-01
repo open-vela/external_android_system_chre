@@ -16,7 +16,6 @@
 
 #include "chre/core/event_loop.h"
 #include <cinttypes>
-#include <cstdint>
 
 #include "chre/core/event.h"
 #include "chre/core/event_loop_manager.h"
@@ -29,7 +28,6 @@
 #include "chre/util/conditional_lock_guard.h"
 #include "chre/util/lock_guard.h"
 #include "chre/util/system/debug_dump.h"
-#include "chre/util/system/event_callbacks.h"
 #include "chre/util/system/stats_container.h"
 #include "chre/util/time.h"
 #include "chre_api/chre/version.h"
@@ -58,13 +56,6 @@ bool populateNanoappInfo(const Nanoapp *app, struct chreNanoappInfo *info) {
     info->appId = app->getAppId();
     info->version = app->getAppVersion();
     info->instanceId = app->getInstanceId();
-    if (app->getTargetApiVersion() >= CHRE_API_VERSION_1_8) {
-      CHRE_ASSERT(app->getRpcServices().size() <= Nanoapp::kMaxRpcServices);
-      info->rpcServiceCount =
-          static_cast<uint8_t>(app->getRpcServices().size());
-      info->rpcServices = app->getRpcServices().data();
-      memset(&info->reserved, 0, sizeof(info->reserved));
-    }
     success = true;
   }
 
@@ -253,8 +244,8 @@ void EventLoop::postEventOrDie(uint16_t eventType, void *eventData,
                                uint16_t targetGroupMask) {
   if (mRunning) {
     if (!allocateAndPostEvent(eventType, eventData, freeCallback,
-                              false /*isLowPriority*/, kSystemInstanceId,
-                              targetInstanceId, targetGroupMask)) {
+                              kSystemInstanceId, targetInstanceId,
+                              targetGroupMask)) {
       FATAL_ERROR("Failed to post critical system event 0x%" PRIx16, eventType);
     }
   } else if (freeCallback != nullptr) {
@@ -284,14 +275,10 @@ bool EventLoop::postLowPriorityEventOrFree(
   bool eventPosted = false;
 
   if (mRunning) {
-#if CHRE_STATIC_EVENT_LOOP
     if (mEventPool.getFreeBlockCount() > kMinReservedHighPriorityEventCount) {
-#else
-    if (mEventPool.getFreeSpaceCount() > kMinReservedHighPriorityEventCount) {
-#endif
-      eventPosted = allocateAndPostEvent(
-          eventType, eventData, freeCallback, true /*isLowPriority*/,
-          senderInstanceId, targetInstanceId, targetGroupMask);
+      eventPosted = allocateAndPostEvent(eventType, eventData, freeCallback,
+                                         senderInstanceId, targetInstanceId,
+                                         targetGroupMask);
       if (!eventPosted) {
         LOGE("Failed to allocate event 0x%" PRIx16 " to instanceId %" PRIu16,
              eventType, targetInstanceId);
@@ -372,15 +359,14 @@ void EventLoop::logStateToBuffer(DebugDumpWrapper &debugDump) const {
 
 bool EventLoop::allocateAndPostEvent(uint16_t eventType, void *eventData,
                                      chreEventCompleteFunction *freeCallback,
-                                     bool isLowPriority,
                                      uint16_t senderInstanceId,
                                      uint16_t targetInstanceId,
                                      uint16_t targetGroupMask) {
   bool success = false;
 
   Event *event =
-      mEventPool.allocate(eventType, eventData, freeCallback, isLowPriority,
-                          senderInstanceId, targetInstanceId, targetGroupMask);
+      mEventPool.allocate(eventType, eventData, freeCallback, senderInstanceId,
+                          targetInstanceId, targetGroupMask);
   if (event != nullptr) {
     success = mEvents.push(event);
   }
