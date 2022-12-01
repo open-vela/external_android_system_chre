@@ -68,6 +68,16 @@ bool SegmentedQueue<ElementType, kBlockSize>::push_back(ElementType &&element) {
 }
 
 template <typename ElementType, size_t kBlockSize>
+bool SegmentedQueue<ElementType, kBlockSize>::push(const ElementType &element) {
+  return push_back(element);
+}
+
+template <typename ElementType, size_t kBlockSize>
+bool SegmentedQueue<ElementType, kBlockSize>::push(ElementType &&element) {
+  return push_back(std::move(element));
+}
+
+template <typename ElementType, size_t kBlockSize>
 template <typename... Args>
 bool SegmentedQueue<ElementType, kBlockSize>::emplace_back(Args &&...args) {
   if (!prepareForPush()) {
@@ -135,6 +145,11 @@ void SegmentedQueue<ElementType, kBlockSize>::pop_front() {
   } else {
     mHead = advanceOrWrapAround(mHead);
   }
+}
+
+template <typename ElementType, size_t kBlockSize>
+void SegmentedQueue<ElementType, kBlockSize>::pop() {
+  pop_front();
 }
 
 template <typename ElementType, size_t kBlockSize>
