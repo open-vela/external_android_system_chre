@@ -47,9 +47,10 @@ TEST_F(TestTimer, SetupAndCancelPeriodicTimer) {
   CREATE_CHRE_TEST_EVENT(STOP_TIMER, 1);
 
   struct App : public TestNanoapp {
-    decltype(nanoappHandleEvent) *handleEvent = [](uint32_t, uint16_t eventType,
-                                                   const void *eventData) {
-      static const uint32_t cookie = 123;
+    void (*handleEvent)(uint32_t, uint16_t,
+                        const void *) = [](uint32_t, uint16_t eventType,
+                                           const void *eventData) {
+      const uint32_t cookie = 123;
       switch (eventType) {
         static int count = 0;
 
@@ -121,9 +122,10 @@ TEST_F(TestTimer, CancelPeriodicTimerOnUnload) {
   CREATE_CHRE_TEST_EVENT(START_TIMER, 0);
 
   struct App : public TestNanoapp {
-    decltype(nanoappHandleEvent) *handleEvent = [](uint32_t, uint16_t eventType,
-                                                   const void *eventData) {
-      static const uint32_t cookie = 123;
+    void (*handleEvent)(uint32_t, uint16_t,
+                        const void *) = [](uint32_t, uint16_t eventType,
+                                           const void *eventData) {
+      const uint32_t cookie = 123;
       switch (eventType) {
         static int count = 0;
 

@@ -22,7 +22,6 @@
 #include "chre/platform/system_time.h"
 #include "chre/util/nested_data_ptr.h"
 #include "chre/util/system/debug_dump.h"
-#include "chre/util/system/event_callbacks.h"
 #include "chre/util/time.h"
 
 /*
@@ -60,7 +59,7 @@ bool AudioRequestManager::configureSource(const Nanoapp *nanoapp,
                                           uint32_t handle, bool enable,
                                           uint64_t bufferDuration,
                                           uint64_t deliveryInterval) {
-  uint32_t numSamples = 0;
+  uint32_t numSamples;
   return validateConfigureSourceArguments(handle, enable, bufferDuration,
                                           deliveryInterval, &numSamples) &&
          doConfigureSource(nanoapp->getInstanceId(), handle, enable, numSamples,
