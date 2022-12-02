@@ -39,7 +39,7 @@ namespace {
 struct AudioNanoapp : public TestNanoapp {
   uint32_t perms = NanoappPermissions::CHRE_PERMS_AUDIO;
 
-  decltype(nanoappStart) *start = []() {
+  bool (*start)() = []() {
     chreUserSettingConfigureEvents(CHRE_USER_SETTING_MICROPHONE,
                                    true /* enable */);
     return true;
@@ -50,8 +50,9 @@ TEST_F(TestBase, AudioCanSubscribeAndUnsubscribeToDataEvents) {
   CREATE_CHRE_TEST_EVENT(CONFIGURE, 0);
 
   struct App : public AudioNanoapp {
-    decltype(nanoappHandleEvent) *handleEvent = [](uint32_t, uint16_t eventType,
-                                                   const void *eventData) {
+    void (*handleEvent)(uint32_t, uint16_t,
+                        const void *) = [](uint32_t, uint16_t eventType,
+                                           const void *eventData) {
       static int count = 0;
 
       switch (eventType) {
@@ -118,8 +119,9 @@ TEST_F(TestBase, AudioUnsubscribeToDataEventsOnUnload) {
   CREATE_CHRE_TEST_EVENT(CONFIGURE, 0);
 
   struct App : public AudioNanoapp {
-    decltype(nanoappHandleEvent) *handleEvent = [](uint32_t, uint16_t eventType,
-                                                   const void *eventData) {
+    void (*handleEvent)(uint32_t, uint16_t,
+                        const void *) = [](uint32_t, uint16_t eventType,
+                                           const void *eventData) {
       switch (eventType) {
         case CHRE_EVENT_AUDIO_SAMPLING_CHANGE: {
           auto event =
