@@ -23,6 +23,8 @@ NANOAPP_VERSION = 0x00000002
 NANOAPP_PATH = $(CHRE_PREFIX)/apps/test/common/chre_audio_concurrency_test
 TEST_SHARED_PATH = $(CHRE_PREFIX)/apps/test/common/shared
 
+CHRE_STD_OVERRIDES_ALLOWED = true
+
 # Protobuf Sources #############################################################
 
 NANOPB_EXTENSION = nanopb
@@ -42,6 +44,7 @@ COMMON_SRCS += $(CHRE_PREFIX)/util/nanoapp/callbacks.cc
 
 # Defines
 COMMON_CFLAGS += -DNANOAPP_MINIMUM_LOG_LEVEL=CHRE_LOG_LEVEL_INFO
+COMMON_CFLAGS += -DCHRE_ASSERTIONS_ENABLED
 
 # Includes
 COMMON_CFLAGS += -I$(NANOAPP_PATH)/inc
