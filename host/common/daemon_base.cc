@@ -18,12 +18,11 @@
 #include <cstdlib>
 #include <fstream>
 
+#include "chre_host/config_util.h"
 #include "chre_host/daemon_base.h"
 #include "chre_host/file_stream.h"
 #include "chre_host/log.h"
 #include "chre_host/napp_header.h"
-
-#include <json/json.h>
 
 #ifdef CHRE_DAEMON_METRIC_ENABLED
 #include <hardware/google/pixel/pixelstats/pixelatoms.pb.h>
@@ -75,27 +74,27 @@ ChreDaemonBase::ChreDaemonBase() : mChreShutdownRequested(false) {
 }
 
 void ChreDaemonBase::loadPreloadedNanoapps() {
-  constexpr char kPreloadedNanoappsConfigPath[] =
+  const std::string kPreloadedNanoappsConfigPath =
       "/vendor/etc/chre/preloaded_nanoapps.json";
-  std::ifstream configFileStream(kPreloadedNanoappsConfigPath);
+  std::string directory;
+  std::vector<std::string> nanoapps;
 
-  Json::CharReaderBuilder builder;
-  Json::Value config;
-  if (!configFileStream) {
-    LOGE("Failed to open config file '%s': %d (%s)",
-         kPreloadedNanoappsConfigPath, errno, strerror(errno));
-  } else if (!Json::parseFromStream(builder, configFileStream, &config,
-                                    /* errorMessage = */ nullptr)) {
-    LOGE("Failed to parse nanoapp config file");
-  } else if (!config.isMember("nanoapps") || !config.isMember("source_dir")) {
-    LOGE("Malformed preloaded nanoapps config");
-  } else {
-    const Json::Value &directory = config["source_dir"];
-    for (Json::ArrayIndex i = 0; i < config["nanoapps"].size(); i++) {
-      const Json::Value &nanoapp = config["nanoapps"][i];
-      loadPreloadedNanoapp(directory.asString(), nanoapp.asString(),
-                           static_cast<uint32_t>(i));
-    }
+  bool success = getPreloadedNanoappsFromConfigFile(
+      kPreloadedNanoappsConfigPath,
+      [](const std::string &error) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-security"
+        LOG_PRI(ANDROID_LOG_ERROR, LOG_TAG, error.c_str());
+#pragma GCC diagnostic pop
+      },
+      directory, nanoapps);
+  if (!success) {
+    LOGE("Failed to parse preloaded nanoapps config file");
+    return;
+  }
+
+  for (uint32_t i = 0; i < nanoapps.size(); ++i) {
+    loadPreloadedNanoapp(directory, nanoapps[i], i);
   }
 }
 

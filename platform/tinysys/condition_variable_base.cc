@@ -24,9 +24,8 @@ namespace chre {
 void ConditionVariableBase::conditionVariablTimerCallback(
     struct rt_timer *rtTimer) {
   if (rtTimer != nullptr) {
-    // TODO(b/254708051): rtTimer->context is just a place holder. The actual
-    // variable name depends on the final fix of this bug.
-    ConditionVariable *cv = static_cast<ConditionVariable *>(rtTimer->context);
+    ConditionVariable *cv =
+        static_cast<ConditionVariable *>(rtTimer->private_ptr);
     cv->isTimedOut = true;
     cv->notify_one();
   }
