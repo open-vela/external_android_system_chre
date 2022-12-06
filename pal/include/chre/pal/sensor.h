@@ -174,7 +174,7 @@ struct chrePalSensorApi {
    * function. The PAL must also free any memory (e.g. the sensor array if it
    * was dynamically allocated) inside this function.
    */
-  void (*close)();
+  void (*close)(void);
 
   /**
    * Creates a chreSensorInfo struct for every CHRE-supported sensor that is
