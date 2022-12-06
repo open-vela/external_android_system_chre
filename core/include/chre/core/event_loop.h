@@ -463,6 +463,22 @@ class EventLoop : public NonCopyable {
                             bool isLowPriority, uint16_t senderInstanceId,
                             uint16_t targetInstanceId,
                             uint16_t targetGroupMask);
+  /**
+   * Remove some low priority events from back of the queue.
+   *
+   * @param removeNum Number of low priority events to be removed.
+   * @return False if cannot remove any low priority event.
+   */
+  bool removeLowPriorityEventsFromBack(size_t removeNum);
+
+  /**
+   * Determine if there are space for high priority event.
+   * During the processing of determining the vacant space, it might
+   * remove low priority events to make space for high priority event.
+   *
+   * @return true if there are no space for a new high priority event.
+   */
+  bool hasNoSpaceForHighPriorityEvent();
 
   /**
    * Delivers the next event pending to the Nanoapp.
