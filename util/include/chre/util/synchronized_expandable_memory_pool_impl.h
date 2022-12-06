@@ -57,6 +57,10 @@ ElementType *SynchronizedExpandableMemoryPool<
     result = mMemoryPoolPtrs.back()->allocate(args...);
   }
 
+  if (result != nullptr) {
+    ++mSize;
+  }
+
   return result;
 }
 
@@ -77,6 +81,7 @@ void SynchronizedExpandableMemoryPool<
   if (!success) {
     CHRE_ASSERT(false);
   } else {
+    --mSize;
     while (
         mMemoryPoolPtrs.size() > std::max(kStaticBlockCount, size_t(1)) &&
         mMemoryPoolPtrs.back()->empty() &&
@@ -84,18 +89,6 @@ void SynchronizedExpandableMemoryPool<
       mMemoryPoolPtrs.pop_back();
     }
   }
-}
-
-template <typename ElementType, size_t kMemoryPoolSize,
-          size_t kMaxMemoryPoolCount>
-size_t SynchronizedExpandableMemoryPool<
-    ElementType, kMemoryPoolSize, kMaxMemoryPoolCount>::getFreeSpaceCount() {
-  size_t result = 0;
-  for (auto &memoryPool : mMemoryPoolPtrs) {
-    result += memoryPool->getFreeBlockCount();
-  }
-  return result +
-         (kMaxMemoryPoolCount - mMemoryPoolPtrs.size()) * kMemoryPoolSize;
 }
 
 template <typename ElementType, size_t kMemoryPoolSize,
