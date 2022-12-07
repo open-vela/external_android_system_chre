@@ -77,7 +77,7 @@ public class ChreCrossValidatorSensor
 
     private static final long SAMPLING_LATENCY_IN_MS = 0;
 
-    private static final long MAX_TIMESTAMP_DIFF_NS = 10000000L;
+    private static final long MAX_TIMESTAMP_DIFF_NS = 4000000L;
 
     private static final float AP_PROXIMITY_SENSOR_FAR_DISTANCE_IN_CM = 5f;
 
