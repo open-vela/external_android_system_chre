@@ -37,7 +37,7 @@ namespace {
 class WifiTimeoutTestBase : public TestBase {
  protected:
   uint64_t getTimeoutNs() const override {
-    return 2 * CHRE_WIFI_SCAN_RESULT_TIMEOUT_NS;
+    return 2 * CHRE_TEST_WIFI_SCAN_RESULT_TIMEOUT_NS;
   }
 };
 
@@ -92,7 +92,7 @@ TEST_F(WifiTimeoutTestBase, WifiScanRequestTimeoutTest) {
 
   // Add 1 second to prevent race condition.
   constexpr uint8_t kWifiScanRequestTimeoutSec =
-      (CHRE_WIFI_SCAN_RESULT_TIMEOUT_NS / CHRE_NSEC_PER_SEC) + 1;
+      (CHRE_TEST_WIFI_SCAN_RESULT_TIMEOUT_NS / CHRE_NSEC_PER_SEC) + 1;
   std::this_thread::sleep_for(std::chrono::seconds(kWifiScanRequestTimeoutSec));
 
   // Make sure that we can still request scan after a timedout
@@ -161,7 +161,7 @@ TEST_F(WifiTimeoutTestBase, WifiScanMonitorTimeoutTest) {
 
   // Add 1 second to prevent race condition.
   constexpr uint8_t kWifiConfigureScanMonitorTimeoutSec =
-      (CHRE_ASYNC_RESULT_TIMEOUT_NS / CHRE_NSEC_PER_SEC) + 1;
+      (CHRE_TEST_ASYNC_RESULT_TIMEOUT_NS / CHRE_NSEC_PER_SEC) + 1;
   std::this_thread::sleep_for(
       std::chrono::seconds(kWifiConfigureScanMonitorTimeoutSec));
 
@@ -260,7 +260,7 @@ TEST_F(WifiTimeoutTestBase, WifiRequestRangingTimeoutTest) {
 
   // Add 1 second to prevent race condition
   constexpr uint8_t kWifiRequestRangingTimeoutSec =
-      (CHRE_WIFI_RANGING_RESULT_TIMEOUT_NS / CHRE_NSEC_PER_SEC) + 1;
+      (CHRE_TEST_WIFI_RANGING_RESULT_TIMEOUT_NS / CHRE_NSEC_PER_SEC) + 1;
   std::this_thread::sleep_for(
       std::chrono::seconds(kWifiRequestRangingTimeoutSec));
 
