@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package chre.rpc;
+
+service RpcTestService {
+  // Increment a number.
+  rpc Increment(NumberMessage) returns (NumberMessage) {}
+}
+
+// Request and response for the Increment & Add services wrapping a number.
+message NumberMessage {
+  uint32 number = 1;
+  uint32 number2 = 2;
+}
