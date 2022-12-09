@@ -18,9 +18,7 @@
 
 namespace chre {
 
-namespace {
 Nanoseconds gStartTime(0);
-}
 
 void SystemTime::init() {
   gStartTime = getMonotonicTime();
