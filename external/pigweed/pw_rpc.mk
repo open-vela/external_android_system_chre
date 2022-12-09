@@ -92,6 +92,7 @@ COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_span/public_overrides
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_status/public
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_stream/public
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_sync/public
+COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_toolchain/public
 COMMON_CFLAGS += -I$(PIGWEED_DIR)/pw_varint/public
 
 # Pigweed RPC sources
