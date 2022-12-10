@@ -69,10 +69,8 @@ public class ContextHubPendingIntentTestExecutor {
 
     private ContextHubClient mContextHubClient = null;
 
-    public ContextHubPendingIntentTestExecutor(
-            ContextHubManager contextHubManager,
-            ContextHubInfo contextHubInfo,
-            NanoAppBinary nanoAppBinary) {
+    public ContextHubPendingIntentTestExecutor(ContextHubManager contextHubManager,
+            ContextHubInfo contextHubInfo, NanoAppBinary nanoAppBinary) {
         mNanoAppBinary = nanoAppBinary;
         mContextHubInfo = contextHubInfo;
         mContextHubManager = contextHubManager;
@@ -81,12 +79,8 @@ public class ContextHubPendingIntentTestExecutor {
         IntentFilter filter = new IntentFilter(ACTION);
         mContext.registerReceiver(mReceiver, filter, Context.RECEIVER_EXPORTED/*UNAUDITED*/);
         Intent intent = new Intent(ACTION);
-        mPendingIntent =
-                PendingIntent.getBroadcast(
-                        mContext,
-                        0 /* requestCode */,
-                        intent,
-                        PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_MUTABLE);
+        mPendingIntent = PendingIntent.getBroadcast(mContext, 0 /* requestCode */, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_MUTABLE);
     }
 
     public void init() throws InterruptedException, TimeoutException {
@@ -94,11 +88,14 @@ public class ContextHubPendingIntentTestExecutor {
     }
 
     /**
-     * This test does the following: - Loads the who_am_i nanoapp, creates a ContextHubClient, and
-     * asks the nanoapp for the host endpoint ID. - Regenerates the ContextHubClient and asks the
-     * host endpoint ID, and checks if they are the same. - Unloads the nanoapp and closes the
-     * ContextHubClient. - Creates a ContextHubClient associated with a different nanoapp, and
-     * checks that Intent events are not received for the who_am_i nanoapp.
+     * This test does the following:
+     * - Loads the who_am_i nanoapp, creates a ContextHubClient, and asks the nanoapp for the host
+     * endpoint ID.
+     * - Regenerates the ContextHubClient and asks the host endpoint ID, and checks if they are the
+     * same.
+     * - Unloads the nanoapp and closes the ContextHubClient.
+     * - Creates a ContextHubClient associated with a different nanoapp, and checks that Intent
+     * events are not received for the who_am_i nanoapp.
      */
     public void basicPendingIntentTest(long sampleNanoAppId) {
         createClient(mNanoAppId);
@@ -109,9 +106,8 @@ public class ContextHubPendingIntentTestExecutor {
             Log.d(TAG, "My host endpoint ID is " + hostEndpointId);
 
             mContextHubClient = mTestHelper.createClient(mPendingIntent, mNanoAppId);
-            assertWithMessage("Failed to regenerate PendingIntent client")
-                    .that(mContextHubClient)
-                    .isNotNull();
+            assertWithMessage("Failed to regenerate PendingIntent client").that(
+                    mContextHubClient).isNotNull();
             assertThat(getIdFromNanoApp()).isEqualTo(hostEndpointId);
             // ContextHubClient.getId() was introduced in Android T. Check version before calling.
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -125,8 +121,8 @@ public class ContextHubPendingIntentTestExecutor {
         mContextHubClient = mTestHelper.createClient(mPendingIntent, sampleNanoAppId);
         mTestHelper.loadNanoAppAssertSuccess(mNanoAppBinary);
 
-        NanoAppMessage message =
-                NanoAppMessage.createMessageToNanoApp(mNanoAppId, MESSAGE_TYPE, new byte[0]);
+        NanoAppMessage message = NanoAppMessage.createMessageToNanoApp(mNanoAppId, MESSAGE_TYPE,
+                new byte[0]);
         int result = mContextHubClient.sendMessageToNanoApp(message);
         assertThat(result).isEqualTo(ContextHubTransaction.RESULT_SUCCESS);
 
@@ -148,17 +144,14 @@ public class ContextHubPendingIntentTestExecutor {
     private void checkLoadNanoApp() {
         mContextHubManager.loadNanoApp(mContextHubInfo, mNanoAppBinary);
         ContextHubBroadcastReceiver.pollIntentEvent(
-                TIMEOUT_SECONDS_LOAD + TIMEOUT_INTENT_EVENT_SECONDS,
-                TimeUnit.SECONDS,
-                ContextHubManager.EVENT_NANOAPP_LOADED,
-                mContextHubInfo,
-                mNanoAppId);
+                TIMEOUT_SECONDS_LOAD + TIMEOUT_INTENT_EVENT_SECONDS, TimeUnit.SECONDS,
+                ContextHubManager.EVENT_NANOAPP_LOADED, mContextHubInfo, mNanoAppId);
     }
 
     /** Asks the who_am_i nanoapp for a ContextHubClient's host endpoint ID via an Intent event. */
     public short getIdFromNanoApp() {
-        NanoAppMessage message =
-                NanoAppMessage.createMessageToNanoApp(mNanoAppId, MESSAGE_TYPE, new byte[0]);
+        NanoAppMessage message = NanoAppMessage.createMessageToNanoApp(mNanoAppId, MESSAGE_TYPE,
+                new byte[0]);
         int result = mContextHubClient.sendMessageToNanoApp(message);
         assertThat(result).isEqualTo(ContextHubTransaction.RESULT_SUCCESS);
 
@@ -169,13 +162,9 @@ public class ContextHubPendingIntentTestExecutor {
      * Waits for a Intent event message from the who_am_i nanoapp indicating the host endpoint ID.
      */
     public short waitForIdFromNanoApp() {
-        ContextHubIntentEvent event =
-                ContextHubBroadcastReceiver.pollIntentEvent(
-                        TIMEOUT_SECONDS_MESSAGE + TIMEOUT_INTENT_EVENT_SECONDS,
-                        TimeUnit.SECONDS,
-                        ContextHubManager.EVENT_NANOAPP_MESSAGE,
-                        mContextHubInfo,
-                        mNanoAppId);
+        ContextHubIntentEvent event = ContextHubBroadcastReceiver.pollIntentEvent(
+                TIMEOUT_SECONDS_MESSAGE + TIMEOUT_INTENT_EVENT_SECONDS, TimeUnit.SECONDS,
+                ContextHubManager.EVENT_NANOAPP_MESSAGE, mContextHubInfo, mNanoAppId);
         byte[] appMessage = event.getNanoAppMessage().getMessageBody();
         return ByteBuffer.wrap(appMessage).order(ByteOrder.BIG_ENDIAN).asShortBuffer().get(0);
     }
@@ -190,10 +179,7 @@ public class ContextHubPendingIntentTestExecutor {
     private void checkUnloadNanoApp() {
         mTestHelper.unloadNanoApp(mNanoAppId);
         ContextHubBroadcastReceiver.pollIntentEvent(
-                TIMEOUT_SECONDS_UNLOAD + TIMEOUT_INTENT_EVENT_SECONDS,
-                TimeUnit.SECONDS,
-                ContextHubManager.EVENT_NANOAPP_UNLOADED,
-                mContextHubInfo,
-                mNanoAppId);
+                TIMEOUT_SECONDS_UNLOAD + TIMEOUT_INTENT_EVENT_SECONDS, TimeUnit.SECONDS,
+                ContextHubManager.EVENT_NANOAPP_UNLOADED, mContextHubInfo, mNanoAppId);
     }
 }
