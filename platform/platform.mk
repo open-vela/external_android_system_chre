@@ -213,6 +213,7 @@ SIM_SRCS += platform/linux/system_time.cc
 SIM_SRCS += platform/linux/system_timer.cc
 SIM_SRCS += platform/linux/platform_nanoapp.cc
 SIM_SRCS += platform/linux/task_util/task.cc
+SIM_SRCS += platform/linux/task_util/task_manager.cc
 SIM_SRCS += platform/shared/chre_api_audio.cc
 SIM_SRCS += platform/shared/chre_api_ble.cc
 SIM_SRCS += platform/shared/chre_api_core.cc
@@ -280,6 +281,7 @@ GOOGLE_X86_LINUX_CFLAGS += -Iplatform/linux/include
 GOOGLE_X86_LINUX_SRCS += platform/linux/init.cc
 GOOGLE_X86_LINUX_SRCS += platform/linux/assert.cc
 GOOGLE_X86_LINUX_SRCS += platform/linux/task_util/task.cc
+GOOGLE_X86_LINUX_SRCS += platform/linux/task_util/task_manager.cc
 
 # Optional audio support.
 ifeq ($(CHRE_AUDIO_SUPPORT_ENABLED), true)
@@ -347,6 +349,7 @@ GOOGLETEST_COMMON_SRCS += platform/linux/assert.cc
 GOOGLETEST_COMMON_SRCS += platform/linux/sim/audio_source.cc
 GOOGLETEST_COMMON_SRCS += platform/linux/sim/platform_audio.cc
 GOOGLETEST_COMMON_SRCS += platform/linux/tests/task_test.cc
+GOOGLETEST_COMMON_SRCS += platform/linux/tests/task_manager_test.cc
 GOOGLETEST_COMMON_SRCS += platform/tests/log_buffer_test.cc
 GOOGLETEST_COMMON_SRCS += platform/shared/log_buffer.cc
 ifeq ($(CHRE_WIFI_NAN_SUPPORT_ENABLED), true)

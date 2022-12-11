@@ -398,6 +398,8 @@ cc_library_static {
         "platform/linux/platform_log.cc",
         "platform/linux/system_time.cc",
         "platform/linux/task_util/task.cc",
+        "platform/linux/task_util/task_manager.cc",
+        "util/dynamic_vector_base.cc",
     ],
     export_include_dirs: [
         "platform/shared/include",
@@ -588,6 +590,7 @@ cc_library_static {
         "platform/linux/system_time.cc",
         "platform/linux/system_timer.cc",
         "platform/linux/task_util/task.cc",
+        "platform/linux/task_util/task_manager.cc",
         "platform/shared/audio_pal/platform_audio.cc",
         "platform/shared/chre_api_audio.cc",
         "platform/shared/chre_api_ble.cc",
