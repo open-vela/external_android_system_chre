@@ -42,6 +42,118 @@ pw::Status ChreApiTestService::ChreBleGetFilterCapabilities(
   return pw::OkStatus();
 }
 
+pw::Status ChreApiTestService::ChreSensorFindDefault(
+    const chre_rpc_ChreSensorFindDefaultInput &request,
+    chre_rpc_ChreSensorFindDefaultOutput &response) {
+  ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
+      CHRE_MESSAGE_PERMISSION_NONE);
+
+  if (request.sensorType > std::numeric_limits<uint8_t>::max()) {
+    return pw::Status::InvalidArgument();
+  }
+
+  uint8_t sensorType = (uint8_t)request.sensorType;
+  response.foundSensor =
+      chreSensorFindDefault(sensorType, &response.sensorHandle);
+
+  LOGD("ChreSensorFindDefault: foundSensor: %s, sensorHandle: %" PRIu32,
+       response.foundSensor ? "true" : "false", response.sensorHandle);
+  return pw::OkStatus();
+}
+
+pw::Status ChreApiTestService::ChreGetSensorInfo(
+    const chre_rpc_ChreSensorHandleInput &request,
+    chre_rpc_ChreGetSensorInfoOutput &response) {
+  ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
+      CHRE_MESSAGE_PERMISSION_NONE);
+
+  struct chreSensorInfo sensorInfo;
+  memset(&sensorInfo, 0, sizeof(sensorInfo));
+
+  response.status = chreGetSensorInfo(request.sensorHandle, &sensorInfo);
+
+  if (response.status) {
+    copyString(response.sensorName, sensorInfo.sensorName, kMaxNameStringSize);
+  } else {
+    response.sensorName[0] = '\0';
+  }
+
+  response.sensorType = sensorInfo.sensorType;
+  response.isOnChange = sensorInfo.isOnChange;
+  response.isOneShot = sensorInfo.isOneShot;
+  response.reportsBiasEvents = sensorInfo.reportsBiasEvents;
+  response.supportsPassiveMode = sensorInfo.supportsPassiveMode;
+  response.unusedFlags = sensorInfo.unusedFlags;
+  response.minInterval = sensorInfo.minInterval;
+  response.sensorIndex = sensorInfo.sensorIndex;
+
+  LOGD("ChreGetSensorInfo: status: %s, sensorType: %" PRIu32
+       ", isOnChange: %" PRIu32
+       ", "
+       "isOneShot: %" PRIu32 ", reportsBiasEvents: %" PRIu32
+       ", supportsPassiveMode: %" PRIu32 ", unusedFlags: %" PRIu32
+       ", minInterval: %" PRIu64 ", sensorIndex: %" PRIu32,
+       response.status ? "true" : "false", response.sensorType,
+       response.isOnChange, response.isOneShot, response.reportsBiasEvents,
+       response.supportsPassiveMode, response.unusedFlags, response.minInterval,
+       response.sensorIndex);
+  return pw::OkStatus();
+}
+
+pw::Status ChreApiTestService::ChreGetSensorSamplingStatus(
+    const chre_rpc_ChreSensorHandleInput &request,
+    chre_rpc_ChreGetSensorSamplingStatusOutput &response) {
+  ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
+      CHRE_MESSAGE_PERMISSION_NONE);
+
+  struct chreSensorSamplingStatus samplingStatus;
+  memset(&samplingStatus, 0, sizeof(samplingStatus));
+
+  response.status =
+      chreGetSensorSamplingStatus(request.sensorHandle, &samplingStatus);
+  response.interval = samplingStatus.interval;
+  response.latency = samplingStatus.latency;
+  response.enabled = samplingStatus.enabled;
+
+  LOGD("ChreGetSensorSamplingStatus: status: %s, interval: %" PRIu64
+       ", latency: %" PRIu64 ", enabled: %s",
+       response.status ? "true" : "false", response.interval, response.latency,
+       response.enabled ? "true" : "false");
+  return pw::OkStatus();
+}
+
+pw::Status ChreApiTestService::ChreSensorConfigureModeOnly(
+    const chre_rpc_ChreSensorConfigureModeOnlyInput &request,
+    chre_rpc_Status &response) {
+  ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
+      CHRE_MESSAGE_PERMISSION_NONE);
+
+  chreSensorConfigureMode mode =
+      static_cast<chreSensorConfigureMode>(request.mode);
+  response.status = chreSensorConfigureModeOnly(request.sensorHandle, mode);
+
+  LOGD("ChreSensorConfigureModeOnly: status: %s",
+       response.status ? "true" : "false");
+  return pw::OkStatus();
+}
+
+void ChreApiTestService::copyString(char *destination, const char *source,
+                                    size_t maxChars) {
+  CHRE_ASSERT_NOT_NULL(destination);
+  CHRE_ASSERT_NOT_NULL(source);
+
+  if (maxChars == 0) {
+    return;
+  }
+
+  uint32_t i;
+  for (i = 0; i < maxChars - 1 && source[i] != '\0'; ++i) {
+    destination[i] = source[i];
+  }
+
+  memset(&destination[i], 0, maxChars - i);
+}
+
 bool ChreApiTestManager::start() {
   chre::RpcServer::Service service = {.service = mChreApiTestService,
                                       .id = 0x61002d392de8430a,
