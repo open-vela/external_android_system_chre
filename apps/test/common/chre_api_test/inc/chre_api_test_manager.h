@@ -18,6 +18,7 @@
 #define CHRE_API_TEST_MANAGER_H_
 
 #include <chre.h>
+#include <cinttypes>
 #include <cstdint>
 
 #include "chre/re.h"
@@ -27,7 +28,28 @@
 
 class ChreApiTestService final
     : public chre::rpc::pw_rpc::nanopb::ChreApiTestService::Service<
-          ChreApiTestService> {};
+          ChreApiTestService> {
+ public:
+  /**
+   * Returns the BLE capabilities.
+   *
+   * @param request           the request (Void)
+   * @param response          the response (Capabilities)
+   * @return                  status
+   */
+  pw::Status ChreBleGetCapabilities(const chre_rpc_Void &request,
+                                    chre_rpc_Capabilities &response);
+
+  /**
+   * Returns the BLE filter capabilities.
+   *
+   * @param request           the request (Void)
+   * @param response          the response (Capabilities)
+   * @return                  status
+   */
+  pw::Status ChreBleGetFilterCapabilities(const chre_rpc_Void &request,
+                                          chre_rpc_Capabilities &response);
+};
 
 /**
  * Handles RPC requests for the CHRE API Test nanoapp
