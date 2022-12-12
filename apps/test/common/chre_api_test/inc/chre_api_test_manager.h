@@ -49,10 +49,69 @@ class ChreApiTestService final
    */
   pw::Status ChreBleGetFilterCapabilities(const chre_rpc_Void &request,
                                           chre_rpc_Capabilities &response);
+
+  /**
+   * Finds the default sensor and returns the handle in the output.
+   *
+   * @param request         the request (ChreSensorFindDefaultInput)
+   * @param response        the response (ChreSensorFindDefaultOutput)
+   * @return                status
+   */
+  pw::Status ChreSensorFindDefault(
+      const chre_rpc_ChreSensorFindDefaultInput &request,
+      chre_rpc_ChreSensorFindDefaultOutput &response);
+
+  /**
+   * Gets the sensor information.
+   *
+   * @param request         the request (ChreSensorHandleInput)
+   * @param response        the response (ChreGetSensorInfoOutput)
+   * @return                status
+   */
+  pw::Status ChreGetSensorInfo(const chre_rpc_ChreSensorHandleInput &request,
+                               chre_rpc_ChreGetSensorInfoOutput &response);
+
+  /**
+   * Gets the sensor sampling status for a given sensor.
+   *
+   * @param request         the request (ChreSensorHandleInput)
+   * @param response        the response (ChreGetSensorSamplingStatusOutput)
+   * @return                status
+   */
+  pw::Status ChreGetSensorSamplingStatus(
+      const chre_rpc_ChreSensorHandleInput &request,
+      chre_rpc_ChreGetSensorSamplingStatusOutput &response);
+
+  /**
+   * Configures the mode for a sensor.
+   *
+   * @param request         the request (ChreSensorConfigureModeOnlyInput)
+   * @param response        the response (Status)
+   * @return                status
+   */
+  pw::Status ChreSensorConfigureModeOnly(
+      const chre_rpc_ChreSensorConfigureModeOnlyInput &request,
+      chre_rpc_Status &response);
+
+ private:
+  /**
+   * Max size of the name string
+   */
+  static const uint32_t kMaxNameStringSize = 100;
+
+  /**
+   * Copies a string from source to destination up to the length of the source
+   * or the max value. Pads with null characters.
+   *
+   * @param destination         the destination string
+   * @param source              the source string
+   * @param maxChars            the maximum number of chars
+   */
+  void copyString(char *destination, const char *source, uint32_t maxChars);
 };
 
 /**
- * Handles RPC requests for the CHRE API Test nanoapp
+ * Handles RPC requests for the CHRE API Test nanoapp.
  */
 class ChreApiTestManager {
  public:
@@ -84,7 +143,7 @@ class ChreApiTestManager {
   void setPermissionForNextMessage(uint32_t permission);
 
  private:
-  // RPC server
+  // RPC server.
   chre::RpcServer mServer;
 
   // pw_rpc service used to process the RPCs.
