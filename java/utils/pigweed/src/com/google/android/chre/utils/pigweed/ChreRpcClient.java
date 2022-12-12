@@ -46,6 +46,8 @@ public class ChreRpcClient {
     private final Channel mChannel;
     @NonNull
     private final ChreChannelOutput mChannelOutput;
+    @Nullable
+    private final ChreCallbackHandler mCallbackHandler;
     private final long mServerNanoappId;
     @NonNull
     private final ContextHubClient mContextHubClient;
@@ -67,13 +69,13 @@ public class ChreRpcClient {
         Objects.requireNonNull(manager);
         Objects.requireNonNull(info);
         Objects.requireNonNull(services);
-        ChreCallbackHandler callbackHandler = new ChreCallbackHandler(serverNanoappId, callback);
-        mContextHubClient = manager.createClient(info, callbackHandler);
+        mCallbackHandler = new ChreCallbackHandler(serverNanoappId, callback);
+        mContextHubClient = manager.createClient(info, mCallbackHandler);
         mServerNanoappId = serverNanoappId;
         mChannelOutput = new ChreChannelOutput(mContextHubClient, serverNanoappId);
         mChannel = new Channel(mChannelOutput.getChannelId(), mChannelOutput);
         mRpcClient = Client.create(List.of(mChannel), services);
-        callbackHandler.lateInit(mRpcClient, mChannelOutput);
+        mCallbackHandler.lateInit(mRpcClient, mChannelOutput);
     }
 
     /**
@@ -81,7 +83,8 @@ public class ChreRpcClient {
      *
      * Use this constructor for non-persistent clients using intents.
      *
-     * handleIntent() must be called with any CHRE intent received by the BroadcastReceiver.
+     * The application code must explicitly call the callbacks of ChreCallbackHandler.
+     * The handler can be retrieved by calling getCallbackHandler().
      *
      * @param contextHubClient The context hub client providing the RPC server nanoapp
      * @param serverNanoappId  The ID of the RPC server nanoapp
@@ -95,6 +98,8 @@ public class ChreRpcClient {
         mChannelOutput = new ChreChannelOutput(contextHubClient, serverNanoappId);
         mChannel = new Channel(mChannelOutput.getChannelId(), mChannelOutput);
         mRpcClient = Client.create(List.of(mChannel), services);
+        mCallbackHandler = new ChreCallbackHandler(serverNanoappId, null);
+        mCallbackHandler.lateInit(mRpcClient, mChannelOutput);
     }
 
     /**
@@ -128,6 +133,15 @@ public class ChreRpcClient {
      */
     public void handleIntent(@NonNull Intent intent) {
         ChreIntentHandler.handle(intent, mServerNanoappId, mRpcClient, mChannelOutput);
+    }
+
+    /**
+     * Returns a callback handler.
+     *
+     * Pass each callback invocation to the corresponding method in the handler public APIs.
+     */
+    public ChreCallbackHandler getCallbackHandler() {
+        return mCallbackHandler;
     }
 
     /**
