@@ -4,4 +4,20 @@ package chre.rpc;
 
 option java_package = "dev.chre.rpc.proto";
 
-service ChreApiTestService {}
+service ChreApiTestService {
+  // Returns the BLE capabilities
+  rpc ChreBleGetCapabilities(Void) returns (Capabilities) {}
+
+  // Returns the BLE filter capabilities
+  rpc ChreBleGetFilterCapabilities(Void) returns (Capabilities) {}
+}
+
+// General messages
+
+// Empty message (void)
+message Void {}
+
+// Contains a capabilities uint32
+message Capabilities {
+  uint32 capabilities = 1;
+}

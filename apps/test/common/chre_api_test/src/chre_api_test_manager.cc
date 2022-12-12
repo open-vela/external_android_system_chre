@@ -21,6 +21,27 @@
 #include "chre.h"
 #include "chre/util/nanoapp/log.h"
 
+pw::Status ChreApiTestService::ChreBleGetCapabilities(
+    const chre_rpc_Void & /* request */, chre_rpc_Capabilities &response) {
+  ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
+      CHRE_MESSAGE_PERMISSION_NONE);
+  response.capabilities = chreBleGetCapabilities();
+
+  LOGD("ChreBleGetCapabilities: capabilities: %" PRIu32, response.capabilities);
+  return pw::OkStatus();
+}
+
+pw::Status ChreApiTestService::ChreBleGetFilterCapabilities(
+    const chre_rpc_Void & /* request */, chre_rpc_Capabilities &response) {
+  ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
+      CHRE_MESSAGE_PERMISSION_NONE);
+  response.capabilities = chreBleGetFilterCapabilities();
+
+  LOGD("ChreBleGetFilterCapabilities: capabilities: %" PRIu32,
+       response.capabilities);
+  return pw::OkStatus();
+}
+
 bool ChreApiTestManager::start() {
   chre::RpcServer::Service service = {.service = mChreApiTestService,
                                       .id = 0x61002d392de8430a,
