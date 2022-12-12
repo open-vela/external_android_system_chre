@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package chre.rpc;
+
+option java_package = "dev.chre.rpc.proto";
+
+service ChreApiTestService {}
