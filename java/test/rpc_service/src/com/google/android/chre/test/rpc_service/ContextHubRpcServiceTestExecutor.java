@@ -15,9 +15,17 @@
  */
 package com.google.android.chre.test.rpc_service;
 
+import static androidx.test.platform.app.InstrumentationRegistry.getInstrumentation;
+
+import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.hardware.location.ContextHubClient;
 import android.hardware.location.ContextHubClientCallback;
 import android.hardware.location.ContextHubInfo;
+import android.hardware.location.ContextHubIntentEvent;
 import android.hardware.location.ContextHubManager;
 import android.hardware.location.NanoAppBinary;
 import android.hardware.location.NanoAppState;
@@ -41,37 +49,31 @@ import dev.pigweed.pw_rpc.proto.Echo;
  * A class that can execute the test for the RPC service test nanoapp.
  */
 public class ContextHubRpcServiceTestExecutor extends ContextHubClientCallback {
+    public static final String ACTION = "com.google.android.chre.test.chqts.ACTION";
     private static final String TAG = "ContextHubRpcServiceTestExecutor";
-
-    private final NanoAppBinary mNanoAppBinary;
-
-    private final long mNanoAppId;
-
-    private final AtomicBoolean mChreReset = new AtomicBoolean(false);
-
-    private final ContextHubManager mContextHubManager;
-
-    private final ContextHubInfo mContextHubInfo;
-
-    private final ChreRpcClient mRpcClient;
-
     // The ID and version of the "rpc_service_test" nanoapp. Must be synchronized with the
     // value defined in the nanoapp code.
     private static final long RPC_SERVICE_ID = 0xca8f7150a3f05847L;
     private static final int RPC_SERVICE_VERSION = 0x01020034;
     private static final String RPC_ECHO_STRING = "HELLO_WORLD";
+    private final NanoAppBinary mNanoAppBinary;
+    private final long mNanoAppId;
+    private final AtomicBoolean mChreReset = new AtomicBoolean(false);
+    private final ContextHubManager mContextHubManager;
+    private final ContextHubInfo mContextHubInfo;
+    private final Service mEchoService;
+    private final Context mContext = getInstrumentation().getTargetContext();
+    private ChreRpcClient mRpcClient;
 
-    public ContextHubRpcServiceTestExecutor(
-                ContextHubManager manager, ContextHubInfo info, NanoAppBinary binary) {
+    public ContextHubRpcServiceTestExecutor(ContextHubManager manager, ContextHubInfo info,
+            NanoAppBinary binary) {
         mContextHubManager = manager;
         mContextHubInfo = info;
         mNanoAppBinary = binary;
         mNanoAppId = mNanoAppBinary.getNanoAppId();
 
-        Service echoService = new Service("pw.rpc.EchoService",
-                Service.unaryMethod("Echo", Echo.EchoMessage.class,
-                        Echo.EchoMessage.class));
-        mRpcClient = new ChreRpcClient(manager, info, mNanoAppId, List.of(echoService), this);
+        mEchoService = new Service("pw.rpc.EchoService",
+                Service.unaryMethod("Echo", Echo.EchoMessage.class, Echo.EchoMessage.class));
     }
 
     @Override
@@ -80,18 +82,16 @@ public class ContextHubRpcServiceTestExecutor extends ContextHubClientCallback {
     }
 
     /**
-     * Should be invoked before run() is invoked to set up the test, e.g. in a @Before method.
+     * Should be invoked before each test, e.g. in a @Before method.
      */
     public void init() {
         ChreTestUtil.loadNanoAppAssertSuccess(mContextHubManager, mContextHubInfo, mNanoAppBinary);
+        mRpcClient = null;
     }
 
-    /**
-     * The test code, e.g. run in @Test method
-     */
-    public void run() throws Exception {
-        List<NanoAppState> stateList =
-                    ChreTestUtil.queryNanoAppsAssertSuccess(mContextHubManager, mContextHubInfo);
+    public void findServiceTest() throws Exception {
+        List<NanoAppState> stateList = ChreTestUtil.queryNanoAppsAssertSuccess(mContextHubManager,
+                mContextHubInfo);
         boolean serviceFound = false;
         for (NanoAppState state : stateList) {
             if (ChreRpcClient.hasService(state, mNanoAppId, RPC_SERVICE_ID, RPC_SERVICE_VERSION)) {
@@ -101,20 +101,47 @@ public class ContextHubRpcServiceTestExecutor extends ContextHubClientCallback {
             }
         }
         Assert.assertTrue(serviceFound);
+    }
 
-        MethodClient methodClient = mRpcClient.getMethodClient("pw.rpc.EchoService.Echo");
+    /**
+     * Using callbacks (persistent service).
+     */
+    public void callbackModeTest() throws Exception {
+        mRpcClient = new ChreRpcClient(mContextHubManager, mContextHubInfo, mNanoAppId,
+                List.of(mEchoService), this);
 
-        Echo.EchoMessage message =
-                Echo.EchoMessage.newBuilder().setMsg(RPC_ECHO_STRING).build();
-        UnaryFuture<Echo.EchoMessage> responseFuture = methodClient.invokeUnaryFuture(message);
+        invokeRpc(mRpcClient);
+    }
 
-        UnaryResult<Echo.EchoMessage> responseResult = responseFuture.get(2, TimeUnit.SECONDS);
-        Assert.assertNotNull(responseResult);
-        Assert.assertTrue(responseResult.status().ok());
+    /**
+     * Using intents (non-persistent service).
+     */
+    public void pendingIntentModeTest() throws Exception {
+        BroadcastReceiver receiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                ContextHubIntentEvent event = ContextHubIntentEvent.fromIntent(intent);
+                if (event.getEventType() == ContextHubManager.EVENT_HUB_RESET) {
+                    mChreReset.set(true);
+                }
+                mRpcClient.handleIntent(intent);
+            }
+        };
 
-        Echo.EchoMessage response = responseResult.response();
-        Assert.assertNotNull(response);
-        Assert.assertEquals(RPC_ECHO_STRING, response.getMsg());
+        IntentFilter filter = new IntentFilter(ACTION);
+        mContext.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED);
+        Intent intent = new Intent(ACTION).setPackage(mContext.getPackageName());
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(mContext, 0 /* requestCode */,
+                intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_MUTABLE);
+
+        ContextHubClient contextHubClient = mContextHubManager.createClient(mContextHubInfo,
+                pendingIntent, mNanoAppId);
+
+        mRpcClient = new ChreRpcClient(contextHubClient, mNanoAppId, List.of(mEchoService));
+
+        invokeRpc(mRpcClient);
+
+        mContext.unregisterReceiver(receiver);
     }
 
     /**
@@ -126,6 +153,24 @@ public class ContextHubRpcServiceTestExecutor extends ContextHubClientCallback {
         }
 
         ChreTestUtil.unloadNanoAppAssertSuccess(mContextHubManager, mContextHubInfo, mNanoAppId);
-        mRpcClient.close();
+
+        if (mRpcClient != null) {
+            mRpcClient.close();
+        }
+    }
+
+    private void invokeRpc(ChreRpcClient rpcClient) throws Exception {
+        MethodClient methodClient = rpcClient.getMethodClient("pw.rpc.EchoService.Echo");
+
+        Echo.EchoMessage message = Echo.EchoMessage.newBuilder().setMsg(RPC_ECHO_STRING).build();
+        UnaryFuture<Echo.EchoMessage> responseFuture = methodClient.invokeUnaryFuture(message);
+
+        UnaryResult<Echo.EchoMessage> responseResult = responseFuture.get(2, TimeUnit.SECONDS);
+        Assert.assertNotNull(responseResult);
+        Assert.assertTrue(responseResult.status().ok());
+
+        Echo.EchoMessage response = responseResult.response();
+        Assert.assertNotNull(response);
+        Assert.assertEquals(RPC_ECHO_STRING, response.getMsg());
     }
 }

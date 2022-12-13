@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include "rpc_test.h"
+
 #include <cstdint>
 
 #include "chre/core/event_loop.h"
@@ -32,6 +34,14 @@
 #include "test_util.h"
 
 namespace chre {
+
+pw::Status RpcTestService::Increment(const chre_rpc_NumberMessage &request,
+                                     chre_rpc_NumberMessage &response) {
+  EnvSingleton::get()->mServer.setPermissionForNextMessage(
+      CHRE_MESSAGE_PERMISSION_NONE);
+  response.number = request.number + 1;
+  return pw::OkStatus();
+}
 
 namespace {
 
@@ -262,6 +272,137 @@ TEST_F(TestBase, PwRpcGetNanoappInfoByAppIdReturnsServices) {
   EXPECT_EQ(pInfo->reserved[0], 0);
   EXPECT_EQ(pInfo->reserved[1], 0);
   EXPECT_EQ(pInfo->reserved[2], 0);
+}
+
+TEST_F(TestBase, PwRpcClientNanoappCanRequestServerNanoapp) {
+  CREATE_CHRE_TEST_EVENT(INCREMENT_REQUEST, 0);
+
+  struct ClientApp : public TestNanoapp {
+    uint64_t id = kPwRcpClientAppId;
+
+    decltype(nanoappHandleEvent) *handleEvent = [](uint32_t senderInstanceId,
+                                                   uint16_t eventType,
+                                                   const void *eventData) {
+      Env *env = EnvSingleton::get();
+
+      env->mClient.handleEvent(senderInstanceId, eventType, eventData);
+      switch (eventType) {
+        case CHRE_EVENT_TEST_EVENT: {
+          auto event = static_cast<const TestEvent *>(eventData);
+          switch (event->type) {
+            case INCREMENT_REQUEST: {
+              auto client =
+                  env->mClient
+                      .get<rpc::pw_rpc::nanopb::RpcTestService::Client>();
+              if (client.has_value()) {
+                chre_rpc_NumberMessage incrementRequest;
+                incrementRequest.number = *static_cast<uint32_t *>(event->data);
+                env->mIncrementCall = client->Increment(
+                    incrementRequest, [](const chre_rpc_NumberMessage &response,
+                                         pw::Status status) {
+                      if (status.ok()) {
+                        EnvSingleton::get()->mNumber = response.number;
+                        TestEventQueueSingleton::get()->pushEvent(
+                            INCREMENT_REQUEST, true);
+                      } else {
+                        TestEventQueueSingleton::get()->pushEvent(
+                            INCREMENT_REQUEST, false);
+                      }
+                    });
+              } else {
+                TestEventQueueSingleton::get()->pushEvent(INCREMENT_REQUEST,
+                                                          false);
+              }
+            }
+          }
+        }
+      }
+    };
+  };
+
+  struct ServerApp : public TestNanoapp {
+    uint64_t id = kPwRcpServerAppId;
+    decltype(nanoappStart) *start = []() {
+      EnvSingleton::init();
+      chre::RpcServer::Service service = {
+          .service = EnvSingleton::get()->mRpcTestService,
+          .id = 0xca8f7150a3f05847,
+          .version = 0x01020034};
+      return EnvSingleton::get()->mServer.registerServices(1, &service);
+    };
+
+    decltype(nanoappHandleEvent) *handleEvent = [](uint32_t senderInstanceId,
+                                                   uint16_t eventType,
+                                                   const void *eventData) {
+      EnvSingleton::get()->mServer.handleEvent(senderInstanceId, eventType,
+                                               eventData);
+    };
+  };
+
+  auto server = loadNanoapp<ServerApp>();
+  auto client = loadNanoapp<ClientApp>();
+  bool status;
+  constexpr uint32_t kNumber = 101;
+
+  sendEventToNanoapp(client, INCREMENT_REQUEST, kNumber);
+  waitForEvent(INCREMENT_REQUEST, &status);
+  EXPECT_TRUE(status);
+  EXPECT_EQ(EnvSingleton::get()->mNumber, kNumber + 1);
+}
+
+TEST_F(TestBase, PwRpcRpcClientHasServiceCheckForAMatchingService) {
+  CREATE_CHRE_TEST_EVENT(QUERY_HAS_SERVICE, 0);
+
+  struct ServiceInfo {
+    uint64_t id;
+    uint32_t version;
+    uint64_t appId;
+  };
+
+  struct App : public TestNanoapp {
+    decltype(nanoappStart) *start = []() -> bool {
+      struct chreNanoappRpcService services[] = {{.id = 1, .version = 2}};
+
+      return chrePublishRpcServices(services, 1 /* numServices */);
+    };
+
+    decltype(nanoappHandleEvent) *handleEvent = [](uint32_t, uint16_t eventType,
+                                                   const void *eventData) {
+      static struct chreNanoappInfo info;
+      switch (eventType) {
+        case CHRE_EVENT_TEST_EVENT: {
+          auto event = static_cast<const TestEvent *>(eventData);
+          switch (event->type) {
+            case QUERY_HAS_SERVICE: {
+              auto service =
+                  static_cast<const struct ServiceInfo *>(event->data);
+              RpcClient client{service->appId};
+              bool hasService =
+                  client.hasService(service->id, service->version);
+              TestEventQueueSingleton::get()->pushEvent(QUERY_HAS_SERVICE,
+                                                        hasService);
+              break;
+            }
+          }
+          break;
+        }
+      }
+    };
+  };
+
+  auto app = loadNanoapp<App>();
+
+  ServiceInfo service;
+  bool hasService = false;
+
+  service = {.id = 1, .version = 2, .appId = app.id};
+  sendEventToNanoapp(app, QUERY_HAS_SERVICE, service);
+  waitForEvent(QUERY_HAS_SERVICE, &hasService);
+  EXPECT_TRUE(hasService);
+  service = {.id = 10, .version = 2, .appId = app.id};
+  sendEventToNanoapp(app, QUERY_HAS_SERVICE, service);
+  waitForEvent(QUERY_HAS_SERVICE, &hasService);
+  EXPECT_FALSE(hasService);
 }
 
 }  // namespace

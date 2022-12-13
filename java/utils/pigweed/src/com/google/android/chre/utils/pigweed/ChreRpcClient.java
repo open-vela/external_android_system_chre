@@ -15,6 +15,7 @@
  */
 package com.google.android.chre.utils.pigweed;
 
+import android.content.Intent;
 import android.hardware.location.ContextHubClient;
 import android.hardware.location.ContextHubClientCallback;
 import android.hardware.location.ContextHubInfo;
@@ -50,6 +51,7 @@ public class ChreRpcClient {
     private final long mServerNanoappId;
     @NonNull
     private final ContextHubClient mContextHubClient;
+    private ChreIntentHandler mIntentHandler;
 
     /**
      * Creates a ContextHubClient and initializes the helper.
@@ -101,6 +103,39 @@ public class ChreRpcClient {
     }
 
     /**
+     * Returns whether the state matches the server nanoapp and the service is provided.
+     *
+     * @param state           A nanoapp state
+     * @param serverNanoappId The ID of the RPC server nanoapp
+     * @param serviceId       ID of the service
+     * @param serviceVersion  Version of the service
+     * @return the state matches the server nanoapp and the service is provided
+     */
+    public static boolean hasService(NanoAppState state, long serverNanoappId, long serviceId,
+            int serviceVersion) {
+        if (state.getNanoAppId() != serverNanoappId) {
+            return false;
+        }
+
+        for (NanoAppRpcService service : state.getRpcServices()) {
+            if (service.getId() == serviceId) {
+                return service.getVersion() == serviceVersion;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Handles CHRE intents.
+     *
+     * @param intent The CHRE intent.
+     */
+    public void handleIntent(@NonNull Intent intent) {
+        ChreIntentHandler.handle(intent, mServerNanoappId, mRpcClient, mChannelOutput);
+    }
+
+    /**
      * Returns a callback handler.
      *
      * Pass each callback invocation to the corresponding method in the handler public APIs.
@@ -133,30 +168,5 @@ public class ChreRpcClient {
      */
     public MethodClient getMethodClient(String methodName) {
         return mRpcClient.method(mChannel.id(), methodName);
-    }
-
-
-    /**
-     * Returns whether the state matches the server nanoapp and the service is provided.
-     *
-     * @param state           A nanoapp state
-     * @param serverNanoappId The ID of the RPC server nanoapp
-     * @param serviceId       ID of the service
-     * @param serviceVersion  Version of the service
-     * @return the state matches the server nanoapp and the service is provided
-     */
-    public static boolean hasService(NanoAppState state, long serverNanoappId, long serviceId,
-            int serviceVersion) {
-        if (state.getNanoAppId() != serverNanoappId) {
-            return false;
-        }
-
-        for (NanoAppRpcService service : state.getRpcServices()) {
-            if (service.getId() == serviceId) {
-                return service.getVersion() == serviceVersion;
-            }
-        }
-
-        return false;
     }
 }
