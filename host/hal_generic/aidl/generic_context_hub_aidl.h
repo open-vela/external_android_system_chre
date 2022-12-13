@@ -18,27 +18,29 @@
 #define ANDROID_HARDWARE_CONTEXTHUB_AIDL_CONTEXTHUB_H
 
 #include <aidl/android/hardware/contexthub/BnContextHub.h>
+#include <android-base/file.h>
 #include <log/log.h>
-#include <future>
 #include <map>
 #include <mutex>
 #include <optional>
 #include <unordered_set>
 
-#include "debug_dump_helper.h"
 #include "event_logger.h"
 #include "hal_chre_socket_connection.h"
 
-namespace aidl::android::hardware::contexthub {
+namespace aidl {
+namespace android {
+namespace hardware {
+namespace contexthub {
 
 class ContextHub : public BnContextHub,
-                   public ::android::hardware::contexthub::DebugDumpHelper,
                    public ::android::hardware::contexthub::common::
                        implementation::IChreSocketCallback {
  public:
   ContextHub()
       : mDeathRecipient(
             AIBinder_DeathRecipient_new(ContextHub::onServiceDied)) {}
+
   ::ndk::ScopedAStatus getContextHubs(
       std::vector<ContextHubInfo> *out_contextHubInfos) override;
   ::ndk::ScopedAStatus loadNanoapp(int32_t contextHubId,
@@ -52,8 +54,6 @@ class ContextHub : public BnContextHub,
                                      int32_t transactionId) override;
   ::ndk::ScopedAStatus onSettingChanged(Setting setting, bool enabled) override;
   ::ndk::ScopedAStatus queryNanoapps(int32_t contextHubId) override;
-  ::ndk::ScopedAStatus getPreloadedNanoappIds(
-      std::vector<int64_t> *out_preloadedNanoappIds) override;
   ::ndk::ScopedAStatus registerCallback(
       int32_t contextHubId,
       const std::shared_ptr<IContextHubCallback> &cb) override;
@@ -83,14 +83,6 @@ class ContextHub : public BnContextHub,
 
   binder_status_t dump(int fd, const char **args, uint32_t numArgs) override;
 
-  bool requestDebugDump() override {
-    return mConnection.requestDebugDump();
-  }
-
-  void debugDumpFinish() override;
-
-  void writeToDebugFile(const char *str) override;
-
  private:
   ::android::hardware::contexthub::common::implementation::
       HalChreSocketConnection mConnection{this};
@@ -109,15 +101,19 @@ class ContextHub : public BnContextHub,
   std::mutex mConnectedHostEndpointsMutex;
   std::unordered_set<char16_t> mConnectedHostEndpoints;
 
+  // Variables related to debug dump.
+  static constexpr int kInvalidFd = -1;
+  int mDebugFd = kInvalidFd;
+  bool mDebugDumpPending = false;
+  std::mutex mDebugDumpMutex;
+  std::condition_variable mDebugDumpCond;
+
   // Logs events to be reported in debug dumps.
   EventLogger mEventLogger;
 
-  // A mutex to synchronize access to the list of preloaded nanoapp IDs
-  std::mutex mPreloadedNanoappIdsMutex;
-  std::optional<std::vector<int64_t>> mPreloadedNanoappIds;
-
   bool isSettingEnabled(Setting setting) {
-    return mSettingEnabled.count(setting) > 0 && mSettingEnabled[setting];
+    return mSettingEnabled.count(setting) > 0 ? mSettingEnabled[setting]
+                                              : false;
   }
 
   chre::fbs::SettingState toFbsSettingState(bool enabled) const {
@@ -125,17 +121,26 @@ class ContextHub : public BnContextHub,
                    : chre::fbs::SettingState::DISABLED;
   }
 
-  /**
-   * Get the preloaded nanoapp IDs from the config file and headers
-   *
-   * @param preloadedNanoappIds         out parameter, nanoapp IDs
-   * @return true                       operation was successful
-   * @return false                      operation was not successful
-   */
-  bool getPreloadedNanoappIdsFromConfigFile(
-      std::vector<int64_t> &preloadedNanoappIds) const;
+  // Write a string to mDebugFd
+  void writeToDebugFile(const std::string &str) {
+    if (!::android::base::WriteStringToFd(str, mDebugFd)) {
+      ALOGW("Failed to write %zu bytes to debug dump fd", str.size());
+    }
+  }
+
+  void writeToDebugFile(const char *str) {
+    writeToDebugFile(str, strlen(str));
+  }
+
+  void writeToDebugFile(const char *str, size_t len) {
+    std::string s(str, len);
+    writeToDebugFile(s);
+  }
 };
 
-}  // namespace aidl::android::hardware::contexthub
+}  // namespace contexthub
+}  // namespace hardware
+}  // namespace android
+}  // namespace aidl
 
 #endif  // ANDROID_HARDWARE_CONTEXTHUB_AIDL_CONTEXTHUB_H
