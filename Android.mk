@@ -94,7 +94,8 @@ LOCAL_SHARED_LIBRARIES := \
     android.hardware.soundtrigger@2.0 \
     libpower \
     libprotobuf-cpp-lite \
-    pixelatoms-cpp \
+    chremetrics-cpp \
+    chre_atoms_log \
     android.frameworks.stats-V1-ndk \
     libbinder_ndk
 

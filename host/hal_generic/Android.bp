@@ -60,7 +60,8 @@ cc_binary {
         "libbase",
         "libbinder_ndk",
         "android.hardware.contexthub-V2-ndk",
-        "//hardware/google/pixel:pixelatoms-cpp",
+        "chremetrics-cpp",
+        "chre_atoms_log",
     ],
     header_libs: [
         "chre_api",

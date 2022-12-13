@@ -380,6 +380,34 @@ cc_test_host {
     ],
 }
 
+genrule {
+    name: "chre_atoms_log.h",
+    tools: ["stats-log-api-gen"],
+    cmd: "$(location stats-log-api-gen) --header $(genDir)/chre_atoms_log.h --module chre --namespace android,chre,Atoms --vendor-proto hardware/google/pixel/pixelstats/pixelatoms.proto",
+    out: [
+        "chre_atoms_log.h",
+    ],
+}
+
+cc_library {
+    name: "chre_atoms_log",
+    vendor: true,
+    generated_headers: ["chre_atoms_log.h"],
+    export_generated_headers: ["chre_atoms_log.h"],
+}
+
+cc_library {
+    name: "chremetrics-cpp",
+    vendor: true,
+    proto: {
+        type: "lite",
+        export_proto_headers: true,
+    },
+    srcs: [
+        "core/chre_metrics.proto",
+    ],
+}
+
 cc_library_headers {
     name: "chre_api",
     vendor: true,

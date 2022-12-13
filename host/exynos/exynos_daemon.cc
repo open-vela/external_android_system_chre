@@ -292,12 +292,11 @@ void ExynosDaemon::handleDaemonMessage(const uint8_t *message) {
       values[0].set<VendorAtomValue::longValue>(
           mPreloadedNanoappPendingTransaction.nanoappId);
       values[1].set<VendorAtomValue::intValue>(
-          PixelAtoms::ChreHalNanoappLoadFailed::TYPE_PRELOADED);
+          Atoms::ChreHalNanoappLoadFailed::TYPE_PRELOADED);
       values[2].set<VendorAtomValue::intValue>(
-          PixelAtoms::ChreHalNanoappLoadFailed::REASON_ERROR_GENERIC);
+          Atoms::ChreHalNanoappLoadFailed::REASON_ERROR_GENERIC);
       const VendorAtom atom{
-          .reverseDomainName = "",
-          .atomId = PixelAtoms::Atom::kChreHalNanoappLoadFailed,
+          .atomId = Atoms::CHRE_HAL_NANOAPP_LOAD_FAILED,
           .values{std::move(values)},
       };
       ChreDaemonBase::reportMetric(atom);
