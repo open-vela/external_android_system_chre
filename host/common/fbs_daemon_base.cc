@@ -26,12 +26,11 @@
 #ifdef CHRE_DAEMON_METRIC_ENABLED
 #include <aidl/android/frameworks/stats/IStats.h>
 #include <android/binder_manager.h>
-#include <hardware/google/pixel/pixelstats/pixelatoms.pb.h>
+#include <chre_atoms_log.h>
 
 using ::aidl::android::frameworks::stats::IStats;
 using ::aidl::android::frameworks::stats::VendorAtom;
 using ::aidl::android::frameworks::stats::VendorAtomValue;
-namespace PixelAtoms = ::android::hardware::google::pixel::PixelAtoms;
 #endif  // CHRE_DAEMON_METRIC_ENABLED
 
 // Aliased for consistency with the way these symbols are referenced in
@@ -181,12 +180,11 @@ void FbsDaemonBase::handleDaemonMessage(const uint8_t *message) {
         values[0].set<VendorAtomValue::longValue>(
             mPreloadedNanoappPendingTransactions.front().nanoappId);
         values[1].set<VendorAtomValue::intValue>(
-            PixelAtoms::ChreHalNanoappLoadFailed::TYPE_PRELOADED);
+            Atoms::ChreHalNanoappLoadFailed::TYPE_PRELOADED);
         values[2].set<VendorAtomValue::intValue>(
-            PixelAtoms::ChreHalNanoappLoadFailed::REASON_ERROR_GENERIC);
+            Atoms::ChreHalNanoappLoadFailed::REASON_ERROR_GENERIC);
         const VendorAtom atom{
-            .reverseDomainName = PixelAtoms::ReverseDomainNames().pixel(),
-            .atomId = PixelAtoms::Atom::kChreHalNanoappLoadFailed,
+            .atomId = Atoms::CHRE_HAL_NANOAPP_LOAD_FAILED,
             .values{std::move(values)},
         };
         reportMetric(atom);

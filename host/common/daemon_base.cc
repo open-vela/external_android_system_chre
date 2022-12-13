@@ -25,12 +25,12 @@
 #include "chre_host/napp_header.h"
 
 #ifdef CHRE_DAEMON_METRIC_ENABLED
-#include <hardware/google/pixel/pixelstats/pixelatoms.pb.h>
+#include <chre_atoms_log.h>
+#include <system/chre/core/chre_metrics.pb.h>
 
 using ::aidl::android::frameworks::stats::IStats;
 using ::aidl::android::frameworks::stats::VendorAtom;
 using ::aidl::android::frameworks::stats::VendorAtomValue;
-namespace PixelAtoms = ::android::hardware::google::pixel::PixelAtoms;
 #endif  // CHRE_DAEMON_METRIC_ENABLED
 
 // Aliased for consistency with the way these symbols are referenced in
@@ -152,8 +152,8 @@ void ChreDaemonBase::handleMetricLog(const ::chre::fbs::MetricLogT *metricMsg) {
   const std::vector<int8_t> &encodedMetric = metricMsg->encoded_metric;
 
   switch (metricMsg->id) {
-    case PixelAtoms::Atom::kChrePalOpenFailed: {
-      PixelAtoms::ChrePalOpenFailed metric;
+    case Atoms::CHRE_PAL_OPEN_FAILED: {
+      metrics::ChrePalOpenFailed metric;
       if (!metric.ParseFromArray(encodedMetric.data(), encodedMetric.size())) {
         LOGE("Failed to parse metric data");
       } else {
@@ -161,16 +161,15 @@ void ChreDaemonBase::handleMetricLog(const ::chre::fbs::MetricLogT *metricMsg) {
         values[0].set<VendorAtomValue::intValue>(metric.pal());
         values[1].set<VendorAtomValue::intValue>(metric.type());
         const VendorAtom atom{
-            .reverseDomainName = "",
-            .atomId = PixelAtoms::Atom::kChrePalOpenFailed,
+            .atomId = Atoms::CHRE_PAL_OPEN_FAILED,
             .values{std::move(values)},
         };
         reportMetric(atom);
       }
       break;
     }
-    case PixelAtoms::Atom::kChreEventQueueSnapshotReported: {
-      PixelAtoms::ChreEventQueueSnapshotReported metric;
+    case Atoms::CHRE_EVENT_QUEUE_SNAPSHOT_REPORTED: {
+      metrics::ChreEventQueueSnapshotReported metric;
       if (!metric.ParseFromArray(encodedMetric.data(), encodedMetric.size())) {
         LOGE("Failed to parse metric data");
       } else {
@@ -189,8 +188,7 @@ void ChreDaemonBase::handleMetricLog(const ::chre::fbs::MetricLogT *metricMsg) {
         values[5].set<VendorAtomValue::intValue>(
             UINT32_MAX);  // mean_queue_delay_us
         const VendorAtom atom{
-            .reverseDomainName = "",
-            .atomId = PixelAtoms::Atom::kChreEventQueueSnapshotReported,
+            .atomId = Atoms::CHRE_EVENT_QUEUE_SNAPSHOT_REPORTED,
             .values{std::move(values)},
         };
         reportMetric(atom);

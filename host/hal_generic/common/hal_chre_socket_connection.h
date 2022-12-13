@@ -26,7 +26,6 @@
 
 #ifdef CHRE_HAL_SOCKET_METRICS_ENABLED
 #include <aidl/android/frameworks/stats/IStats.h>
-#include <hardware/google/pixel/pixelstats/pixelatoms.pb.h>
 #endif  // CHRE_HAL_SOCKET_METRICS_ENABLED
 
 namespace android {
