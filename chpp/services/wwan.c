@@ -218,7 +218,7 @@ static enum ChppAppErrorCode chppWwanServiceOpen(
     error = CHPP_APP_ERROR_BEYOND_CHPP;
 
   } else {
-    CHPP_LOGI("WWAN service opened");
+    CHPP_LOGD("WWAN service opened");
     wwanServiceContext->service.openState = CHPP_OPEN_STATE_OPENED;
 
     struct ChppAppHeader *response =
@@ -254,7 +254,7 @@ static enum ChppAppErrorCode chppWwanServiceClose(
   wwanServiceContext->api->close();
   wwanServiceContext->service.openState = CHPP_OPEN_STATE_CLOSED;
 
-  CHPP_LOGI("WWAN service closed");
+  CHPP_LOGD("WWAN service closed");
 
   struct ChppAppHeader *response =
       chppAllocServiceResponseFixed(requestHeader, struct ChppAppHeader);
@@ -284,7 +284,7 @@ static void chppWwanServiceNotifyReset(void *serviceContext) {
   if (wwanServiceContext->service.openState != CHPP_OPEN_STATE_OPENED) {
     CHPP_LOGW("WWAN service reset but wasn't open");
   } else {
-    CHPP_LOGI("WWAN service reset. Closing");
+    CHPP_LOGD("WWAN service reset. Closing");
     wwanServiceContext->service.openState = CHPP_OPEN_STATE_CLOSED;
     wwanServiceContext->api->close();
   }

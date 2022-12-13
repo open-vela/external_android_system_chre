@@ -95,6 +95,12 @@ bool HalChreSocketConnection::getContextHubs(
   return mHubInfoValid;
 }
 
+bool HalChreSocketConnection::sendDebugConfiguration() {
+  FlatBufferBuilder builder;
+  HostProtocolHost::encodeDebugConfiguration(builder);
+  return mClient.sendMessage(builder.GetBufferPointer(), builder.GetSize());
+}
+
 bool HalChreSocketConnection::sendMessageToHub(long nanoappId,
                                                uint32_t messageType,
                                                uint16_t hostEndpointId,
@@ -168,6 +174,11 @@ bool HalChreSocketConnection::onHostEndpointDisconnected(
   return mClient.sendMessage(builder.GetBufferPointer(), builder.GetSize());
 }
 
+bool HalChreSocketConnection::isLoadTransactionPending() {
+  std::lock_guard<std::mutex> lock(mPendingLoadTransactionMutex);
+  return mPendingLoadTransaction.has_value();
+}
+
 HalChreSocketConnection::SocketCallbacks::SocketCallbacks(
     HalChreSocketConnection &parent, IChreSocketCallback *callback)
     : mParent(parent), mCallback(callback) {
@@ -189,6 +200,7 @@ void HalChreSocketConnection::SocketCallbacks::onConnected() {
     ALOGI("Reconnected to CHRE daemon");
     mCallback->onContextHubRestarted();
   }
+  mParent.sendDebugConfiguration();
   mHaveConnected = true;
 }
 
