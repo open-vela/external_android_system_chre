@@ -21,6 +21,8 @@ NANOAPP_VERSION = 0x00000001
 
 NANOAPP_PATH = $(CHRE_PREFIX)/apps/test/common/chre_cross_validator_gnss
 
+CHRE_STD_OVERRIDES_ALLOWED = true
+
 # Source Code ##################################################################
 
 COMMON_SRCS += $(NANOAPP_PATH)/src/chre_cross_validator_gnss.cc
@@ -29,6 +31,7 @@ COMMON_SRCS += $(NANOAPP_PATH)/src/chre_cross_validator_gnss.cc
 
 # Defines
 COMMON_CFLAGS += -DNANOAPP_MINIMUM_LOG_LEVEL=CHRE_LOG_LEVEL_INFO
+COMMON_CFLAGS += -DCHRE_ASSERTIONS_ENABLED
 
 # Permission declarations ######################################################
 
