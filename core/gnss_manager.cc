@@ -24,7 +24,6 @@
 #include "chre/platform/fatal_error.h"
 #include "chre/util/nested_data_ptr.h"
 #include "chre/util/system/debug_dump.h"
-#include "chre/util/system/event_callbacks.h"
 
 namespace chre {
 

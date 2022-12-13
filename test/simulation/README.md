@@ -32,8 +32,9 @@ TEST_F(TestBase, <PrefixedTestName>) {
 
   // 2. Create a test Nanpoapp by inheriting TestNanoapp.
   struct App : public TestNanoapp {
-    decltype(nanoappHandleEvent) *handleEvent = [](uint32_t, uint16_t eventType,
-                                                   const void *eventData) {
+    void (*handleEvent)(uint32_t, uint16_t,
+                        const void *) = [](uint32_t, uint16_t eventType,
+                                           const void *eventData) {
       switch (eventType) {
         // 3. Handle system events.
         case CHRE_EVENT_WIFI_ASYNC_RESULT: {
@@ -97,8 +98,9 @@ Add code to `handleEvent` to handle the system events you are interested in for
 the test:
 
 ```cpp
-decltype(nanoappHandleEvent) *handleEvent = [](uint32_t, uint16_t eventType,
-                                               const void *eventData) {
+void (*handleEvent)(uint32_t, uint16_t,
+                    const void *) = [](uint32_t, uint16_t eventType,
+                                        const void *eventData) {
   switch (eventType) {
     case CHRE_EVENT_WIFI_ASYNC_RESULT: {
       // ...
@@ -137,8 +139,9 @@ Waiting for an event as described above is sufficient to express a boolean
 expectation. For example the status of an event:
 
 ```cpp
-  decltype(nanoappHandleEvent) *handleEvent = [](uint32_t, uint16_t eventType,
-                                                 const void *eventData) {
+  void (*handleEvent)(uint32_t, uint16_t,
+                      const void *) = [](uint32_t, uint16_t eventType,
+                                          const void *eventData) {
     switch (eventType) {
       case CHRE_EVENT_WIFI_ASYNC_RESULT: {
         auto *event = static_cast<const chreAsyncResult *>(eventData);
@@ -160,8 +163,9 @@ Sometimes you want to attach additional data alongside the event. Simply pass
 the data as the second argument to pushEvent:
 
 ```cpp
-    decltype(nanoappHandleEvent) *handleEvent = [](uint32_t, uint16_t eventType,
-                                                   const void *eventData) {
+    void (*handleEvent)(uint32_t, uint16_t,
+                        const void *) = [](uint32_t, uint16_t eventType,
+                                           const void *eventData) {
       switch (eventType) {
         case CHRE_EVENT_WIFI_ASYNC_RESULT: {
           auto *event = static_cast<const chreAsyncResult *>(eventData);
@@ -204,8 +208,9 @@ The code to be executed in the context of the nanoapp should be added to its
 `handleEvent` function:
 
 ```cpp
-decltype(nanoappHandleEvent) *handleEvent = [](uint32_t, uint16_t eventType,
-                                               const void *eventData) {
+void (*handleEvent)(uint32_t, uint16_t,
+                    const void *) = [](uint32_t, uint16_t eventType,
+                                        const void *eventData) {
   switch (eventType) {
     // Test event are received with a CHRE_EVENT_TEST_EVENT type.
     case CHRE_EVENT_TEST_EVENT: {
@@ -236,8 +241,9 @@ The `handleEvent` function receives a copy of the data in the `data` field of
 the `TestEvent`:
 
 ```cpp
-decltype(nanoappHandleEvent) *handleEvent = [](uint32_t, uint16_t eventType,
-                                               const void *eventData) {
+void (*handleEvent)(uint32_t, uint16_t,
+                    const void *) = [](uint32_t, uint16_t eventType,
+                                        const void *eventData) {
   switch (eventType) {
     // Test event are received with a CHRE_EVENT_TEST_EVENT type.
     case CHRE_EVENT_TEST_EVENT: {
