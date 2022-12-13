@@ -46,6 +46,11 @@
 #define CHPP_WIFI_MAX_TIMESYNC_AGE_NS CHPP_TIMESYNC_DEFAULT_MAX_AGE_NS
 #endif
 
+#ifndef CHPP_WIFI_SCAN_RESULT_TIMEOUT_NS
+#define CHPP_WIFI_SCAN_RESULT_TIMEOUT_NS \
+  (CHRE_WIFI_SCAN_RESULT_TIMEOUT_NS - CHRE_NSEC_PER_SEC)
+#endif
+
 /************************************************
  *  Prototypes
  ***********************************************/
@@ -407,7 +412,7 @@ static void chppWifiClientNotifyMatch(void *clientContext) {
 static void chppWiFiRecoverScanMonitor(
     struct ChppWifiClientState *clientContext) {
   if (clientContext->scanMonitorEnabled) {
-    CHPP_LOGI("Re-enabling WiFi scan monitoring after reset");
+    CHPP_LOGD("Re-enabling WiFi scan monitoring after reset");
     clientContext->scanMonitorEnabled = false;
     clientContext->scanMonitorSilenceCallback = true;
 
@@ -553,7 +558,6 @@ static void chppWifiRequestRangingResult(
   struct ChppAppHeader *rxHeader = (struct ChppAppHeader *)buf;
 
   if (rxHeader->error != CHPP_APP_ERROR_NONE) {
-    CHPP_LOGE("Ranging failed at service" PRIu8);
     gCallbacks->rangingEventCallback(chppAppErrorToChreError(rxHeader->error),
                                      NULL);
 
@@ -968,10 +972,14 @@ static bool chppWifiClientRequestScan(const struct chreWifiScanParams *params) {
     request->header.error = CHPP_APP_ERROR_NONE;
     request->header.command = CHPP_WIFI_REQUEST_SCAN_ASYNC;
 
+    CHPP_STATIC_ASSERT(
+        CHRE_WIFI_SCAN_RESULT_TIMEOUT_NS > CHPP_WIFI_SCAN_RESULT_TIMEOUT_NS,
+        "Chpp wifi scan timeout needs to be smaller than CHRE wifi scan "
+        "timeout");
     result = chppSendTimestampedRequestOrFail(
         &gWifiClientContext.client,
         &gWifiClientContext.rRState[CHPP_WIFI_REQUEST_SCAN_ASYNC], request,
-        requestLen, CHRE_WIFI_SCAN_RESULT_TIMEOUT_NS);
+        requestLen, CHPP_WIFI_SCAN_RESULT_TIMEOUT_NS);
   }
 
   return result;
