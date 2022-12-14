@@ -117,7 +117,7 @@ class ChreApiTestService final
    * @param source              the source string
    * @param maxChars            the maximum number of chars
    */
-  void copyString(char *destination, const char *source, uint32_t maxChars);
+  void copyString(char *destination, const char *source, size_t maxChars);
 };
 
 /**
