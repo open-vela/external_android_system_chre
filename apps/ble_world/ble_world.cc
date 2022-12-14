@@ -23,7 +23,7 @@
  * @file
  *
  * This nanoapp is designed to continually start and stop BLE scans and verify
- * that the expected data is delivered. BLE_WORLD_ENABLE_BATCHING can be enabled
+ * that the expected data is delivered. BLE_WORLD_ENABLE_BATCHING can be defined
  * to test batching and flushing if the nanoapp has the
  * CHRE_BLE_CAPABILITIES_SCAN_RESULT_BATCHING capability. This will configure
  * the BLE scans with a batch window and periodically make flush requests to get
@@ -36,9 +36,6 @@ namespace {
 #endif  // CHRE_NANOAPP_INTERNAL
 
 constexpr int8_t kDataTypeServiceData = 0x16;
-
-//! Set this environment variable to true to test BLE scan batching.
-#define BLE_WORLD_ENABLE_BATCHING false
 
 #ifdef BLE_WORLD_ENABLE_BATCHING
 //! A timer handle to request the BLE flush.
@@ -227,9 +224,11 @@ void nanoappEnd() {
   if (!chreTimerCancel(gEnableDisableTimerHandle)) {
     LOGE("Error canceling BLE scan timer");
   }
+#ifdef BLE_WORLD_ENABLE_BATCHING
   if (!chreTimerCancel(gFlushTimerHandle)) {
     LOGE("Error canceling BLE flush timer");
   }
+#endif
   LOGI("nanoapp stopped");
 }
 
