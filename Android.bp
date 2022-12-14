@@ -463,63 +463,35 @@ cc_test_host {
 
 genrule {
     name: "rpc_test_proto_header",
+    defaults: [
+        "pw_rpc_generate_nanopb_proto",
+    ],
     srcs: ["test/simulation/rpc/rpc_test.proto"],
-    cmd: "python3 $(location pw_protobuf_compiler_py) " +
-         "--plugin-path=$(location protoc-gen-nanopb) " +
-         "--out-dir=$(genDir) " +
-         "--compile-dir=$$(dirname $(in)) " +
-         "--language nanopb " +
-         "--sources $(in) " +
-         "--protoc=$(location aprotoc)",
     out: [
         "rpc_test.pb.h",
-    ],
-    tools: [
-        "aprotoc",
-        "protoc-gen-nanopb",
-        "pw_protobuf_compiler_py",
     ],
 }
 
 genrule {
     name: "rpc_test_proto_source",
+    defaults: [
+        "pw_rpc_generate_nanopb_proto",
+    ],
     srcs: ["test/simulation/rpc/rpc_test.proto"],
-    cmd: "python3 $(location pw_protobuf_compiler_py) " +
-         "--plugin-path=$(location protoc-gen-nanopb) " +
-         "--out-dir=$(genDir) " +
-         "--compile-dir=$$(dirname $(in)) " +
-         "--language nanopb " +
-         "--sources $(in) " +
-         "--no-experimental-proto3-optional " +
-         "--protoc=$(location aprotoc)",
     out: [
         "rpc_test.pb.c",
     ],
-    tools: [
-        "aprotoc",
-        "protoc-gen-nanopb",
-        "pw_protobuf_compiler_py",
-    ],
+
 }
 
 genrule {
     name: "rpc_test_rpc_header",
+    defaults: [
+        "pw_rpc_generate_nanopb_rpc_header",
+    ],
     srcs: ["test/simulation/rpc/rpc_test.proto"],
-    cmd: "python3 $(location pw_protobuf_compiler_py) " +
-         "--plugin-path=$(location pw_rpc_plugin_nanopb_py) " +
-         "--out-dir=$(genDir) " +
-         "--compile-dir=$$(dirname $(in)) " +
-         "--language nanopb_rpc " +
-         "--sources $(in) " +
-         "--no-experimental-proto3-optional " +
-         "--protoc=$(location aprotoc)",
     out: [
         "rpc_test.rpc.pb.h",
-    ],
-    tools: [
-        "aprotoc",
-        "pw_protobuf_compiler_py",
-        "pw_rpc_plugin_nanopb_py",
     ],
 }
 
