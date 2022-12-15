@@ -1,0 +1,2 @@
+chre.rpc.ChreGetSensorInfoOutput.sensorName max_size:100
+chre.rpc.ChreAudioGetSourceOutput.name max_size:100
