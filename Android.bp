@@ -742,3 +742,13 @@ cc_binary {
     ],
     init_rc: ["host/exynos/chre_daemon_exynos.rc"],
 }
+
+java_library_static {
+    name: "chre_api_test_proto_java_lite",
+    host_supported: true,
+    proto: {
+        type: "lite",
+    },
+    srcs: ["apps/test/common/chre_api_test/rpc/chre_api_test.proto"],
+    sdk_version: "current",
+}
