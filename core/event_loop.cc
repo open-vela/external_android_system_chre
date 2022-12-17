@@ -284,7 +284,11 @@ bool EventLoop::postLowPriorityEventOrFree(
   bool eventPosted = false;
 
   if (mRunning) {
+#if CHRE_STATIC_EVENT_LOOP
     if (mEventPool.getFreeBlockCount() > kMinReservedHighPriorityEventCount) {
+#else
+    if (mEventPool.getFreeSpaceCount() > kMinReservedHighPriorityEventCount) {
+#endif
       eventPosted = allocateAndPostEvent(
           eventType, eventData, freeCallback, true /*isLowPriority*/,
           senderInstanceId, targetInstanceId, targetGroupMask);
