@@ -34,6 +34,9 @@ SLPI_CFLAGS += -Iplatform/slpi/include
 # We use FlatBuffers in the SLPI platform layer
 SLPI_CFLAGS += $(FLATBUFFERS_CFLAGS)
 
+# SLPI still uses static event loop as oppose to heap based dynamic event loop
+SLPI_CFLAGS += -DCHRE_STATIC_EVENT_LOOP
+
 # SLPI/SEE-specific Compiler Flags #############################################
 
 # Include paths.
