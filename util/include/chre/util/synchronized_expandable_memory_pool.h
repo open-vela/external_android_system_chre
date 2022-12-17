@@ -81,17 +81,29 @@ class SynchronizedExpandableMemoryPool : public NonCopyable {
   /**
    * @return the number of new element that this memory pool can add.
    */
-  size_t getFreeSpaceCount();
+  inline size_t getFreeSpaceCount() {
+    return kMaxMemoryPoolCount * kMemoryPoolSize - mSize;
+  };
 
   /**
    * @return size_t Return the number of blocks currently in the memory pool.
    */
   size_t getBlockCount();
 
+  /**
+   * @return if the memory pool is full.
+   */
+  inline bool full() {
+    return mSize == kMaxMemoryPoolCount * kMemoryPoolSize;
+  };
+
  private:
   //! Number of blocks that will be allocate in the beginning and will only be
   //! deallocate by the destructor.
   const size_t kStaticBlockCount;
+
+  //! Number of elements that this memory pool currently hold.
+  size_t mSize = 0;
 
   //! The mutex used to guard access to this memory pool.
   Mutex mMutex;
