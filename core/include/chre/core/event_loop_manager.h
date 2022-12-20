@@ -130,13 +130,14 @@ class EventLoopManager : public NonCopyable {
   template <typename T>
   void deferCallback(SystemCallbackType type, UniquePtr<T> &&data,
                      TypedSystemEventCallbackFunction<T> *callback) {
-    auto outerCallback = [](uint16_t type, void *data, void *extraData) {
+    auto outerCallback = [](uint16_t callbackType, void *eventData,
+                            void *extraData) {
       // Re-wrap eventData in UniquePtr so its destructor will get called and
       // the memory will be freed once we leave this scope
-      UniquePtr<T> dataWrapped = UniquePtr<T>(static_cast<T *>(data));
+      UniquePtr<T> dataWrapped = UniquePtr<T>(static_cast<T *>(eventData));
       auto *innerCallback =
           reinterpret_cast<TypedSystemEventCallbackFunction<T> *>(extraData);
-      innerCallback(static_cast<SystemCallbackType>(type),
+      innerCallback(static_cast<SystemCallbackType>(callbackType),
                     std::move(dataWrapped));
     };
     // Pass the "inner" callback (the caller's callback) through to the "outer"
