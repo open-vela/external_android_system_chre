@@ -29,7 +29,7 @@ namespace chre {
  * @param buffer The buffer to store the contents of the file into.
  * @return true if successfully read and stored.
  */
-bool readFileContents(const char *filename, std::vector<uint8_t> *buffer);
+bool readFileContents(const char *filename, std::vector<uint8_t> &buffer);
 
 }  // namespace chre
 }  // namespace android
