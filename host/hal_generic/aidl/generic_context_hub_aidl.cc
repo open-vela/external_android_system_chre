@@ -609,7 +609,7 @@ bool ContextHub::getPreloadedNanoappIdsFromConfigFile(
   for (const std::string &nanoapp : nanoapps) {
     std::string headerFile = directory + "/" + nanoapp + ".napp_header";
     std::vector<uint8_t> headerBuffer;
-    if (!readFileContents(headerFile.c_str(), &headerBuffer)) {
+    if (!readFileContents(headerFile.c_str(), headerBuffer)) {
       ALOGE("Cannot read header file: %s", headerFile.c_str());
       continue;
     }

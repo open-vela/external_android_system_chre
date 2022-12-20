@@ -44,7 +44,7 @@ std::unique_ptr<Detokenizer> LogMessageParser::logDetokenizerInit() {
   constexpr const char kLogDatabaseFilePath[] =
       "/vendor/etc/chre/libchre_log_database.bin";
   std::vector<uint8_t> tokenData;
-  if (readFileContents(kLogDatabaseFilePath, &tokenData)) {
+  if (readFileContents(kLogDatabaseFilePath, tokenData)) {
     pw::tokenizer::TokenDatabase database =
         pw::tokenizer::TokenDatabase::Create(tokenData);
     if (database.ok()) {

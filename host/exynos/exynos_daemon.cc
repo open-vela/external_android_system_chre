@@ -171,8 +171,8 @@ void ExynosDaemon::loadPreloadedNanoapp(const std::string &directory,
   std::string headerFilename = directory + "/" + name + ".napp_header";
   std::string nanoappFilename = directory + "/" + name + ".so";
 
-  if (readFileContents(headerFilename.c_str(), &headerBuffer) &&
-      readFileContents(nanoappFilename.c_str(), &nanoappBuffer) &&
+  if (readFileContents(headerFilename.c_str(), headerBuffer) &&
+      readFileContents(nanoappFilename.c_str(), nanoappBuffer) &&
       !loadNanoapp(headerBuffer, nanoappBuffer, transactionId)) {
     LOGE("Failed to load nanoapp: '%s'", name.c_str());
   }
