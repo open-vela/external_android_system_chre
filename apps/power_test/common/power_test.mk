@@ -17,6 +17,7 @@ endif
 # Nanoapp Configuration ########################################################
 
 NANOAPP_VERSION = 0x00020000
+CHRE_STD_OVERRIDES_ALLOWED = true
 
 # Common Compiler Flags ########################################################
 
@@ -27,6 +28,7 @@ COMMON_CFLAGS += -I$(CHRE_PREFIX)/util/include
 
 # Defines
 COMMON_CFLAGS += -DNANOAPP_MINIMUM_LOG_LEVEL=CHRE_LOG_LEVEL_DEBUG
+COMMON_CFLAGS += -DCHRE_ASSERTIONS_ENABLED
 
 # Flatbuffers configuration
 include $(CHRE_PREFIX)/external/flatbuffers/flatbuffers.mk
