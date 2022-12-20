@@ -17,8 +17,8 @@
 #ifndef CHRE_PAL_SENSOR_H_
 #define CHRE_PAL_SENSOR_H_
 
-#include <stdbool.h>
-#include <stdint.h>
+#include <cstdbool>
+#include <cstdint>
 
 #include "chre/pal/system.h"
 #include "chre/pal/version.h"
@@ -174,7 +174,7 @@ struct chrePalSensorApi {
    * function. The PAL must also free any memory (e.g. the sensor array if it
    * was dynamically allocated) inside this function.
    */
-  void (*close)(void);
+  void (*close)();
 
   /**
    * Creates a chreSensorInfo struct for every CHRE-supported sensor that is

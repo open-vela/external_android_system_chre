@@ -16,8 +16,6 @@
 
 package com.google.android.utils.chre;
 
-import static com.google.common.truth.Truth.assertWithMessage;
-
 import android.app.Instrumentation;
 import android.content.Context;
 import android.hardware.location.ContextHubInfo;
@@ -38,7 +36,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -198,18 +195,6 @@ public class ChreTestUtil {
     }
 
     /**
-     * @param input The string input of an integer.
-     * @return The converted integer.
-     */
-    public static int convertToIntegerOrReturnZero(String input) {
-        try {
-            return Integer.parseInt(input);
-        } catch (NumberFormatException e) {
-            return 0;
-        }
-    }
-
-    /**
      * Get all the nanoapps currently loaded on device.
      *
      * @return The nanoapps loaded currently.
@@ -302,15 +287,5 @@ public class ChreTestUtil {
 
         Assert.assertTrue(type + " transaction failed with error code " + response.getResult(),
                 response.getResult() == ContextHubTransaction.RESULT_SUCCESS);
-    }
-
-    public static void assertLatchCountedDown(CountDownLatch latch, long timeoutThreshold)
-            throws InterruptedException {
-        boolean isCountedDown = latch.await(timeoutThreshold, TimeUnit.SECONDS);
-        assertWithMessage(
-                        "Waiting for latch to count down timeout after %s seconds",
-                        timeoutThreshold)
-                .that(isCountedDown)
-                .isTrue();
     }
 }
