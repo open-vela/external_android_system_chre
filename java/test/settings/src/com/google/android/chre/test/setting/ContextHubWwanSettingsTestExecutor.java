@@ -110,7 +110,7 @@ public class ContextHubWwanSettingsTestExecutor {
 
         if (isAirplaneModeOn() != airplaneModeExpected) {
             try {
-                listener.mAirplaneModeLatch.await(5, TimeUnit.SECONDS);
+                listener.mAirplaneModeLatch.await(10, TimeUnit.SECONDS);
             } catch (InterruptedException e) {
                 Assert.fail(e.getMessage());
             }
@@ -119,7 +119,7 @@ public class ContextHubWwanSettingsTestExecutor {
         Assert.assertTrue(isAirplaneModeOn() == airplaneModeExpected);
 
         try {
-            Thread.sleep(5000);  // wait for setting to propagate
+            Thread.sleep(10000 /*millis*/);  // wait for setting to propagate
         } catch (InterruptedException e) {
             Assert.fail(e.getMessage());
         }
