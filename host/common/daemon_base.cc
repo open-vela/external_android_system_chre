@@ -78,17 +78,11 @@ void ChreDaemonBase::loadPreloadedNanoapps() {
       "/vendor/etc/chre/preloaded_nanoapps.json";
   std::string directory;
   std::vector<std::string> nanoapps;
-
+  std::string errorString;
   bool success = getPreloadedNanoappsFromConfigFile(
-      kPreloadedNanoappsConfigPath,
-      [](const std::string &error) {
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wformat-security"
-        LOG_PRI(ANDROID_LOG_ERROR, LOG_TAG, error.c_str());
-#pragma GCC diagnostic pop
-      },
-      directory, nanoapps);
+      kPreloadedNanoappsConfigPath, directory, nanoapps, errorString);
   if (!success) {
+    LOGE("%s", errorString.c_str());
     LOGE("Failed to parse preloaded nanoapps config file");
     return;
   }
