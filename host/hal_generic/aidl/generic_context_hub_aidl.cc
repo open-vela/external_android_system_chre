@@ -377,6 +377,11 @@ ScopedAStatus ContextHub::onHostEndpointDisconnected(
   return ndk::ScopedAStatus::ok();
 }
 
+ScopedAStatus ContextHub::onNanSessionStateChanged(bool /*in_state*/) {
+  // TODO(229888878): Add support for NAN session management.
+  return ndk::ScopedAStatus::ok();
+}
+
 void ContextHub::onNanoappMessage(const ::chre::fbs::NanoappMessageT &message) {
   std::lock_guard<std::mutex> lock(mCallbackMutex);
   if (mCallback != nullptr) {
