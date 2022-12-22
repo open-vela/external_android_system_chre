@@ -181,16 +181,16 @@ public class ContextHubLoadAndUnloadNanoAppsTestExecutor {
      */
     public void queuedLoadUnloadTest(NanoAppBinary nanoAppBinary, int numOfTestCycles)
             throws InterruptedException {
-        for (int i = 0; i < numOfTestCycles; i++) {
-            mTestHelper.loadNanoApp(nanoAppBinary);
-            mTestHelper.unloadNanoApp(nanoAppBinary.getNanoAppId());
-        }
-
         ContextHubClientTestCallback callback =
                 new ContextHubClientTestCallback(nanoAppBinary.getNanoAppId(), numOfTestCycles);
         CountDownLatch latch = callback.getDoneCountDownLatch();
         // create the client to activate the callback
         ContextHubClient client = mTestHelper.createClient(callback);
+
+        for (int i = 0; i < numOfTestCycles; i++) {
+            mTestHelper.loadNanoApp(nanoAppBinary);
+            mTestHelper.unloadNanoApp(nanoAppBinary.getNanoAppId());
+        }
 
         long timeoutThreshold = numOfTestCycles * (TIMEOUT_SECONDS_LOAD + TIMEOUT_SECONDS_UNLOAD);
         boolean isCountedDown = latch.await(timeoutThreshold, TimeUnit.SECONDS);
