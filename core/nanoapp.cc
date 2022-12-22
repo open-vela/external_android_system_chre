@@ -20,6 +20,7 @@
 #include "chre/platform/assert.h"
 #include "chre/platform/fatal_error.h"
 #include "chre/platform/log.h"
+#include "chre/platform/tracing.h"
 #include "chre/util/system/debug_dump.h"
 #include "chre_api/chre/gnss.h"
 #include "chre_api/chre/version.h"
@@ -41,6 +42,7 @@ Nanoapp::Nanoapp() {
 }
 
 bool Nanoapp::start() {
+  traceRegisterNanoapp(getInstanceId(), getAppName());
   mIsInNanoappStart = true;
   bool success = PlatformNanoapp::start();
   mIsInNanoappStart = false;
@@ -132,11 +134,13 @@ void Nanoapp::configureUserSettingEvent(uint8_t setting, bool enable) {
 
 void Nanoapp::processEvent(Event *event) {
   Nanoseconds eventStartTime = SystemTime::getMonotonicTime();
+  traceNanoappHandleEventStart(getInstanceId(), event->eventType);
   if (event->eventType == CHRE_EVENT_GNSS_DATA) {
     handleGnssMeasurementDataEvent(event);
   } else {
     handleEvent(event->senderInstanceId, event->eventType, event->eventData);
   }
+  traceNanoappHandleEventEnd(getInstanceId());
   Nanoseconds eventProcessTime =
       SystemTime::getMonotonicTime() - eventStartTime;
   if (Milliseconds(eventProcessTime) >= Milliseconds(100)) {
