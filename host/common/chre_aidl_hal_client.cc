@@ -152,6 +152,11 @@ class ContextHubCallback : public BnContextHubCallback {
     promise.set_value();
     return ScopedAStatus::ok();
   }
+
+  ScopedAStatus handleNanSessionRequest(bool /* enable */) override {
+    return ScopedAStatus::ok();
+  }
+
   std::promise<void> promise;
 };
 
