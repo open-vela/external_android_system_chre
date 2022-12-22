@@ -51,6 +51,5 @@ CHRE_NANOAPP_USES_WIFI = true
 CHRE_NANOAPP_USES_WWAN = true
 CHRE_NANOAPP_USES_BLE = true
 
-CHRE_STD_OVERRIDES_ALLOWED = true
 
 include $(CHRE_PREFIX)/build/nanoapp/app.mk
