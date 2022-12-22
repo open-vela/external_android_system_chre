@@ -22,7 +22,6 @@ NANOAPP_VERSION = 0x00000002
 
 NANOAPP_PATH = $(CHRE_PREFIX)/apps/test/pts/audio_enable_disable_test
 
-CHRE_STD_OVERRIDES_ALLOWED = true
 
 # Protobuf Sources #############################################################
 
