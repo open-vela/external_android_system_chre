@@ -604,6 +604,7 @@ cc_library_static {
         "platform/shared/platform_gnss.cc",
         "platform/shared/platform_wifi.cc",
         "platform/shared/system_time.cc",
+        "platform/shared/tracing.cc",
         "platform/shared/version.cc",
         "platform/shared/sensor_pal/platform_sensor.cc",
         "platform/shared/sensor_pal/platform_sensor_type_helpers.cc",

@@ -111,6 +111,7 @@ SLPI_SRCS += platform/shared/pal_system_api.cc
 SLPI_SRCS += platform/shared/platform_debug_dump_manager.cc
 SLPI_SRCS += platform/shared/pw_tokenized_log.cc
 SLPI_SRCS += platform/shared/system_time.cc
+SLPI_SRCS += platform/shared/tracing.cc
 SLPI_SRCS += platform/shared/version.cc
 SLPI_SRCS += platform/slpi/chre_api_re.cc
 SLPI_SRCS += platform/slpi/fatal_error.cc
@@ -226,6 +227,7 @@ SIM_SRCS += platform/shared/memory_manager.cc
 SIM_SRCS += platform/shared/nanoapp/nanoapp_dso_util.cc
 SIM_SRCS += platform/shared/pal_system_api.cc
 SIM_SRCS += platform/shared/system_time.cc
+SIM_SRCS += platform/shared/tracing.cc
 SIM_SRCS += platform/shared/version.cc
 
 # Optional audio support.
@@ -386,6 +388,7 @@ EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/pal_system_api.cc
 EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/pal_sensor_stub.cc
 EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/platform_debug_dump_manager.cc
 EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/system_time.cc
+EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/tracing.cc
 EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/version.cc
 EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/nanoapp/nanoapp_dso_util.cc
 EMBOS_SRCS += $(CHRE_PREFIX)/platform/shared/nanoapp_loader.cc
@@ -465,6 +468,7 @@ TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/pal_system_api.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/platform_debug_dump_manager.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/nanoapp_loader.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/system_time.cc
+TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/tracing.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/version.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/nanoapp/nanoapp_dso_util.cc
 
