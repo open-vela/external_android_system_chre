@@ -18,6 +18,6 @@
 
 namespace chre {
 
-void PlatformPal::prePalApiCall() const {}
+void PlatformPal::prePalApiCall(PalType /* palType */) const {}
 
 }  // namespace chre
