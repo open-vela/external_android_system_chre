@@ -18,6 +18,8 @@
 
 #include <shared/send_message.h>
 
+#include "chre/util/nanoapp/ble.h"
+#include "chre/util/time.h"
 #include "chre_api/chre.h"
 
 /*
@@ -25,16 +27,29 @@
  */
 namespace general_test {
 
+using chre::createBleScanFilterForKnownBeacons;
+using chre::ble_constants::kNumScanFilters;
 using nanoapp_testing::sendFatalFailureToHost;
 
 namespace {
 const uint32_t gFlushCookie = 0;
+constexpr uint32_t kGoodReservedValue = 0;
+constexpr uint8_t kMaxReportAdvertisingSid = 0x0f;
+constexpr uint16_t kMaxReportDataLength = 229;
 }  // namespace
 
-void testScanSessionAsync(bool supportsBatching) {
+void testScanSessionAsync(bool supportsBatching, bool supportsFiltering) {
   uint32_t reportDelayMs = supportsBatching ? 1000 : 0;
+
+  struct chreBleScanFilter filter;
+  chreBleGenericFilter uuidFilters[kNumScanFilters];
+  if (supportsFiltering) {
+    createBleScanFilterForKnownBeacons(filter, uuidFilters, kNumScanFilters);
+  }
+
   if (!chreBleStartScanAsync(CHRE_BLE_SCAN_MODE_FOREGROUND /* mode */,
-                             reportDelayMs, nullptr /* filter */)) {
+                             reportDelayMs,
+                             supportsFiltering ? &filter : nullptr)) {
     sendFatalFailureToHost("Failed to start a BLE scan in the foreground");
   }
 }
@@ -52,6 +67,9 @@ void BasicBleTest::setUp(uint32_t messageSize, const void * /* message */) {
 
   mSupportsBatching =
       isCapabilitySet(CHRE_BLE_CAPABILITIES_SCAN_RESULT_BATCHING);
+  mSupportsFiltering =
+      isFilterCapabilitySet(CHRE_BLE_FILTER_CAPABILITIES_SERVICE_DATA) &&
+      isFilterCapabilitySet(CHRE_BLE_FILTER_CAPABILITIES_RSSI);
 
   if (!isCapabilitySet(CHRE_BLE_CAPABILITIES_SCAN)) {
     mTestSuccessMarker.markStageAndSuccessOnFinish(BASIC_BLE_TEST_STAGE_SCAN);
@@ -59,28 +77,25 @@ void BasicBleTest::setUp(uint32_t messageSize, const void * /* message */) {
     return;
   }
 
-  testScanSessionAsync(mSupportsBatching);
+  testScanSessionAsync(mSupportsBatching, mSupportsFiltering);
   if (!mSupportsBatching) {
     mTestSuccessMarker.markStageAndSuccessOnFinish(BASIC_BLE_TEST_STAGE_FLUSH);
   }
 }
 
 void BasicBleTest::handleBleAsyncResult(const chreAsyncResult *result) {
-  if (!result->success) {
+  if (result == nullptr || !result->success) {
     sendFatalFailureToHost("Received unsuccessful BLE async result");
   }
 
   switch (result->requestType) {
     case CHRE_BLE_REQUEST_TYPE_START_SCAN:
-      if (mSupportsBatching) {
-        if (!chreBleFlushAsync(&gFlushCookie)) {
-          sendFatalFailureToHost("Failed to BLE flush");
-        }
-        mFlushWasCalled = true;
-      } else {
-        if (!chreBleStopScanAsync()) {
-          sendFatalFailureToHost("Failed to stop a BLE scan session");
-        }
+      // Wait one second to allow any advertisement events to propagate
+      // and be verified by handleAdvertisementEvent.
+      if (chreTimerSet(chre::kOneSecondInNanoseconds, nullptr, true) ==
+          CHRE_TIMER_INVALID) {
+        sendFatalFailureToHost(
+            "Failed to start a timer after BLE started scanning");
       }
       break;
     case CHRE_BLE_REQUEST_TYPE_FLUSH:
@@ -94,6 +109,42 @@ void BasicBleTest::handleBleAsyncResult(const chreAsyncResult *result) {
     default:
       sendFatalFailureToHost("Unexpected request type");
       break;
+  }
+}
+
+void BasicBleTest::handleAdvertisementEvent(
+    const chreBleAdvertisementEvent *event) {
+  if (event == nullptr) {
+    sendFatalFailureToHost("Invalid chreBleAdvertisementEvent");
+  } else if (event->reserved != kGoodReservedValue) {
+    sendFatalFailureToHost("chreBleAdvertisementEvent: reserved != 0");
+  } else {
+    for (uint16_t i = 0; i < event->numReports; ++i) {
+      const struct chreBleAdvertisingReport &report = event->reports[i];
+      if (report.advertisingSid != CHRE_BLE_ADI_NONE &&
+          report.advertisingSid > kMaxReportAdvertisingSid) {
+        sendFatalFailureToHost(
+            "chreBleAdvertisingReport: advertisingSid is invalid");
+      } else if (report.dataLength > kMaxReportDataLength) {
+        sendFatalFailureToHost(
+            "chreBleAdvertisingReport: dataLength is invalid");
+      } else if (report.reserved != kGoodReservedValue) {
+        sendFatalFailureToHost("chreBleAdvertisingReport: reserved is invalid");
+      }
+    }
+  }
+}
+
+void BasicBleTest::handleTimerEvent() {
+  if (mSupportsBatching) {
+    if (!chreBleFlushAsync(&gFlushCookie)) {
+      sendFatalFailureToHost("Failed to BLE flush");
+    }
+    mFlushWasCalled = true;
+  } else {
+    if (!chreBleStopScanAsync()) {
+      sendFatalFailureToHost("Failed to stop a BLE scan session");
+    }
   }
 }
 
@@ -116,7 +167,11 @@ void BasicBleTest::handleEvent(uint32_t /* senderInstanceId */,
           BASIC_BLE_TEST_STAGE_FLUSH);
       break;
     case CHRE_EVENT_BLE_ADVERTISEMENT:
-      // Do nothing
+      handleAdvertisementEvent(
+          static_cast<const chreBleAdvertisementEvent *>(eventData));
+      break;
+    case CHRE_EVENT_TIMER:
+      handleTimerEvent();
       break;
     default:
       unexpectedEvent(eventType);

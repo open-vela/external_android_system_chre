@@ -48,6 +48,11 @@ class BasicBleTest : public Test {
    */
   bool mSupportsBatching;
 
+  /**
+   * If true, the device supports all filtering available.
+   */
+  bool mSupportsFiltering;
+
   enum BasicBleTestStage {
     BASIC_BLE_TEST_STAGE_SCAN =
         0,  // stage: BLE scanning start and stop was successful
@@ -62,7 +67,15 @@ class BasicBleTest : public Test {
     return (chreBleGetCapabilities() & capability);
   };
 
+  bool isFilterCapabilitySet(uint32_t capability) {
+    return (chreBleGetFilterCapabilities() & capability);
+  };
+
   void handleBleAsyncResult(const chreAsyncResult *result);
+
+  void handleAdvertisementEvent(const chreBleAdvertisementEvent *event);
+
+  void handleTimerEvent();
 };
 
 }  // namespace general_test
