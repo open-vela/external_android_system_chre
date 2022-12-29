@@ -29,6 +29,7 @@ COMMON_SRCS += \
   $(addprefix $(NANOAPP_SRC_PATH)/shared/, $(SHARED_LIB_FILES))
 
 # Add util srcs since they may be included by the tests
+COMMON_SRCS += $(CHRE_PREFIX)/util/nanoapp/ble.cc
 COMMON_SRCS += $(CHRE_PREFIX)/util/buffer_base.cc
 COMMON_SRCS += $(CHRE_PREFIX)/util/dynamic_vector_base.cc
 
