@@ -18,6 +18,7 @@
 #define CHRE_UTIL_RAW_STORAGE_H_
 
 #include <new>
+#include <type_traits>
 
 #include "chre/util/non_copyable.h"
 
