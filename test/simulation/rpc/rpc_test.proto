@@ -7,8 +7,7 @@ service RpcTestService {
   rpc Increment(NumberMessage) returns (NumberMessage) {}
 }
 
-// Request and response for the Increment & Add services wrapping a number.
+// Request and response for the Increment service.
 message NumberMessage {
   uint32 number = 1;
-  uint32 number2 = 2;
 }
