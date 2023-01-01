@@ -308,7 +308,7 @@ TEST(SegmentedQueue, RemoveMatchesEnoughItem) {
   }
 
   EXPECT_EQ(
-      3, segmentedQueue.removeMatchedObjectFromBack(
+      3, segmentedQueue.removeMatchedFromBack(
              [](ConstructorCount &element) { return element.getValue() <= 4; },
              3));
 
@@ -326,7 +326,7 @@ TEST(SegmentedQueue, RemoveMatchesEmptyQueue) {
   constexpr uint8_t maxBlockCount = 2;
   SegmentedQueue<int, blockSize> segmentedQueue(maxBlockCount);
 
-  EXPECT_EQ(0, segmentedQueue.removeMatchedObjectFromBack(
+  EXPECT_EQ(0, segmentedQueue.removeMatchedFromBack(
                    [](int element) { return element >= 5; }, 3));
   EXPECT_EQ(segmentedQueue.size(), 0);
 }
@@ -338,7 +338,19 @@ TEST(SegmentedQueue, RemoveMatchesSingleElementQueue) {
 
   EXPECT_TRUE(segmentedQueue.push_back(1));
 
-  EXPECT_EQ(1, segmentedQueue.removeMatchedObjectFromBack(
+  EXPECT_EQ(1, segmentedQueue.removeMatchedFromBack(
+                   [](int element) { return element == 1; }, 3));
+  EXPECT_EQ(segmentedQueue.size(), 0);
+}
+
+TEST(SegmentedQueue, RemoveMatchesTemp) {
+  constexpr uint8_t blockSize = 5;
+  constexpr uint8_t maxBlockCount = 2;
+  SegmentedQueue<int, blockSize> segmentedQueue(maxBlockCount);
+
+  EXPECT_TRUE(segmentedQueue.push_back(1));
+
+  EXPECT_EQ(1, segmentedQueue.removeMatchedFromBack(
                    [](int element) { return element == 1; }, 3));
   EXPECT_EQ(segmentedQueue.size(), 0);
 }
@@ -357,7 +369,7 @@ TEST(SegmentedQueue, RemoveMatchesTailInMiddle) {
   segmentedQueue.push_back(blockSize * maxBlockCount);
   segmentedQueue.push_back(blockSize * maxBlockCount + 1);
 
-  EXPECT_EQ(5, segmentedQueue.removeMatchedObjectFromBack(
+  EXPECT_EQ(5, segmentedQueue.removeMatchedFromBack(
                    [](int item) { return item % 2 == 0; }, 10));
   EXPECT_EQ(segmentedQueue.size(), 5);
 
@@ -371,36 +383,28 @@ TEST(SegmentedQueue, RemoveMatchesTailInMiddle) {
   EXPECT_EQ(segmentedQueue.back(), 11);
 }
 
-TEST(SegmentedQueue, RemoveMatchesPointer) {
+TEST(SegmentedQueue, RemoveMatchesWithFreeCallback) {
   constexpr uint8_t blockSize = 3;
   constexpr uint8_t maxBlockCount = 2;
   ssize_t constCounter = 0;
-  SegmentedQueue<ConstructorCount *, blockSize> segmentedQueue(maxBlockCount);
-  ConstructorCount *removedPtr[3];
-  ConstructorCount memoryPool[6];
+  int8_t counter = 0;
+  SegmentedQueue<uint8_t, blockSize> segmentedQueue(maxBlockCount);
 
-  for (uint32_t index = 0; index < blockSize * maxBlockCount; ++index) {
-    ConstructorCount *item =
-        new (&memoryPool[index]) ConstructorCount(index, &constCounter);
-    EXPECT_TRUE(segmentedQueue.push_back(item));
+  for (uint8_t index = 0; index < blockSize * maxBlockCount; ++index) {
+    EXPECT_TRUE(segmentedQueue.push_back(index));
   }
 
-  EXPECT_EQ(
-      3, segmentedQueue.removeMatchedPointerFromBack(
-             [](ConstructorCount *item) { return item->getValue() % 2 == 0; },
-             3, removedPtr));
+  EXPECT_EQ(3, segmentedQueue.removeMatchedFromBack(
+                   [](uint8_t item) { return item % 2 == 0; }, 3,
+                   [](uint8_t item, void *counter) {
+                     *static_cast<int8_t *>(counter) -= item;
+                   },
+                   &counter));
 
-  EXPECT_EQ(constCounter, 6);
-  EXPECT_EQ(removedPtr[0],
-            reinterpret_cast<ConstructorCount *>(&memoryPool[4]));
-  EXPECT_EQ(removedPtr[1],
-            reinterpret_cast<ConstructorCount *>(&memoryPool[2]));
-  EXPECT_EQ(removedPtr[2],
-            reinterpret_cast<ConstructorCount *>(&memoryPool[0]));
-
+  EXPECT_EQ(counter, -6);  // item 0, 2, 4 is removed.
   EXPECT_EQ(segmentedQueue.size(), 3);
-  EXPECT_EQ(segmentedQueue.back()->getValue(), 5);
-  EXPECT_EQ(segmentedQueue.front()->getValue(), 1);
+  EXPECT_EQ(segmentedQueue.back(), 5);
+  EXPECT_EQ(segmentedQueue.front(), 1);
 }
 
 TEST(SegmentedQueue, PseudoRandomStressTest) {
@@ -488,11 +492,11 @@ TEST(SegmentedQueue, PseudoRandomStressTest) {
           referenceDeque.erase(referenceDeque.begin() + idx);
         }
 
-        ASSERT_EQ(
-            removedIndex.size(),
-            testSegmentedQueue.removeMatchedObjectFromBack(
-                [](ConstructorCount &item) { return item.getValue() % 2 == 0; },
-                targetRemoveElement));
+        ASSERT_EQ(removedIndex.size(), testSegmentedQueue.removeMatchedFromBack(
+                                           [](ConstructorCount &item) {
+                                             return item.getValue() % 2 == 0;
+                                           },
+                                           targetRemoveElement));
       } break;
 
       case OperationType::OPERATION_TYPE_COUNT:
