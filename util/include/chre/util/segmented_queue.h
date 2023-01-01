@@ -182,7 +182,11 @@ class SegmentedQueue : public NonCopyable {
                                     std::is_fundamental<ElementType>::value,
                                 bool(ElementType), bool(ElementType &)>::type;
 
-  // TODO(b/263913957): Refactor removeMatched functions.
+  using FreeFunction =
+      typename std::conditional<std::is_pointer<ElementType>::value ||
+                                    std::is_fundamental<ElementType>::value,
+                                void(ElementType, void *),
+                                void(ElementType &, void *)>::type;
   /**
    * Removes maxNumOfElementsRemoved of elements that satisfies matchFunc.
    *
@@ -201,36 +205,20 @@ class SegmentedQueue : public NonCopyable {
    *                                 matches the condition.
    * @param removedElements          Stores the pointers that has been
    *                                 removed. This cannot be a nullptr.
+   * @param freeFunction             Function to execute before the matched item
+   *                                 is removed. If not supplied, the destructor
+   *                                 of the element will be invoked.
+   * @param extraDataForFreeFunction  Additional data that freeFunction will
+   *                                 need.
    *
    * @return                         The number of pointers that is passed
    *                                 out. Returns SIZE_MAX if removedElement is
    *                                 a nullptr as error.
    */
-  size_t removeMatchedPointerFromBack(MatchingFunction *matchFunc,
-                                      size_t maxNumOfElementsRemoved,
-                                      ElementType removedElements[]);
-
-  /**
-   * Removes maxNumOfElementsRemoved of elements that satisfies matchFunc.
-   *
-   * If the queue has fewer items that matches the condition than
-   * maxNumOfElementsRemoved, it will remove all matching items and return the
-   * number of items that it actually removed.
-   *
-   * @param matchFunc                Function used to decide if an item should
-   *                                 be removed. Should return true if this
-   *                                 item needs to be removed.
-   * @param maxNumOfElementsRemoved  Number of elements to remove. It is not
-   *                                 guaranteed that the actual number of items
-   *                                 removed will equal to this parameter since
-   *                                 it will depend on the number of items that
-   *                                 matches the condition.
-   *
-   * @return                         The number of items that is actually
-   *                                 removed.
-   */
-  size_t removeMatchedObjectFromBack(MatchingFunction *matchFunc,
-                                     size_t maxNumOfElementsRemoved);
+  size_t removeMatchedFromBack(MatchingFunction *matchFunction,
+                               size_t maxNumOfElementsRemoved,
+                               FreeFunction *freeFunction = nullptr,
+                               void *extraDataForFreeFunction = nullptr);
 
  private:
   /**

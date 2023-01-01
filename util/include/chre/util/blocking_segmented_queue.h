@@ -57,12 +57,14 @@ class BlockingSegmentedQueue
     return Container::block_count();
   }
 
-  size_t removeMatchedPointerFromBack(
-      typename Container::MatchingFunction *matchFunc,
-      size_t maxNumOfElementsRemoved, ElementType removedElements[]) {
+  size_t removeMatchedFromBack(typename Container::MatchingFunction *matchFunc,
+                               size_t maxNumOfElementsRemoved,
+                               typename Container::FreeFunction *freeFunction,
+                               void *extraDataForFreeFunction) {
     LockGuard<Mutex> lock(BlockingQueue::mMutex);
-    return Container::removeMatchedPointerFromBack(
-        matchFunc, maxNumOfElementsRemoved, removedElements);
+    return Container::removeMatchedFromBack(matchFunc, maxNumOfElementsRemoved,
+                                            freeFunction,
+                                            extraDataForFreeFunction);
   }
 };
 }  // namespace chre
