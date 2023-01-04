@@ -36,7 +36,6 @@ COMMON_CFLAGS += -DCHRE_ASSERTIONS_ENABLED
 # Common Source Files ##########################################################
 
 COMMON_SRCS += ble_world.cc
-COMMON_SRCS += $(CHRE_PREFIX)/util/nanoapp/ble.cc
 
 # Permission declarations ######################################################
 
