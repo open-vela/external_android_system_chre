@@ -174,11 +174,6 @@ bool HalChreSocketConnection::onHostEndpointDisconnected(
   return mClient.sendMessage(builder.GetBufferPointer(), builder.GetSize());
 }
 
-bool HalChreSocketConnection::isLoadTransactionPending() {
-  std::lock_guard<std::mutex> lock(mPendingLoadTransactionMutex);
-  return mPendingLoadTransaction.has_value();
-}
-
 HalChreSocketConnection::SocketCallbacks::SocketCallbacks(
     HalChreSocketConnection &parent, IChreSocketCallback *callback)
     : mParent(parent), mCallback(callback) {
