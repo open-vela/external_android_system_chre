@@ -26,11 +26,14 @@
 #include <optional>
 #include <unordered_set>
 
+#include "chre_host/napp_header.h"
 #include "debug_dump_helper.h"
 #include "event_logger.h"
 #include "hal_chre_socket_connection.h"
 
 namespace aidl::android::hardware::contexthub {
+
+using ::android::chre::NanoAppBinaryHeader;
 
 class ContextHub : public BnContextHub,
                    public ::android::hardware::contexthub::DebugDumpHelper,
@@ -66,9 +69,18 @@ class ContextHub : public BnContextHub,
    * Enables test mode for the context hub by unloading all preloaded nanoapps
    * that are loaded.
    *
-   * @return            the status
+   * @return            the status.
    */
   ::ndk::ScopedAStatus enableTestMode();
+
+  // TODO(b/258074235): Add to AIDL HAL definition
+  /**
+   * Disables test mode for the context hub by loading all
+   * preloaded nanoapps.
+   *
+   * @return            the status.
+   */
+  ::ndk::ScopedAStatus disableTestMode();
 
   ::ndk::ScopedAStatus onHostEndpointConnected(
       const HostEndpointInfo &in_info) override;
@@ -119,6 +131,30 @@ class ContextHub : public BnContextHub,
                              std::vector<int64_t> *nanoappIdList);
 
   /**
+   * Loads a nanoapp.
+   *
+   * @param appBinary                   the nanoapp binary to load.
+   * @param transactionId               the transaction ID.
+   *
+   * @return true                       the operation was successful.
+   * @return false                      the operation was not successful.
+   */
+  bool loadNanoappInternal(const NanoappBinary &appBinary,
+                           int32_t transactionId);
+
+  /**
+   * Loads the nanoapps in a synchronous manner.
+   *
+   * @param contextHubId                the ID of the context hub.
+   * @param nanoappBinaryList           the list of NanoappBinary's to load.
+   * @return true                       the operation was successful.
+   * @return false                      the operation was not successful.
+   */
+  bool loadNanoappsInternal(
+      int32_t contextHubId,
+      const std::vector<NanoappBinary> &nanoappBinaryList);
+
+  /**
    * Unloads a nanoapp.
    *
    * @param appId                       the nanoapp ID to unload.
@@ -141,14 +177,41 @@ class ContextHub : public BnContextHub,
                               const std::vector<int64_t> &nanoappIdList);
 
   /**
-   * Get the preloaded nanoapp IDs from the config file and headers.
+   * Get the preloaded nanoapp IDs from the config file and headers. All IDs,
+   * names and headers are in the same order (one nanoapp has the same index in
+   * each).
    *
    * @param preloadedNanoappIds         out parameter, nanoapp IDs.
+   * @param out_preloadedNanoappNames            out parameter, optional,
+   * nanoapp names.
+   * @param out_preloadedNanoappHeaders          out parameter, optional,
+   * nanoapp headers.
+   * @param out_directory               out parameter, optional, the directory
+   * that contains the nanoapps.
    * @return true                       the operation was successful.
    * @return false                      the operation was not successful.
    */
   bool getPreloadedNanoappIdsFromConfigFile(
-      std::vector<int64_t> &preloadedNanoappIds) const;
+      std::vector<int64_t> &preloadedNanoappIds,
+      std::vector<std::string> *out_preloadedNanoappNames,
+      std::vector<NanoAppBinaryHeader> *out_preloadedNanoappHeaders,
+      std::string *out_directory) const;
+
+  /**
+   * Helper function for disableTestMode. Selects the nanoapps to load -> all
+   * preloaded and non-system nanoapps.
+   *
+   * @param preloadedNanoappIds         the preloaded nanoapp IDs.
+   * @param preloadedNanoappNames       the preloaded nanoapp names.
+   * @param prelaodedNnaoappHeaders     the preloaded nanoapp headers.
+   * @param preloadedNanoappDirectory   the preloaded nanoapp directory.
+   * @return                            the nanoapps to load.
+   */
+  std::vector<NanoappBinary> disableTestModeHelper(
+      const std::vector<int64_t> &preloadedNanoappIds,
+      const std::vector<std::string> &preloadedNanoappNames,
+      const std::vector<NanoAppBinaryHeader> &preloadedNanoappHeaders,
+      const std::string &preloadedNanoappDirectory);
 
   bool isSettingEnabled(Setting setting) {
     return mSettingEnabled.count(setting) > 0 && mSettingEnabled[setting];
@@ -188,16 +251,19 @@ class ContextHub : public BnContextHub,
   std::condition_variable mQueryNanoappsInternalCondVar;
   std::optional<std::vector<NanoappInfo>> mQueryNanoappsInternalList;
 
-  // State for unloading nanoapps synchronously.
-  std::mutex mUnloadNanoappsMutex;
-  std::condition_variable mUnloadNanoappsCondVar;
-  std::optional<bool> mUnloadNanoappsSuccess;
-  std::optional<int32_t> mUnloadNanoappsTransactionId;
+  // State for synchronous loads and unloads. Primarily used for test mode.
+  std::mutex mSynchronousLoadUnloadMutex;
+  std::condition_variable mSynchronousLoadUnloadCondVar;
+  std::optional<bool> mSynchronousLoadUnloadSuccess;
+  std::optional<int32_t> mSynchronousLoadUnloadTransactionId;
 
   // A boolean and mutex to synchronize test mode state changes and
   // load/unloads.
   std::mutex mTestModeMutex;
   bool mIsTestModeEnabled = false;
+
+  // List of system nanoapp Ids.
+  std::vector<int64_t> mSystemNanoappIds;
 };
 
 }  // namespace aidl::android::hardware::contexthub
