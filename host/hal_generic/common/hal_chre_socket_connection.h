@@ -122,6 +122,15 @@ class HalChreSocketConnection {
 
   bool onHostEndpointDisconnected(uint16_t hostEndpointId);
 
+  /**
+   * Returns true if there exists a pending load transaction; false otherwise.
+   *
+   * @return true                     there exists a pending load transaction.
+   * @return false                    there does not exist a pending load
+   * transaction.
+   */
+  bool isLoadTransactionPending();
+
  private:
   class SocketCallbacks : public ::android::chre::SocketClient::ICallbacks,
                           public ::android::chre::IChreMessageHandlers {

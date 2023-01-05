@@ -19,6 +19,7 @@
 
 #include <aidl/android/hardware/contexthub/BnContextHub.h>
 #include <log/log.h>
+#include <atomic>
 #include <future>
 #include <map>
 #include <mutex>
@@ -59,6 +60,16 @@ class ContextHub : public BnContextHub,
       const std::shared_ptr<IContextHubCallback> &cb) override;
   ::ndk::ScopedAStatus sendMessageToHub(
       int32_t contextHubId, const ContextHubMessage &message) override;
+
+  // TODO(b/258074235): Add to AIDL HAL definition
+  /**
+   * Enables test mode for the context hub by unloading all preloaded nanoapps
+   * that are loaded.
+   *
+   * @return            the status
+   */
+  ::ndk::ScopedAStatus enableTestMode();
+
   ::ndk::ScopedAStatus onHostEndpointConnected(
       const HostEndpointInfo &in_info) override;
   ::ndk::ScopedAStatus onHostEndpointDisconnected(
@@ -92,6 +103,61 @@ class ContextHub : public BnContextHub,
   void writeToDebugFile(const char *str) override;
 
  private:
+  /**
+   * Queries the list of loaded nanoapps in a synchronous manner.
+   * The list is stored in the mQueryNanoappsInternalList variable.
+   *
+   * @param contextHubId                the ID of the context hub.
+   * @param nanoappIdList               (out) optional out parameter that
+   *                                    contains the nanoapp IDs.
+   *
+   * @return true                       the operation was successful.
+   * @return false                      the operation was not successful.
+   */
+  bool queryNanoappsInternal(int32_t contextHubId,
+                             std::vector<int64_t> *nanoappIdList);
+
+  /**
+   * Unloads a nanoapp.
+   *
+   * @param appId                       the nanoapp ID to unload.
+   * @param transactionId               the transaction ID.
+   *
+   * @return true                       the operation was successful.
+   * @return false                      the operation was not successful.
+   */
+  bool unloadNanoappInternal(int64_t appId, int32_t transactionId);
+
+  /**
+   * Unloads the nanoapps in a synchronous manner.
+   *
+   * @param contextHubId                the ID of the context hub.
+   * @param nanoappIdsToUnload          the list of nanoapp IDs to unload.
+   * @return true                       the operation was successful.
+   * @return false                      the operation was not successful.
+   */
+  bool unloadNanoappsInternal(int32_t contextHubId,
+                              const std::vector<int64_t> &nanoappIdList);
+
+  /**
+   * Get the preloaded nanoapp IDs from the config file and headers.
+   *
+   * @param preloadedNanoappIds         out parameter, nanoapp IDs.
+   * @return true                       the operation was successful.
+   * @return false                      the operation was not successful.
+   */
+  bool getPreloadedNanoappIdsFromConfigFile(
+      std::vector<int64_t> &preloadedNanoappIds) const;
+
+  bool isSettingEnabled(Setting setting) {
+    return mSettingEnabled.count(setting) > 0 && mSettingEnabled[setting];
+  }
+
+  chre::fbs::SettingState toFbsSettingState(bool enabled) const {
+    return enabled ? chre::fbs::SettingState::ENABLED
+                   : chre::fbs::SettingState::DISABLED;
+  }
+
   ::android::hardware::contexthub::common::implementation::
       HalChreSocketConnection mConnection{this};
 
@@ -112,28 +178,25 @@ class ContextHub : public BnContextHub,
   // Logs events to be reported in debug dumps.
   EventLogger mEventLogger;
 
-  // A mutex to synchronize access to the list of preloaded nanoapp IDs
+  // A mutex to synchronize access to the list of preloaded nanoapp IDs.
   std::mutex mPreloadedNanoappIdsMutex;
   std::optional<std::vector<int64_t>> mPreloadedNanoappIds;
 
-  bool isSettingEnabled(Setting setting) {
-    return mSettingEnabled.count(setting) > 0 && mSettingEnabled[setting];
-  }
+  // A mutex and condition variable to synchronize queryNanoappsInternal.
+  std::mutex mQueryNanoappsInternalMutex;
+  std::condition_variable mQueryNanoappsInternalCondVar;
+  std::optional<std::vector<NanoappInfo>> mQueryNanoappsInternalList;
 
-  chre::fbs::SettingState toFbsSettingState(bool enabled) const {
-    return enabled ? chre::fbs::SettingState::ENABLED
-                   : chre::fbs::SettingState::DISABLED;
-  }
+  // State for unloading nanoapps synchronously.
+  std::mutex mUnloadNanoappsMutex;
+  std::condition_variable mUnloadNanoappsCondVar;
+  std::optional<bool> mUnloadNanoappsSuccess;
+  std::optional<int32_t> mUnloadNanoappsTransactionId;
 
-  /**
-   * Get the preloaded nanoapp IDs from the config file and headers
-   *
-   * @param preloadedNanoappIds         out parameter, nanoapp IDs
-   * @return true                       operation was successful
-   * @return false                      operation was not successful
-   */
-  bool getPreloadedNanoappIdsFromConfigFile(
-      std::vector<int64_t> &preloadedNanoappIds) const;
+  // A boolean and mutex to synchronize test mode state changes and
+  // load/unloads.
+  std::mutex mTestModeMutex;
+  bool mIsTestModeEnabled = false;
 };
 
 }  // namespace aidl::android::hardware::contexthub
