@@ -26,7 +26,6 @@
 #include "chre/util/unique_ptr.h"
 
 namespace chre {
-
 /**
  * Data structure that is similar to chre::ArrayQueue but with the ability to
  * expand dynamically. Also has segmented data storage to prevent heap
@@ -172,6 +171,67 @@ class SegmentedQueue : public NonCopyable {
    */
   bool remove(size_t index);
 
+  /**
+   * Function used to decide if an element in the queue matches a certain
+   * condition.
+   *
+   * @see removeMatchesFromBack and searchMatches.
+   */
+  using MatchingFunction =
+      typename std::conditional<std::is_pointer<ElementType>::value ||
+                                    std::is_fundamental<ElementType>::value,
+                                bool(ElementType), bool(ElementType &)>::type;
+
+  // TODO(b/263913957): Refactor removeMatched functions.
+  /**
+   * Removes maxNumOfElementsRemoved of elements that satisfies matchFunc.
+   *
+   * If the queue has fewer items that matches the condition than
+   * maxNumOfElementsRemoved, it will remove all matching items and return the
+   * number of items that it actually removed.
+   *
+   * @param matchFunc                Function used to decide if an item should
+   *                                 be removed. Should return true if this
+   *                                 item needs to be removed.
+   * @param maxNumOfElementsRemoved  Number of elements to remove, also the
+   *                                 size of removedElements. It is not
+   *                                 guaranteed that the actual number of items
+   *                                 removed will equal to this parameter since
+   *                                 it will depend on the number of items that
+   *                                 matches the condition.
+   * @param removedElements          Stores the pointers that has been
+   *                                 removed. This cannot be a nullptr.
+   *
+   * @return                         The number of pointers that is passed
+   *                                 out. Returns SIZE_MAX if removedElement is
+   *                                 a nullptr as error.
+   */
+  size_t removeMatchedPointerFromBack(MatchingFunction *matchFunc,
+                                      size_t maxNumOfElementsRemoved,
+                                      ElementType removedElements[]);
+
+  /**
+   * Removes maxNumOfElementsRemoved of elements that satisfies matchFunc.
+   *
+   * If the queue has fewer items that matches the condition than
+   * maxNumOfElementsRemoved, it will remove all matching items and return the
+   * number of items that it actually removed.
+   *
+   * @param matchFunc                Function used to decide if an item should
+   *                                 be removed. Should return true if this
+   *                                 item needs to be removed.
+   * @param maxNumOfElementsRemoved  Number of elements to remove. It is not
+   *                                 guaranteed that the actual number of items
+   *                                 removed will equal to this parameter since
+   *                                 it will depend on the number of items that
+   *                                 matches the condition.
+   *
+   * @return                         The number of items that is actually
+   *                                 removed.
+   */
+  size_t removeMatchedObjectFromBack(MatchingFunction *matchFunc,
+                                     size_t maxNumOfElementsRemoved);
+
  private:
   /**
    * Push a new block to the end of storage to add storage space.
@@ -243,17 +303,28 @@ class SegmentedQueue : public NonCopyable {
    * wraps around to 0.
    *
    * @param index: Original index.
-   * @return size_t: Updated index.
+   * @return size_t: New index after calculation.
    */
   size_t advanceOrWrapAround(size_t index);
 
   /**
+   * Subtract k steps to the index and wrap around if needed.
+   *
+   * @param index Original index.
+   * @param steps Number of steps that it needs to be subtracted.
+   * @return      New index after calculation.
+   */
+  size_t subtractOrWrapAround(size_t index, size_t steps);
+
+  /**
    * Locate the data reference by absolute index.
+   * Note that this function does not check if the address belongs to
+   * this queue.
    *
    * @param index: The absolute index to find that data.
    * @return ElementType&: Reference to the data.
    */
-  ElementType &locateData(size_t index);
+  ElementType &locateDataAddress(size_t index);
 
   /**
    * Removes all the elements of the queue.
@@ -283,6 +354,36 @@ class SegmentedQueue : public NonCopyable {
    * It is illegal to call this function if the queue is not empty.
    */
   void resetEmptyQueue();
+
+  /**
+   * Search the queue backwards to find foundIndicesLen of elements that matches
+   * a certain condition and return them by foundIndices. If the queue does not
+   * have enough elements, foundIndices will only be filled with the number that
+   * matches the condition.
+   *
+   * @param matchFunc          Function used to decide if an item should be
+   *                           returned. Should return true if this item need
+   *                           to be returned.
+   * @param foundIndicesLen    Length of foundIndices indicating how many index
+   *                           is targeted.
+   * @param foundIndices       Indices that contains the element that matches
+   *                           the condition. Note that the index is
+   *                           returned in reversed order, i.e. the first
+   *                           element will contain the index closest to the
+   *                           end.
+   * @return                   the number of element that matches.
+   */
+  size_t searchMatches(MatchingFunction *matchFunc, size_t foundIndicesLen,
+                       size_t foundIndices[]);
+
+  /**
+   * Move elements in this queue to fill the gaps.
+   *
+   * @param gapCount   Number of holes.
+   * @param gapIndices Indices that are empty. Need to be reverse order (first
+   *                   index is closest to the end of the queue).
+   */
+  void fillGaps(size_t gapCount, const size_t gapIndices[]);
 
   // TODO(b/258771255): See if we can change the container to
   // ArrayQueue<UniquePtr<Block>> to minimize block moving during push_back.

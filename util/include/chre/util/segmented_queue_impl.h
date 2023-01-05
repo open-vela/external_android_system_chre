@@ -50,7 +50,7 @@ bool SegmentedQueue<ElementType, kBlockSize>::push_back(
   if (!prepareForPush()) {
     return false;
   }
-  new (&locateData(mTail)) ElementType(element);
+  new (&locateDataAddress(mTail)) ElementType(element);
   mSize++;
 
   return true;
@@ -61,7 +61,7 @@ bool SegmentedQueue<ElementType, kBlockSize>::push_back(ElementType &&element) {
   if (!prepareForPush()) {
     return false;
   }
-  new (&locateData(mTail)) ElementType(std::move(element));
+  new (&locateDataAddress(mTail)) ElementType(std::move(element));
   mSize++;
 
   return true;
@@ -83,7 +83,7 @@ bool SegmentedQueue<ElementType, kBlockSize>::emplace_back(Args &&...args) {
   if (!prepareForPush()) {
     return false;
   }
-  new (&locateData(mTail)) ElementType(std::forward<Args>(args)...);
+  new (&locateDataAddress(mTail)) ElementType(std::forward<Args>(args)...);
   mSize++;
 
   return true;
@@ -93,7 +93,7 @@ template <typename ElementType, size_t kBlockSize>
 ElementType &SegmentedQueue<ElementType, kBlockSize>::operator[](size_t index) {
   CHRE_ASSERT(index < mSize);
 
-  return locateData(relativeIndexToAbsolute(index));
+  return locateDataAddress(relativeIndexToAbsolute(index));
 }
 
 template <typename ElementType, size_t kBlockSize>
@@ -101,35 +101,35 @@ const ElementType &SegmentedQueue<ElementType, kBlockSize>::operator[](
     size_t index) const {
   CHRE_ASSERT(index < mSize);
 
-  return locateData(relativeIndexToAbsolute(index));
+  return locateDataAddress(relativeIndexToAbsolute(index));
 }
 
 template <typename ElementType, size_t kBlockSize>
 ElementType &SegmentedQueue<ElementType, kBlockSize>::back() {
   CHRE_ASSERT(!empty());
 
-  return locateData(mTail);
+  return locateDataAddress(mTail);
 }
 
 template <typename ElementType, size_t kBlockSize>
 const ElementType &SegmentedQueue<ElementType, kBlockSize>::back() const {
   CHRE_ASSERT(!empty());
 
-  return locateData(mTail);
+  return locateDataAddress(mTail);
 }
 
 template <typename ElementType, size_t kBlockSize>
 ElementType &SegmentedQueue<ElementType, kBlockSize>::front() {
   CHRE_ASSERT(!empty());
 
-  return locateData(mHead);
+  return locateDataAddress(mHead);
 }
 
 template <typename ElementType, size_t kBlockSize>
 const ElementType &SegmentedQueue<ElementType, kBlockSize>::front() const {
   CHRE_ASSERT(!empty());
 
-  return locateData(mHead);
+  return locateDataAddress(mHead);
 }
 
 template <typename ElementType, size_t kBlockSize>
@@ -166,9 +166,114 @@ bool SegmentedQueue<ElementType, kBlockSize>::remove(size_t index) {
     // to tail is more efficient.
     moveElements(advanceOrWrapAround(absoluteIndex), absoluteIndex,
                  absoluteIndexToRelative(mTail) - index);
-    mTail = mTail == 0 ? capacity() - 1 : mTail - 1;
+    mTail = subtractOrWrapAround(mTail, /* steps= */ 1);
   }
   return true;
+}
+
+template <typename ElementType, size_t kBlockSize>
+size_t SegmentedQueue<ElementType, kBlockSize>::searchMatches(
+    MatchingFunction *matchFunc, size_t foundIndicesLen,
+    size_t foundIndices[]) {
+  size_t foundCount = 0;
+  size_t searchIndex = advanceOrWrapAround(mTail);
+  bool firstRound = true;
+
+  if (size() == 0) {
+    return 0;
+  }
+
+  // firstRound need to be checked since if the queue is full, the index after
+  // mTail will be mHead, leading to the loop falsely terminate in the first
+  // round.
+  while ((searchIndex != mHead || firstRound) &&
+         foundCount != foundIndicesLen) {
+    searchIndex = subtractOrWrapAround(searchIndex, 1 /* steps */);
+    firstRound = false;
+    if (matchFunc(locateDataAddress(searchIndex))) {
+      foundIndices[foundCount] = searchIndex;
+      ++foundCount;
+    }
+  }
+  return foundCount;
+}
+
+template <typename ElementType, size_t kBlockSize>
+void SegmentedQueue<ElementType, kBlockSize>::fillGaps(
+    size_t gapCount, const size_t gapIndices[]) {
+  if (gapCount == 0) {
+    return;
+  }
+
+  // TODO(b/264326627): Check if gapIndices is reverse order.
+  // TODO(b/264326627): Give a detailed explanation (example)\.
+  // Move the elements between each gap indices section by section from the
+  // section that is closest to the head. The destination index = the gap index
+  // - how many gaps has been filled.
+  for (size_t i = gapCount - 1; i > 0; --i) {
+    moveElements(advanceOrWrapAround(gapIndices[i]),
+                 subtractOrWrapAround(gapIndices[i], gapCount - 1 - i),
+                 absoluteIndexToRelative(gapIndices[i - 1]) -
+                     absoluteIndexToRelative(gapIndices[i]) - 1);
+  }
+
+  // Since mTail is not guaranteed to be a gap, we need to make a special case
+  // for moving the last section.
+  moveElements(
+      advanceOrWrapAround(gapIndices[0]),
+      subtractOrWrapAround(gapIndices[0], gapCount - 1),
+      absoluteIndexToRelative(mTail) - absoluteIndexToRelative(gapIndices[0]));
+  mTail = subtractOrWrapAround(mTail, gapCount);
+}
+
+template <typename ElementType, size_t kBlockSize>
+size_t SegmentedQueue<ElementType, kBlockSize>::removeMatchedPointerFromBack(
+    MatchingFunction *matchFunc, size_t maxNumOfElementsRemoved,
+    ElementType removedElements[]) {
+  if (removedElements == nullptr) {
+    CHRE_ASSERT_NOT_NULL(removedElements);
+    return SIZE_MAX;
+  }
+
+  size_t removeIndex[maxNumOfElementsRemoved];
+  size_t removedItemCount =
+      searchMatches(matchFunc, maxNumOfElementsRemoved, removeIndex);
+
+  if (removedItemCount != 0) {
+    for (size_t i = 0; i < removedItemCount; ++i) {
+      removedElements[i] = locateDataAddress(removeIndex[i]);
+      --mSize;
+    }
+
+    if (mSize == 0) {
+      resetEmptyQueue();
+    } else {
+      fillGaps(removedItemCount, removeIndex);
+    }
+  }
+  return removedItemCount;
+}
+
+template <typename ElementType, size_t kBlockSize>
+size_t SegmentedQueue<ElementType, kBlockSize>::removeMatchedObjectFromBack(
+    MatchingFunction *matchFunc, size_t maxNumOfElementsRemoved) {
+  size_t removeIndex[maxNumOfElementsRemoved];
+  size_t removedItemCount =
+      searchMatches(matchFunc, maxNumOfElementsRemoved, removeIndex);
+
+  if (removedItemCount != 0) {
+    for (size_t i = 0; i < removedItemCount; ++i) {
+      doRemove(removeIndex[i]);
+    }
+
+    if (mSize == 0) {
+      resetEmptyQueue();
+    } else {
+      fillGaps(removedItemCount, removeIndex);
+    }
+  }
+
+  return removedItemCount;
 }
 
 template <typename ElementType, size_t kBlockSize>
@@ -227,14 +332,15 @@ template <typename ElementType, size_t kBlockSize>
 void SegmentedQueue<ElementType, kBlockSize>::doMove(size_t srcIndex,
                                                      size_t destIndex,
                                                      std::true_type) {
-  new (&locateData(destIndex)) ElementType(std::move(locateData(srcIndex)));
+  new (&locateDataAddress(destIndex))
+      ElementType(std::move(locateDataAddress(srcIndex)));
 }
 
 template <typename ElementType, size_t kBlockSize>
 void SegmentedQueue<ElementType, kBlockSize>::doMove(size_t srcIndex,
                                                      size_t destIndex,
                                                      std::false_type) {
-  new (&locateData(destIndex)) ElementType(locateData(srcIndex));
+  new (&locateDataAddress(destIndex)) ElementType(locateDataAddress(srcIndex));
 }
 
 template <typename ElementType, size_t kBlockSize>
@@ -291,7 +397,8 @@ void SegmentedQueue<ElementType, kBlockSize>::clear() {
 }
 
 template <typename ElementType, size_t kBlockSize>
-ElementType &SegmentedQueue<ElementType, kBlockSize>::locateData(size_t index) {
+ElementType &SegmentedQueue<ElementType, kBlockSize>::locateDataAddress(
+    size_t index) {
   return mRawStoragePtrs[index / kBlockSize].get()->data()[index % kBlockSize];
 }
 
@@ -302,9 +409,15 @@ size_t SegmentedQueue<ElementType, kBlockSize>::advanceOrWrapAround(
 }
 
 template <typename ElementType, size_t kBlockSize>
+size_t SegmentedQueue<ElementType, kBlockSize>::subtractOrWrapAround(
+    size_t index, size_t steps) {
+  return index < steps ? capacity() + index - steps : index - steps;
+}
+
+template <typename ElementType, size_t kBlockSize>
 void SegmentedQueue<ElementType, kBlockSize>::doRemove(size_t index) {
   mSize--;
-  locateData(index).~ElementType();
+  locateDataAddress(index).~ElementType();
 }
 
 template <typename ElementType, size_t kBlockSize>

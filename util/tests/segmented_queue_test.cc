@@ -18,6 +18,7 @@
 
 #include <cstdlib>
 #include <deque>
+#include <vector>
 
 #include "chre/util/enum.h"
 #include "chre/util/non_copyable.h"
@@ -25,11 +26,13 @@
 
 using chre::SegmentedQueue;
 using std::deque;
+using std::vector;
 
 namespace {
 
 class ConstructorCount {
  public:
+  ConstructorCount() = default;
   ConstructorCount(int value_, ssize_t *constructedCount)
       : sConstructedCounter(constructedCount), value(value_) {
     (*sConstructedCounter)++;
@@ -104,6 +107,7 @@ enum class OperationType : uint8_t {
   PUSH_BACK,
   POP_FRONT,
   REMOVE,
+  BATCH_REMOVE,
 
   OPERATION_TYPE_COUNT,  // Must be at the end.
 };
@@ -293,6 +297,112 @@ TEST(SegmentedQueue, MiddleBlockTest) {
   }
 }
 
+TEST(SegmentedQueue, RemoveMatchesEnoughItem) {
+  constexpr uint8_t blockSize = 3;
+  constexpr uint8_t maxBlockCount = 2;
+  ssize_t constCounter = 0;
+  SegmentedQueue<ConstructorCount, blockSize> segmentedQueue(maxBlockCount);
+
+  for (uint32_t index = 0; index < blockSize * maxBlockCount; index++) {
+    EXPECT_TRUE(segmentedQueue.emplace_back(index, &constCounter));
+  }
+
+  EXPECT_EQ(
+      3, segmentedQueue.removeMatchedObjectFromBack(
+             [](ConstructorCount &element) { return element.getValue() <= 4; },
+             3));
+
+  EXPECT_EQ(segmentedQueue[0].getValue(), 0);
+  EXPECT_EQ(segmentedQueue[1].getValue(), 1);
+  EXPECT_EQ(segmentedQueue[2].getValue(), 5);
+  EXPECT_EQ(segmentedQueue.size(), blockSize * maxBlockCount - 3);
+  EXPECT_EQ(segmentedQueue.front().getValue(), 0);
+  EXPECT_EQ(segmentedQueue.back().getValue(), 5);
+  EXPECT_EQ(constCounter, 3);
+}
+
+TEST(SegmentedQueue, RemoveMatchesEmptyQueue) {
+  constexpr uint8_t blockSize = 5;
+  constexpr uint8_t maxBlockCount = 2;
+  SegmentedQueue<int, blockSize> segmentedQueue(maxBlockCount);
+
+  EXPECT_EQ(0, segmentedQueue.removeMatchedObjectFromBack(
+                   [](int element) { return element >= 5; }, 3));
+  EXPECT_EQ(segmentedQueue.size(), 0);
+}
+
+TEST(SegmentedQueue, RemoveMatchesSingleElementQueue) {
+  constexpr uint8_t blockSize = 5;
+  constexpr uint8_t maxBlockCount = 2;
+  SegmentedQueue<int, blockSize> segmentedQueue(maxBlockCount);
+
+  EXPECT_TRUE(segmentedQueue.push_back(1));
+
+  EXPECT_EQ(1, segmentedQueue.removeMatchedObjectFromBack(
+                   [](int element) { return element == 1; }, 3));
+  EXPECT_EQ(segmentedQueue.size(), 0);
+}
+
+TEST(SegmentedQueue, RemoveMatchesTailInMiddle) {
+  constexpr uint8_t blockSize = 5;
+  constexpr uint8_t maxBlockCount = 2;
+  SegmentedQueue<int, blockSize> segmentedQueue(maxBlockCount);
+
+  for (uint32_t index = 0; index < blockSize * maxBlockCount; index++) {
+    EXPECT_TRUE(segmentedQueue.emplace_back(index));
+  }
+
+  segmentedQueue.pop();
+  segmentedQueue.pop();
+  segmentedQueue.push_back(blockSize * maxBlockCount);
+  segmentedQueue.push_back(blockSize * maxBlockCount + 1);
+
+  EXPECT_EQ(5, segmentedQueue.removeMatchedObjectFromBack(
+                   [](int item) { return item % 2 == 0; }, 10));
+  EXPECT_EQ(segmentedQueue.size(), 5);
+
+  EXPECT_EQ(segmentedQueue[0], 3);
+  EXPECT_EQ(segmentedQueue[1], 5);
+  EXPECT_EQ(segmentedQueue[2], 7);
+  EXPECT_EQ(segmentedQueue[3], 9);
+  EXPECT_EQ(segmentedQueue[4], 11);
+
+  EXPECT_EQ(segmentedQueue.front(), 3);
+  EXPECT_EQ(segmentedQueue.back(), 11);
+}
+
+TEST(SegmentedQueue, RemoveMatchesPointer) {
+  constexpr uint8_t blockSize = 3;
+  constexpr uint8_t maxBlockCount = 2;
+  ssize_t constCounter = 0;
+  SegmentedQueue<ConstructorCount *, blockSize> segmentedQueue(maxBlockCount);
+  ConstructorCount *removedPtr[3];
+  ConstructorCount memoryPool[6];
+
+  for (uint32_t index = 0; index < blockSize * maxBlockCount; ++index) {
+    ConstructorCount *item =
+        new (&memoryPool[index]) ConstructorCount(index, &constCounter);
+    EXPECT_TRUE(segmentedQueue.push_back(item));
+  }
+
+  EXPECT_EQ(
+      3, segmentedQueue.removeMatchedPointerFromBack(
+             [](ConstructorCount *item) { return item->getValue() % 2 == 0; },
+             3, removedPtr));
+
+  EXPECT_EQ(constCounter, 6);
+  EXPECT_EQ(removedPtr[0],
+            reinterpret_cast<ConstructorCount *>(&memoryPool[4]));
+  EXPECT_EQ(removedPtr[1],
+            reinterpret_cast<ConstructorCount *>(&memoryPool[2]));
+  EXPECT_EQ(removedPtr[2],
+            reinterpret_cast<ConstructorCount *>(&memoryPool[0]));
+
+  EXPECT_EQ(segmentedQueue.size(), 3);
+  EXPECT_EQ(segmentedQueue.back()->getValue(), 5);
+  EXPECT_EQ(segmentedQueue.front()->getValue(), 1);
+}
+
 TEST(SegmentedQueue, PseudoRandomStressTest) {
   // This test uses std::deque as reference implementation to make sure
   // that chre::SegmentedQueue is functioning correctly.
@@ -311,7 +421,8 @@ TEST(SegmentedQueue, PseudoRandomStressTest) {
   SegmentedQueue<ConstructorCount, blockSize> testSegmentedQueue(totalSize /
                                                                  blockSize);
 
-  for (uint32_t i = 0; i < maxIteration; i++) {
+  for (uint32_t currentIteration = 0; currentIteration < maxIteration;
+       currentIteration++) {
     OperationType operationType = static_cast<OperationType>(
         std::rand() % chre::asBaseType(OperationType::OPERATION_TYPE_COUNT));
     int temp = std::rand();
@@ -359,6 +470,29 @@ TEST(SegmentedQueue, PseudoRandomStressTest) {
             referenceDeque.erase(referenceDeque.begin() + index);
           }
         }
+      } break;
+
+      case OperationType::BATCH_REMOVE: {
+        ASSERT_EQ(testSegmentedQueue.size(), referenceDeque.size());
+        // Always try to remove a quarter of elements
+        size_t targetRemoveElement = referenceDeque.size() * 0.25;
+        vector<size_t> removedIndex;
+        for (int i = referenceDeque.size() - 1; i >= 0; i--) {
+          if (removedIndex.size() == targetRemoveElement) {
+            break;
+          } else if (referenceDeque[i].getValue() % 2 == 0) {
+            removedIndex.push_back(i);
+          }
+        }
+        for (auto idx : removedIndex) {
+          referenceDeque.erase(referenceDeque.begin() + idx);
+        }
+
+        ASSERT_EQ(
+            removedIndex.size(),
+            testSegmentedQueue.removeMatchedObjectFromBack(
+                [](ConstructorCount &item) { return item.getValue() % 2 == 0; },
+                targetRemoveElement));
       } break;
 
       case OperationType::OPERATION_TYPE_COUNT:
