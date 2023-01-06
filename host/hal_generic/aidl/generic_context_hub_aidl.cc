@@ -708,12 +708,10 @@ bool ContextHub::getPreloadedNanoappIdsFromConfigFile(
   std::vector<std::string> nanoappNames;
   std::vector<NanoAppBinaryHeader> nanoappHeaders;
   std::string directory;
-  std::string errorString;
 
   bool success = getPreloadedNanoappsFromConfigFile(
-      kPreloadedNanoappsConfigPath, directory, nanoappNames, errorString);
+      kPreloadedNanoappsConfigPath, directory, nanoappNames);
   if (!success) {
-    LOGE("%s", errorString.c_str());
     LOGE("Failed to parse preloaded nanoapps config file");
   }
 

@@ -757,6 +757,7 @@ cc_library_static {
     ],
     shared_libs: [
         "libjsoncpp",
+        "liblog",
     ]
 }
 
