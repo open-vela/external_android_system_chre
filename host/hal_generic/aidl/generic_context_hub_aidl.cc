@@ -21,6 +21,7 @@
 #include "chre_host/file_stream.h"
 #include "chre_host/fragmented_load_transaction.h"
 #include "chre_host/host_protocol_host.h"
+#include "chre_host/log.h"
 #include "chre_host/napp_header.h"
 #include "permissions_util.h"
 
@@ -87,7 +88,7 @@ bool getFbsSetting(const Setting &setting, fbs::Setting *fbsSetting) {
       break;
     default:
       foundSetting = false;
-      ALOGE("Setting update with invalid enum value %hhu", setting);
+      LOGE("Setting update with invalid enum value %hhu", setting);
       break;
   }
 
@@ -133,7 +134,7 @@ ScopedAStatus ContextHub::loadNanoapp(int32_t contextHubId,
                                       const NanoappBinary &appBinary,
                                       int32_t transactionId) {
   if (contextHubId != kDefaultHubId) {
-    ALOGE("Invalid ID %" PRId32, contextHubId);
+    LOGE("Invalid ID %" PRId32, contextHubId);
     return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
   }
 
@@ -151,7 +152,7 @@ ScopedAStatus ContextHub::loadNanoapp(int32_t contextHubId,
 ScopedAStatus ContextHub::unloadNanoapp(int32_t contextHubId, int64_t appId,
                                         int32_t transactionId) {
   if (contextHubId != kDefaultHubId) {
-    ALOGE("Invalid ID %" PRId32, contextHubId);
+    LOGE("Invalid ID %" PRId32, contextHubId);
     return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
   }
 
@@ -163,16 +164,15 @@ ScopedAStatus ContextHub::unloadNanoapp(int32_t contextHubId, int64_t appId,
 ScopedAStatus ContextHub::disableNanoapp(int32_t /* contextHubId */,
                                          int64_t appId,
                                          int32_t /* transactionId */) {
-  ALOGW("Attempted to disable app ID 0x%016" PRIx64 ", but not supported",
-        appId);
+  LOGW("Attempted to disable app ID 0x%016" PRIx64 ", but not supported",
+       appId);
   return ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
 }
 
 ScopedAStatus ContextHub::enableNanoapp(int32_t /* contextHubId */,
                                         int64_t appId,
                                         int32_t /* transactionId */) {
-  ALOGW("Attempted to enable app ID 0x%016" PRIx64 ", but not supported",
-        appId);
+  LOGW("Attempted to enable app ID 0x%016" PRIx64 ", but not supported", appId);
   return ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
 }
 
@@ -221,7 +221,7 @@ ScopedAStatus ContextHub::onSettingChanged(Setting setting, bool enabled) {
 
 ScopedAStatus ContextHub::queryNanoapps(int32_t contextHubId) {
   if (contextHubId != kDefaultHubId) {
-    ALOGE("Invalid ID %" PRId32, contextHubId);
+    LOGE("Invalid ID %" PRId32, contextHubId);
     return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
   }
   return toServiceSpecificError(mConnection.queryNanoapps());
@@ -258,7 +258,7 @@ ScopedAStatus ContextHub::queryNanoapps(int32_t contextHubId) {
 ScopedAStatus ContextHub::registerCallback(
     int32_t contextHubId, const std::shared_ptr<IContextHubCallback> &cb) {
   if (contextHubId != kDefaultHubId) {
-    ALOGE("Invalid ID %" PRId32, contextHubId);
+    LOGE("Invalid ID %" PRId32, contextHubId);
     return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
   }
   std::lock_guard<std::mutex> lock(mCallbackMutex);
@@ -266,7 +266,7 @@ ScopedAStatus ContextHub::registerCallback(
     binder_status_t binder_status = AIBinder_unlinkToDeath(
         mCallback->asBinder().get(), mDeathRecipient.get(), this);
     if (binder_status != STATUS_OK) {
-      ALOGE("Failed to unlink to death");
+      LOGE("Failed to unlink to death");
     }
   }
   mCallback = cb;
@@ -274,7 +274,7 @@ ScopedAStatus ContextHub::registerCallback(
     binder_status_t binder_status =
         AIBinder_linkToDeath(cb->asBinder().get(), mDeathRecipient.get(), this);
     if (binder_status != STATUS_OK) {
-      ALOGE("Failed to link to death");
+      LOGE("Failed to link to death");
     }
   }
   return ScopedAStatus::ok();
@@ -283,7 +283,7 @@ ScopedAStatus ContextHub::registerCallback(
 ScopedAStatus ContextHub::sendMessageToHub(int32_t contextHubId,
                                            const ContextHubMessage &message) {
   if (contextHubId != kDefaultHubId) {
-    ALOGE("Invalid ID %" PRId32, contextHubId);
+    LOGE("Invalid ID %" PRId32, contextHubId);
     return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
   }
 
@@ -311,11 +311,11 @@ ScopedAStatus ContextHub::enableTestMode() {
      * pending unload transactions as they can happen asynchronously and
      * multiple at a time.
      */
-    ALOGE("There exists a pending load transaction. Cannot enable test mode.");
+    LOGE("There exists a pending load transaction. Cannot enable test mode.");
   } else if (!queryNanoappsInternal(kDefaultHubId, &loadedNanoappIds)) {
-    ALOGE("Could not query nanoapps to enable test mode.");
+    LOGE("Could not query nanoapps to enable test mode.");
   } else if (!getPreloadedNanoappIds(&preloadedNanoappIds).isOk()) {
-    ALOGE("Unable to get preloaded nanoapp IDs from the config file.");
+    LOGE("Unable to get preloaded nanoapp IDs from the config file.");
   } else {
     /*
      * Unload all preloaded and loaded nanoapps (set intersection).
@@ -331,7 +331,7 @@ ScopedAStatus ContextHub::enableTestMode() {
                           preloadedNanoappIds.end(),
                           std::back_inserter(nanoappIdsToUnload));
     if (!unloadNanoappsInternal(kDefaultHubId, nanoappIdsToUnload)) {
-      ALOGE("Unable to unload all loaded and preloaded nanoapps.");
+      LOGE("Unable to unload all loaded and preloaded nanoapps.");
     } else {
       success = true;
     }
@@ -339,7 +339,7 @@ ScopedAStatus ContextHub::enableTestMode() {
 
   if (success) {
     mIsTestModeEnabled = true;
-    ALOGI("Successfully enabled test mode.");
+    LOGI("Successfully enabled test mode.");
     return ScopedAStatus::ok();
   } else {
     return ScopedAStatus::fromExceptionCode(EX_SERVICE_SPECIFIC);
@@ -370,8 +370,8 @@ ScopedAStatus ContextHub::onHostEndpointDisconnected(
 
     mConnection.onHostEndpointDisconnected(in_hostEndpointId);
   } else {
-    ALOGE("Unknown host endpoint disconnected (ID: %" PRIu16 ")",
-          in_hostEndpointId);
+    LOGE("Unknown host endpoint disconnected (ID: %" PRIu16 ")",
+         in_hostEndpointId);
   }
 
   return ndk::ScopedAStatus::ok();
@@ -415,10 +415,10 @@ void ContextHub::onNanoappListResponse(
       continue;
     }
 
-    ALOGV("App 0x%016" PRIx64 " ver 0x%" PRIx32 " permissions 0x%" PRIx32
-          " enabled %d system %d",
-          nanoapp->app_id, nanoapp->version, nanoapp->permissions,
-          nanoapp->enabled, nanoapp->is_system);
+    LOGV("App 0x%016" PRIx64 " ver 0x%" PRIx32 " permissions 0x%" PRIx32
+         " enabled %d system %d",
+         nanoapp->app_id, nanoapp->version, nanoapp->permissions,
+         nanoapp->enabled, nanoapp->is_system);
     if (!nanoapp->is_system) {
       NanoappInfo appInfo;
 
@@ -490,7 +490,7 @@ void ContextHub::onDebugDumpComplete(
 }
 
 void ContextHub::handleServiceDeath() {
-  ALOGI("Context Hub Service died ...");
+  LOGI("Context Hub Service died ...");
   {
     std::lock_guard<std::mutex> lock(mCallbackMutex);
     mCallback.reset();
@@ -524,14 +524,14 @@ void ContextHub::debugDumpFinish() {
 
 void ContextHub::writeToDebugFile(const char *str) {
   if (!::android::base::WriteStringToFd(std::string(str), getDebugFd())) {
-    ALOGW("Failed to write %zu bytes to debug dump fd", strlen(str));
+    LOGW("Failed to write %zu bytes to debug dump fd", strlen(str));
   }
 }
 
 bool ContextHub::queryNanoappsInternal(int32_t contextHubId,
                                        std::vector<int64_t> *nanoappIdList) {
   if (contextHubId != kDefaultHubId) {
-    ALOGE("Invalid ID %" PRId32, contextHubId);
+    LOGE("Invalid ID %" PRId32, contextHubId);
     return false;
   }
 
@@ -561,7 +561,7 @@ bool ContextHub::unloadNanoappInternal(int64_t appId, int32_t transactionId) {
 bool ContextHub::unloadNanoappsInternal(
     int32_t contextHubId, const std::vector<int64_t> &nanoappIdList) {
   if (contextHubId != kDefaultHubId) {
-    ALOGE("Invalid ID %" PRId32, contextHubId);
+    LOGE("Invalid ID %" PRId32, contextHubId);
     return false;
   }
 
@@ -569,28 +569,28 @@ bool ContextHub::unloadNanoappsInternal(
   mUnloadNanoappsTransactionId = kStartingInternalTransactionId;
 
   for (int64_t nanoappIdToUnload : nanoappIdList) {
-    ALOGI("Unloading nanoapp with ID: 0x%016" PRIx64, nanoappIdToUnload);
+    LOGI("Unloading nanoapp with ID: 0x%016" PRIx64, nanoappIdToUnload);
 
     bool success = false;
     if (!unloadNanoappInternal(nanoappIdToUnload,
                                *mUnloadNanoappsTransactionId)) {
-      ALOGE("Failed to request unloading nanoapp with ID 0x%" PRIx64,
-            nanoappIdToUnload);
+      LOGE("Failed to request unloading nanoapp with ID 0x%" PRIx64,
+           nanoappIdToUnload);
     } else {
       mUnloadNanoappsSuccess.reset();
       mUnloadNanoappsCondVar.wait_for(lock, kTestModeTimeout, [this]() {
         return mUnloadNanoappsSuccess.has_value();
       });
       if (mUnloadNanoappsSuccess.has_value() && *mUnloadNanoappsSuccess) {
-        ALOGI("Successfully unloaded nanoapp with ID: 0x%016" PRIx64,
-              nanoappIdToUnload);
+        LOGI("Successfully unloaded nanoapp with ID: 0x%016" PRIx64,
+             nanoappIdToUnload);
         ++(*mUnloadNanoappsTransactionId);
         success = true;
       }
     }
 
     if (!success) {
-      ALOGE("Failed to unload nanoapp with ID 0x%" PRIx64, nanoappIdToUnload);
+      LOGE("Failed to unload nanoapp with ID 0x%" PRIx64, nanoappIdToUnload);
       mUnloadNanoappsTransactionId.reset();
       return false;
     }
@@ -607,20 +607,20 @@ bool ContextHub::getPreloadedNanoappIdsFromConfigFile(
   bool success = getPreloadedNanoappsFromConfigFile(
       kPreloadedNanoappsConfigPath, directory, nanoapps, errorString);
   if (!success) {
-    ALOGE("%s", errorString.c_str());
-    ALOGE("Failed to parse preloaded nanoapps config file");
+    LOGE("%s", errorString.c_str());
+    LOGE("Failed to parse preloaded nanoapps config file");
   }
 
   for (const std::string &nanoapp : nanoapps) {
     std::string headerFile = directory + "/" + nanoapp + ".napp_header";
     std::vector<uint8_t> headerBuffer;
     if (!readFileContents(headerFile.c_str(), headerBuffer)) {
-      ALOGE("Cannot read header file: %s", headerFile.c_str());
+      LOGE("Cannot read header file: %s", headerFile.c_str());
       continue;
     }
 
     if (headerBuffer.size() != sizeof(NanoAppBinaryHeader)) {
-      ALOGE("Header size mismatch");
+      LOGE("Header size mismatch");
       continue;
     }
 
