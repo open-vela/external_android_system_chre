@@ -16,6 +16,7 @@
 #include <chre.h>
 #include <inttypes.h>
 
+#include "chre/util/nanoapp/ble.h"
 #include "chre/util/nanoapp/log.h"
 #include "chre/util/time.h"
 
@@ -35,6 +36,8 @@ namespace chre {
 namespace {
 #endif  // CHRE_NANOAPP_INTERNAL
 
+using chre::ble_constants::kNumScanFilters;
+
 constexpr int8_t kDataTypeServiceData = 0x16;
 
 #ifdef BLE_WORLD_ENABLE_BATCHING
@@ -53,30 +56,10 @@ uint64_t gEnableDisablePeriodNs = 10 * chre::kOneSecondInNanoseconds;
 //! True if BLE scans are currently enabled
 bool gBleEnabled = false;
 
-chreBleGenericFilter createBleGenericFilter(uint8_t type, uint8_t len,
-                                            uint8_t *data, uint8_t *mask) {
-  chreBleGenericFilter filter;
-  memset(&filter, 0, sizeof(filter));
-  filter.type = type;
-  filter.len = len;
-  memcpy(filter.data, data, sizeof(uint8_t) * len);
-  memcpy(filter.dataMask, mask, sizeof(uint8_t) * len);
-  return filter;
-}
-
 bool enableBleScans() {
-  chreBleGenericFilter scanFilters[2];
-  uint8_t mask[2] = {0xFF, 0xFF};
-  // Google eddystone UUID.
-  uint8_t uuid1[2] = {0xFE, 0xAA};
-  scanFilters[0] = createBleGenericFilter(
-      CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16, 2, uuid1, mask);
-  // Google nearby fastpair UUID.
-  uint8_t uuid2[2] = {0xFE, 0x2C};
-  scanFilters[1] = createBleGenericFilter(
-      CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16, 2, uuid2, mask);
-  const struct chreBleScanFilter filter = {
-      .rssiThreshold = -128, .scanFilterCount = 2, .scanFilters = scanFilters};
+  struct chreBleScanFilter filter;
+  chreBleGenericFilter genericFilters[kNumScanFilters];
+  createBleScanFilterForKnownBeacons(filter, genericFilters, kNumScanFilters);
   return chreBleStartScanAsync(CHRE_BLE_SCAN_MODE_BACKGROUND,
                                gBleBatchDurationMs, &filter);
 }

@@ -21,7 +21,6 @@ NANOAPP_VERSION = 0x00000001
 
 NANOAPP_PATH = $(CHRE_PREFIX)/apps/test/common/chre_api_test
 
-CHRE_STD_OVERRIDES_ALLOWED = true
 
 # Source Code ##################################################################
 

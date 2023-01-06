@@ -13,6 +13,7 @@ COMMON_SRCS += $(CHRE_PREFIX)/util/buffer_base.cc
 COMMON_SRCS += $(CHRE_PREFIX)/util/dynamic_vector_base.cc
 COMMON_SRCS += $(CHRE_PREFIX)/util/intrusive_list_base.cc
 COMMON_SRCS += $(CHRE_PREFIX)/util/nanoapp/audio.cc
+COMMON_SRCS += $(CHRE_PREFIX)/util/nanoapp/ble.cc
 COMMON_SRCS += $(CHRE_PREFIX)/util/nanoapp/callbacks.cc
 COMMON_SRCS += $(CHRE_PREFIX)/util/nanoapp/debug.cc
 COMMON_SRCS += $(CHRE_PREFIX)/util/nanoapp/wifi.cc

@@ -24,6 +24,10 @@
 #include "chre_host/napp_header.h"
 #include "permissions_util.h"
 
+#include <algorithm>
+#include <chrono>
+#include <limits>
+
 namespace aidl::android::hardware::contexthub {
 
 // Aliased for consistency with the way these symbols are referenced in
@@ -45,6 +49,16 @@ namespace {
 constexpr uint32_t kDefaultHubId = 0;
 constexpr char kPreloadedNanoappsConfigPath[] =
     "/vendor/etc/chre/preloaded_nanoapps.json";
+constexpr std::chrono::duration kTestModeTimeout = std::chrono::seconds(10);
+
+/*
+ * The starting transaction ID for internal transactions. We choose
+ * the limit + 1 here as any client will only pass non-negative values up to the
+ * limit. The socket connection to CHRE accepts a uint32_t for the transaction
+ * ID, so we can use the value below up to std::numeric_limits<uint32_t>::max()
+ * for internal transaction IDs.
+ */
+constexpr int32_t kStartingInternalTransactionId = 0x80000000;
 
 inline constexpr int8_t extractChreApiMajorVersion(uint32_t chreVersion) {
   return static_cast<int8_t>(chreVersion >> 24);
@@ -122,6 +136,8 @@ ScopedAStatus ContextHub::loadNanoapp(int32_t contextHubId,
     ALOGE("Invalid ID %" PRId32, contextHubId);
     return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
   }
+
+  std::lock_guard<std::mutex> lock(mTestModeMutex);
   uint32_t targetApiVersion = (appBinary.targetChreApiMajorVersion << 24) |
                               (appBinary.targetChreApiMinorVersion << 16);
   FragmentedLoadTransaction transaction(
@@ -138,8 +154,9 @@ ScopedAStatus ContextHub::unloadNanoapp(int32_t contextHubId, int64_t appId,
     ALOGE("Invalid ID %" PRId32, contextHubId);
     return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
   }
-  const bool success = mConnection.unloadNanoapp(appId, transactionId);
-  mEventLogger.logNanoappUnload(appId, success);
+
+  std::lock_guard<std::mutex> lock(mTestModeMutex);
+  const bool success = unloadNanoappInternal(appId, transactionId);
   return toServiceSpecificError(success);
 }
 
@@ -278,6 +295,57 @@ ScopedAStatus ContextHub::sendMessageToHub(int32_t contextHubId,
   return toServiceSpecificError(success);
 }
 
+ScopedAStatus ContextHub::enableTestMode() {
+  std::unique_lock<std::mutex> lock(mTestModeMutex);
+
+  bool success = false;
+  std::vector<int64_t> loadedNanoappIds;
+  std::vector<int64_t> preloadedNanoappIds;
+  std::vector<int64_t> nanoappIdsToUnload;
+  if (mIsTestModeEnabled) {
+    success = true;
+  } else if (mConnection.isLoadTransactionPending()) {
+    /**
+     * There is already a pending load transaction. We cannot change the test
+     * mode state if there is a pending load transaction. We do not consider
+     * pending unload transactions as they can happen asynchronously and
+     * multiple at a time.
+     */
+    ALOGE("There exists a pending load transaction. Cannot enable test mode.");
+  } else if (!queryNanoappsInternal(kDefaultHubId, &loadedNanoappIds)) {
+    ALOGE("Could not query nanoapps to enable test mode.");
+  } else if (!getPreloadedNanoappIds(&preloadedNanoappIds).isOk()) {
+    ALOGE("Unable to get preloaded nanoapp IDs from the config file.");
+  } else {
+    /*
+     * Unload all preloaded and loaded nanoapps (set intersection).
+     * Both vectors need to be sorted for std::set_intersection to work.
+     * We explicitly choose not to use std::set here to avoid the
+     * copying cost as well as the tree balancing cost for the
+     * red-black tree.
+     */
+    std::sort(loadedNanoappIds.begin(), loadedNanoappIds.end());
+    std::sort(preloadedNanoappIds.begin(), preloadedNanoappIds.end());
+    std::set_intersection(loadedNanoappIds.begin(), loadedNanoappIds.end(),
+                          preloadedNanoappIds.begin(),
+                          preloadedNanoappIds.end(),
+                          std::back_inserter(nanoappIdsToUnload));
+    if (!unloadNanoappsInternal(kDefaultHubId, nanoappIdsToUnload)) {
+      ALOGE("Unable to unload all loaded and preloaded nanoapps.");
+    } else {
+      success = true;
+    }
+  }
+
+  if (success) {
+    mIsTestModeEnabled = true;
+    ALOGI("Successfully enabled test mode.");
+    return ScopedAStatus::ok();
+  } else {
+    return ScopedAStatus::fromExceptionCode(EX_SERVICE_SPECIFIC);
+  }
+}
+
 ScopedAStatus ContextHub::onHostEndpointConnected(
     const HostEndpointInfo &in_info) {
   std::lock_guard<std::mutex> lock(mConnectedHostEndpointsMutex);
@@ -367,13 +435,28 @@ void ContextHub::onNanoappListResponse(
     }
   }
 
+  {
+    std::lock_guard<std::mutex> lock(mQueryNanoappsInternalMutex);
+    if (!mQueryNanoappsInternalList) {
+      mQueryNanoappsInternalList = appInfoList;
+      mQueryNanoappsInternalCondVar.notify_all();
+    }
+  }
+
   mCallback->handleNanoappInfo(appInfoList);
 }
 
 void ContextHub::onTransactionResult(uint32_t transactionId, bool success) {
-  std::lock_guard<std::mutex> lock(mCallbackMutex);
-  if (mCallback != nullptr) {
-    mCallback->handleTransactionResult(transactionId, success);
+  std::unique_lock<std::mutex> lock(mUnloadNanoappsMutex);
+  if (mUnloadNanoappsTransactionId &&
+      transactionId == *mUnloadNanoappsTransactionId) {
+    mUnloadNanoappsSuccess = success;
+    mUnloadNanoappsCondVar.notify_all();
+  } else {
+    std::lock_guard<std::mutex> lock(mCallbackMutex);
+    if (mCallback != nullptr) {
+      mCallback->handleTransactionResult(transactionId, success);
+    }
   }
 }
 
@@ -438,6 +521,77 @@ void ContextHub::writeToDebugFile(const char *str) {
   if (!::android::base::WriteStringToFd(std::string(str), getDebugFd())) {
     ALOGW("Failed to write %zu bytes to debug dump fd", strlen(str));
   }
+}
+
+bool ContextHub::queryNanoappsInternal(int32_t contextHubId,
+                                       std::vector<int64_t> *nanoappIdList) {
+  if (contextHubId != kDefaultHubId) {
+    ALOGE("Invalid ID %" PRId32, contextHubId);
+    return false;
+  }
+
+  std::unique_lock<std::mutex> lock(mQueryNanoappsInternalMutex);
+  mQueryNanoappsInternalList.reset();
+
+  bool success =
+      queryNanoapps(contextHubId).isOk() &&
+      mQueryNanoappsInternalCondVar.wait_for(lock, kTestModeTimeout, [this]() {
+        return mQueryNanoappsInternalList.has_value();
+      });
+  if (success && nanoappIdList != nullptr) {
+    std::transform(
+        mQueryNanoappsInternalList->begin(), mQueryNanoappsInternalList->end(),
+        std::back_inserter(*nanoappIdList),
+        [](const NanoappInfo &nanoapp) { return nanoapp.nanoappId; });
+  }
+  return success;
+}
+
+bool ContextHub::unloadNanoappInternal(int64_t appId, int32_t transactionId) {
+  bool success = mConnection.unloadNanoapp(appId, transactionId);
+  mEventLogger.logNanoappUnload(appId, success);
+  return success;
+}
+
+bool ContextHub::unloadNanoappsInternal(
+    int32_t contextHubId, const std::vector<int64_t> &nanoappIdList) {
+  if (contextHubId != kDefaultHubId) {
+    ALOGE("Invalid ID %" PRId32, contextHubId);
+    return false;
+  }
+
+  std::unique_lock<std::mutex> lock(mUnloadNanoappsMutex);
+  mUnloadNanoappsTransactionId = kStartingInternalTransactionId;
+
+  for (int64_t nanoappIdToUnload : nanoappIdList) {
+    ALOGI("Unloading nanoapp with ID: 0x%016" PRIx64, nanoappIdToUnload);
+
+    bool success = false;
+    if (!unloadNanoappInternal(nanoappIdToUnload,
+                               *mUnloadNanoappsTransactionId)) {
+      ALOGE("Failed to request unloading nanoapp with ID 0x%" PRIx64,
+            nanoappIdToUnload);
+    } else {
+      mUnloadNanoappsSuccess.reset();
+      mUnloadNanoappsCondVar.wait_for(lock, kTestModeTimeout, [this]() {
+        return mUnloadNanoappsSuccess.has_value();
+      });
+      if (mUnloadNanoappsSuccess.has_value() && *mUnloadNanoappsSuccess) {
+        ALOGI("Successfully unloaded nanoapp with ID: 0x%016" PRIx64,
+              nanoappIdToUnload);
+        ++(*mUnloadNanoappsTransactionId);
+        success = true;
+      }
+    }
+
+    if (!success) {
+      ALOGE("Failed to unload nanoapp with ID 0x%" PRIx64, nanoappIdToUnload);
+      mUnloadNanoappsTransactionId.reset();
+      return false;
+    }
+  }
+
+  return true;
 }
 
 bool ContextHub::getPreloadedNanoappIdsFromConfigFile(

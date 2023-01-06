@@ -397,6 +397,7 @@ cc_library_static {
         "platform/linux/pal_wwan.cc",
         "platform/linux/platform_log.cc",
         "platform/linux/system_time.cc",
+        "platform/linux/task_util/task.cc",
     ],
     export_include_dirs: [
         "platform/shared/include",
@@ -427,6 +428,7 @@ cc_test_host {
         "pal/util/wifi_pal_convert.c",
         "pal/util/wifi_scan_cache.c",
         "platform/tests/**/*.cc",
+        "platform/linux/tests/**/*.cc",
         "util/tests/**/*.cc",
     ],
     exclude_srcs: [
@@ -585,6 +587,7 @@ cc_library_static {
         "platform/linux/power_control_manager.cc",
         "platform/linux/system_time.cc",
         "platform/linux/system_timer.cc",
+        "platform/linux/task_util/task.cc",
         "platform/shared/audio_pal/platform_audio.cc",
         "platform/shared/chre_api_audio.cc",
         "platform/shared/chre_api_ble.cc",

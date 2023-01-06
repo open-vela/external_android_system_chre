@@ -163,6 +163,7 @@ GOOGLE_X86_LINUX_CFLAGS += $(DSO_SUPPORT_LIB_CFLAGS)
 # Makefile Includes ############################################################
 
 # Standard library overrides include
+CHRE_STD_OVERRIDES_ALLOWED ?= true
 include $(CHRE_PREFIX)/std_overrides/std_overrides.mk
 
 # Common includes
