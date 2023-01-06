@@ -78,7 +78,7 @@ public class ChreCallbackHandler extends ContextHubClientCallback {
      */
     @Override
     public void onHubReset(ContextHubClient client) {
-        // TODO(b/210138227): Close all outstanding RPCs.
+        closeChannel();
         if (mCallback != null) {
             mCallback.onHubReset(client);
         }
@@ -90,7 +90,7 @@ public class ChreCallbackHandler extends ContextHubClientCallback {
     @Override
     public void onNanoAppAborted(ContextHubClient client, long nanoappId, int abortCode) {
         if (nanoappId == mNanoappId) {
-            // TODO(b/210138227): Close all outstanding RPCs.
+            closeChannel();
         }
         if (mCallback != null) {
             mCallback.onNanoAppAborted(client, nanoappId, abortCode);
@@ -110,7 +110,7 @@ public class ChreCallbackHandler extends ContextHubClientCallback {
     @Override
     public void onNanoAppUnloaded(ContextHubClient client, long nanoappId) {
         if (nanoappId == mNanoappId) {
-            // TODO(b/210138227): Close all outstanding RPCs.
+            closeChannel();
         }
         if (mCallback != null) {
             mCallback.onNanoAppUnloaded(client, nanoappId);
@@ -130,7 +130,7 @@ public class ChreCallbackHandler extends ContextHubClientCallback {
     @Override
     public void onNanoAppDisabled(ContextHubClient client, long nanoappId) {
         if (nanoappId == mNanoappId) {
-            // TODO(b/210138227): Close all outstanding RPCs.
+            closeChannel();
         }
         if (mCallback != null) {
             mCallback.onNanoAppDisabled(client, nanoappId);
@@ -147,13 +147,20 @@ public class ChreCallbackHandler extends ContextHubClientCallback {
         if (mChannelOutput != null && nanoappId == mNanoappId) {
             if (authorization == AUTHORIZATION_DENIED) {
                 mChannelOutput.setAuthDenied(true /* denied */);
-                // TODO(b/210138227): Close all outstanding RPCs.
+                closeChannel();
             } else if (authorization == AUTHORIZATION_GRANTED) {
                 mChannelOutput.setAuthDenied(false /* denied */);
             }
         }
         if (mCallback != null) {
             mCallback.onClientAuthorizationChanged(client, nanoappId, authorization);
+        }
+    }
+
+    private void closeChannel() {
+        if (mRpcClient != null && mChannelOutput != null) {
+            mRpcClient.closeChannel(mChannelOutput.getChannelId());
+            mChannelOutput = null;
         }
     }
 }
