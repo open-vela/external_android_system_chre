@@ -20,23 +20,23 @@
 #include "chre/re.h"
 #include "pw_log/levels.h"
 
-#define PW_HANDLE_LOG(level, flags, fmt, ...)                               \
-  do {                                                                      \
-      enum chreLogLevel chreLevel = CHRE_LOG_ERROR;                         \
-      switch (level) {                                                      \
-        case PW_LOG_LEVEL_DEBUG:                                            \
-          chreLevel = CHRE_LOG_DEBUG;                                       \
-          break;                                                            \
-        case PW_LOG_LEVEL_INFO:                                             \
-          chreLevel = CHRE_LOG_INFO;                                        \
-          break;                                                            \
-        case PW_LOG_LEVEL_WARN:                                             \
-          chreLevel = CHRE_LOG_WARN;                                        \
-          break;                                                            \
-        default:                                                            \
-          chreLevel = CHRE_LOG_ERROR;                                       \
-      }                                                                     \
-      chreLog(chreLevel, "PW %s: " fmt, PW_LOG_MODULE_NAME, ##__VA_ARGS__); \
+#define PW_HANDLE_LOG(level, module, flags, fmt, ...)            \
+  do {                                                           \
+      enum chreLogLevel chreLevel = CHRE_LOG_ERROR;              \
+      switch (level) {                                           \
+        case PW_LOG_LEVEL_DEBUG:                                 \
+          chreLevel = CHRE_LOG_DEBUG;                            \
+          break;                                                 \
+        case PW_LOG_LEVEL_INFO:                                  \
+          chreLevel = CHRE_LOG_INFO;                             \
+          break;                                                 \
+        case PW_LOG_LEVEL_WARN:                                  \
+          chreLevel = CHRE_LOG_WARN;                             \
+          break;                                                 \
+        default:                                                 \
+          chreLevel = CHRE_LOG_ERROR;                            \
+      }                                                          \
+      chreLog(chreLevel, "PW " module ": "  fmt, ##__VA_ARGS__); \
   } while (0)
 
 #endif // _PW_LOG_NANOAPP_PW_LOG_BACKEND_H_
