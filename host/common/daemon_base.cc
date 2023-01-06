@@ -78,11 +78,9 @@ void ChreDaemonBase::loadPreloadedNanoapps() {
       "/vendor/etc/chre/preloaded_nanoapps.json";
   std::string directory;
   std::vector<std::string> nanoapps;
-  std::string errorString;
   bool success = getPreloadedNanoappsFromConfigFile(
-      kPreloadedNanoappsConfigPath, directory, nanoapps, errorString);
+      kPreloadedNanoappsConfigPath, directory, nanoapps);
   if (!success) {
-    LOGE("%s", errorString.c_str());
     LOGE("Failed to parse preloaded nanoapps config file");
     return;
   }

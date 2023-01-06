@@ -33,18 +33,18 @@ void PreloadedNanoappLoader::loadPreloadedNanoapps(
     const std::string &nanoappsConfigPath) {
   std::string directory;
   std::vector<std::string> nanoapps;
-  std::string errorString;
-  bool success = getPreloadedNanoappsFromConfigFile(
-      nanoappsConfigPath, directory, nanoapps, errorString);
+
+  bool success = getPreloadedNanoappsFromConfigFile(nanoappsConfigPath,
+                                                    directory, nanoapps);
   if (!success) {
-    LOGE("Failed to load any preloaded nanoapp: %s", errorString.c_str());
-    return;
+    LOGE("Failed to load any preloaded nanoapp");
+  } else {
+    mIsPreloadingOngoing = true;
+    for (uint32_t i = 0; i < nanoapps.size(); ++i) {
+      loadPreloadedNanoapp(directory, nanoapps[i], i);
+    }
+    mIsPreloadingOngoing = false;
   }
-  mIsPreloadingOngoing = true;
-  for (uint32_t i = 0; i < nanoapps.size(); ++i) {
-    loadPreloadedNanoapp(directory, nanoapps[i], i);
-  }
-  mIsPreloadingOngoing = false;
 }
 
 void PreloadedNanoappLoader::loadPreloadedNanoapp(const std::string &directory,
