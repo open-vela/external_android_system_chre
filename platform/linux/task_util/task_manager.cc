@@ -118,6 +118,13 @@ void TaskManager::run() {
         if (waitTime.count() > 0) {
           mConditionVariable.wait_for(lock, waitTime);
         }
+
+        /**
+         * We continue here instead of executing the same task because we are
+         * not guaranteed that the condition variable was not spuriously woken
+         * up, and another task with a timestamp < the current task could have
+         * been added in the current time.
+         */
         continue;
       }
 
