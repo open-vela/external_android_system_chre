@@ -124,7 +124,7 @@ bool chppDispatchLoopbackServiceResponse(struct ChppAppState *context,
     }
   }
 
-  CHPP_LOGI("Loopback client RX err=0x%" PRIx16 " len=%" PRIuSIZE
+  CHPP_LOGD("Loopback client RX err=0x%" PRIx16 " len=%" PRIuSIZE
             " req len=%" PRIuSIZE " first err=%" PRIuSIZE
             " total err=%" PRIuSIZE,
             context->loopbackClientContext->testResult.error,
@@ -146,7 +146,7 @@ bool chppDispatchLoopbackServiceResponse(struct ChppAppState *context,
 struct ChppLoopbackTestResult chppRunLoopbackTest(struct ChppAppState *context,
                                                   const uint8_t *buf,
                                                   size_t len) {
-  CHPP_LOGI("Loopback client TX len=%" PRIuSIZE,
+  CHPP_LOGD("Loopback client TX len=%" PRIuSIZE,
             len + CHPP_LOOPBACK_HEADER_LEN);
 
   struct ChppLoopbackTestResult result;
@@ -178,7 +178,6 @@ struct ChppLoopbackTestResult chppRunLoopbackTest(struct ChppAppState *context,
         CHPP_LOGE("Loopback payload=0!");
         context->loopbackClientContext->testResult.error =
             CHPP_APP_ERROR_INVALID_LENGTH;
-
       } else {
         uint8_t *loopbackRequest = (uint8_t *)chppAllocClientRequest(
             &context->loopbackClientContext->client,
@@ -189,7 +188,6 @@ struct ChppLoopbackTestResult chppRunLoopbackTest(struct ChppAppState *context,
           context->loopbackClientContext->testResult.requestLen = 0;
           context->loopbackClientContext->testResult.error = CHPP_APP_ERROR_OOM;
           CHPP_LOG_OOM();
-
         } else {
           context->loopbackClientContext->loopbackData = buf;
           memcpy(&loopbackRequest[CHPP_LOOPBACK_HEADER_LEN], buf, len);
