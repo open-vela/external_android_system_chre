@@ -661,7 +661,7 @@ void WifiRequestManager::handleNanServiceSubscriptionCanceledEvent(
 }
 
 void WifiRequestManager::logStateToBuffer(DebugDumpWrapper &debugDump) const {
-  debugDump.print("\nWifi: scan monitor %s\n",
+  debugDump.print("\nWifi scan monitor %s\n",
                   scanMonitorIsEnabled() ? "enabled" : "disabled");
 
   if (scanMonitorIsEnabled()) {
@@ -691,6 +691,7 @@ void WifiRequestManager::logStateToBuffer(DebugDumpWrapper &debugDump) const {
                   mWifiScanRequestLogs.size());
   static_assert(kNumWifiRequestLogs <= INT8_MAX,
                 "kNumWifiRequestLogs must be <= INT8_MAX");
+
   for (int8_t i = static_cast<int8_t>(mWifiScanRequestLogs.size()) - 1; i >= 0;
        i--) {
     const auto &log = mWifiScanRequestLogs[static_cast<size_t>(i)];

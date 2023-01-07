@@ -412,7 +412,7 @@ static void chppWifiClientNotifyMatch(void *clientContext) {
 static void chppWiFiRecoverScanMonitor(
     struct ChppWifiClientState *clientContext) {
   if (clientContext->scanMonitorEnabled) {
-    CHPP_LOGI("Re-enabling WiFi scan monitoring after reset");
+    CHPP_LOGD("Re-enabling WiFi scan monitoring after reset");
     clientContext->scanMonitorEnabled = false;
     clientContext->scanMonitorSilenceCallback = true;
 

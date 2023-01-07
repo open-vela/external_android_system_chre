@@ -811,7 +811,7 @@ uint8_t chppAppShortResponseErrorHandler(uint8_t *buf, size_t len,
   if (rxHeader->error == CHPP_APP_ERROR_NONE) {
     CHPP_LOGE("%s resp short len=%" PRIuSIZE, responseName, len);
   } else {
-    CHPP_LOGI("%s resp short len=%" PRIuSIZE, responseName, len);
+    CHPP_LOGD("%s resp short len=%" PRIuSIZE, responseName, len);
     result = chppAppErrorToChreError(rxHeader->error);
   }
 
