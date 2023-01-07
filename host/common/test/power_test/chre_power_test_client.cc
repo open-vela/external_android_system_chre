@@ -384,8 +384,8 @@ bool sendLoadNanoappRequest(SocketClient &client,
   std::vector<uint8_t> binaryBuffer;
   std::string headerName = filenameNoExtension + ".napp_header";
   std::string binaryName = filenameNoExtension + ".so";
-  if (readFileContents(headerName.c_str(), &headerBuffer) &&
-      readFileContents(binaryName.c_str(), &binaryBuffer)) {
+  if (readFileContents(headerName.c_str(), headerBuffer) &&
+      readFileContents(binaryName.c_str(), binaryBuffer)) {
     if (headerBuffer.size() != sizeof(NanoAppBinaryHeader)) {
       LOGE("Header size mismatch");
     } else {

@@ -377,6 +377,11 @@ ScopedAStatus ContextHub::onHostEndpointDisconnected(
   return ndk::ScopedAStatus::ok();
 }
 
+ScopedAStatus ContextHub::onNanSessionStateChanged(bool /*in_state*/) {
+  // TODO(229888878): Add support for NAN session management.
+  return ndk::ScopedAStatus::ok();
+}
+
 void ContextHub::onNanoappMessage(const ::chre::fbs::NanoappMessageT &message) {
   std::lock_guard<std::mutex> lock(mCallbackMutex);
   if (mCallback != nullptr) {
@@ -609,7 +614,7 @@ bool ContextHub::getPreloadedNanoappIdsFromConfigFile(
   for (const std::string &nanoapp : nanoapps) {
     std::string headerFile = directory + "/" + nanoapp + ".napp_header";
     std::vector<uint8_t> headerBuffer;
-    if (!readFileContents(headerFile.c_str(), &headerBuffer)) {
+    if (!readFileContents(headerFile.c_str(), headerBuffer)) {
       ALOGE("Cannot read header file: %s", headerFile.c_str());
       continue;
     }

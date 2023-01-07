@@ -152,6 +152,11 @@ class ContextHubCallback : public BnContextHubCallback {
     promise.set_value();
     return ScopedAStatus::ok();
   }
+
+  ScopedAStatus handleNanSessionRequest(bool /* enable */) override {
+    return ScopedAStatus::ok();
+  }
+
   std::promise<void> promise;
 };
 
@@ -288,7 +293,7 @@ std::unique_ptr<NanoAppBinaryHeader> findHeaderAndNormalizePath(
 void loadNanoapp(std::string &pathAndName) {
   auto header = findHeaderAndNormalizePath(pathAndName);
   std::vector<uint8_t> soBuffer{};
-  if (!readFileContents(pathAndName.c_str(), &soBuffer)) {
+  if (!readFileContents(pathAndName.c_str(), soBuffer)) {
     throwError("Failed to open the content of " + pathAndName);
   }
   NanoappBinary binary;

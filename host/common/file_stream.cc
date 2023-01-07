@@ -22,7 +22,7 @@
 namespace android {
 namespace chre {
 
-bool readFileContents(const char *filename, std::vector<uint8_t> *buffer) {
+bool readFileContents(const char *filename, std::vector<uint8_t> &buffer) {
   bool success = false;
   std::ifstream file(filename, std::ios::binary | std::ios::ate);
   if (!file) {
@@ -31,8 +31,8 @@ bool readFileContents(const char *filename, std::vector<uint8_t> *buffer) {
     ssize_t size = file.tellg();
     file.seekg(0, std::ios::beg);
 
-    buffer->resize(size);
-    if (!file.read(reinterpret_cast<char *>(buffer->data()), size)) {
+    buffer.resize(size);
+    if (!file.read(reinterpret_cast<char *>(buffer.data()), size)) {
       LOGE("Couldn't read from file '%s': %d (%s)", filename, errno,
            strerror(errno));
     } else {

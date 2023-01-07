@@ -208,8 +208,8 @@ void sendLoadNanoappRequest(SocketClient &client, const char *headerPath,
                             const char *binaryPath) {
   std::vector<uint8_t> headerBuffer;
   std::vector<uint8_t> binaryBuffer;
-  if (readFileContents(headerPath, &headerBuffer) &&
-      readFileContents(binaryPath, &binaryBuffer)) {
+  if (readFileContents(headerPath, headerBuffer) &&
+      readFileContents(binaryPath, binaryBuffer)) {
     if (headerBuffer.size() != sizeof(NanoAppBinaryHeader)) {
       LOGE("Header size mismatch");
     } else {
@@ -231,7 +231,7 @@ void sendLoadNanoappRequest(SocketClient &client, const char *filename,
                             uint64_t appId, uint32_t appVersion,
                             uint32_t apiVersion, bool tcmApp) {
   std::vector<uint8_t> buffer;
-  if (readFileContents(filename, &buffer)) {
+  if (readFileContents(filename, buffer)) {
     // All loaded nanoapps must be signed currently.
     uint32_t appFlags = CHRE_NAPP_HEADER_SIGNED;
     if (tcmApp) {

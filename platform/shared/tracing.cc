@@ -14,24 +14,23 @@
  * limitations under the License.
  */
 
-#ifndef CHRE_HOST_FILE_STREAM_H_
-#define CHRE_HOST_FILE_STREAM_H_
+#include "chre/platform/tracing.h"
+#include "chre/util/macros.h"
 
-#include <vector>
-
-namespace android {
 namespace chre {
 
-/**
- * Reads a file and stores it into a buffer.
- *
- * @param filename The name of the file.
- * @param buffer The buffer to store the contents of the file into.
- * @return true if successfully read and stored.
- */
-bool readFileContents(const char *filename, std::vector<uint8_t> &buffer);
+void traceRegisterNanoapp(uint16_t instanceId, const char *name) {
+  UNUSED_VAR(instanceId);
+  UNUSED_VAR(name);
+}
+
+void traceNanoappHandleEventStart(uint16_t instanceId, uint16_t eventType) {
+  UNUSED_VAR(instanceId);
+  UNUSED_VAR(eventType);
+}
+
+void traceNanoappHandleEventEnd(uint16_t instanceId) {
+  UNUSED_VAR(instanceId);
+}
 
 }  // namespace chre
-}  // namespace android
-
-#endif  // CHRE_HOST_FILE_STREAM_H_
