@@ -64,6 +64,9 @@ extern "C" {
 //! If only one nanoapp is requesting BLE scans and there are no BLE scans from
 //! the AP, only filtered results will be provided to the nanoapp.
 #define CHRE_BLE_CAPABILITIES_SCAN_FILTER_BEST_EFFORT UINT32_C(1 << 2)
+
+//! CHRE BLE supports reading the RSSI of a specified LE-ACL connection handle.
+#define CHRE_BLE_CAPABILITIES_READ_RSSI UINT32_C(1 << 3);
 /** @} */
 
 /**
@@ -134,6 +137,16 @@ extern "C" {
  * @since v1.7
  */
 #define CHRE_EVENT_BLE_FLUSH_COMPLETE CHRE_BLE_EVENT_ID(2)
+
+/**
+ * nanoappHandleEvent argument: struct chreBleReadRssiEvent
+ *
+ * Provides the RSSI of an LE ACL connection following a call to
+ * chreBleReadRssi().
+ *
+ * @since v1.8
+ */
+#define CHRE_EVENT_BLE_RSSI_READ CHRE_BLE_EVENT_ID(3)
 
 // NOTE: Do not add new events with ID > 15
 /** @} */
@@ -475,6 +488,23 @@ struct chreBleAdvertisementEvent {
 };
 
 /**
+ * The RSSI read on a particular LE connection handle, based on the parameters
+ * in BT Core Spec v5.3, Vol 4, Part E, Section 7.5.4, Read RSSI command
+ */
+struct chreBleReadRssiEvent {
+  //! Structure which contains the cookie associated with the original request,
+  //! along with an error code that indicates request success or failure.
+  struct chreAsyncResult result;
+
+  //! The handle upon which CHRE attempted to read RSSI.
+  uint16_t connectionHandle;
+
+  //! The RSSI of the last packet received on this connection, if valid
+  //! (-127 to 20)
+  int8_t rssi;
+};
+
+/**
  * Retrieves a set of flags indicating the BLE features supported by the
  * current CHRE implementation. The value returned by this function must be
  * consistent for the entire duration of the nanoapp's execution.
@@ -652,6 +682,33 @@ bool chreBleStopScanAsync(void);
 bool chreBleFlushAsync(const void *cookie);
 
 /**
+ * Requests to read the RSSI of a peer device on the given LE connection
+ * handle.
+ *
+ * If the request is accepted, the response will be delivered in a
+ * CHRE_EVENT_BLE_RSSI_READ event with the same cookie.
+ *
+ * The request may be rejected if resources are not available to service the
+ * request (such as if too many outstanding requests already exist). If so, the
+ * client may retry later.
+ *
+ * Note that the connectionHandle is valid only while the connection remains
+ * active. If a peer device disconnects then reconnects, the handle may change.
+ * BluetoothGatt#getAclHandle() can be used from the Android framework to get
+ * the latest handle upon reconnection.
+ *
+ * @param connectionHandle
+ * @param cookie An opaque value that will be included in the chreAsyncResult
+ *               embedded in the response to this request.
+ * @return True if the request has been accepted and dispatched to the
+ *         controller. False otherwise.
+ *
+ * @since v1.8
+ *
+ */
+bool chreBleReadRssi(uint16_t connectionHandle, const void *cookie);
+
+/**
  * Definitions for handling unsupported CHRE BLE scenarios.
  */
 #else  // defined(CHRE_NANOAPP_USES_BLE) || !defined(CHRE_IS_NANOAPP_BUILD)
@@ -668,6 +725,10 @@ bool chreBleFlushAsync(const void *cookie);
 
 #define chreBleFlushAsync(...) \
   CHRE_BUILD_ERROR(CHRE_BLE_PERM_ERROR_STRING "chreBleFlushAsync")
+
+#define chreBleReadRssi(...) \
+  CHRE_BUILD_ERROR(CHRE_BLE_PERM_ERROR_STRING "chreBleReadRssi")
+
 
 #endif  // defined(CHRE_NANOAPP_USES_BLE) || !defined(CHRE_IS_NANOAPP_BUILD)
 

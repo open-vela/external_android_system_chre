@@ -20,11 +20,14 @@
 #include "chre/re.h"
 #include "pw_log/log.h"
 
-#define PW_ASSERT_HANDLE_FAILURE(condition_string)                             \
-  do {                                                                         \
-    PW_HANDLE_LOG(                                                             \
-        PW_LOG_LEVEL_FATAL, PW_LOG_FLAGS, "Assert failed: " condition_string); \
-    chreAbort(UINT32_MAX);                                                     \
+#define PW_ASSERT_HANDLE_FAILURE(condition_string)  \
+  do {                                              \
+    PW_HANDLE_LOG(                                  \
+        PW_LOG_LEVEL_FATAL,                         \
+        PW_LOG_MODULE_NAME,                         \
+        PW_LOG_FLAGS,                               \
+        "Assert failed: " condition_string);        \
+    chreAbort(UINT32_MAX);                          \
   } while (0)
 
 #endif // _PW_ASSERT_NANOAPP_PW_ASSERT_BACKEND_H_
