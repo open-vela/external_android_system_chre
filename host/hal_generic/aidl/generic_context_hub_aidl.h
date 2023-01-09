@@ -63,25 +63,7 @@ class ContextHub : public BnContextHub,
       const std::shared_ptr<IContextHubCallback> &cb) override;
   ::ndk::ScopedAStatus sendMessageToHub(
       int32_t contextHubId, const ContextHubMessage &message) override;
-
-  // TODO(b/258074235): Add to AIDL HAL definition
-  /**
-   * Enables test mode for the context hub by unloading all preloaded nanoapps
-   * that are loaded.
-   *
-   * @return            the status.
-   */
-  ::ndk::ScopedAStatus enableTestMode();
-
-  // TODO(b/258074235): Add to AIDL HAL definition
-  /**
-   * Disables test mode for the context hub by loading all
-   * preloaded nanoapps.
-   *
-   * @return            the status.
-   */
-  ::ndk::ScopedAStatus disableTestMode();
-
+  ::ndk::ScopedAStatus setTestMode(bool enable) override;
   ::ndk::ScopedAStatus onHostEndpointConnected(
       const HostEndpointInfo &in_info) override;
   ::ndk::ScopedAStatus onHostEndpointDisconnected(
@@ -116,6 +98,22 @@ class ContextHub : public BnContextHub,
   void writeToDebugFile(const char *str) override;
 
  private:
+  /**
+   * Enables test mode on the context hub. This unloads all nanoapps and puts
+   * CHRE in a state that is consistent for testing.
+   *
+   * @return                            the status.
+   */
+  ::ndk::ScopedAStatus enableTestMode();
+
+  /**
+   * Disables test mode. Reverses the affects of enableTestMode() by loading all
+   * preloaded nanoapps. This puts CHRE back in a normal state.
+   *
+   * @return                            the status.
+   */
+  ::ndk::ScopedAStatus disableTestMode();
+
   /**
    * Queries the list of loaded nanoapps in a synchronous manner.
    * The list is stored in the mQueryNanoappsInternalList variable.

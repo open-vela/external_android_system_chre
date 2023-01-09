@@ -290,105 +290,8 @@ ScopedAStatus ContextHub::sendMessageToHub(int32_t contextHubId,
   return toServiceSpecificError(success);
 }
 
-ScopedAStatus ContextHub::enableTestMode() {
-  std::unique_lock<std::mutex> lock(mTestModeMutex);
-
-  bool success = false;
-  std::vector<int64_t> loadedNanoappIds;
-  std::vector<int64_t> preloadedNanoappIds;
-  std::vector<int64_t> nanoappIdsToUnload;
-  if (mIsTestModeEnabled) {
-    success = true;
-  } else if (mConnection.isLoadTransactionPending()) {
-    /**
-     * There is already a pending load transaction. We cannot change the test
-     * mode state if there is a pending load transaction. We do not consider
-     * pending unload transactions as they can happen asynchronously and
-     * multiple at a time.
-     */
-    LOGE("There exists a pending load transaction. Cannot enable test mode.");
-  } else if (!queryNanoappsInternal(kDefaultHubId, &loadedNanoappIds)) {
-    LOGE("Could not query nanoapps to enable test mode.");
-  } else if (!getPreloadedNanoappIds(&preloadedNanoappIds).isOk()) {
-    LOGE("Unable to get preloaded nanoapp IDs from the config file.");
-  } else {
-    std::sort(loadedNanoappIds.begin(), loadedNanoappIds.end());
-    std::sort(preloadedNanoappIds.begin(), preloadedNanoappIds.end());
-
-    // Calculate the system nanoapp IDs. They are preloaded, but not loaded.
-    mSystemNanoappIds.clear();
-    std::set_difference(preloadedNanoappIds.begin(), preloadedNanoappIds.end(),
-                        loadedNanoappIds.begin(), loadedNanoappIds.end(),
-                        std::back_inserter(mSystemNanoappIds));
-
-    /*
-     * Unload all preloaded and loaded nanoapps (set intersection).
-     * Both vectors need to be sorted for std::set_intersection to work.
-     * We explicitly choose not to use std::set here to avoid the
-     * copying cost as well as the tree balancing cost for the
-     * red-black tree.
-     */
-    std::set_intersection(loadedNanoappIds.begin(), loadedNanoappIds.end(),
-                          preloadedNanoappIds.begin(),
-                          preloadedNanoappIds.end(),
-                          std::back_inserter(nanoappIdsToUnload));
-    if (!unloadNanoappsInternal(kDefaultHubId, nanoappIdsToUnload)) {
-      LOGE("Unable to unload all loaded and preloaded nanoapps.");
-    } else {
-      success = true;
-    }
-  }
-
-  if (success) {
-    mIsTestModeEnabled = true;
-    LOGI("Successfully enabled test mode.");
-    return ScopedAStatus::ok();
-  } else {
-    return ScopedAStatus::fromExceptionCode(EX_SERVICE_SPECIFIC);
-  }
-}
-
-ScopedAStatus ContextHub::disableTestMode() {
-  std::unique_lock<std::mutex> lock(mTestModeMutex);
-
-  bool success = false;
-  std::vector<int64_t> preloadedNanoappIds;
-  std::vector<std::string> preloadedNanoappNames;
-  std::vector<NanoAppBinaryHeader> preloadedNanoappHeaders;
-  std::string preloadedNanoappDirectory;
-  if (!mIsTestModeEnabled) {
-    success = true;
-  } else if (mConnection.isLoadTransactionPending()) {
-    /**
-     * There is already a pending load transaction. We cannot change the test
-     * mode state if there is a pending load transaction. We do not consider
-     * pending unload transactions as they can happen asynchronously and
-     * multiple at a time.
-     */
-    LOGE("There exists a pending load transaction. Cannot disable test mode.");
-  } else if (!getPreloadedNanoappIdsFromConfigFile(
-                 preloadedNanoappIds, &preloadedNanoappNames,
-                 &preloadedNanoappHeaders, &preloadedNanoappDirectory)) {
-    LOGE("Unable to get preloaded nanoapp IDs from the config file.");
-  } else {
-    std::vector<NanoappBinary> nanoappsToLoad = disableTestModeHelper(
-        preloadedNanoappIds, preloadedNanoappNames, preloadedNanoappHeaders,
-        preloadedNanoappDirectory);
-
-    if (!loadNanoappsInternal(kDefaultHubId, nanoappsToLoad)) {
-      LOGE("Unable to load all preloaded, non-system nanoapps.");
-    } else {
-      success = true;
-    }
-  }
-
-  if (success) {
-    mIsTestModeEnabled = false;
-    LOGI("Successfully disabled test mode.");
-    return ScopedAStatus::ok();
-  } else {
-    return ScopedAStatus::fromExceptionCode(EX_SERVICE_SPECIFIC);
-  }
+ScopedAStatus ContextHub::setTestMode(bool enable) {
+  return enable ? enableTestMode() : disableTestMode();
 }
 
 ScopedAStatus ContextHub::onHostEndpointConnected(
@@ -570,6 +473,107 @@ void ContextHub::debugDumpFinish() {
 void ContextHub::writeToDebugFile(const char *str) {
   if (!::android::base::WriteStringToFd(std::string(str), getDebugFd())) {
     LOGW("Failed to write %zu bytes to debug dump fd", strlen(str));
+  }
+}
+
+ScopedAStatus ContextHub::enableTestMode() {
+  std::unique_lock<std::mutex> lock(mTestModeMutex);
+
+  bool success = false;
+  std::vector<int64_t> loadedNanoappIds;
+  std::vector<int64_t> preloadedNanoappIds;
+  std::vector<int64_t> nanoappIdsToUnload;
+  if (mIsTestModeEnabled) {
+    success = true;
+  } else if (mConnection.isLoadTransactionPending()) {
+    /**
+     * There is already a pending load transaction. We cannot change the test
+     * mode state if there is a pending load transaction. We do not consider
+     * pending unload transactions as they can happen asynchronously and
+     * multiple at a time.
+     */
+    LOGE("There exists a pending load transaction. Cannot enable test mode.");
+  } else if (!queryNanoappsInternal(kDefaultHubId, &loadedNanoappIds)) {
+    LOGE("Could not query nanoapps to enable test mode.");
+  } else if (!getPreloadedNanoappIds(&preloadedNanoappIds).isOk()) {
+    LOGE("Unable to get preloaded nanoapp IDs from the config file.");
+  } else {
+    std::sort(loadedNanoappIds.begin(), loadedNanoappIds.end());
+    std::sort(preloadedNanoappIds.begin(), preloadedNanoappIds.end());
+
+    // Calculate the system nanoapp IDs. They are preloaded, but not loaded.
+    mSystemNanoappIds.clear();
+    std::set_difference(preloadedNanoappIds.begin(), preloadedNanoappIds.end(),
+                        loadedNanoappIds.begin(), loadedNanoappIds.end(),
+                        std::back_inserter(mSystemNanoappIds));
+
+    /*
+     * Unload all preloaded and loaded nanoapps (set intersection).
+     * Both vectors need to be sorted for std::set_intersection to work.
+     * We explicitly choose not to use std::set here to avoid the
+     * copying cost as well as the tree balancing cost for the
+     * red-black tree.
+     */
+    std::set_intersection(loadedNanoappIds.begin(), loadedNanoappIds.end(),
+                          preloadedNanoappIds.begin(),
+                          preloadedNanoappIds.end(),
+                          std::back_inserter(nanoappIdsToUnload));
+    if (!unloadNanoappsInternal(kDefaultHubId, nanoappIdsToUnload)) {
+      LOGE("Unable to unload all loaded and preloaded nanoapps.");
+    } else {
+      success = true;
+    }
+  }
+
+  if (success) {
+    mIsTestModeEnabled = true;
+    LOGI("Successfully enabled test mode.");
+    return ScopedAStatus::ok();
+  } else {
+    return ScopedAStatus::fromExceptionCode(EX_SERVICE_SPECIFIC);
+  }
+}
+
+ScopedAStatus ContextHub::disableTestMode() {
+  std::unique_lock<std::mutex> lock(mTestModeMutex);
+
+  bool success = false;
+  std::vector<int64_t> preloadedNanoappIds;
+  std::vector<std::string> preloadedNanoappNames;
+  std::vector<NanoAppBinaryHeader> preloadedNanoappHeaders;
+  std::string preloadedNanoappDirectory;
+  if (!mIsTestModeEnabled) {
+    success = true;
+  } else if (mConnection.isLoadTransactionPending()) {
+    /**
+     * There is already a pending load transaction. We cannot change the test
+     * mode state if there is a pending load transaction. We do not consider
+     * pending unload transactions as they can happen asynchronously and
+     * multiple at a time.
+     */
+    LOGE("There exists a pending load transaction. Cannot disable test mode.");
+  } else if (!getPreloadedNanoappIdsFromConfigFile(
+                 preloadedNanoappIds, &preloadedNanoappNames,
+                 &preloadedNanoappHeaders, &preloadedNanoappDirectory)) {
+    LOGE("Unable to get preloaded nanoapp IDs from the config file.");
+  } else {
+    std::vector<NanoappBinary> nanoappsToLoad = disableTestModeHelper(
+        preloadedNanoappIds, preloadedNanoappNames, preloadedNanoappHeaders,
+        preloadedNanoappDirectory);
+
+    if (!loadNanoappsInternal(kDefaultHubId, nanoappsToLoad)) {
+      LOGE("Unable to load all preloaded, non-system nanoapps.");
+    } else {
+      success = true;
+    }
+  }
+
+  if (success) {
+    mIsTestModeEnabled = false;
+    LOGI("Successfully disabled test mode.");
+    return ScopedAStatus::ok();
+  } else {
+    return ScopedAStatus::fromExceptionCode(EX_SERVICE_SPECIFIC);
   }
 }
 
