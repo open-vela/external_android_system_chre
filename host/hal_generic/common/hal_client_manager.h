@@ -18,9 +18,12 @@
 
 #include <aidl/android/hardware/contexthub/IContextHub.h>
 #include <aidl/android/hardware/contexthub/IContextHubCallback.h>
+#include <chre_host/fragmented_load_transaction.h>
+#include <chre_host/preloaded_nanoapp_loader.h>
 #include <sys/types.h>
 #include <cstddef>
 #include <unordered_map>
+#include <unordered_set>
 #include "chre_host/log.h"
 #include "hal_client_id.h"
 
@@ -35,8 +38,7 @@ namespace android::hardware::contexthub::common::implementation {
  * A HAL client is defined as a user calling the IContextHub API. The main
  * purpose of this class are:
  *   - to assign a unique HalClientId identifying each client;
- *   - to maintain a mapping between client ids and the IContextHubCallback
- * functions;
+ *   - to maintain a mapping between client ids and HalClientInfos;
  *   - to maintain a mapping between client ids and their endpoint ids.
  *
  * There are two types of ids HalClientManager will track, host endpoint id and
@@ -47,11 +49,11 @@ namespace android::hardware::contexthub::common::implementation {
  * ContextHubService. Multiple apps with different host endpoint IDs can have
  * the same client ID.
  *
- * A subclass extending this class should make itself a singleton and initialize
- * the mDeathRecipient.
- *
  * Note that HalClientManager is not responsible for generating endpoint ids,
  * which should be managed by HAL clients themselves.
+ *
+ * A subclass extending this class should make itself a singleton and initialize
+ * the mDeathRecipient to handle a HAL client's disconnection.
  *
  * TODO(b/247124878): Add functions related to endpoints mapping.
  */
@@ -96,6 +98,51 @@ class HalClientManager {
   bool registerCallback(const std::shared_ptr<IContextHubCallback> &callback);
 
   /**
+   * Registers a FragmentedLoadTransaction for the current HAL client.
+   *
+   * At this moment only one active transaction, either load or unload, is
+   * supported.
+   *
+   * @return true if success, otherwise false.
+   */
+  bool registerPendingLoadTransaction(
+      std::unique_ptr<chre::FragmentedLoadTransaction> transaction);
+
+  /**
+   * Gets the next FragmentedLoadRequest from PendingLoadTransaction if it's
+   * available.
+   *
+   * @param clientId the client id of the caller.
+   * @param transactionId unique id of the load transaction.
+   * @param currentFragmentId the fragment id that was previously sent out. Use
+   * std::nullopt to indicate no fragment was sent out before.
+   *
+   * TODO(b/247124878): It would be better to differentiate between
+   *   no-more-fragment and fail-to-get-fragment
+   * @return an optional FragmentedLoadRequest, std::nullopt if unavailable.
+   */
+
+  std::optional<chre::FragmentedLoadRequest> getNextFragmentedLoadRequest(
+      HalClientId clientId, uint32_t transactionId,
+      std::optional<size_t> currentFragmentId);
+
+  /**
+   * Registers the current HAL client as having a pending unload transaction.
+   *
+   * At this moment only one active transaction, either load or unload, is
+   * supported.
+   *
+   * @return true if success, otherwise false.
+   */
+  bool registerPendingUnloadTransaction();
+
+  /**
+   * Clears the PendingUnloadTransaction registered by clientId after the
+   * operation is finished.
+   */
+  void finishPendingUnloadTransaction(HalClientId clientId);
+
+  /**
    * Handles the client death event.
    *
    * @param pid of the client that loses the binder connection to the HAL.
@@ -103,34 +150,114 @@ class HalClientManager {
   void handleClientDeath(pid_t pid);
 
  protected:
-  HalClientManager() = default;
-  // next available client id
-  HalClientId mNextClientId = 1;
-  // The lock guarding the access to mPIdsToClientIds and mClientIdsToCallbacks
-  // below.
-  std::mutex mMapLock;
-  // The lock guarding the creation of client Ids
-  std::mutex mClientIdLock;
-  // Map from pids to client ids
-  std::unordered_map<pid_t, HalClientId> mPIdsToClientIds{};
-  // Map from client ids to callback functions
-  std::unordered_map<HalClientId, std::shared_ptr<IContextHubCallback>>
-      mClientIdsToCallbacks{};
-  ndk::ScopedAIBinder_DeathRecipient mDeathRecipient;
+  static constexpr int64_t kTransactionTimeoutThresholdMs = 5000;  // 5 seconds
 
-  /** Returns true if the clientId is being used. */
+  struct HalClientInfo {
+    std::shared_ptr<IContextHubCallback> callback;
+    std::unordered_set<uint32_t> activeEndpoints;
+  };
+
+  struct PendingTransaction {
+    PendingTransaction(HalClientId clientId, int64_t registeredTimeMs) {
+      this->clientId = clientId;
+      this->registeredTimeMs = registeredTimeMs;
+    }
+    HalClientId clientId;
+    int64_t registeredTimeMs;
+  };
+
+  /**
+   * PendingLoadTransaction tracks ongoing load transactions.
+   */
+  struct PendingLoadTransaction : public PendingTransaction {
+    PendingLoadTransaction(
+        HalClientId clientId, int64_t registeredTimeMs,
+        std::optional<size_t> currentFragmentId,
+        std::unique_ptr<chre::FragmentedLoadTransaction> transaction)
+        : PendingTransaction(clientId, registeredTimeMs) {
+      this->currentFragmentId = currentFragmentId;
+      this->transaction = std::move(transaction);
+    }
+
+    std::optional<size_t> currentFragmentId;  // the fragment id being sent out.
+    std::unique_ptr<chre::FragmentedLoadTransaction> transaction;
+
+    [[nodiscard]] std::string toString() const {
+      using android::internal::ToString;
+      return "[Load transaction: client id " + ToString(clientId) +
+             ", Transaction id " + ToString(transaction->getTransactionId()) +
+             ", fragment id " + ToString(currentFragmentId) + "]";
+    }
+  };
+
+  HalClientManager() = default;
+
+  /**
+   * Returns true if the load transaction is expected.
+   *
+   * mLock must be held when this function is called.
+   */
+  bool isPendingLoadTransactionExpected(
+      HalClientId clientId, uint32_t transactionId,
+      std::optional<size_t> currentFragmentId);
+
+  /**
+   * Checks if the transaction registration is allowed and clears out any stale
+   * pending transaction if possible.
+   *
+   * This function is called when registering a new transaction. The reason that
+   * we still proceed when there is already a pending transaction is because we
+   * don't want a stale one, for whatever reason, to block future transactions.
+   * However, every transaction is guaranteed to have up to
+   * kTransactionTimeoutThresholdMs to finish.
+   *
+   * mLock must be held when this function is called.
+   *
+   * @param clientId id of the client trying to register the transaction
+   * @return true if registration is allowed, otherwise false.
+   */
+  bool isNewTransactionAllowed(HalClientId clientId);
+
+  /**
+   * Returns true if the clientId is being used.
+   *
+   * mLock must be held when this function is called.
+   */
   inline bool isAllocatedClientId(HalClientId clientId) {
-    return mClientIdsToCallbacks.find(clientId) !=
-               mClientIdsToCallbacks.end() ||
+    return mClientIdsToClientInfo.find(clientId) !=
+               mClientIdsToClientInfo.end() ||
            clientId == kDefaultHalClientId || clientId == kHalId;
   }
 
-  /** Returns true if the pid is being used to identify a client. */
+  /**
+   * Returns true if the pid is being used to identify a client.
+   *
+   * mLock must be held when this function is called.
+   */
   inline bool isKnownPId(pid_t pid) {
     return mPIdsToClientIds.find(pid) != mPIdsToClientIds.end();
   }
-};
 
+  // next available client id
+  HalClientId mNextClientId = 1;
+
+  // The lock guarding the access to clients' states and pending transactions.
+  std::mutex mLock;
+  // The lock guarding the creation of client Ids
+  std::mutex mClientIdLock;
+
+  // Map from pids to client ids
+  std::unordered_map<pid_t, HalClientId> mPIdsToClientIds{};
+  // Map from client ids to ClientInfos
+  std::unordered_map<HalClientId, HalClientInfo> mClientIdsToClientInfo{};
+
+  // States tracking pending transactions
+  std::optional<PendingLoadTransaction> mPendingLoadTransaction = std::nullopt;
+  std::optional<PendingTransaction> mPendingUnloadTransaction = std::nullopt;
+
+  // Death recipient handling clients' disconnections
+  ndk::ScopedAIBinder_DeathRecipient mDeathRecipient;
+};
 }  // namespace android::hardware::contexthub::common::implementation
 
 #endif  // ANDROID_HARDWARE_CONTEXTHUB_COMMON_HAL_CLIENT_MANAGER_H_
