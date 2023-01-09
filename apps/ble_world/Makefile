@@ -31,10 +31,12 @@ COMMON_CFLAGS += -I$(CHRE_PREFIX)/util/include
 # Defines
 COMMON_CFLAGS += -DLOG_TAG=\"[BleWorld]\"
 COMMON_CFLAGS += -DNANOAPP_MINIMUM_LOG_LEVEL=CHRE_LOG_LEVEL_DEBUG
+COMMON_CFLAGS += -DCHRE_ASSERTIONS_ENABLED
 
 # Common Source Files ##########################################################
 
 COMMON_SRCS += ble_world.cc
+COMMON_SRCS += $(CHRE_PREFIX)/util/nanoapp/ble.cc
 
 # Permission declarations ######################################################
 

@@ -20,6 +20,7 @@
 #include "chre/platform/fatal_error.h"
 #include "chre/platform/log.h"
 #include "chre/util/nested_data_ptr.h"
+#include "chre/util/system/event_callbacks.h"
 
 namespace chre {
 
@@ -459,8 +460,8 @@ void BleRequestManager::logStateToBuffer(DebugDumpWrapper &debugDump) const {
     if (log.enable && log.compliesWithBleSetting) {
       debugDump.print(" mode=%" PRIu8 " reportDelayMs=%" PRIu32
                       " rssiThreshold=%" PRId8 " scanCount=%" PRIu8 "\n",
-                      log.mode, log.reportDelayMs, log.rssiThreshold,
-                      log.scanFilterCount);
+                      static_cast<uint8_t>(log.mode), log.reportDelayMs,
+                      log.rssiThreshold, log.scanFilterCount);
     } else if (log.enable) {
       debugDump.print(" request did not comply with BLE setting\n");
     }
