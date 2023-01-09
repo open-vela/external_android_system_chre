@@ -163,7 +163,6 @@ GOOGLE_X86_LINUX_CFLAGS += $(DSO_SUPPORT_LIB_CFLAGS)
 # Makefile Includes ############################################################
 
 # Standard library overrides include
-CHRE_STD_OVERRIDES_ALLOWED ?= true
 include $(CHRE_PREFIX)/std_overrides/std_overrides.mk
 
 # Common includes
@@ -180,7 +179,6 @@ include $(CHRE_PREFIX)/chre_api/chre_api_version.mk
 ifneq ($(CHRE_TARGET_EXTENSION),)
 include $(CHRE_TARGET_EXTENSION)
 endif
-include $(CHRE_PREFIX)/build/variant/aosp_cm4_exynos-embos.mk
 include $(CHRE_PREFIX)/build/variant/google_arm64_android.mk
 include $(CHRE_PREFIX)/build/variant/google_hexagonv62_slpi.mk
 include $(CHRE_PREFIX)/build/variant/google_hexagonv62_slpi-uimg.mk

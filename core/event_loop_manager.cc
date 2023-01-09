@@ -22,6 +22,10 @@
 
 namespace chre {
 
+void freeEventDataCallback(uint16_t /*eventType*/, void *eventData) {
+  memoryFree(eventData);
+}
+
 Nanoapp *EventLoopManager::validateChreApiCall(const char *functionName) {
   chre::Nanoapp *currentNanoapp =
       EventLoopManagerSingleton::get()->getEventLoop().getCurrentNanoapp();

@@ -29,15 +29,13 @@ COMMON_SRCS += \
   $(addprefix $(NANOAPP_SRC_PATH)/shared/, $(SHARED_LIB_FILES))
 
 # Add util srcs since they may be included by the tests
-COMMON_SRCS += $(CHRE_PREFIX)/util/nanoapp/ble.cc
 COMMON_SRCS += $(CHRE_PREFIX)/util/buffer_base.cc
 COMMON_SRCS += $(CHRE_PREFIX)/util/dynamic_vector_base.cc
 
 COMMON_CFLAGS += -DCHRE_NO_ENDIAN_H \
   -D__LITTLE_ENDIAN=1 \
   -D__BYTE_ORDER=1 \
-  -D__BIG_ENDIAN=2 \
-  -DCHRE_ASSERTIONS_ENABLED
+  -D__BIG_ENDIAN=2
 
 COMMON_CFLAGS += -I$(NANOAPP_SRC_PATH)
 COMMON_CFLAGS += -I$(CHRE_PREFIX)/util/include
@@ -50,7 +48,5 @@ CHRE_NANOAPP_USES_AUDIO = true
 CHRE_NANOAPP_USES_GNSS = true
 CHRE_NANOAPP_USES_WIFI = true
 CHRE_NANOAPP_USES_WWAN = true
-CHRE_NANOAPP_USES_BLE = true
-
 
 include $(CHRE_PREFIX)/build/nanoapp/app.mk
