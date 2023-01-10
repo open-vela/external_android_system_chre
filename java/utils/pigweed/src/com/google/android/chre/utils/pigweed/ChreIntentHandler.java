@@ -56,16 +56,16 @@ public class ChreIntentHandler {
                 // Nothing to do.
                 break;
             case ContextHubManager.EVENT_NANOAPP_UNLOADED:
-                // TODO(b/210138227): Close all outstanding RPCs.
+                rpcClient.closeChannel(channelOutput.getChannelId());
                 break;
             case ContextHubManager.EVENT_NANOAPP_ENABLED:
                 // Nothing to do.
                 break;
             case ContextHubManager.EVENT_NANOAPP_DISABLED:
-                // TODO(b/210138227): Close all outstanding RPCs.
+                rpcClient.closeChannel(channelOutput.getChannelId());
                 break;
             case ContextHubManager.EVENT_NANOAPP_ABORTED:
-                // TODO(b/210138227): Close all outstanding RPCs.
+                rpcClient.closeChannel(channelOutput.getChannelId());
                 break;
             case ContextHubManager.EVENT_NANOAPP_MESSAGE:
                 if (event.getNanoAppId() == nanoappId) {
@@ -73,13 +73,13 @@ public class ChreIntentHandler {
                 }
                 break;
             case ContextHubManager.EVENT_HUB_RESET:
-                // TODO(b/210138227): Close all outstanding RPCs.
+                rpcClient.closeChannel(channelOutput.getChannelId());
                 break;
             case ContextHubManager.EVENT_CLIENT_AUTHORIZATION:
                 if (event.getNanoAppId() == nanoappId) {
                     if (event.getClientAuthorizationState() == AUTHORIZATION_DENIED) {
                         channelOutput.setAuthDenied(true /* denied */);
-                        // TODO(b/210138227): Close all outstanding RPCs.
+                        rpcClient.closeChannel(channelOutput.getChannelId());
                     } else if (event.getClientAuthorizationState() == AUTHORIZATION_GRANTED) {
                         channelOutput.setAuthDenied(false /* denied */);
                     }

@@ -26,6 +26,7 @@
 #include "chre/platform/linux/task_util/task.h"
 #include "chre/util/non_copyable.h"
 #include "chre/util/priority_queue.h"
+#include "chre/util/singleton.h"
 
 namespace chre {
 
@@ -123,6 +124,9 @@ class TaskManager : public NonCopyable {
    */
   std::condition_variable mConditionVariable;
 };
+
+// Provide an alias to the TaskManager singleton.
+typedef Singleton<TaskManager> TaskManagerSingleton;
 
 }  // namespace chre
 

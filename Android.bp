@@ -45,6 +45,45 @@ license {
 }
 
 cc_library_static {
+    name: "contexthub_generic_aidl_hal_core_lib",
+    vendor_available: true,
+    export_include_dirs: [
+        "host/common/include",
+    ],
+    srcs: [
+        "host/common/preloaded_nanoapp_loader.cc",
+        "host/common/time_syncer.cc",
+        "host/common/config_util.cc",
+        "host/common/log_message_parser.cc",
+        "host/hal_generic/common/permissions_util.cc",
+        "host/hal_generic/common/hal_client_manager.cc",
+    ],
+    local_include_dirs: [
+        "external/flatbuffers/include",
+        "host/hal_generic/common",
+        "platform/shared/include",
+        "util/include",
+    ],
+    shared_libs: [
+        "android.hardware.contexthub-V2-ndk",
+        "libbinder_ndk",
+        "libcutils",
+        "liblog",
+        "libutils",
+        "libjsoncpp",
+    ],
+    static_libs: [
+        "pw_varint",
+        "pw_detokenizer",
+    ],
+    header_libs: [
+        "pw_span_headers",
+        "pw_polyfill_headers",
+    ],
+    cflags: ["-Wall", "-Werror"]
+}
+
+cc_library_static {
     name: "chre_client",
     vendor_available: true,
     export_include_dirs: [
