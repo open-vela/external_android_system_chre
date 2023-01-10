@@ -76,12 +76,14 @@ bool populateNanoappInfo(const Nanoapp *app, struct chreNanoappInfo *info) {
   return success;
 }
 
+#ifndef CHRE_STATIC_EVENT_LOOP
 /**
  * @return true if a event is a low priority event.
  */
 bool isLowPriority(Event *event) {
   return event->isLowPriority;
 }
+#endif
 
 }  // anonymous namespace
 
