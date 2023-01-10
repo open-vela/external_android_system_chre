@@ -344,13 +344,13 @@ void NanoappLoader::registerAtexitFunction(void (*function)(void)) {
 void NanoappLoader::mapBss(const ProgramHeader *hdr) {
   // if the memory size of this segment exceeds the file size zero fill the
   // difference.
-  LOGV("Program Hdr mem sz: %zu file size: %zu", hdr->p_memsz, hdr->p_filesz);
+  LOGV("Program Hdr mem sz: %u file size: %u", hdr->p_memsz, hdr->p_filesz);
   if (hdr->p_memsz > hdr->p_filesz) {
     ElfAddr endOfFile = hdr->p_vaddr + hdr->p_filesz + mLoadBias;
     ElfAddr endOfMem = hdr->p_vaddr + hdr->p_memsz + mLoadBias;
     if (endOfMem > endOfFile) {
       auto deltaMem = endOfMem - endOfFile;
-      LOGV("Zeroing out %zu from page %x", deltaMem, endOfFile);
+      LOGV("Zeroing out %u from page %x", deltaMem, endOfFile);
       memset(reinterpret_cast<void *>(endOfFile), 0, deltaMem);
     }
   }
@@ -369,12 +369,12 @@ bool NanoappLoader::callInitArray() {
     const char *name = getSectionHeaderName(mSectionHeadersPtr[i].sh_name);
     if (strncmp(name, kInitArrayName, strlen(kInitArrayName)) == 0) {
       LOGV("Invoking init function");
-      uintptr_t initArray = reinterpret_cast<uintptr_t>(
-          mLoadBias + mSectionHeadersPtr[i].sh_addr);
+      uintptr_t initArray =
+          static_cast<uintptr_t>(mLoadBias + mSectionHeadersPtr[i].sh_addr);
       uintptr_t offset = 0;
       while (offset < mSectionHeadersPtr[i].sh_size) {
         ElfAddr *funcPtr = reinterpret_cast<ElfAddr *>(initArray + offset);
-        uintptr_t initFunction = reinterpret_cast<uintptr_t>(*funcPtr);
+        uintptr_t initFunction = static_cast<uintptr_t>(*funcPtr);
         ((void (*)())initFunction)();
         offset += sizeof(initFunction);
         if (gStaticInitFailure) {
@@ -674,7 +674,7 @@ bool NanoappLoader::createMappings() {
 
       size_t alignment = first->p_align;
       size_t memorySpan = last->p_vaddr + last->p_memsz - first->p_vaddr;
-      LOGV("Nanoapp image Memory Span: %u", memorySpan);
+      LOGV("Nanoapp image Memory Span: %zu", memorySpan);
 
       if (mIsTcmBinary) {
         mMapping =
@@ -864,7 +864,7 @@ bool NanoappLoader::fixRelocations() {
           size_t posInSymbolTable = ELFW_R_SYM(curr->r_info);
           void *resolved = resolveData(posInSymbolTable);
           if (resolved == nullptr) {
-            LOGV("Failed to resolve global symbol(%d) at offset 0x%lx", i,
+            LOGV("Failed to resolve global symbol(%zu) at offset 0x%lx", i,
                  static_cast<long unsigned int>(curr->r_offset));
             resolvedAllSymbols = false;
           }
@@ -914,7 +914,7 @@ bool NanoappLoader::resolveGot() {
         size_t posInSymbolTable = ELFW_R_SYM(curr->r_info);
         void *resolved = resolveData(posInSymbolTable);
         if (resolved == nullptr) {
-          LOGV("Failed to resolve symbol(%d) at offset 0x%x", i,
+          LOGV("Failed to resolve symbol(%zu) at offset 0x%x", i,
                curr->r_offset);
           return false;
         }
@@ -943,12 +943,12 @@ void NanoappLoader::callTerminatorArray() {
   for (size_t i = 0; i < mNumSectionHeaders; ++i) {
     const char *name = getSectionHeaderName(mSectionHeadersPtr[i].sh_name);
     if (strncmp(name, kFiniArrayName, strlen(kFiniArrayName)) == 0) {
-      uintptr_t finiArray = reinterpret_cast<uintptr_t>(
-          mLoadBias + mSectionHeadersPtr[i].sh_addr);
+      uintptr_t finiArray =
+          static_cast<uintptr_t>(mLoadBias + mSectionHeadersPtr[i].sh_addr);
       uintptr_t offset = 0;
       while (offset < mSectionHeadersPtr[i].sh_size) {
         ElfAddr *funcPtr = reinterpret_cast<ElfAddr *>(finiArray + offset);
-        uintptr_t finiFunction = reinterpret_cast<uintptr_t>(*funcPtr);
+        uintptr_t finiFunction = static_cast<uintptr_t>(*funcPtr);
         ((void (*)())finiFunction)();
         offset += sizeof(finiFunction);
       }
