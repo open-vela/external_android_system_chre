@@ -59,7 +59,8 @@ bool gBleEnabled = false;
 bool enableBleScans() {
   struct chreBleScanFilter filter;
   chreBleGenericFilter genericFilters[kNumScanFilters];
-  createBleScanFilterForKnownBeacons(filter, genericFilters, kNumScanFilters);
+  chre::createBleScanFilterForKnownBeacons(filter, genericFilters,
+                                           kNumScanFilters);
   return chreBleStartScanAsync(CHRE_BLE_SCAN_MODE_BACKGROUND,
                                gBleBatchDurationMs, &filter);
 }
