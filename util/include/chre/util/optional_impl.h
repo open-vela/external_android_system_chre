@@ -154,12 +154,12 @@ const ObjectType &Optional<ObjectType>::object() const {
 
 template <typename ObjectType>
 ObjectType *Optional<ObjectType>::objectAddr() {
-  return std::launder(reinterpret_cast<ObjectType *>(&mObject));
+  return reinterpret_cast<ObjectType *>(&mObject);
 }
 
 template <typename ObjectType>
 const ObjectType *Optional<ObjectType>::objectAddr() const {
-  return std::launder(reinterpret_cast<const ObjectType *>(&mObject));
+  return reinterpret_cast<const ObjectType *>(&mObject);
 }
 
 }  // namespace chre
