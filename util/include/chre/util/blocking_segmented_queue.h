@@ -34,6 +34,9 @@ class BlockingSegmentedQueue
     : public blocking_queue_internal::BlockingQueueCore<
           ElementType, SegmentedQueue<ElementType, kBlockSize>> {
   using Container = ::chre::SegmentedQueue<ElementType, kBlockSize>;
+  using BlockingQueue =
+      ::chre::blocking_queue_internal::BlockingQueueCore<ElementType,
+                                                         Container>;
 
  public:
   typedef ElementType value_type;
@@ -46,13 +49,20 @@ class BlockingSegmentedQueue
    * constructor and will only be removed by destructor.
    */
   BlockingSegmentedQueue(size_t maxBlockCount, size_t staticBlockCount = 1)
-      : blocking_queue_internal::BlockingQueueCore<ElementType, Container>(
-            maxBlockCount, staticBlockCount) {}
+      : BlockingQueue(maxBlockCount, staticBlockCount) {}
   /**
    * @return size_t the number of block that the queue is holding.
    */
   size_t block_count() {
     return Container::block_count();
+  }
+
+  size_t removeMatchedPointerFromBack(
+      typename Container::MatchingFunction *matchFunc,
+      size_t maxNumOfElementsRemoved, ElementType removedElements[]) {
+    LockGuard<Mutex> lock(BlockingQueue::mMutex);
+    return Container::removeMatchedPointerFromBack(
+        matchFunc, maxNumOfElementsRemoved, removedElements);
   }
 };
 }  // namespace chre

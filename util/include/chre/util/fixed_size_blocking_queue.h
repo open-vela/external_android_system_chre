@@ -91,11 +91,12 @@ class BlockingQueueCore : public QueueStorageType {
   ElementType &operator[](size_t index);
   const ElementType &operator[](size_t index) const;
 
- private:
+ protected:
   //! The mutex used to ensure thread-safety. Mutable to allow const
   //! operator[].
   mutable Mutex mMutex;
 
+ private:
   //! The condition variable used to implement the blocking behavior of the
   //! queue.
   ConditionVariable mConditionVariable;
