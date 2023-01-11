@@ -553,7 +553,6 @@ static void chppWifiRequestRangingResult(
   struct ChppAppHeader *rxHeader = (struct ChppAppHeader *)buf;
 
   if (rxHeader->error != CHPP_APP_ERROR_NONE) {
-    CHPP_LOGE("Ranging failed at service" PRIu8);
     gCallbacks->rangingEventCallback(chppAppErrorToChreError(rxHeader->error),
                                      NULL);
 
