@@ -16,7 +16,6 @@
 
 #include "chre/core/event_loop.h"
 #include <cinttypes>
-#include <cstdint>
 
 #include "chre/core/event.h"
 #include "chre/core/event_loop_manager.h"
@@ -29,7 +28,6 @@
 #include "chre/util/conditional_lock_guard.h"
 #include "chre/util/lock_guard.h"
 #include "chre/util/system/debug_dump.h"
-#include "chre/util/system/event_callbacks.h"
 #include "chre/util/system/stats_container.h"
 #include "chre/util/time.h"
 #include "chre_api/chre/version.h"
@@ -40,11 +38,6 @@ namespace chre {
 constexpr Nanoseconds EventLoop::kIntervalWakeupBucket;
 
 namespace {
-
-// TODO(b/264108686): Make this a compile time parameter.
-// How many low priority event to remove if the event queue is full
-// and a new event needs to be pushed.
-constexpr size_t targetLowPriorityEventRemove = 4;
 
 /**
  * Populates a chreNanoappInfo structure using info from the given Nanoapp
@@ -63,27 +56,11 @@ bool populateNanoappInfo(const Nanoapp *app, struct chreNanoappInfo *info) {
     info->appId = app->getAppId();
     info->version = app->getAppVersion();
     info->instanceId = app->getInstanceId();
-    if (app->getTargetApiVersion() >= CHRE_API_VERSION_1_8) {
-      CHRE_ASSERT(app->getRpcServices().size() <= Nanoapp::kMaxRpcServices);
-      info->rpcServiceCount =
-          static_cast<uint8_t>(app->getRpcServices().size());
-      info->rpcServices = app->getRpcServices().data();
-      memset(&info->reserved, 0, sizeof(info->reserved));
-    }
     success = true;
   }
 
   return success;
 }
-
-#ifndef CHRE_STATIC_EVENT_LOOP
-/**
- * @return true if a event is a low priority event.
- */
-bool isLowPriority(Event *event) {
-  return event->isLowPriority;
-}
-#endif
 
 }  // anonymous namespace
 
@@ -261,45 +238,14 @@ bool EventLoop::unloadNanoapp(uint16_t instanceId,
   return unloaded;
 }
 
-bool EventLoop::removeLowPriorityEventsFromBack(size_t removeNum) {
-#ifdef CHRE_STATIC_EVENT_LOOP
-  return false;
-#else
-  if (removeNum == 0) {
-    return true;
-  }
-  Event *lowPriorityEventPointers[removeNum];
-  memset(lowPriorityEventPointers, 0, removeNum * sizeof(Event *));
-
-  size_t numRemovedEvent = mEvents.removeMatchedPointerFromBack(
-      isLowPriority, removeNum, lowPriorityEventPointers);
-  if (numRemovedEvent > 0) {
-    for (auto *lowPriorityEvent : lowPriorityEventPointers) {
-      mEventPool.deallocate(lowPriorityEvent);
-    }
-    mNumDroppedLowPriEvents += numRemovedEvent;
-  } else {
-    LOGW("Cannot remove any low priority event");
-  }
-  return numRemovedEvent > 0;
-#endif
-}
-
-bool EventLoop::hasNoSpaceForHighPriorityEvent() {
-  return mEventPool.full() &&
-         !removeLowPriorityEventsFromBack(targetLowPriorityEventRemove);
-}
-
-// TODO(b/264108686): Refactor this function and postSystemEvent
 void EventLoop::postEventOrDie(uint16_t eventType, void *eventData,
                                chreEventCompleteFunction *freeCallback,
                                uint16_t targetInstanceId,
                                uint16_t targetGroupMask) {
   if (mRunning) {
-    if (hasNoSpaceForHighPriorityEvent() ||
-        !allocateAndPostEvent(eventType, eventData, freeCallback,
-                              false /*isLowPriority*/, kSystemInstanceId,
-                              targetInstanceId, targetGroupMask)) {
+    if (!allocateAndPostEvent(eventType, eventData, freeCallback,
+                              kSystemInstanceId, targetInstanceId,
+                              targetGroupMask)) {
       FATAL_ERROR("Failed to post critical system event 0x%" PRIx16, eventType);
     }
   } else if (freeCallback != nullptr) {
@@ -310,25 +256,16 @@ void EventLoop::postEventOrDie(uint16_t eventType, void *eventData,
 bool EventLoop::postSystemEvent(uint16_t eventType, void *eventData,
                                 SystemEventCallbackFunction *callback,
                                 void *extraData) {
-  if (!mRunning) {
-    return false;
-  }
+  if (mRunning) {
+    Event *event =
+        mEventPool.allocate(eventType, eventData, callback, extraData);
 
-  if (hasNoSpaceForHighPriorityEvent()) {
-    FATAL_ERROR("Failed to post critical system event 0x%" PRIx16
-                ": Full of high priority "
-                "events",
-                eventType);
+    if (event == nullptr || !mEvents.push(event)) {
+      FATAL_ERROR("Failed to post critical system event 0x%" PRIx16, eventType);
+    }
+    return true;
   }
-
-  Event *event = mEventPool.allocate(eventType, eventData, callback, extraData);
-  if (event == nullptr || !mEvents.push(event)) {
-    FATAL_ERROR("Failed to post critical system event 0x%" PRIx16
-                ": out of memory",
-                eventType);
-  }
-
-  return true;
+  return false;
 }
 
 bool EventLoop::postLowPriorityEventOrFree(
@@ -338,15 +275,10 @@ bool EventLoop::postLowPriorityEventOrFree(
   bool eventPosted = false;
 
   if (mRunning) {
-#if CHRE_STATIC_EVENT_LOOP
-    if (mEventPool.getFreeBlockCount() > kMinReservedHighPriorityEventCount)
-#else
-    if (mEventPool.getFreeSpaceCount() > kMinReservedHighPriorityEventCount)
-#endif
-    {
-      eventPosted = allocateAndPostEvent(
-          eventType, eventData, freeCallback, true /*isLowPriority*/,
-          senderInstanceId, targetInstanceId, targetGroupMask);
+    if (mEventPool.getFreeBlockCount() > kMinReservedHighPriorityEventCount) {
+      eventPosted = allocateAndPostEvent(eventType, eventData, freeCallback,
+                                         senderInstanceId, targetInstanceId,
+                                         targetGroupMask);
       if (!eventPosted) {
         LOGE("Failed to allocate event 0x%" PRIx16 " to instanceId %" PRIu16,
              eventType, targetInstanceId);
@@ -427,15 +359,14 @@ void EventLoop::logStateToBuffer(DebugDumpWrapper &debugDump) const {
 
 bool EventLoop::allocateAndPostEvent(uint16_t eventType, void *eventData,
                                      chreEventCompleteFunction *freeCallback,
-                                     bool isLowPriority,
                                      uint16_t senderInstanceId,
                                      uint16_t targetInstanceId,
                                      uint16_t targetGroupMask) {
   bool success = false;
 
   Event *event =
-      mEventPool.allocate(eventType, eventData, freeCallback, isLowPriority,
-                          senderInstanceId, targetInstanceId, targetGroupMask);
+      mEventPool.allocate(eventType, eventData, freeCallback, senderInstanceId,
+                          targetInstanceId, targetGroupMask);
   if (event != nullptr) {
     success = mEvents.push(event);
   }
