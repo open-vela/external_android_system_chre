@@ -38,6 +38,10 @@ namespace {
 constexpr uint32_t kTestResultMessageType =
     chre_audio_concurrency_test_MessageType_TEST_RESULT;
 
+//! The maximum number of samples that can be missed before triggering a suspend
+//! event.
+constexpr uint32_t kMaxMissedSamples = 10;
+
 bool isTestSupported() {
   // CHRE audio was supported in CHRE v1.2
   return chreGetVersion() >= CHRE_API_VERSION_1_2;
@@ -149,7 +153,8 @@ void Manager::handleDataFromChre(uint16_t eventType, const void *eventData) {
       break;
 
     case CHRE_EVENT_AUDIO_SAMPLING_CHANGE:
-      /* ignore */
+      handleAudioSourceStatusEvent(
+          static_cast<const chreAudioSourceStatusEvent *>(eventData));
       break;
 
     default:
@@ -206,7 +211,28 @@ bool Manager::validateAudioDataEvent(const chreAudioDataEvent *data) {
   bool timestampValid = data->timestamp > lastTimestamp;
   lastTimestamp = data->timestamp;
 
-  return dataValid && timestampValid;
+  // Verify the gap was properly announced.
+  bool gapValidationValid = true;
+  double sampleTimeInNs =
+      kOneSecondInNanoseconds / static_cast<double>(data->sampleRate);
+  if (mLastAudioBufferEndTimestampNs.has_value() &&
+      data->timestamp > *mLastAudioBufferEndTimestampNs) {
+    uint64_t gapNs = data->timestamp - *mLastAudioBufferEndTimestampNs;
+    if (gapNs > kMaxMissedSamples * sampleTimeInNs && !mSawSuspendAudioEvent) {
+      LOGE(
+          "Audio was suspended, but we did not receive a "
+          "CHRE_EVENT_AUDIO_SAMPLING_CHANGE event with "
+          "suspended set correctly. gap = %" PRIu64 " ns",
+          gapNs);
+      gapValidationValid = false;
+    }
+  }
+
+  // Record last audio timestamp at end of buffer
+  mLastAudioBufferEndTimestampNs =
+      data->timestamp + data->sampleCount * sampleTimeInNs;
+
+  return dataValid && timestampValid && gapValidationValid;
 }
 
 void Manager::handleAudioDataEvent(const chreAudioDataEvent *data) {
@@ -242,6 +268,21 @@ void Manager::handleAudioDataEvent(const chreAudioDataEvent *data) {
                static_cast<uint8_t>(mTestSession->step));
           break;
       }
+    }
+  }
+}
+
+void Manager::handleAudioSourceStatusEvent(
+    const chreAudioSourceStatusEvent *data) {
+  if (mTestSession.has_value()) {
+    if (data == nullptr) {
+      LOGE("Invalid data (data == nullptr)");
+      sendTestResultToHost(mTestSession->hostEndpointId, kTestResultMessageType,
+                           false /* success */);
+      mTestSession.reset();
+    } else if (data->handle == kAudioHandle &&
+               mTestSession->step == TestStep::VERIFY_AUDIO_RESUME) {
+      mSawSuspendAudioEvent = data->status.suspended;
     }
   }
 }

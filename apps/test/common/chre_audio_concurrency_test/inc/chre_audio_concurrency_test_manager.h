@@ -114,6 +114,11 @@ class Manager {
    */
   void handleAudioDataEvent(const chreAudioDataEvent *data);
 
+  /**
+   * @param data The audio status data.
+   */
+  void handleAudioSourceStatusEvent(const chreAudioSourceStatusEvent *data);
+
   // Use the first audio source available for this test.
   static constexpr uint32_t kAudioHandle = 0;
 
@@ -128,6 +133,12 @@ class Manager {
 
   //! True if CHRE audio is enabled for this nanoapp.
   bool mAudioEnabled = false;
+
+  // The last timestamp seen at the end of the last audio buffer.
+  Optional<uint64_t> mLastAudioBufferEndTimestampNs;
+
+  // True if there is a gap between the audio buffers.
+  bool mSawSuspendAudioEvent = false;
 };
 
 // The audio concurrency test manager singleton.
