@@ -17,10 +17,10 @@
 #ifndef CHRE_CHANNEL_OUTPUT_H_
 #define CHRE_CHANNEL_OUTPUT_H_
 
-#include <chre.h>
 #include <cstdint>
 
 #include "chre/util/pigweed/permission.h"
+#include "chre_api/chre.h"
 #include "pw_rpc/channel.h"
 #include "pw_span/span.h"
 

@@ -15,7 +15,6 @@
 
 #include "chre_cross_validator_wifi_manager.h"
 
-#include <chre.h>
 #include <stdio.h>
 #include <algorithm>
 #include <cinttypes>
@@ -25,6 +24,7 @@
 #include "chre/util/nanoapp/callbacks.h"
 #include "chre/util/nanoapp/log.h"
 #include "chre/util/nanoapp/wifi.h"
+#include "chre_api/chre.h"
 #include "chre_cross_validation_wifi.nanopb.h"
 #include "chre_test_common.nanopb.h"
 #include "send_message.h"
