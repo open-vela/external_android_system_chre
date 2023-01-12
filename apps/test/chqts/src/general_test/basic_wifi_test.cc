@@ -20,7 +20,6 @@
 #include <cinttypes>
 #include <cmath>
 
-#include <chre.h>
 #include <shared/macros.h>
 #include <shared/send_message.h>
 #include <shared/time_util.h>
@@ -28,6 +27,7 @@
 #include "chre/util/nanoapp/log.h"
 #include "chre/util/time.h"
 #include "chre/util/unique_ptr.h"
+#include "chre_api/chre.h"
 
 using nanoapp_testing::sendFatalFailureToHost;
 using nanoapp_testing::sendFatalFailureToHostUint8;

@@ -20,12 +20,12 @@
 #include <cinttypes>
 #include <cstdint>
 
-#include <chre.h>
 #include <pb_common.h>
 #include <pb_decode.h>
 #include <pb_encode.h>
 
 #include "chre/util/singleton.h"
+#include "chre_api/chre.h"
 
 #include "chre_cross_validation_wifi.nanopb.h"
 #include "chre_test_common.nanopb.h"

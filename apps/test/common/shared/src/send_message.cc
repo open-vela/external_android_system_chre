@@ -16,14 +16,13 @@
 
 #include "send_message.h"
 
-#include <chre.h>
 #include <pb_encode.h>
 #include <cinttypes>
 
-#include "chre_test_common.nanopb.h"
-
 #include "chre/util/nanoapp/callbacks.h"
 #include "chre/util/nanoapp/log.h"
+#include "chre_api/chre.h"
+#include "chre_test_common.nanopb.h"
 
 #ifndef LOG_TAG
 #define LOG_TAG "[TestShared]"

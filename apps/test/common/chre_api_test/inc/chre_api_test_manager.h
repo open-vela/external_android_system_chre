@@ -17,13 +17,13 @@
 #ifndef CHRE_API_TEST_MANAGER_H_
 #define CHRE_API_TEST_MANAGER_H_
 
-#include <chre.h>
 #include <cinttypes>
 #include <cstdint>
 
 #include "chre/re.h"
 #include "chre/util/pigweed/rpc_server.h"
 #include "chre/util/singleton.h"
+#include "chre_api/chre.h"
 #include "rpc/chre_api_test.rpc.pb.h"
 
 class ChreApiTestService final

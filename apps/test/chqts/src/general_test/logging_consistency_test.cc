@@ -21,11 +21,11 @@
 
 #include <shared/send_message.h>
 
-#include <chre.h>
 #include <chre/util/nanoapp/log.h>
 
 #include "chre/util/macros.h"
 #include "chre/util/toolchain.h"
+#include "chre_api/chre.h"
 
 #define LOG_TAG "[LoggingConsistencyTest]"
 

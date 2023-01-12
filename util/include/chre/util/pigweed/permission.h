@@ -17,13 +17,13 @@
 #ifndef CHRE_UTIL_PIGWEED_PERMISSION_H_
 #define CHRE_UTIL_PIGWEED_PERMISSION_H_
 
-#include <chre.h>
 #include <cstdint>
 #include <optional>
 
 #include "chre/util/nanoapp/assert.h"
 #include "chre/util/non_copyable.h"
 #include "chre/util/optional.h"
+#include "chre_api/chre.h"
 
 namespace chre {
 

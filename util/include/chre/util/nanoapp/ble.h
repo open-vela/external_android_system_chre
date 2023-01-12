@@ -17,8 +17,9 @@
 #ifndef CHRE_UTIL_NANOAPP_BLE_H_
 #define CHRE_UTIL_NANOAPP_BLE_H_
 
-#include <chre.h>
 #include <inttypes.h>
+
+#include "chre_api/chre.h"
 
 namespace chre {
 
