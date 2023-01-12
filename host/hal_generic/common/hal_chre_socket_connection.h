@@ -103,6 +103,8 @@ class HalChreSocketConnection {
                         uint16_t hostEndpointId, const unsigned char *payload,
                         size_t payloadLength);
 
+  bool sendDebugConfiguration();
+
   bool loadNanoapp(chre::FragmentedLoadTransaction &transaction);
 
   bool unloadNanoapp(uint64_t appId, uint32_t transactionId);
@@ -119,6 +121,15 @@ class HalChreSocketConnection {
                                const std::string &attribution_tag);
 
   bool onHostEndpointDisconnected(uint16_t hostEndpointId);
+
+  /**
+   * Returns true if there exists a pending load transaction; false otherwise.
+   *
+   * @return true                     there exists a pending load transaction.
+   * @return false                    there does not exist a pending load
+   * transaction.
+   */
+  bool isLoadTransactionPending();
 
  private:
   class SocketCallbacks : public ::android::chre::SocketClient::ICallbacks,
