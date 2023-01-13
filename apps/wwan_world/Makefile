@@ -16,7 +16,6 @@ NANOAPP_NAME = wwan_world
 # Common Compiler Flags ########################################################
 
 COMMON_CFLAGS += -I.
-COMMON_CFLAGS += -DCHRE_ASSERTIONS_ENABLED
 
 # Common Source Files ##########################################################
 
