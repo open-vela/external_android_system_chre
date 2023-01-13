@@ -177,7 +177,7 @@ struct chrePalBleApi {
    *
    * @see chreBleStopScanAsync()
    */
-  bool (*stopScan)(void);
+  bool (*stopScan)();
 
   /**
    * Invoked when the core CHRE system no longer needs a BLE advertising event
