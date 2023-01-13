@@ -23,7 +23,8 @@
 #include <shared/time_util.h>
 
 #include "chre/util/nanoapp/log.h"
-#include "chre_api/chre.h"
+
+#include <chre.h>
 
 #define LOG_TAG "[BasicSensorTest]"
 

@@ -18,7 +18,7 @@
 
 #include <cstdint>
 
-#include "chre_api/chre.h"
+#include <chre.h>
 
 namespace nanoapp_testing {
 

@@ -22,8 +22,8 @@
 #include <shared/send_message.h>
 #include <shared/time_util.h>
 
-#include "chre/util/nanoapp/log.h"
-#include "chre_api/chre.h"
+#include <chre.h>
+#include <chre/util/nanoapp/log.h>
 
 #define LOG_TAG "[HeapExhaustionStabilityTest]"
 
