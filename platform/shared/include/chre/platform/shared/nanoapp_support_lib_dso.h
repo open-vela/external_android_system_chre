@@ -28,9 +28,8 @@
  * compiling external/dynamic nanoapps.
  */
 
+#include <chre.h>
 #include <stdint.h>
-
-#include "chre_api/chre.h"
 
 #ifdef __cplusplus
 extern "C" {

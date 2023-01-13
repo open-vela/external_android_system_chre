@@ -17,6 +17,7 @@
 #ifndef CHRE_RPC_WORLD_MANAGER_H_
 #define CHRE_RPC_WORLD_MANAGER_H_
 
+#include <chre.h>
 #include <cinttypes>
 #include <cstdint>
 
@@ -25,7 +26,6 @@
 #include "chre/util/pigweed/rpc_client.h"
 #include "chre/util/pigweed/rpc_server.h"
 #include "chre/util/singleton.h"
-#include "chre_api/chre.h"
 #include "rpc/rpc_world.rpc.pb.h"
 
 class RpcWorldService final
