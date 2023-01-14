@@ -78,7 +78,7 @@ public class ContextHubPendingIntentTestExecutor {
         mNanoAppId = mNanoAppBinary.getNanoAppId();
         IntentFilter filter = new IntentFilter(ACTION);
         mContext.registerReceiver(mReceiver, filter, Context.RECEIVER_EXPORTED/*UNAUDITED*/);
-        Intent intent = new Intent(ACTION);
+        Intent intent = new Intent(ACTION).setPackage(mContext.getPackageName());
         mPendingIntent = PendingIntent.getBroadcast(mContext, 0 /* requestCode */, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_MUTABLE);
     }
