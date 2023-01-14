@@ -19,7 +19,6 @@
 #include <algorithm>
 #include <cinttypes>
 
-#include <chre.h>
 #include <pb_decode.h>
 #include <pb_encode.h>
 
@@ -28,6 +27,7 @@
 #include "chre/util/nanoapp/log.h"
 #include "chre/util/optional.h"
 #include "chre/util/time.h"
+#include "chre_api/chre.h"
 #include "chre_cross_validation_sensor.nanopb.h"
 #include "send_message.h"
 

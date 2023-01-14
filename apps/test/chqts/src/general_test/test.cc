@@ -20,8 +20,9 @@
 #include <shared/send_message.h>
 #include <shared/time_util.h>
 
-#include <chre.h>
 #include <chre/util/nanoapp/log.h>
+
+#include "chre_api/chre.h"
 
 #define LOG_TAG "[Test]"
 

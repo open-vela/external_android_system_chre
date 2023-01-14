@@ -20,9 +20,7 @@
 // be included via chre/platform/shared
 
 #include "chre_nsl_internal/platform/shared/nanoapp_support_lib_dso.h"
-
-#include <chre.h>
-
+#include "chre_api/chre.h"
 #include "chre_nsl_internal/platform/shared/debug_dump.h"
 #include "chre_nsl_internal/util/macros.h"
 #include "chre_nsl_internal/util/system/napp_permissions.h"

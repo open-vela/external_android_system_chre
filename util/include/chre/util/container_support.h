@@ -25,9 +25,8 @@
 
 #if defined CHRE_IS_NANOAPP_BUILD
 
-#include <chre.h>
-
 #include "chre/util/nanoapp/assert.h"
+#include "chre_api/chre.h"
 
 #ifdef CHRE_STANDALONE_POSIX_ALIGNED_ALLOC
 #include <stdlib.h>

@@ -19,11 +19,11 @@
 
 #include "chre_settings_test.nanopb.h"
 
-#include <chre.h>
 #include <cinttypes>
 
 #include "chre/util/optional.h"
 #include "chre/util/singleton.h"
+#include "chre_api/chre.h"
 
 namespace chre {
 
