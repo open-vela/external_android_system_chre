@@ -44,12 +44,12 @@
 
 #include <cinttypes>
 
-#include <chre.h>
 #include <chre/util/nanoapp/log.h>
 
 #include <shared/send_message.h>
 #include <shared/test_success_marker.h>
 #include <shared/time_util.h>
+#include "chre_api/chre.h"
 
 #define LOG_TAG "[BusyStartup]"
 

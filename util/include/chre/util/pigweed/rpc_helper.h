@@ -17,8 +17,9 @@
 #ifndef CHRE_UTIL_PIGWEED_RPC_HELPER_H_
 #define CHRE_UTIL_PIGWEED_RPC_HELPER_H_
 
-#include <chre.h>
 #include <cstdint>
+
+#include "chre_api/chre.h"
 
 namespace chre {
 

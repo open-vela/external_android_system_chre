@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <chre.h>
 #include <inttypes.h>
 
 #include "chre/util/nanoapp/ble.h"
 #include "chre/util/nanoapp/log.h"
 #include "chre/util/time.h"
+#include "chre_api/chre.h"
 
 /**
  * @file
