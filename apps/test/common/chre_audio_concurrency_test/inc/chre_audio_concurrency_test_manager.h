@@ -17,11 +17,11 @@
 #ifndef CHRE_AUDIO_CONCURRENCY_TEST_MANAGER_H_
 #define CHRE_AUDIO_CONCURRENCY_TEST_MANAGER_H_
 
-#include <chre.h>
 #include <cinttypes>
 
 #include "chre/util/optional.h"
 #include "chre/util/singleton.h"
+#include "chre_api/chre.h"
 
 namespace chre {
 

@@ -16,8 +16,9 @@
 
 #include <general_test/basic_ble_test.h>
 
-#include <chre.h>
 #include <shared/send_message.h>
+
+#include "chre_api/chre.h"
 
 /*
  * Test to check expected functionality of the CHRE BLE APIs.

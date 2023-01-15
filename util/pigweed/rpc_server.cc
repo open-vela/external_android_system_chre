@@ -16,12 +16,12 @@
 
 #include "chre/util/pigweed/rpc_server.h"
 
-#include <chre.h>
 #include <cinttypes>
 #include <cstdint>
 
 #include "chre/util/nanoapp/log.h"
 #include "chre/util/pigweed/rpc_helper.h"
+#include "chre_api/chre.h"
 
 #ifndef LOG_TAG
 #define LOG_TAG "[RpcServer]"

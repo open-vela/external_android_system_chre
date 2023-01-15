@@ -17,13 +17,13 @@
 #ifndef CHRE_UTIL_PIGWEED_RPC_CLIENT_H_
 #define CHRE_UTIL_PIGWEED_RPC_CLIENT_H_
 
-#include <chre.h>
 #include <cstdint>
 
 #include "chre/util/non_copyable.h"
 #include "chre/util/optional.h"
 #include "chre/util/pigweed/chre_channel_output.h"
 #include "chre/util/unique_ptr.h"
+#include "chre_api/chre.h"
 #include "pw_rpc/client.h"
 #include "pw_span/span.h"
 #include "rpc_helper.h"

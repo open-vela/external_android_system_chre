@@ -17,9 +17,9 @@
 #ifndef CHRE_CROSS_VALIDATOR_MANAGER_H_
 #define CHRE_CROSS_VALIDATOR_MANAGER_H_
 
-#include <chre.h>
 #include <pb_encode.h>
 
+#include "chre_api/chre.h"
 #include "chre_cross_validation_sensor.nanopb.h"
 
 #include "chre/util/optional.h"

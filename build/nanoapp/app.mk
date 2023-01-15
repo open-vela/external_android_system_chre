@@ -95,6 +95,7 @@ endif
 # Common Compiler Flags ########################################################
 
 # Add the CHRE API to the include search path.
+COMMON_CFLAGS += -I$(CHRE_PREFIX)/chre_api/include
 COMMON_CFLAGS += -I$(CHRE_PREFIX)/chre_api/include/chre_api
 
 # Don't pull in the utils folder if not desired

@@ -16,8 +16,9 @@
 #ifndef CHRE_PLATFORM_EXYNOS_LOG_H_
 #define CHRE_PLATFORM_EXYNOS_LOG_H_
 
-#include <chre.h>
 #include <stdio.h>
+
+#include "chre_api/chre.h"
 
 // TODO(b/230134803): Note that 'printf' currently redirects to dmesg: modify
 // the below macros when we have a platform implementation available that
