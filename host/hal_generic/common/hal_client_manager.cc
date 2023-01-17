@@ -49,7 +49,7 @@ std::shared_ptr<IContextHubCallback> HalClientManager::getCallback(
   if (isAllocatedClientId(clientId)) {
     return mClientIdsToClientInfo[clientId].callback;
   }
-  LOGE("Failed to find the client id %d", clientId);
+  LOGE("Failed to find the client id %" PRIu16, clientId);
   return nullptr;
 }
 
@@ -90,7 +90,7 @@ void HalClientManager::handleClientDeath(pid_t pid) {
   HalClientId clientId = mPIdsToClientIds[pid];
   mPIdsToClientIds.erase(mPIdsToClientIds.find(pid));
   if (!isAllocatedClientId(clientId)) {
-    LOGE("Failed to locate the dead client id %d", clientId);
+    LOGE("Failed to locate the dead client id %" PRIu16, clientId);
     return;
   }
 
@@ -136,14 +136,15 @@ HalClientManager::getNextFragmentedLoadRequest(
     std::optional<size_t> currentFragmentId) {
   const std::lock_guard<std::mutex> lock(mLock);
   if (!isAllocatedClientId(clientId)) {
-    LOGE("Unknown client id %d while getting the next fragmented request.",
+    LOGE("Unknown client id %" PRIu16
+         " while getting the next fragmented request.",
          clientId);
     return std::nullopt;
   }
   if (!isPendingLoadTransactionExpected(clientId, transactionId,
                                         currentFragmentId)) {
-    LOGE("The transaction %d for client %d is unexpected", transactionId,
-         clientId);
+    LOGE("The transaction %" PRIu32 " for client %" PRIu16 " is unexpected",
+         transactionId, clientId);
     return std::nullopt;
   }
   if (mPendingLoadTransaction->transaction->isComplete()) {
@@ -193,10 +194,9 @@ void HalClientManager::finishPendingUnloadTransaction(HalClientId clientId) {
   }
   if (mPendingUnloadTransaction->clientId != clientId) {
     // This should never happen
-    LOGE(
-        "Mismatched pending unload transaction. Registered by client %d "
-        "but client %d requests to clear it.",
-        mPendingUnloadTransaction->clientId, clientId);
+    LOGE("Mismatched pending unload transaction. Registered by client %" PRIu16
+         " but client %" PRIu16 " requests to clear it.",
+         mPendingUnloadTransaction->clientId, clientId);
     return;
   }
   mPendingUnloadTransaction.reset();
@@ -207,16 +207,16 @@ bool HalClientManager::isNewTransactionAllowed(HalClientId clientId) {
     auto timeElapsedMs =
         android::elapsedRealtime() - mPendingLoadTransaction->registeredTimeMs;
     if (timeElapsedMs < kTransactionTimeoutThresholdMs) {
-      LOGE(
-          "Rejects client %hu's transaction because an active loading "
-          "transaction from client %hu exists. Try again later.",
-          clientId, mPendingLoadTransaction->clientId);
+      LOGE("Rejects client %" PRIu16
+           "'s transaction because an active load "
+           "transaction from client %" PRIu16 " exists. Try again later.",
+           clientId, mPendingLoadTransaction->clientId);
       return false;
     }
-    LOGE(
-        "Client %hu's pending load transaction is overridden by client %hu "
-        "after holding the slot for %ld ms",
-        mPendingLoadTransaction->clientId, clientId, timeElapsedMs);
+    LOGE("Client %" PRIu16
+         "'s pending load transaction is overridden by client %" PRIu16
+         " after holding the slot for %" PRIu64 " ms",
+         mPendingLoadTransaction->clientId, clientId, timeElapsedMs);
     mPendingLoadTransaction.reset();
     return true;
   }
@@ -224,17 +224,16 @@ bool HalClientManager::isNewTransactionAllowed(HalClientId clientId) {
     auto timeElapsedMs = android::elapsedRealtime() -
                          mPendingUnloadTransaction->registeredTimeMs;
     if (timeElapsedMs < kTransactionTimeoutThresholdMs) {
-      LOGE(
-          "Rejects client %hu's transaction because an active unloading "
-          "transaction from client %hu exists. Try again later.",
-          clientId, mPendingUnloadTransaction->clientId);
+      LOGE("Rejects client %" PRIu16
+           "'s transaction because an active unload "
+           "transaction from client %" PRIu16 " exists. Try again later.",
+           clientId, mPendingUnloadTransaction->clientId);
       return false;
     }
-    LOGE(
-        "A pending unload transaction registered by client %hu is overridden "
-        "by a new transaction from client %hu after holding the slot for %ld "
-        "ms",
-        mPendingUnloadTransaction->clientId, clientId, timeElapsedMs);
+    LOGE("A pending unload transaction registered by client %" PRIu16
+         " is overridden by a new transaction from client %" PRIu16
+         " after holding the slot for %" PRIu64 "ms",
+         mPendingUnloadTransaction->clientId, clientId, timeElapsedMs);
     mPendingUnloadTransaction.reset();
     return true;
   }
