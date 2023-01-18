@@ -18,6 +18,7 @@
 
 #include "chre/pal/ble.h"
 #include "chre/platform/condition_variable.h"
+#include "chre/platform/linux/task_util/task_manager.h"
 #include "chre/platform/log.h"
 #include "chre/platform/mutex.h"
 #include "chre/platform/shared/pal_system_api.h"
@@ -104,6 +105,7 @@ void advertisingEventCallback(struct chreBleAdvertisementEvent *event) {
 class PalBleTest : public testing::Test {
  protected:
   void SetUp() override {
+    chre::TaskManagerSingleton::init();
     gCallbacks = MakeUnique<Callbacks>();
     mApi = chrePalBleGetApi(CHRE_PAL_BLE_API_CURRENT_VERSION);
     ASSERT_NE(mApi, nullptr);
@@ -116,6 +118,7 @@ class PalBleTest : public testing::Test {
     if (mApi != nullptr) {
       mApi->close();
     }
+    chre::TaskManagerSingleton::deinit();
   }
 
   chreBleGenericFilter createBleGenericFilter(uint8_t type, uint8_t len,
