@@ -310,10 +310,9 @@ void GnssSession::handleReportEvent(void *event) {
   };
 
   SystemCallbackType type;
-  if (!getCallbackType(kReportEventType, &type)) {
+  if (!getCallbackType(kReportEventType, &type) ||
+      !EventLoopManagerSingleton::get()->deferCallback(type, event, callback)) {
     freeReportEventCallback(kReportEventType, event);
-  } else {
-    EventLoopManagerSingleton::get()->deferCallback(type, event, callback);
   }
 }
 
