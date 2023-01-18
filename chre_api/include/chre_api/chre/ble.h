@@ -307,21 +307,22 @@ enum chreBleAdType {
  * can be represented by this structure. Use chreBleGetFilterCapabilities() to
  * discover supported filtering capabilities at runtime.
  *
- * For example, to filter on a 16 bit service data UUID of 0xFE2C, the following
+ * Example 1: To filter on a 16 bit service data UUID of 0xFE2C, the following
  * settings would be used:
  *   type = CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16
  *   len = 2
  *   data = {0xFE, 0x2C}
  *   dataMask = {0xFF, 0xFF}
  *
- * When filtering for manufacturer data, the manufacturer ID is also required.
- * For example, filtering for a manufacturer data of 0x12, 0x34 from Google
- * (0x00E0), the following settings would be used:
+ * Example 2: To filter for manufacturer data of 0x12, 0x34 from Google (0x00E0),
+ * the following settings would be used:
  *   type = CHRE_BLE_AD_TYPE_MANUFACTURER_DATA
- *   len = 2
- *   data = {0x12, 0x34}
- *   dataMask = {0xFF, 0xFF}
- *   manufacturerId = 0xE0
+ *   len = 4
+ *   data = {0xE0, 0x00, 0x12, 0x34}
+ *   dataMask = {0xFF, 0xFF, 0xFF, 0xFF}
+ *
+ * Refer to "Supplement to the Bluetooth Core Specification for details (v9,
+ * Part A, Section 1.4)" for details regarding the manufacturer data format.
  */
 struct chreBleGenericFilter {
   //! Acceptable values among enum chreBleAdType
@@ -338,14 +339,6 @@ struct chreBleGenericFilter {
 
   //! Used in combination with data to filter an advertisement
   uint8_t dataMask[CHRE_BLE_DATA_LEN_MAX];
-
-  /**
-   * When type is CHRE_BLE_AD_TYPE_MANUFACTURER_DATA, this field is required
-   * and represents the manufacturer ID to include in the filter.
-   *
-   * @since v1.7
-   */
-  uint32_t manufacturerId;
 };
 
 /**
