@@ -57,6 +57,7 @@ cc_library_static {
         "host/common/log_message_parser.cc",
         "host/hal_generic/common/permissions_util.cc",
         "host/hal_generic/common/hal_client_manager.cc",
+        "host/hal_generic/common/multi_client_context_hub_base.cc",
     ],
     local_include_dirs: [
         "external/flatbuffers/include",
