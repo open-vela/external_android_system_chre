@@ -799,3 +799,19 @@ java_library_static {
     srcs: ["apps/test/common/chre_api_test/rpc/chre_api_test.proto"],
     sdk_version: "current",
 }
+
+cc_library_static {
+    name: "chre_host_util",
+    vendor_available: true,
+    host_supported: true,
+    export_include_dirs: [
+        "host/common/include",
+    ],
+    srcs: [
+        "host/common/file_stream.cc",
+    ],
+    shared_libs:[
+        "liblog",
+    ],
+    cflags: ["-Wall", "-Werror"]
+}
