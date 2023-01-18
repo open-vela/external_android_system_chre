@@ -66,7 +66,7 @@ extern "C" {
 #define CHRE_BLE_CAPABILITIES_SCAN_FILTER_BEST_EFFORT UINT32_C(1 << 2)
 
 //! CHRE BLE supports reading the RSSI of a specified LE-ACL connection handle.
-#define CHRE_BLE_CAPABILITIES_READ_RSSI UINT32_C(1 << 3);
+#define CHRE_BLE_CAPABILITIES_READ_RSSI UINT32_C(1 << 3)
 /** @} */
 
 /**
@@ -147,7 +147,7 @@ extern "C" {
  * nanoappHandleEvent argument: struct chreBleReadRssiEvent
  *
  * Provides the RSSI of an LE ACL connection following a call to
- * chreBleReadRssi().
+ * chreBleReadRssiAsync().
  *
  * @since v1.8
  */
@@ -713,8 +713,8 @@ bool chreBleFlushAsync(const void *cookie);
  *
  * Note that the connectionHandle is valid only while the connection remains
  * active. If a peer device disconnects then reconnects, the handle may change.
- * BluetoothGatt#getAclHandle() can be used from the Android framework to get
- * the latest handle upon reconnection.
+ * BluetoothDevice#getConnectionHandle() can be used from the Android framework
+ * to get the latest handle upon reconnection.
  *
  * @param connectionHandle
  * @param cookie An opaque value that will be included in the chreAsyncResult
@@ -725,7 +725,7 @@ bool chreBleFlushAsync(const void *cookie);
  * @since v1.8
  *
  */
-bool chreBleReadRssi(uint16_t connectionHandle, const void *cookie);
+bool chreBleReadRssiAsync(uint16_t connectionHandle, const void *cookie);
 
 /**
  * Definitions for handling unsupported CHRE BLE scenarios.
@@ -745,8 +745,8 @@ bool chreBleReadRssi(uint16_t connectionHandle, const void *cookie);
 #define chreBleFlushAsync(...) \
   CHRE_BUILD_ERROR(CHRE_BLE_PERM_ERROR_STRING "chreBleFlushAsync")
 
-#define chreBleReadRssi(...) \
-  CHRE_BUILD_ERROR(CHRE_BLE_PERM_ERROR_STRING "chreBleReadRssi")
+#define chreBleReadRssiAsync(...) \
+  CHRE_BUILD_ERROR(CHRE_BLE_PERM_ERROR_STRING "chreBleReadRssiAsync")
 
 
 #endif  // defined(CHRE_NANOAPP_USES_BLE) || !defined(CHRE_IS_NANOAPP_BUILD)
