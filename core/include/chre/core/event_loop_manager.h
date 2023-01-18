@@ -106,12 +106,13 @@ class EventLoopManager : public NonCopyable {
    * @param data Arbitrary data to provide to the callback
    * @param callback Function to invoke from within the main CHRE thread
    * @param extraData Additional arbitrary data to provide to the callback
+   * @return If true, the callback was deferred successfully; false otherwise.
    */
-  void deferCallback(SystemCallbackType type, void *data,
+  bool deferCallback(SystemCallbackType type, void *data,
                      SystemEventCallbackFunction *callback,
                      void *extraData = nullptr) {
-    mEventLoop.postSystemEvent(static_cast<uint16_t>(type), data, callback,
-                               extraData);
+    return mEventLoop.postSystemEvent(static_cast<uint16_t>(type), data,
+                                      callback, extraData);
   }
 
   /**
@@ -126,9 +127,10 @@ class EventLoopManager : public NonCopyable {
    *        uint16_t, and can also be useful for debugging
    * @param data Pointer to arbitrary data to provide to the callback
    * @param callback Function to invoke from within the main CHRE thread
+   * @return If true, the callback was deferred successfully; false otherwise.
    */
   template <typename T>
-  void deferCallback(SystemCallbackType type, UniquePtr<T> &&data,
+  bool deferCallback(SystemCallbackType type, UniquePtr<T> &&data,
                      TypedSystemEventCallbackFunction<T> *callback) {
     auto outerCallback = [](uint16_t callbackType, void *eventData,
                             void *extraData) {
@@ -143,19 +145,22 @@ class EventLoopManager : public NonCopyable {
     // Pass the "inner" callback (the caller's callback) through to the "outer"
     // callback using the extraData parameter. Note that we're leveraging the
     // C++11 ability to cast a function pointer to void*
-    if (mEventLoop.postSystemEvent(static_cast<uint16_t>(type), data.get(),
-                                   outerCallback,
-                                   reinterpret_cast<void *>(callback))) {
+    bool status = mEventLoop.postSystemEvent(
+        static_cast<uint16_t>(type), data.get(), outerCallback,
+        reinterpret_cast<void *>(callback));
+    if (status) {
       data.release();
     }
+    return status;
   }
 
   //! Override that allows passing a lambda for the callback
   template <typename T, typename LambdaT>
-  void deferCallback(SystemCallbackType type, UniquePtr<T> &&data,
+  bool deferCallback(SystemCallbackType type, UniquePtr<T> &&data,
                      LambdaT callback) {
-    deferCallback(type, std::move(data),
-                  static_cast<TypedSystemEventCallbackFunction<T> *>(callback));
+    return deferCallback(
+        type, std::move(data),
+        static_cast<TypedSystemEventCallbackFunction<T> *>(callback));
   }
 
   //! Disallows passing a null callback, as we don't include a null check in the
