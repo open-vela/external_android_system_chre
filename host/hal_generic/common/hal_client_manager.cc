@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 #include "hal_client_manager.h"
+#include <utils/SystemClock.h>
 
 namespace android::hardware::contexthub::common::implementation {
 
@@ -34,7 +35,7 @@ HalClientId HalClientManager::createClientId() {
 
 HalClientId HalClientManager::getClientId() {
   pid_t pid = AIBinder_getCallingPid();
-  const std::lock_guard<std::mutex> lock(mMapLock);
+  const std::lock_guard<std::mutex> lock(mLock);
   if (isKnownPId(pid)) {
     return mPIdsToClientIds[pid];
   }
@@ -44,11 +45,11 @@ HalClientId HalClientManager::getClientId() {
 
 std::shared_ptr<IContextHubCallback> HalClientManager::getCallback(
     HalClientId clientId) {
-  const std::lock_guard<std::mutex> lock(mMapLock);
+  const std::lock_guard<std::mutex> lock(mLock);
   if (isAllocatedClientId(clientId)) {
-    return mClientIdsToCallbacks[clientId];
+    return mClientIdsToClientInfo[clientId].callback;
   }
-  LOGE("Failed to find the client id %d", clientId);
+  LOGE("Failed to find the client id %" PRIu16, clientId);
   return nullptr;
 }
 
@@ -57,12 +58,15 @@ bool HalClientManager::registerCallback(
   pid_t pid = AIBinder_getCallingPid();
   HalClientId clientId = createClientId();
   {
-    const std::lock_guard<std::mutex> lock(mMapLock);
+    const std::lock_guard<std::mutex> lock(mLock);
     if (isKnownPId(pid)) {
       LOGI("The pid %d is seen before. Overriding it", pid);
     }
     mPIdsToClientIds[pid] = clientId;
-    mClientIdsToCallbacks[clientId] = callback;
+    mClientIdsToClientInfo[clientId] = {
+        .callback = callback,
+        .activeEndpoints = {},
+    };
   }
 
   // once the call to AIBinder_linkToDeath() is successful, the cookie is
@@ -78,7 +82,7 @@ bool HalClientManager::registerCallback(
 }
 
 void HalClientManager::handleClientDeath(pid_t pid) {
-  const std::lock_guard<std::mutex> lock(mMapLock);
+  const std::lock_guard<std::mutex> lock(mLock);
   if (!isKnownPId(pid)) {
     LOGE("Failed to locate the dead pid %d", pid);
     return;
@@ -86,12 +90,153 @@ void HalClientManager::handleClientDeath(pid_t pid) {
   HalClientId clientId = mPIdsToClientIds[pid];
   mPIdsToClientIds.erase(mPIdsToClientIds.find(pid));
   if (!isAllocatedClientId(clientId)) {
-    LOGE("Failed to locate the dead client id %d", clientId);
+    LOGE("Failed to locate the dead client id %" PRIu16, clientId);
     return;
   }
-  mClientIdsToCallbacks[clientId].reset();
-  mClientIdsToCallbacks.erase(mClientIdsToCallbacks.find(clientId));
-  // TODO(b/247124878): Remove clients endpoints too.
+
+  mClientIdsToClientInfo[clientId].callback.reset();
+  if (mPendingLoadTransaction.has_value() &&
+      mPendingLoadTransaction->clientId == clientId) {
+    mPendingLoadTransaction.reset();
+  }
+  if (mPendingUnloadTransaction.has_value() &&
+      mPendingUnloadTransaction->clientId == clientId) {
+    mPendingUnloadTransaction.reset();
+  }
+  mClientIdsToClientInfo.erase(clientId);
 }
 
+bool HalClientManager::registerPendingLoadTransaction(
+    std::unique_ptr<chre::FragmentedLoadTransaction> transaction) {
+  if (transaction->isComplete()) {
+    LOGW("No need to register a completed load transaction.");
+    return false;
+  }
+  pid_t pid = AIBinder_getCallingPid();
+
+  const std::lock_guard<std::mutex> lock(mLock);
+  if (!isKnownPId(pid)) {
+    LOGE("Unknown HAL client when registering its pending load transaction.");
+    return false;
+  }
+
+  auto clientId = mPIdsToClientIds[pid];
+  if (!isNewTransactionAllowed(clientId)) {
+    return false;
+  }
+  mPendingLoadTransaction.emplace(
+      clientId, /* registeredTimeMs= */ android::elapsedRealtime(),
+      /* currentFragmentId= */ std::nullopt, std::move(transaction));
+  return true;
+}
+
+std::optional<chre::FragmentedLoadRequest>
+HalClientManager::getNextFragmentedLoadRequest(
+    HalClientId clientId, uint32_t transactionId,
+    std::optional<size_t> currentFragmentId) {
+  const std::lock_guard<std::mutex> lock(mLock);
+  if (!isAllocatedClientId(clientId)) {
+    LOGE("Unknown client id %" PRIu16
+         " while getting the next fragmented request.",
+         clientId);
+    return std::nullopt;
+  }
+  if (!isPendingLoadTransactionExpected(clientId, transactionId,
+                                        currentFragmentId)) {
+    LOGE("The transaction %" PRIu32 " for client %" PRIu16 " is unexpected",
+         transactionId, clientId);
+    return std::nullopt;
+  }
+  if (mPendingLoadTransaction->transaction->isComplete()) {
+    mPendingLoadTransaction.reset();
+    return std::nullopt;
+  }
+  auto request = mPendingLoadTransaction->transaction->getNextRequest();
+  mPendingLoadTransaction->currentFragmentId = request.fragmentId;
+  return request;
+}
+
+bool HalClientManager::isPendingLoadTransactionExpected(
+    HalClientId clientId, uint32_t transactionId,
+    std::optional<size_t> currentFragmentId) {
+  if (!mPendingLoadTransaction.has_value()) {
+    return false;
+  }
+  return mPendingLoadTransaction->clientId == clientId &&
+         mPendingLoadTransaction->currentFragmentId == currentFragmentId &&
+         mPendingLoadTransaction->transaction->getTransactionId() ==
+             transactionId;
+}
+
+bool HalClientManager::registerPendingUnloadTransaction() {
+  pid_t pid = AIBinder_getCallingPid();
+  const std::lock_guard<std::mutex> lock(mLock);
+  if (!isKnownPId(pid)) {
+    LOGE("Unknown HAL client when registering its pending unload transaction.");
+    return false;
+  }
+  auto clientId = mPIdsToClientIds[pid];
+  if (!isNewTransactionAllowed(clientId)) {
+    return false;
+  }
+  mPendingUnloadTransaction.emplace(
+      clientId,
+      /* registeredTimeMs= */ android::elapsedRealtime());
+  return true;
+}
+
+void HalClientManager::finishPendingUnloadTransaction(HalClientId clientId) {
+  const std::lock_guard<std::mutex> lock(mLock);
+  if (!mPendingUnloadTransaction.has_value()) {
+    // This should never happen
+    LOGE("No pending unload transaction to finish.");
+    return;
+  }
+  if (mPendingUnloadTransaction->clientId != clientId) {
+    // This should never happen
+    LOGE("Mismatched pending unload transaction. Registered by client %" PRIu16
+         " but client %" PRIu16 " requests to clear it.",
+         mPendingUnloadTransaction->clientId, clientId);
+    return;
+  }
+  mPendingUnloadTransaction.reset();
+}
+
+bool HalClientManager::isNewTransactionAllowed(HalClientId clientId) {
+  if (mPendingLoadTransaction.has_value()) {
+    auto timeElapsedMs =
+        android::elapsedRealtime() - mPendingLoadTransaction->registeredTimeMs;
+    if (timeElapsedMs < kTransactionTimeoutThresholdMs) {
+      LOGE("Rejects client %" PRIu16
+           "'s transaction because an active load "
+           "transaction from client %" PRIu16 " exists. Try again later.",
+           clientId, mPendingLoadTransaction->clientId);
+      return false;
+    }
+    LOGE("Client %" PRIu16
+         "'s pending load transaction is overridden by client %" PRIu16
+         " after holding the slot for %" PRIu64 " ms",
+         mPendingLoadTransaction->clientId, clientId, timeElapsedMs);
+    mPendingLoadTransaction.reset();
+    return true;
+  }
+  if (mPendingUnloadTransaction.has_value()) {
+    auto timeElapsedMs = android::elapsedRealtime() -
+                         mPendingUnloadTransaction->registeredTimeMs;
+    if (timeElapsedMs < kTransactionTimeoutThresholdMs) {
+      LOGE("Rejects client %" PRIu16
+           "'s transaction because an active unload "
+           "transaction from client %" PRIu16 " exists. Try again later.",
+           clientId, mPendingUnloadTransaction->clientId);
+      return false;
+    }
+    LOGE("A pending unload transaction registered by client %" PRIu16
+         " is overridden by a new transaction from client %" PRIu16
+         " after holding the slot for %" PRIu64 "ms",
+         mPendingUnloadTransaction->clientId, clientId, timeElapsedMs);
+    mPendingUnloadTransaction.reset();
+    return true;
+  }
+  return true;
+}
 }  // namespace android::hardware::contexthub::common::implementation

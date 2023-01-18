@@ -16,6 +16,7 @@
 #ifndef ANDROID_HARDWARE_CONTEXTHUB_COMMON_CHRE_CONNECTION_H_
 #define ANDROID_HARDWARE_CONTEXTHUB_COMMON_CHRE_CONNECTION_H_
 
+#include <flatbuffers/flatbuffers.h>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -44,6 +45,15 @@ class ChreConnection {
    * @return true if success, otherwise false.
    */
   virtual bool sendMessage(void *data, size_t length) = 0;
+
+  /**
+   * Sends a message encapsulated in a FlatBufferBuilder to CHRE.
+   *
+   * @return true if success, otherwise false.
+   */
+  inline bool sendMessage(const flatbuffers::FlatBufferBuilder &builder) {
+    return sendMessage(builder.GetBufferPointer(), builder.GetSize());
+  }
 
   /**
    * Gets the offset between the Context hub and Android time in nanoseconds.
