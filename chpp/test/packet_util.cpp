@@ -42,7 +42,8 @@ ChppEmptyPacket generateEmptyPacket(uint8_t ackSeq, uint8_t seq,
   return pkt;
 }
 
-ChppResetPacket generateResetPacket(uint8_t ackSeq, uint8_t seq) {
+ChppResetPacket generateResetPacket(size_t rxBufferLen, uint16_t timeoutInMs,
+                                    uint8_t ackSeq, uint8_t seq) {
   // clang-format off
   ChppResetPacket pkt = {
     .preamble = kPreamble,
@@ -63,9 +64,9 @@ ChppResetPacket generateResetPacket(uint8_t ackSeq, uint8_t seq) {
         .minor = 0,
         .patch = 0,
       },
-      .rxMtu = CHPP_PLATFORM_LINK_RX_MTU_BYTES,
+      .rxMtu = static_cast<uint16_t>(rxBufferLen),
       .windowSize = 1,
-      .timeoutInMs = CHPP_PLATFORM_TRANSPORT_TIMEOUT_MS,
+      .timeoutInMs = timeoutInMs,
     }
   };
   // clang-format on
@@ -73,8 +74,10 @@ ChppResetPacket generateResetPacket(uint8_t ackSeq, uint8_t seq) {
   return pkt;
 }
 
-ChppResetPacket generateResetAckPacket(uint8_t ackSeq, uint8_t seq) {
-  ChppResetPacket pkt = generateResetPacket(ackSeq, seq);
+ChppResetPacket generateResetAckPacket(size_t rxBufferLen, uint16_t timeoutInMs,
+                                       uint8_t ackSeq, uint8_t seq) {
+  ChppResetPacket pkt =
+      generateResetPacket(rxBufferLen, timeoutInMs, ackSeq, seq);
   pkt.header.packetCode =
       static_cast<uint8_t>(CHPP_ATTR_AND_ERROR_TO_PACKET_CODE(
           CHPP_TRANSPORT_ATTR_RESET_ACK, CHPP_TRANSPORT_ERROR_NONE));

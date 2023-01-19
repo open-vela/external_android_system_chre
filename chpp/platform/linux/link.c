@@ -23,6 +23,7 @@
 
 #include "chpp/log.h"
 #include "chpp/macros.h"
+#include "chpp/platform/platform_link.h"
 #include "chpp/transport.h"
 
 // The set of signals to use for the linkSendThread.
@@ -34,11 +35,11 @@
  * endpoint is defined by the ChppTransportState pointer, so a loopback link
  * with a single CHPP instance can be supported.
  */
-static void *linkSendThread(void *arg) {
-  struct ChppPlatformLinkParameters *params =
-      (struct ChppPlatformLinkParameters *)arg;
+static void *linkSendThread(void *linkContext) {
+  struct ChppLinuxLinkState *context =
+      (struct ChppLinuxLinkState *)(linkContext);
   while (true) {
-    uint32_t signal = chppNotifierTimedWait(&params->notifier, CHPP_TIME_MAX);
+    uint32_t signal = chppNotifierTimedWait(&context->notifier, CHPP_TIME_MAX);
 
     if (signal & SIGNAL_EXIT) {
       break;
@@ -46,18 +47,18 @@ static void *linkSendThread(void *arg) {
     if (signal & SIGNAL_DATA) {
       enum ChppLinkErrorCode error;
 
-      chppMutexLock(&params->mutex);
+      chppMutexLock(&context->mutex);
 
-      if (params->remoteTransportContext == NULL) {
+      if (context->remoteTransportContext == NULL) {
         CHPP_LOGW("remoteTransportContext is NULL");
         error = CHPP_LINK_ERROR_NONE_SENT;
 
-      } else if (!params->linkEstablished) {
+      } else if (!context->linkEstablished) {
         CHPP_LOGE("No (fake) link");
         error = CHPP_LINK_ERROR_NO_LINK;
 
-      } else if (!chppRxDataCb(params->remoteTransportContext, params->buf,
-                               params->bufLen)) {
+      } else if (!chppRxDataCb(context->remoteTransportContext, context->buf,
+                               context->bufLen)) {
         CHPP_LOGW("chppRxDataCb return state!=preamble (packet incomplete)");
         error = CHPP_LINK_ERROR_NONE_SENT;
 
@@ -65,64 +66,101 @@ static void *linkSendThread(void *arg) {
         error = CHPP_LINK_ERROR_NONE_SENT;
       }
 
-      params->bufLen = 0;
-      chppLinkSendDoneCb(params, error);
+      context->bufLen = 0;
+      chppLinkSendDoneCb(context->transportContext, error);
 
-      chppMutexUnlock(&params->mutex);
+      chppMutexUnlock(&context->mutex);
     }
   }
 
   return NULL;
 }
 
-void chppPlatformLinkInit(struct ChppPlatformLinkParameters *params) {
-  params->bufLen = 0;
-  chppMutexInit(&params->mutex);
-  chppNotifierInit(&params->notifier);
-  pthread_create(&params->linkSendThread, NULL /* attr */, linkSendThread,
-                 params);
-  if (params->linkThreadName != NULL) {
-    pthread_setname_np(params->linkSendThread, params->linkThreadName);
+static void init(void *linkContext,
+                 struct ChppTransportState *transportContext) {
+  struct ChppLinuxLinkState *context =
+      (struct ChppLinuxLinkState *)(linkContext);
+  context->bufLen = 0;
+  context->transportContext = transportContext;
+  chppMutexInit(&context->mutex);
+  chppNotifierInit(&context->notifier);
+  pthread_create(&context->linkSendThread, NULL /* attr */, linkSendThread,
+                 context);
+  if (context->linkThreadName != NULL) {
+    pthread_setname_np(context->linkSendThread, context->linkThreadName);
   }
 }
 
-void chppPlatformLinkDeinit(struct ChppPlatformLinkParameters *params) {
-  params->bufLen = 0;
-  chppNotifierSignal(&params->notifier, SIGNAL_EXIT);
-  pthread_join(params->linkSendThread, NULL /* retval */);
-  chppNotifierDeinit(&params->notifier);
-  chppMutexDeinit(&params->mutex);
+static void deinit(void *linkContext) {
+  struct ChppLinuxLinkState *context =
+      (struct ChppLinuxLinkState *)(linkContext);
+  context->bufLen = 0;
+  chppNotifierSignal(&context->notifier, SIGNAL_EXIT);
+  pthread_join(context->linkSendThread, NULL /* retval */);
+  chppNotifierDeinit(&context->notifier);
+  chppMutexDeinit(&context->mutex);
 }
 
-enum ChppLinkErrorCode chppPlatformLinkSend(
-    struct ChppPlatformLinkParameters *params, uint8_t *buf, size_t len) {
+static enum ChppLinkErrorCode send(void *linkContext, size_t len) {
+  struct ChppLinuxLinkState *context =
+      (struct ChppLinuxLinkState *)(linkContext);
   bool success = false;
-  chppMutexLock(&params->mutex);
-  if (params->bufLen != 0) {
+  chppMutexLock(&context->mutex);
+  if (context->bufLen != 0) {
     CHPP_LOGE("Failed to send data - link layer busy");
-  } else if (!params->isLinkActive) {
+  } else if (!context->isLinkActive) {
     success = false;
   } else {
     success = true;
-    memcpy(params->buf, buf, len);
-    params->bufLen = len;
+    context->bufLen = len;
   }
-  chppMutexUnlock(&params->mutex);
+  chppMutexUnlock(&context->mutex);
 
   if (success) {
-    chppNotifierSignal(&params->notifier, SIGNAL_DATA);
+    chppNotifierSignal(&context->notifier, SIGNAL_DATA);
   }
 
   return success ? CHPP_LINK_ERROR_NONE_QUEUED : CHPP_LINK_ERROR_BUSY;
 }
 
-void chppPlatformLinkDoWork(struct ChppPlatformLinkParameters *params,
-                            uint32_t signal) {
-  UNUSED_VAR(params);
+static void doWork(void *linkContext, uint32_t signal) {
+  UNUSED_VAR(linkContext);
   UNUSED_VAR(signal);
 }
 
-void chppPlatformLinkReset(struct ChppPlatformLinkParameters *params) {
-  chppPlatformLinkDeinit(params);
-  chppPlatformLinkInit(params);
+static void reset(void *linkContext) {
+  struct ChppLinuxLinkState *context =
+      (struct ChppLinuxLinkState *)(linkContext);
+  deinit(context);
+  init(context, context->transportContext);
+}
+
+static struct ChppLinkConfiguration getConfig(void *linkContext) {
+  UNUSED_VAR(linkContext);
+  const struct ChppLinkConfiguration config = {
+      .txBufferLen = CHPP_LINUX_LINK_TX_MTU_BYTES,
+      .rxBufferLen = CHPP_LINUX_LINK_RX_MTU_BYTES,
+      .timeoutInMs = CHPP_LINUX_TRANSPORT_TIMEOUT_MS,
+  };
+  return config;
+}
+
+static uint8_t *getTxBuffer(void *linkContext) {
+  struct ChppLinuxLinkState *context =
+      (struct ChppLinuxLinkState *)(linkContext);
+  return &context->buf[0];
+}
+
+const struct ChppLinkApi gLinuxLinkApi = {
+    .init = &init,
+    .deinit = &deinit,
+    .send = &send,
+    .doWork = &doWork,
+    .reset = &reset,
+    .getConfig = &getConfig,
+    .getTxBuffer = &getTxBuffer,
+};
+
+const struct ChppLinkApi *getLinuxLinkApi(void) {
+  return &gLinuxLinkApi;
 }

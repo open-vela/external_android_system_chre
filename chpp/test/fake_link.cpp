@@ -22,7 +22,7 @@
 
 namespace chpp::test {
 
-void FakeLink::appendTxPacket(const uint8_t *data, size_t len) {
+void FakeLink::appendTxPacket(uint8_t *data, size_t len) {
   std::vector<uint8_t> pkt;
   pkt.resize(len);
   memcpy(pkt.data(), data, len);
