@@ -229,24 +229,21 @@ ScopedAStatus ContextHub::queryNanoapps(int32_t contextHubId) {
 
   std::unique_lock<std::mutex> lock(mPreloadedNanoappIdsMutex);
   if (mPreloadedNanoappIds.has_value()) {
-    for (auto iter = mPreloadedNanoappIds->begin();
-         iter != mPreloadedNanoappIds->end(); ++iter) {
-      out_preloadedNanoappIds->push_back(*iter);
-    }
+    *out_preloadedNanoappIds = *mPreloadedNanoappIds;
     return ScopedAStatus::ok();
   }
 
-  std::vector<int64_t> preloadedNanoappIds;
-  if (!getPreloadedNanoappIdsFromConfigFile(preloadedNanoappIds, nullptr,
-                                            nullptr, nullptr)) {
+  std::vector<chrePreloadedNanoappInfo> preloadedNanoapps;
+  if (!getPreloadedNanoappIdsFromConfigFile(preloadedNanoapps, nullptr)) {
     return ScopedAStatus::fromExceptionCode(EX_SERVICE_SPECIFIC);
   }
 
-  mPreloadedNanoappIds = preloadedNanoappIds;
-  for (auto iter = mPreloadedNanoappIds->begin();
-       iter != mPreloadedNanoappIds->end(); ++iter) {
-    out_preloadedNanoappIds->push_back(*iter);
+  mPreloadedNanoappIds = std::vector<int64_t>();
+  for (const auto &preloadedNanoapp : preloadedNanoapps) {
+    mPreloadedNanoappIds->push_back(preloadedNanoapp.id);
+    out_preloadedNanoappIds->push_back(preloadedNanoapp.id);
   }
+
   return ScopedAStatus::ok();
 }
 
@@ -538,9 +535,7 @@ ScopedAStatus ContextHub::disableTestMode() {
   std::unique_lock<std::mutex> lock(mTestModeMutex);
 
   bool success = false;
-  std::vector<int64_t> preloadedNanoappIds;
-  std::vector<std::string> preloadedNanoappNames;
-  std::vector<NanoAppBinaryHeader> preloadedNanoappHeaders;
+  std::vector<chrePreloadedNanoappInfo> preloadedNanoapps;
   std::string preloadedNanoappDirectory;
   if (!mIsTestModeEnabled) {
     success = true;
@@ -553,13 +548,11 @@ ScopedAStatus ContextHub::disableTestMode() {
      */
     LOGE("There exists a pending load transaction. Cannot disable test mode.");
   } else if (!getPreloadedNanoappIdsFromConfigFile(
-                 preloadedNanoappIds, &preloadedNanoappNames,
-                 &preloadedNanoappHeaders, &preloadedNanoappDirectory)) {
+                 preloadedNanoapps, &preloadedNanoappDirectory)) {
     LOGE("Unable to get preloaded nanoapp IDs from the config file.");
   } else {
-    std::vector<NanoappBinary> nanoappsToLoad = disableTestModeHelper(
-        preloadedNanoappIds, preloadedNanoappNames, preloadedNanoappHeaders,
-        preloadedNanoappDirectory);
+    std::vector<NanoappBinary> nanoappsToLoad = selectPreloadedNanoappsToLoad(
+        preloadedNanoapps, preloadedNanoappDirectory);
 
     if (!loadNanoappsInternal(kDefaultHubId, nanoappsToLoad)) {
       LOGE("Unable to load all preloaded, non-system nanoapps.");
@@ -705,12 +698,9 @@ bool ContextHub::unloadNanoappsInternal(
 }
 
 bool ContextHub::getPreloadedNanoappIdsFromConfigFile(
-    std::vector<int64_t> &preloadedNanoappIds,
-    std::vector<std::string> *out_preloadedNanoappNames,
-    std::vector<NanoAppBinaryHeader> *out_preloadedNanoappHeaders,
+    std::vector<chrePreloadedNanoappInfo> &out_preloadedNanoapps,
     std::string *out_directory) const {
   std::vector<std::string> nanoappNames;
-  std::vector<NanoAppBinaryHeader> nanoappHeaders;
   std::string directory;
 
   bool success = getPreloadedNanoappsFromConfigFile(
@@ -719,8 +709,8 @@ bool ContextHub::getPreloadedNanoappIdsFromConfigFile(
     LOGE("Failed to parse preloaded nanoapps config file");
   }
 
-  for (const std::string &nanoapp : nanoappNames) {
-    std::string headerFile = directory + "/" + nanoapp + ".napp_header";
+  for (const std::string &nanoappName : nanoappNames) {
+    std::string headerFile = directory + "/" + nanoappName + ".napp_header";
     std::vector<uint8_t> headerBuffer;
     if (!readFileContents(headerFile.c_str(), headerBuffer)) {
       LOGE("Cannot read header file: %s", headerFile.c_str());
@@ -734,16 +724,10 @@ bool ContextHub::getPreloadedNanoappIdsFromConfigFile(
 
     const auto *appHeader =
         reinterpret_cast<const NanoAppBinaryHeader *>(headerBuffer.data());
-    preloadedNanoappIds.push_back(appHeader->appId);
-    nanoappHeaders.push_back(*appHeader);
+    out_preloadedNanoapps.emplace_back(static_cast<int64_t>(appHeader->appId),
+                                       nanoappName, *appHeader);
   }
 
-  if (out_preloadedNanoappNames != nullptr) {
-    *out_preloadedNanoappNames = nanoappNames;
-  }
-  if (out_preloadedNanoappHeaders != nullptr) {
-    *out_preloadedNanoappHeaders = nanoappHeaders;
-  }
   if (out_directory != nullptr) {
     *out_directory = directory;
   }
@@ -751,15 +735,13 @@ bool ContextHub::getPreloadedNanoappIdsFromConfigFile(
   return true;
 }
 
-std::vector<NanoappBinary> ContextHub::disableTestModeHelper(
-    const std::vector<int64_t> &preloadedNanoappIds,
-    const std::vector<std::string> &preloadedNanoappNames,
-    const std::vector<NanoAppBinaryHeader> &preloadedNanoappHeaders,
+std::vector<NanoappBinary> ContextHub::selectPreloadedNanoappsToLoad(
+    std::vector<chrePreloadedNanoappInfo> &preloadedNanoapps,
     const std::string &preloadedNanoappDirectory) {
   std::vector<NanoappBinary> nanoappsToLoad;
 
-  for (uint32_t i = 0; i < preloadedNanoappIds.size(); ++i) {
-    int64_t nanoappId = preloadedNanoappIds[i];
+  for (auto &preloadedNanoapp : preloadedNanoapps) {
+    int64_t nanoappId = preloadedNanoapp.id;
 
     // A nanoapp is a system nanoapp if it is in the preloaded nanoapp list
     // but not in the loaded nanoapp list as CHRE hides system nanoapps
@@ -772,18 +754,18 @@ std::vector<NanoappBinary> ContextHub::disableTestModeHelper(
     if (!isSystemNanoapp) {
       std::vector<uint8_t> nanoappBuffer;
       std::string nanoappFile =
-          preloadedNanoappDirectory + "/" + preloadedNanoappNames[i] + ".so";
+          preloadedNanoappDirectory + "/" + preloadedNanoapp.name + ".so";
       if (!readFileContents(nanoappFile.c_str(), nanoappBuffer)) {
         LOGE("Cannot read header file: %s", nanoappFile.c_str());
       } else {
         NanoappBinary nanoapp;
-        nanoapp.nanoappId = preloadedNanoappHeaders[i].appId;
-        nanoapp.nanoappVersion = preloadedNanoappHeaders[i].appVersion;
-        nanoapp.flags = preloadedNanoappHeaders[i].flags;
+        nanoapp.nanoappId = preloadedNanoapp.header.appId;
+        nanoapp.nanoappVersion = preloadedNanoapp.header.appVersion;
+        nanoapp.flags = preloadedNanoapp.header.flags;
         nanoapp.targetChreApiMajorVersion =
-            preloadedNanoappHeaders[i].targetChreApiMajorVersion;
+            preloadedNanoapp.header.targetChreApiMajorVersion;
         nanoapp.targetChreApiMinorVersion =
-            preloadedNanoappHeaders[i].targetChreApiMinorVersion;
+            preloadedNanoapp.header.targetChreApiMinorVersion;
         nanoapp.customBinary = nanoappBuffer;
 
         nanoappsToLoad.push_back(nanoapp);
