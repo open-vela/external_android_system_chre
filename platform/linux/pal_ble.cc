@@ -16,28 +16,24 @@
 
 #include "chre/pal/ble.h"
 
-#include "chre/platform/linux/task_util/task_manager.h"
 #include "chre/util/memory.h"
 #include "chre/util/unique_ptr.h"
 
-#include <chrono>
-#include <optional>
+#include <future>
+#include <thread>
 
 /**
  * A simulated implementation of the BLE PAL for the linux platform.
  */
 namespace {
-
-using chre::TaskManagerSingleton;
-
 const struct chrePalSystemApi *gSystemApi = nullptr;
 const struct chrePalBleCallbacks *gCallbacks = nullptr;
 
-bool gBleEnabled = false;
+std::thread gBleStartScanThread;
+std::thread gBleStopScanThread;
+std::promise<void> gStopAdvertisingEvents;
 
-// Tasks for startScan and stopScan.
-std::optional<uint32_t> gBleStartScanTaskId;
-std::optional<uint32_t> gBleStopScanTaskId;
+bool gBleEnabled = false;
 
 std::chrono::milliseconds scanModeToInterval(chreBleScanMode mode) {
   std::chrono::milliseconds interval(1000);
@@ -55,31 +51,36 @@ std::chrono::milliseconds scanModeToInterval(chreBleScanMode mode) {
   return interval;
 }
 
-void startScan() {
-  auto event = chre::MakeUniqueZeroFill<struct chreBleAdvertisementEvent>();
-  auto report = chre::MakeUniqueZeroFill<struct chreBleAdvertisingReport>();
-  uint8_t *data =
-      static_cast<uint8_t *>(chre::memoryAlloc(sizeof(uint8_t) * 2));
-  data[0] = 0x01;
-  data[1] = 0x16;
-  report->data = data;
-  report->dataLength = 2;
-  event->reports = report.release();
-  event->numReports = 1;
-  gCallbacks->advertisingEventCallback(event.release());
+void startScan(chreBleScanMode mode) {
+  gCallbacks->scanStatusChangeCallback(true, CHRE_ERROR_NONE);
+  std::future<void> signal = gStopAdvertisingEvents.get_future();
+  while (signal.wait_for(scanModeToInterval(mode)) ==
+         std::future_status::timeout) {
+    auto event = chre::MakeUniqueZeroFill<struct chreBleAdvertisementEvent>();
+    auto report = chre::MakeUniqueZeroFill<struct chreBleAdvertisingReport>();
+    uint8_t *data =
+        static_cast<uint8_t *>(chre::memoryAlloc(sizeof(uint8_t) * 2));
+    data[0] = 0x01;
+    data[1] = 0x16;
+    report->data = data;
+    report->dataLength = 2;
+    event->reports = report.release();
+    event->numReports = 1;
+    gCallbacks->advertisingEventCallback(event.release());
+  }
 }
 
 void stopScan() {
   gCallbacks->scanStatusChangeCallback(false, CHRE_ERROR_NONE);
 }
 
-void stopAllTasks() {
-  if (gBleStartScanTaskId.has_value()) {
-    TaskManagerSingleton::get()->cancelTask(gBleStartScanTaskId.value());
+void stopThreads() {
+  if (gBleStartScanThread.joinable()) {
+    gStopAdvertisingEvents.set_value();
+    gBleStartScanThread.join();
   }
-
-  if (gBleStopScanTaskId.has_value()) {
-    TaskManagerSingleton::get()->cancelTask(gBleStopScanTaskId.value());
+  if (gBleStopScanThread.joinable()) {
+    gBleStopScanThread.join();
   }
 }
 
@@ -96,26 +97,16 @@ uint32_t chrePalBleGetFilterCapabilities() {
 
 bool chrePalBleStartScan(chreBleScanMode mode, uint32_t /* reportDelayMs */,
                          const struct chreBleScanFilter * /* filter */) {
-  stopAllTasks();
-
-  gCallbacks->scanStatusChangeCallback(true, CHRE_ERROR_NONE);
-  gBleStartScanTaskId =
-      TaskManagerSingleton::get()->addTask(startScan, scanModeToInterval(mode));
-  if (!gBleStartScanTaskId.has_value()) {
-    return false;
-  }
-
+  stopThreads();
+  gStopAdvertisingEvents = std::promise<void>();
+  gBleStartScanThread = std::thread(startScan, mode);
   gBleEnabled = true;
   return true;
 }
 
 bool chrePalBleStopScan() {
-  stopAllTasks();
-  gBleStopScanTaskId = TaskManagerSingleton::get()->addTask(stopScan);
-  if (!gBleStopScanTaskId.has_value()) {
-    return false;
-  }
-
+  stopThreads();
+  gBleStopScanThread = std::thread(stopScan);
   gBleEnabled = false;
   return true;
 }
@@ -131,7 +122,7 @@ void chrePalBleReleaseAdvertisingEvent(
 }
 
 void chrePalBleApiClose() {
-  stopAllTasks();
+  stopThreads();
 }
 
 bool chrePalBleApiOpen(const struct chrePalSystemApi *systemApi,
