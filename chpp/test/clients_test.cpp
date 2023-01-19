@@ -25,20 +25,25 @@
 #include "chpp/clients.h"
 #include "chpp/macros.h"
 #include "chpp/memory.h"
+#include "chpp/platform/platform_link.h"
 #include "chpp/platform/utils.h"
 #include "chpp/services.h"
 #include "chpp/time.h"
 #include "chpp/transport.h"
 #include "chre/pal/wwan.h"
 
+// Link layer state.
+struct ChppLinuxLinkState gChppLinuxLinkContext;
+
 class ClientsTest : public testing::Test {
  protected:
   void SetUp() override {
     chppClearTotalAllocBytes();
-    memset(&mTransportContext.linkParams, 0,
-           sizeof(mTransportContext.linkParams));
-    mTransportContext.linkParams.linkEstablished = true;
-    chppTransportInit(&mTransportContext, &mAppContext);
+    memset(&gChppLinuxLinkContext, 0, sizeof(struct ChppLinuxLinkState));
+    gChppLinuxLinkContext.linkEstablished = true;
+    const struct ChppLinkApi *linkApi = getLinuxLinkApi();
+    chppTransportInit(&mTransportContext, &mAppContext, &gChppLinuxLinkContext,
+                      linkApi);
     chppAppInit(&mAppContext, &mTransportContext);
     mClientState =
         (struct ChppClientState *)mAppContext.registeredClientContexts[0];
