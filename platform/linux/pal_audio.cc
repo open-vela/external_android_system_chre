@@ -16,7 +16,6 @@
 
 #include "chre/pal/audio.h"
 
-#include "chre/platform/linux/task_util/task_manager.h"
 #include "chre/platform/memory.h"
 #include "chre/util/macros.h"
 #include "chre/util/memory.h"
@@ -25,61 +24,66 @@
 #include <chrono>
 #include <cinttypes>
 #include <cstdint>
+#include <future>
+#include <thread>
 
 /**
  * A simulated implementation of the audio PAL for the linux platform.
  */
 namespace {
-
-using chre::TaskManagerSingleton;
-
 const struct chrePalSystemApi *gSystemApi = nullptr;
 const struct chrePalAudioCallbacks *gCallbacks = nullptr;
 
+//! Thread to deliver asynchronous audio data after a CHRE request.
+std::thread gHandle0Thread;
+std::promise<void> gStopHandle0Thread;
 constexpr uint32_t kHandle0SampleRate = 16000;
 
 //! Whether the handle 0 is currently enabled.
-std::optional<uint32_t> gHandle0TaskId;
 bool gIsHandle0Enabled = false;
 
-void stopHandle0Task() {
-  if (gHandle0TaskId.has_value()) {
-    TaskManagerSingleton::get()->cancelTask(gHandle0TaskId.value());
+void stopHandle0Thread() {
+  if (gHandle0Thread.joinable()) {
+    gStopHandle0Thread.set_value();
+    gHandle0Thread.join();
   }
 }
 
 void chrePalAudioApiClose(void) {
-  stopHandle0Task();
+  stopHandle0Thread();
 }
 
 bool chrePalAudioApiOpen(const struct chrePalSystemApi *systemApi,
                          const struct chrePalAudioCallbacks *callbacks) {
   chrePalAudioApiClose();
 
-  bool success = false;
   if (systemApi != nullptr && callbacks != nullptr) {
     gSystemApi = systemApi;
     gCallbacks = callbacks;
     callbacks->audioAvailabilityCallback(0 /*handle*/, true /*available*/);
-    success = true;
+    return true;
   }
 
-  return success;
+  return false;
 }
 
-void sendHandle0Events(uint32_t numSamples) {
-  auto data = chre::MakeUniqueZeroFill<struct chreAudioDataEvent>();
+void sendHandle0Events(uint64_t delayNs, uint32_t numSamples) {
+  std::future<void> signal = gStopHandle0Thread.get_future();
+  if (signal.wait_for(std::chrono::nanoseconds(delayNs)) ==
+      std::future_status::timeout) {
+    auto data = chre::MakeUniqueZeroFill<struct chreAudioDataEvent>();
 
-  data->version = CHRE_AUDIO_DATA_EVENT_VERSION;
-  data->handle = 0;
-  data->timestamp = gSystemApi->getCurrentTime();
-  data->sampleRate = kHandle0SampleRate;
-  data->sampleCount = numSamples;
-  data->format = CHRE_AUDIO_DATA_FORMAT_8_BIT_U_LAW;
-  data->samplesULaw8 =
-      static_cast<const uint8_t *>(chre::memoryAlloc(numSamples));
+    data->version = CHRE_AUDIO_DATA_EVENT_VERSION;
+    data->handle = 0;
+    data->timestamp = gSystemApi->getCurrentTime();
+    data->sampleRate = kHandle0SampleRate;
+    data->sampleCount = numSamples;
+    data->format = CHRE_AUDIO_DATA_FORMAT_8_BIT_U_LAW;
+    data->samplesULaw8 =
+        static_cast<const uint8_t *>(chre::memoryAlloc(numSamples));
 
-  gCallbacks->audioDataEventCallback(data.release());
+    gCallbacks->audioDataEventCallback(data.release());
+  }
 }
 
 bool chrePalAudioApiRequestAudioDataEvent(uint32_t handle, uint32_t numSamples,
@@ -88,16 +92,11 @@ bool chrePalAudioApiRequestAudioDataEvent(uint32_t handle, uint32_t numSamples,
     return false;
   }
 
-  stopHandle0Task();
+  stopHandle0Thread();
   if (numSamples > 0) {
     gIsHandle0Enabled = true;
-    gHandle0TaskId = TaskManagerSingleton::get()->addTask(
-        [numSamples]() { sendHandle0Events(numSamples); },
-        std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::nanoseconds(eventDelayNs)));
-    if (!gHandle0TaskId.has_value()) {
-      return false;
-    }
+    gStopHandle0Thread = std::promise<void>();
+    gHandle0Thread = std::thread(sendHandle0Events, eventDelayNs, numSamples);
   }
 
   return true;
@@ -106,7 +105,7 @@ bool chrePalAudioApiRequestAudioDataEvent(uint32_t handle, uint32_t numSamples,
 void chrePalAudioApiCancelAudioDataEvent(uint32_t handle) {
   if (handle == 0) {
     gIsHandle0Enabled = false;
-    stopHandle0Task();
+    stopHandle0Thread();
   }
 }
 
