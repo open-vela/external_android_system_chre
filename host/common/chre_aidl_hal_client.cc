@@ -74,6 +74,8 @@ COMMAND ARGS...:
                                 If an absolute path like /path/to/awesome.so,
                                 which is optional, is not provided then default
                                 locations are searched.
+  enableTestMode              - enables test mode.
+  disableTestMode             - disables test mode.
 )";
 
 inline void throwError(const std::string &message) {
@@ -336,7 +338,29 @@ void queryNanoapps() {
                         callbackSignal);
 }
 
-enum Command { list, load, query, unload, unsupported };
+void enableTestModeOnContextHub() {
+  std::future<void> callbackSignal;
+  auto status = getContextHub(callbackSignal)->setTestMode(true);
+  verifyStatusAndSignal(/* operation= */ "enabling test mode", status,
+                        callbackSignal);
+}
+
+void disableTestModeOnContextHub() {
+  std::future<void> callbackSignal;
+  auto status = getContextHub(callbackSignal)->setTestMode(false);
+  verifyStatusAndSignal(/* operation= */ "disabling test mode", status,
+                        callbackSignal);
+}
+
+enum Command {
+  list,
+  load,
+  query,
+  unload,
+  enableTestMode,
+  disableTestMode,
+  unsupported
+};
 
 struct CommandInfo {
   Command cmd;
@@ -349,6 +373,8 @@ Command parseCommand(const std::vector<std::string> &cmdLine) {
       {"load", {load, 2}},
       {"query", {query, 1}},
       {"unload", {unload, 2}},
+      {"enableTestMode", {enableTestMode, 1}},
+      {"disableTestMode", {disableTestMode, 1}},
   };
   if (cmdLine.empty() || commandMap.find(cmdLine[0]) == commandMap.end()) {
     return unsupported;
@@ -388,6 +414,14 @@ int main(int argc, char *argv[]) {
       }
       case query: {
         queryNanoapps();
+        break;
+      }
+      case enableTestMode: {
+        enableTestModeOnContextHub();
+        break;
+      }
+      case disableTestMode: {
+        disableTestModeOnContextHub();
         break;
       }
       default:
