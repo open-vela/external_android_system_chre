@@ -343,7 +343,7 @@ bool EventLoop::postLowPriorityEventOrFree(
   bool eventPosted = false;
 
   if (mRunning) {
-#if CHRE_STATIC_EVENT_LOOP
+#ifdef CHRE_STATIC_EVENT_LOOP
     if (mEventPool.getFreeBlockCount() > kMinReservedHighPriorityEventCount)
 #else
     if (mEventPool.getFreeSpaceCount() > kMinReservedHighPriorityEventCount)
