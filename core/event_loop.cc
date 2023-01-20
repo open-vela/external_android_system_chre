@@ -41,6 +41,11 @@ constexpr Nanoseconds EventLoop::kIntervalWakeupBucket;
 
 namespace {
 
+#ifndef CHRE_STATIC_EVENT_LOOP
+using DynamicMemoryPool =
+    SynchronizedExpandableMemoryPool<Event, CHRE_EVENT_PER_BLOCK,
+                                     CHRE_MAX_EVENT_BLOCKS>;
+#endif
 // TODO(b/264108686): Make this a compile time parameter.
 // How many low priority event to remove if the event queue is full
 // and a new event needs to be pushed.
@@ -80,8 +85,13 @@ bool populateNanoappInfo(const Nanoapp *app, struct chreNanoappInfo *info) {
 /**
  * @return true if a event is a low priority event.
  */
-bool isLowPriority(Event *event) {
+bool isLowPriorityEvent(Event *event) {
+  CHRE_ASSERT_NOT_NULL(event);
   return event->isLowPriority;
+}
+
+void deallocateFromMemoryPool(Event *event, void *memoryPool) {
+  static_cast<DynamicMemoryPool *>(memoryPool)->deallocate(event);
 }
 #endif
 
@@ -268,18 +278,13 @@ bool EventLoop::removeLowPriorityEventsFromBack(size_t removeNum) {
   if (removeNum == 0) {
     return true;
   }
-  Event *lowPriorityEventPointers[removeNum];
-  memset(lowPriorityEventPointers, 0, removeNum * sizeof(Event *));
 
-  size_t numRemovedEvent = mEvents.removeMatchedPointerFromBack(
-      isLowPriority, removeNum, lowPriorityEventPointers);
-  if (numRemovedEvent > 0) {
-    for (auto *lowPriorityEvent : lowPriorityEventPointers) {
-      mEventPool.deallocate(lowPriorityEvent);
-    }
-    mNumDroppedLowPriEvents += numRemovedEvent;
-  } else {
+  size_t numRemovedEvent = mEvents.removeMatchedFromBack(
+      isLowPriorityEvent, removeNum, deallocateFromMemoryPool, &mEventPool);
+  if (numRemovedEvent == 0 || numRemovedEvent == SIZE_MAX) {
     LOGW("Cannot remove any low priority event");
+  } else {
+    mNumDroppedLowPriEvents += numRemovedEvent;
   }
   return numRemovedEvent > 0;
 #endif

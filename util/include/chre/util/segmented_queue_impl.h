@@ -227,43 +227,22 @@ void SegmentedQueue<ElementType, kBlockSize>::fillGaps(
 }
 
 template <typename ElementType, size_t kBlockSize>
-size_t SegmentedQueue<ElementType, kBlockSize>::removeMatchedPointerFromBack(
+size_t SegmentedQueue<ElementType, kBlockSize>::removeMatchedFromBack(
     MatchingFunction *matchFunc, size_t maxNumOfElementsRemoved,
-    ElementType removedElements[]) {
-  if (removedElements == nullptr) {
-    CHRE_ASSERT_NOT_NULL(removedElements);
-    return SIZE_MAX;
-  }
-
+    FreeFunction *freeFunction, void *extraDataForFreeFunction) {
   size_t removeIndex[maxNumOfElementsRemoved];
   size_t removedItemCount =
       searchMatches(matchFunc, maxNumOfElementsRemoved, removeIndex);
 
   if (removedItemCount != 0) {
     for (size_t i = 0; i < removedItemCount; ++i) {
-      removedElements[i] = locateDataAddress(removeIndex[i]);
-      --mSize;
-    }
-
-    if (mSize == 0) {
-      resetEmptyQueue();
-    } else {
-      fillGaps(removedItemCount, removeIndex);
-    }
-  }
-  return removedItemCount;
-}
-
-template <typename ElementType, size_t kBlockSize>
-size_t SegmentedQueue<ElementType, kBlockSize>::removeMatchedObjectFromBack(
-    MatchingFunction *matchFunc, size_t maxNumOfElementsRemoved) {
-  size_t removeIndex[maxNumOfElementsRemoved];
-  size_t removedItemCount =
-      searchMatches(matchFunc, maxNumOfElementsRemoved, removeIndex);
-
-  if (removedItemCount != 0) {
-    for (size_t i = 0; i < removedItemCount; ++i) {
-      doRemove(removeIndex[i]);
+      if (freeFunction == nullptr) {
+        doRemove(removeIndex[i]);
+      } else {
+        --mSize;
+        freeFunction(locateDataAddress(removeIndex[i]),
+                     extraDataForFreeFunction);
+      }
     }
 
     if (mSize == 0) {
