@@ -386,7 +386,6 @@ TEST(SegmentedQueue, RemoveMatchesTailInMiddle) {
 TEST(SegmentedQueue, RemoveMatchesWithFreeCallback) {
   constexpr uint8_t blockSize = 3;
   constexpr uint8_t maxBlockCount = 2;
-  ssize_t constCounter = 0;
   int8_t counter = 0;
   SegmentedQueue<uint8_t, blockSize> segmentedQueue(maxBlockCount);
 

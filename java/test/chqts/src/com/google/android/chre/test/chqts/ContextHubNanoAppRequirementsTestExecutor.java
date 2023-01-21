@@ -132,6 +132,7 @@ public class ContextHubNanoAppRequirementsTestExecutor extends ContextHubClientC
      * Should be invoked before run() is invoked to set up the test, e.g. in a @Before method.
      */
     public void init() {
+        mContextHubManager.enableTestMode();
         ChreTestUtil.loadNanoAppAssertSuccess(mContextHubManager, mContextHub, mNanoAppBinary);
     }
 
@@ -144,6 +145,7 @@ public class ContextHubNanoAppRequirementsTestExecutor extends ContextHubClientC
         }
 
         ChreTestUtil.unloadNanoAppAssertSuccess(mContextHubManager, mContextHub, mNanoAppId);
+        mContextHubManager.disableTestMode();
         mContextHubClient.close();
     }
 
