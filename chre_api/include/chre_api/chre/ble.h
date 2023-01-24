@@ -244,6 +244,7 @@ enum chreBleRequestType {
   CHRE_BLE_REQUEST_TYPE_START_SCAN = 1,
   CHRE_BLE_REQUEST_TYPE_STOP_SCAN = 2,
   CHRE_BLE_REQUEST_TYPE_FLUSH = 3,  //!< @since v1.7
+  CHRE_BLE_REQUEST_TYPE_READ_RSSI = 4,  //!< @since v1.8
 };
 
 /**
