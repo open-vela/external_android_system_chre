@@ -29,6 +29,7 @@ const chrePalBleCallbacks PlatformBleBase::sBleCallbacks = {
     PlatformBleBase::requestStateResync,
     PlatformBleBase::scanStatusChangeCallback,
     PlatformBleBase::advertisingEventCallback,
+    PlatformBleBase::readRssiCallback,
 };
 
 PlatformBle::~PlatformBle() {
@@ -116,6 +117,27 @@ void PlatformBleBase::advertisingEventCallback(
   EventLoopManagerSingleton::get()
       ->getBleRequestManager()
       .handleAdvertisementEvent(event);
+}
+
+bool PlatformBle::readRssiAsync(uint16_t connectionHandle) {
+  if (mBleApi != nullptr) {
+    prePalApiCall(PalType::BLE);
+    return mBleApi->readRssi(connectionHandle);
+  } else {
+    return false;
+  }
+}
+
+void PlatformBleBase::readRssiCallback(uint8_t errorCode,
+                                       uint16_t connectionHandle, int8_t rssi) {
+#ifdef CHRE_BLE_READ_RSSI_SUPPORT_ENABLED
+  EventLoopManagerSingleton::get()->getBleRequestManager().handleReadRssi(
+      errorCode, connectionHandle, rssi);
+#else
+  UNUSED_VAR(errorCode);
+  UNUSED_VAR(connectionHandle);
+  UNUSED_VAR(rssi);
+#endif
 }
 
 }  // namespace chre

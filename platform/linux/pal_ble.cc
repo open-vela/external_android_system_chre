@@ -132,6 +132,11 @@ void chrePalBleReleaseAdvertisingEvent(
   chre::memoryFree(event);
 }
 
+bool chrePalBleReadRssi(uint16_t connectionHandle) {
+  gCallbacks->readRssiCallback(CHRE_ERROR_NONE, connectionHandle, -65);
+  return true;
+}
+
 void chrePalBleApiClose() {
   stopAllTasks();
 }
@@ -166,6 +171,7 @@ const struct chrePalBleApi *chrePalBleGetApi(uint32_t requestedApiVersion) {
       .startScan = chrePalBleStartScan,
       .stopScan = chrePalBleStopScan,
       .releaseAdvertisingEvent = chrePalBleReleaseAdvertisingEvent,
+      .readRssi = chrePalBleReadRssi,
   };
 
   if (!CHRE_PAL_VERSIONS_ARE_COMPATIBLE(kApi.moduleVersion,
