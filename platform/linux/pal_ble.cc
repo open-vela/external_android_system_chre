@@ -16,6 +16,7 @@
 
 #include "chre/pal/ble.h"
 
+#include "chre.h"
 #include "chre/platform/linux/task_util/task_manager.h"
 #include "chre/util/memory.h"
 #include "chre/util/unique_ptr.h"
@@ -62,6 +63,7 @@ void startScan() {
       static_cast<uint8_t *>(chre::memoryAlloc(sizeof(uint8_t) * 2));
   data[0] = 0x01;
   data[1] = 0x16;
+  report->timestamp = chreGetTime();
   report->data = data;
   report->dataLength = 2;
   event->reports = report.release();
