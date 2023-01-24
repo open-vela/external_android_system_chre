@@ -10,12 +10,12 @@ if [[ -z "$ANDROID_BUILD_TOP" ]]; then
     exit 1
 fi
 
-# make sure $RISCV_TOOLCHAIN_PATH & $RISCV_PREFIX are set
-if [[ -z "$RISCV_TOOLCHAIN_PATH" ]] || [[ -z "$RISCV_PREFIX" ]]; then
-    echo "Must provide RISCV_TOOLCHAIN_PATH & RISCV_PREFIX" 1>&2
+# make sure $RISCV_TOOLCHAIN_PATH & $RISCV_TINYSYS_PREFIX are set
+if [[ -z "$RISCV_TOOLCHAIN_PATH" ]] || [[ -z "$RISCV_TINYSYS_PREFIX" ]]; then
+    echo "Must provide RISCV_TOOLCHAIN_PATH & RISCV_TINYSYS_PREFIX" 1>&2
     echo "Example:" 1>&2
     echo " RISCV_TOOLCHAIN_PATH=\$ANDROID_BUILD_TOP/prebuilts/clang/md32rv/linux-x86 \\" 1>&2
-    echo " RISCV_PREFIX=\$ANDROID_BUILD_TOP/vendor/mediatek/proprietary/tinysys \\" 1>&2
+    echo " RISCV_TINYSYS_PREFIX=\$ANDROID_BUILD_TOP/vendor/mediatek/proprietary/tinysys \\" 1>&2
     echo " build/tools/build_tinysys.sh" 1>&2
     exit 1
 fi
