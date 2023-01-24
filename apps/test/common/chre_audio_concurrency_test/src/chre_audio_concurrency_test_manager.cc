@@ -18,6 +18,7 @@
 
 #include <pb_decode.h>
 
+#include "audio_validation.h"
 #include "chre/util/nanoapp/log.h"
 #include "chre/util/time.h"
 #include "chre_audio_concurrency_test.nanopb.h"
@@ -27,6 +28,8 @@
 
 namespace chre {
 
+using test_shared::checkAudioSamplesAllSame;
+using test_shared::checkAudioSamplesAllZeros;
 using test_shared::sendEmptyMessageToHost;
 using test_shared::sendTestResultToHost;
 
@@ -191,48 +194,62 @@ void Manager::cancelTimeoutTimer() {
 
 bool Manager::validateAudioDataEvent(const chreAudioDataEvent *data) {
   bool ulaw8 = false;
-  if (data->format == CHRE_AUDIO_DATA_FORMAT_8_BIT_U_LAW) {
+
+  bool success = false;
+  if (data == nullptr) {
+    LOGE("data is nullptr");
+  } else if (data->format == CHRE_AUDIO_DATA_FORMAT_8_BIT_U_LAW) {
     ulaw8 = true;
+    if (data->samplesULaw8 == nullptr) {
+      LOGE("samplesULaw8 is nullptr");
+    }
   } else if (data->format != CHRE_AUDIO_DATA_FORMAT_16_BIT_SIGNED_PCM) {
     LOGE("Invalid format %" PRIu8, data->format);
-    return false;
-  }
+  } else if (data->samplesS16 == nullptr) {
+    LOGE("samplesS16 is nullptr");
+  } else if (data->sampleCount == 0) {
+    LOGE("The sample count is 0");
+  } else if (data->sampleCount <
+             static_cast<uint64_t>(mAudioSource.minBufferDuration *
+                                   static_cast<double>(data->sampleRate) /
+                                   kOneSecondInNanoseconds)) {
+    LOGE("The sample count is less than the minimum number of samples");
+  } else if (!checkAudioSamplesAllZeros(data->samplesS16, data->sampleCount)) {
+    LOGE("Audio samples are all zero");
+  } else if (!checkAudioSamplesAllSame(data->samplesS16, data->sampleCount)) {
+    LOGE("Audio samples are all the same");
+  } else {
+    // Verify that timestamp increases.
+    static uint64_t lastTimestamp = 0;
+    bool timestampValid = data->timestamp > lastTimestamp;
+    lastTimestamp = data->timestamp;
 
-  // Verify that the audio data is not all zeroes
-  uint32_t numZeroes = 0;
-  for (uint32_t i = 0; i < data->sampleCount; i++) {
-    numZeroes +=
-        ulaw8 ? (data->samplesULaw8[i] == 0) : (data->samplesS16[i] == 0);
-  }
-  bool dataValid = numZeroes != data->sampleCount;
-
-  // Verify that timestamp increases
-  static uint64_t lastTimestamp = 0;
-  bool timestampValid = data->timestamp > lastTimestamp;
-  lastTimestamp = data->timestamp;
-
-  // Verify the gap was properly announced.
-  bool gapValidationValid = true;
-  double sampleTimeInNs =
-      kOneSecondInNanoseconds / static_cast<double>(data->sampleRate);
-  if (mLastAudioBufferEndTimestampNs.has_value() &&
-      data->timestamp > *mLastAudioBufferEndTimestampNs) {
-    uint64_t gapNs = data->timestamp - *mLastAudioBufferEndTimestampNs;
-    if (gapNs > kMaxMissedSamples * sampleTimeInNs && !mSawSuspendAudioEvent) {
-      LOGE(
-          "Audio was suspended, but we did not receive a "
-          "CHRE_EVENT_AUDIO_SAMPLING_CHANGE event with "
-          "suspended set correctly. gap = %" PRIu64 " ns",
-          gapNs);
-      gapValidationValid = false;
+    // Verify the gap was properly announced.
+    bool gapValidationValid = true;
+    double sampleTimeInNs =
+        kOneSecondInNanoseconds / static_cast<double>(data->sampleRate);
+    if (mLastAudioBufferEndTimestampNs.has_value() &&
+        data->timestamp > *mLastAudioBufferEndTimestampNs) {
+      uint64_t gapNs = data->timestamp - *mLastAudioBufferEndTimestampNs;
+      if (gapNs > kMaxMissedSamples * sampleTimeInNs &&
+          !mSawSuspendAudioEvent) {
+        LOGE(
+            "Audio was suspended, but we did not receive a "
+            "CHRE_EVENT_AUDIO_SAMPLING_CHANGE event with "
+            "suspended set correctly. gap = %" PRIu64 " ns",
+            gapNs);
+        gapValidationValid = false;
+      }
     }
+
+    // Record last audio timestamp at end of buffer
+    mLastAudioBufferEndTimestampNs =
+        data->timestamp + data->sampleCount * sampleTimeInNs;
+
+    success = timestampValid && gapValidationValid;
   }
 
-  // Record last audio timestamp at end of buffer
-  mLastAudioBufferEndTimestampNs =
-      data->timestamp + data->sampleCount * sampleTimeInNs;
-
-  return dataValid && timestampValid && gapValidationValid;
+  return success;
 }
 
 void Manager::handleAudioDataEvent(const chreAudioDataEvent *data) {
