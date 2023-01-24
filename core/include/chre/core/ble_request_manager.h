@@ -79,6 +79,36 @@ class BleRequestManager : public NonCopyable {
    */
   bool stopScanAsync(Nanoapp *nanoapp);
 
+#ifdef CHRE_BLE_READ_RSSI_SUPPORT_ENABLED
+  /**
+   * Requests to read the RSSI of a peer device on the given LE connection
+   * handle.
+   *
+   * If the request is accepted, the response will be delivered in a
+   * CHRE_EVENT_BLE_RSSI_READ event with the same cookie.
+   *
+   * The request may be rejected if resources are not available to service the
+   * request (such as if too many outstanding requests already exist). If so,
+   * the client may retry later.
+   *
+   * Note that the connectionHandle is valid only while the connection remains
+   * active. If a peer device disconnects then reconnects, the handle may
+   * change. BluetoothGatt#getAclHandle() can be used from the Android framework
+   * to get the latest handle upon reconnection.
+   *
+   * @param connectionHandle
+   * @param cookie An opaque value that will be included in the chreAsyncResult
+   *               embedded in the response to this request.
+   * @return True if the request has been accepted and dispatched to the
+   *         controller. False otherwise.
+   *
+   * @since v1.8
+   *
+   */
+  bool readRssiAsync(Nanoapp *nanoapp, uint16_t connectionHandle,
+                     const void *cookie);
+#endif
+
   /**
    * Disables active scan for a nanoapp (no-op if no active scan).
    *
@@ -127,6 +157,19 @@ class BleRequestManager : public NonCopyable {
    * Runs asynchronously in the context of the callback immediately.
    */
   void handleRequestStateResyncCallback();
+
+#ifdef CHRE_BLE_READ_RSSI_SUPPORT_ENABLED
+  /**
+   * Handles a readRssi response from the BLE PAL.
+   *
+   * @param errorCode error code from enum chreError, with CHRE_ERROR_NONE
+   *        indicating a successful response.
+   * @param connectionHandle the handle upon which the RSSI was read
+   * @param rssi the RSSI read, if successful
+   */
+  void handleReadRssi(uint8_t errorCode, uint16_t connectionHandle,
+                      int8_t rssi);
+#endif
 
   /**
    * Invoked when the host notifies CHRE that ble access has been
