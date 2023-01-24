@@ -248,6 +248,12 @@ bool chreBleStopScanAsync() {
   return (fptr != nullptr) ? fptr() : false;
 }
 
+WEAK_SYMBOL
+bool chreBleReadRssiAsync(uint16_t connectionHandle, const void *cookie) {
+  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreBleReadRssiAsync);
+  return (fptr != nullptr) ? fptr(connectionHandle, cookie) : false;
+}
+
 #endif /* CHRE_NANOAPP_USES_BLE */
 
 WEAK_SYMBOL

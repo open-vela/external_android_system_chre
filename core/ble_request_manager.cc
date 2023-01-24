@@ -117,6 +117,18 @@ uint32_t BleRequestManager::disableActiveScan(const Nanoapp *nanoapp) {
   return 1;
 }
 
+#ifdef CHRE_BLE_READ_RSSI_SUPPORT_ENABLED
+bool BleRequestManager::readRssiAsync(Nanoapp *nanoapp,
+                                      uint16_t connectionHandle,
+                                      const void *cookie) {
+  // TODO(b/264269454)
+  UNUSED_VAR(nanoapp);
+  UNUSED_VAR(connectionHandle);
+  UNUSED_VAR(cookie);
+  return false;
+}
+#endif
+
 void BleRequestManager::addBleRequestLog(uint32_t instanceId, bool enabled,
                                          size_t requestIndex,
                                          bool compliesWithBleSetting) {
@@ -355,6 +367,16 @@ void BleRequestManager::handleRequestStateResyncCallbackSync() {
     updatePlatformRequest(true /* forceUpdate */);
   }
 }
+
+#ifdef CHRE_BLE_READ_RSSI_SUPPORT_ENABLED
+void BleRequestManager::handleReadRssi(uint8_t errorCode,
+                                       uint16_t connectionHandle, int8_t rssi) {
+  // TODO(b/264269454) - will implement
+  UNUSED_VAR(errorCode);
+  UNUSED_VAR(connectionHandle);
+  UNUSED_VAR(rssi);
+}
+#endif
 
 void BleRequestManager::onSettingChanged(Setting setting, bool /* state */) {
   if (setting == Setting::BLE_AVAILABLE) {
