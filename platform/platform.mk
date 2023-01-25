@@ -498,7 +498,7 @@ endif
 # Compiler flags
 
 # Variables
-TINYSYS_CLANG_PREFIX = $(RISCV_PREFIX)/../../../../prebuilts/clang
+TINYSYS_CLANG_PREFIX = $(RISCV_TINYSYS_PREFIX)/../../../../prebuilts/clang
 TINYSYS_PLATFORM = mt6985
 
 # CHRE include paths
@@ -508,15 +508,15 @@ TINYSYS_CFLAGS += -I$(CHRE_PREFIX)/platform/freertos/include
 TINYSYS_CFLAGS += -I$(CHRE_PREFIX)/platform/shared/include/chre/platform/shared/libc
 
 # Tinysys include paths
-TINYSYS_CFLAGS += -I$(RISCV_PREFIX)/kernel/FreeRTOS_v10.1.0.1/FreeRTOS/Source/include
-TINYSYS_CFLAGS += -I$(RISCV_PREFIX)/kernel/FreeRTOS_v10.1.0.1/FreeRTOS/Source/portable/LLVM/RV55
-TINYSYS_CFLAGS += -I$(RISCV_PREFIX)/common/drivers/irq/v3/inc
-TINYSYS_CFLAGS += -I$(RISCV_PREFIX)/common/include
-TINYSYS_CFLAGS += -I$(RISCV_PREFIX)/scp/drivers/RV55_A/$(TINYSYS_PLATFORM)/intc/inc
-TINYSYS_CFLAGS += -I$(RISCV_PREFIX)/scp/drivers/common/xgpt/inc
-TINYSYS_CFLAGS += -I$(RISCV_PREFIX)/scp/middleware/sensorhub/include
-TINYSYS_CFLAGS += -I$(RISCV_PREFIX)/scp/project/RV55_A/$(TINYSYS_PLATFORM)/platform/inc
-TINYSYS_CFLAGS += -I$(RISCV_PREFIX)/scp/project/RV55_A/common/platform/inc
+TINYSYS_CFLAGS += -I$(RISCV_TINYSYS_PREFIX)/kernel/FreeRTOS_v10.1.0.1/FreeRTOS/Source/include
+TINYSYS_CFLAGS += -I$(RISCV_TINYSYS_PREFIX)/kernel/FreeRTOS_v10.1.0.1/FreeRTOS/Source/portable/LLVM/RV55
+TINYSYS_CFLAGS += -I$(RISCV_TINYSYS_PREFIX)/common/drivers/irq/v3/inc
+TINYSYS_CFLAGS += -I$(RISCV_TINYSYS_PREFIX)/common/include
+TINYSYS_CFLAGS += -I$(RISCV_TINYSYS_PREFIX)/scp/drivers/RV55_A/$(TINYSYS_PLATFORM)/intc/inc
+TINYSYS_CFLAGS += -I$(RISCV_TINYSYS_PREFIX)/scp/drivers/common/xgpt/inc
+TINYSYS_CFLAGS += -I$(RISCV_TINYSYS_PREFIX)/scp/middleware/sensorhub/include
+TINYSYS_CFLAGS += -I$(RISCV_TINYSYS_PREFIX)/scp/project/RV55_A/$(TINYSYS_PLATFORM)/platform/inc
+TINYSYS_CFLAGS += -I$(RISCV_TINYSYS_PREFIX)/scp/project/RV55_A/common/platform/inc
 
 # Clang include paths
 TINYSYS_CFLAGS += -I$(TINYSYS_CLANG_PREFIX)/md32rv/linux-x86/lib/clang/9.0.1/include

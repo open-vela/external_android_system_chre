@@ -8,6 +8,13 @@
 include $(CHRE_PREFIX)/build/clean_build_template_args.mk
 
 TARGET_NAME = aosp_riscv_tinysys
+ifneq ($(filter $(TARGET_NAME)% all, $(MAKECMDGOALS)),)
+
+ifeq ($(RISCV_TINYSYS_PREFIX),)
+$(error "The tinysys code directory needs to be exported as the RISCV_TINYSYS_PREFIX \
+         environment variable")
+endif
+
 TARGET_CFLAGS = $(TINYSYS_CFLAGS)
 TARGET_VARIANT_SRCS = $(TINYSYS_SRCS)
 TARGET_BIN_LDFLAGS = $(AOSP_RISCV_TINYSYS_BIN_LDFLAGS)
@@ -48,7 +55,6 @@ TARGET_CFLAGS += -mcpu=MRV55E03
 
 # Other makefiles ##############################################################
 
-ifneq ($(filter $(TARGET_NAME)% all, $(MAKECMDGOALS)),)
 include $(CHRE_PREFIX)/build/arch/riscv.mk
 include $(CHRE_PREFIX)/build/build_template.mk
 endif

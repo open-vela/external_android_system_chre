@@ -15,11 +15,6 @@ $(error "The risc-v toolchain directory needs to be exported as the \
          RISCV_TOOLCHAIN_PATH environment variable")
 endif
 
-ifeq ($(RISCV_PREFIX),)
-$(error "The risc-v code directory needs to be exported as the RISCV_PREFIX \
-         environment variable")
-endif
-
 # Tools ########################################################################
 
 TARGET_AR = $(RISCV_TOOLCHAIN_PATH)/bin/llvm-ar
