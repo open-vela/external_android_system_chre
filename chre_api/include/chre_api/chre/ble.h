@@ -91,7 +91,7 @@ extern "C" {
 
 //! CHRE BLE supports Manufacturer Data filters (Corresponding HCI OCF: 0x0157,
 //! Sub-command: 0x06)
-//! @since v1.7
+//! @since v1.8
 #define CHRE_BLE_FILTER_CAPABILITIES_MANUFACTURER_DATA UINT32_C(1 << 6)
 
 //! CHRE BLE supports Service Data filters (Corresponding HCI OCF: 0x0157,
@@ -284,7 +284,7 @@ enum chreBleAdType {
   CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16 = 0x16,
 
   //! Manufacturer Specific Data
-  //! @since v1.7
+  //! @since v1.8
   CHRE_BLE_AD_TYPE_MANUFACTURER_DATA = 0xff,
 };
 
