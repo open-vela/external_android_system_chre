@@ -153,6 +153,19 @@ extern "C" {
  */
 #define CHRE_EVENT_BLE_RSSI_READ CHRE_BLE_EVENT_ID(3)
 
+/**
+ * nanoappHandleEvent argument: struct chreBatchCompleteEvent
+ *
+ * This event is generated if the platform enabled batching, and when all
+ * events in a single batch has been delivered (for example, batching
+ * CHRE_EVENT_BLE_ADVERTISEMENT events if the platform has
+ * CHRE_BLE_CAPABILITIES_SCAN_RESULT_BATCHING enabled, and a non-zero
+ * reportDelayMs in chreBleStartScanAsync() was accepted).
+ *
+ * @since v1.8
+ */
+#define CHRE_EVENT_BLE_BATCH_COMPLETE CHRE_BLE_EVENT_ID(4)
+
 // NOTE: Do not add new events with ID > 15
 /** @} */
 
