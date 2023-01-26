@@ -117,6 +117,30 @@ uint32_t BleRequestManager::disableActiveScan(const Nanoapp *nanoapp) {
   return 1;
 }
 
+#ifdef CHRE_BLE_READ_RSSI_SUPPORT_ENABLED
+bool BleRequestManager::readRssiAsync(Nanoapp *nanoapp,
+                                      uint16_t connectionHandle,
+                                      const void *cookie) {
+  CHRE_ASSERT(nanoapp);
+  if (mPendingRssiRequests.full()) {
+    LOG_OOM();
+    return false;
+  }
+  if (mPendingRssiRequests.empty()) {
+    // no previous request existed, so issue this one immediately to get
+    // an early exit if we get a failure
+    auto status = readRssi(connectionHandle);
+    if (status != CHRE_ERROR_NONE) {
+      return false;
+    }
+  }
+  // it's pending, so report the result asynchronously
+  mPendingRssiRequests.push(
+      BleReadRssiRequest{nanoapp->getInstanceId(), connectionHandle, cookie});
+  return true;
+}
+#endif
+
 void BleRequestManager::addBleRequestLog(uint32_t instanceId, bool enabled,
                                          size_t requestIndex,
                                          bool compliesWithBleSetting) {
@@ -355,6 +379,94 @@ void BleRequestManager::handleRequestStateResyncCallbackSync() {
     updatePlatformRequest(true /* forceUpdate */);
   }
 }
+
+#ifdef CHRE_BLE_READ_RSSI_SUPPORT_ENABLED
+void BleRequestManager::handleReadRssi(uint8_t errorCode,
+                                       uint16_t connectionHandle, int8_t rssi) {
+  struct readRssiResponse {
+    uint8_t errorCode;
+    int8_t rssi;
+    uint16_t connectionHandle;
+  };
+
+  auto callback = [](uint16_t /* eventType */, void *eventData,
+                     void * /* extraData */) {
+    readRssiResponse response = NestedDataPtr<readRssiResponse>(eventData);
+    EventLoopManagerSingleton::get()->getBleRequestManager().handleReadRssiSync(
+        response.errorCode, response.connectionHandle, response.rssi);
+  };
+
+  EventLoopManagerSingleton::get()->deferCallback(
+      SystemCallbackType::BleReadRssiEvent,
+      NestedDataPtr<readRssiResponse>(
+          readRssiResponse{errorCode, rssi, connectionHandle}),
+      callback);
+}
+
+void BleRequestManager::handleReadRssiSync(uint8_t errorCode,
+                                           uint16_t connectionHandle,
+                                           int8_t rssi) {
+  if (mPendingRssiRequests.empty()) {
+    FATAL_ERROR(
+        "Got unexpected handleReadRssi event without outstanding request");
+  }
+
+  if (mPendingRssiRequests.front().connectionHandle != connectionHandle) {
+    FATAL_ERROR(
+        "Got readRssi event for mismatched connection handle (%d != %d)",
+        mPendingRssiRequests.front().connectionHandle, connectionHandle);
+  }
+
+  resolvePendingRssiRequest(errorCode, rssi);
+  dispatchNextRssiRequestIfAny();
+}
+
+void BleRequestManager::resolvePendingRssiRequest(uint8_t errorCode,
+                                                  int8_t rssi) {
+  auto event = memoryAlloc<chreBleReadRssiEvent>();
+  if (event == nullptr) {
+    FATAL_ERROR("Failed to alloc BLE async result");
+  }
+
+  event->result.cookie = mPendingRssiRequests.front().cookie;
+  event->result.success = (errorCode == CHRE_ERROR_NONE);
+  event->result.requestType = CHRE_BLE_REQUEST_TYPE_READ_RSSI;
+  event->result.errorCode = errorCode;
+  event->result.reserved = 0;
+  event->connectionHandle = mPendingRssiRequests.front().connectionHandle;
+  event->rssi = rssi;
+
+  EventLoopManagerSingleton::get()->getEventLoop().postEventOrDie(
+      CHRE_EVENT_BLE_RSSI_READ, event, freeEventDataCallback,
+      mPendingRssiRequests.front().instanceId);
+
+  mPendingRssiRequests.pop();
+}
+
+void BleRequestManager::dispatchNextRssiRequestIfAny() {
+  while (!mPendingRssiRequests.empty()) {
+    auto req = mPendingRssiRequests.front();
+    auto status = readRssi(req.connectionHandle);
+    if (status == CHRE_ERROR_NONE) {
+      // control flow resumes in the handleReadRssi() callback, on completion
+      return;
+    }
+    resolvePendingRssiRequest(status, 0x7F /* failure RSSI from BT spec */);
+  }
+}
+
+uint8_t BleRequestManager::readRssi(uint16_t connectionHandle) {
+  if (!bleSettingEnabled()) {
+    return CHRE_ERROR_FUNCTION_DISABLED;
+  }
+  auto success = mPlatformBle.readRssiAsync(connectionHandle);
+  if (success) {
+    return CHRE_ERROR_NONE;
+  } else {
+    return CHRE_ERROR;
+  }
+}
+#endif
 
 void BleRequestManager::onSettingChanged(Setting setting, bool /* state */) {
   if (setting == Setting::BLE_AVAILABLE) {

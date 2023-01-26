@@ -14,6 +14,7 @@ CHRE_PREFIX = $(ANDROID_BUILD_TOP)/system/chre
 endif
 endif
 
+TEST_SHARED_PATH = $(CHRE_PREFIX)/apps/test/common/shared
 NANOAPP_DIR_NAME ?= $(NANOAPP_NAME)
 NANOAPP_SRC_PATH = $(CHRE_PREFIX)/apps/test/chqts/src
 
@@ -32,6 +33,7 @@ COMMON_SRCS += \
 COMMON_SRCS += $(CHRE_PREFIX)/util/nanoapp/ble.cc
 COMMON_SRCS += $(CHRE_PREFIX)/util/buffer_base.cc
 COMMON_SRCS += $(CHRE_PREFIX)/util/dynamic_vector_base.cc
+COMMON_SRCS += $(TEST_SHARED_PATH)/src/audio_validation.cc
 
 COMMON_CFLAGS += -DCHRE_NO_ENDIAN_H \
   -D__LITTLE_ENDIAN=1 \
@@ -41,6 +43,7 @@ COMMON_CFLAGS += -DCHRE_NO_ENDIAN_H \
 
 COMMON_CFLAGS += -I$(NANOAPP_SRC_PATH)
 COMMON_CFLAGS += -I$(CHRE_PREFIX)/util/include
+COMMON_CFLAGS += -I$(TEST_SHARED_PATH)/inc
 
 OPT_LEVEL=2
 
