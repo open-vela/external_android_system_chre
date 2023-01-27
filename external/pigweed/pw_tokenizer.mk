@@ -15,10 +15,10 @@ PIGWEED_TOKENIZER_DIR=$(ANDROID_BUILD_TOP)/external/pigweed
 PIGWEED_SCRIPTS_DIR=$(PIGWEED_TOKENIZER_DIR)/pw_tokenizer/py/pw_tokenizer
 
 # Variables used by build_template.mk to generate the token mapping
-TOKEN_MAP_GEN_CMD = $(PIGWEED_SCRIPTS_DIR)/database.py create --force \
-                    --type binary --database
-TOKEN_MAP_CSV_GEN_CMD = $(PIGWEED_SCRIPTS_DIR)/database.py create --force \
-                    --type csv --database
+TOKEN_MAP_GEN_CMD     = $(PYTHON) $(PIGWEED_SCRIPTS_DIR)/database.py create \
+                          --force --type binary --database
+TOKEN_MAP_CSV_GEN_CMD = $(PYTHON) $(PIGWEED_SCRIPTS_DIR)/database.py create \
+                          --force --type csv --database
 
 # Pigweed source files
 COMMON_SRCS += $(PIGWEED_DIR)/pw_tokenizer/encode_args.cc
