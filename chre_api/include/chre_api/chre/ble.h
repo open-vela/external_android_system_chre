@@ -91,7 +91,7 @@ extern "C" {
 
 //! CHRE BLE supports Manufacturer Data filters (Corresponding HCI OCF: 0x0157,
 //! Sub-command: 0x06)
-//! @since v1.7
+//! @since v1.8
 #define CHRE_BLE_FILTER_CAPABILITIES_MANUFACTURER_DATA UINT32_C(1 << 6)
 
 //! CHRE BLE supports Service Data filters (Corresponding HCI OCF: 0x0157,
@@ -152,6 +152,19 @@ extern "C" {
  * @since v1.8
  */
 #define CHRE_EVENT_BLE_RSSI_READ CHRE_BLE_EVENT_ID(3)
+
+/**
+ * nanoappHandleEvent argument: struct chreBatchCompleteEvent
+ *
+ * This event is generated if the platform enabled batching, and when all
+ * events in a single batch has been delivered (for example, batching
+ * CHRE_EVENT_BLE_ADVERTISEMENT events if the platform has
+ * CHRE_BLE_CAPABILITIES_SCAN_RESULT_BATCHING enabled, and a non-zero
+ * reportDelayMs in chreBleStartScanAsync() was accepted).
+ *
+ * @since v1.8
+ */
+#define CHRE_EVENT_BLE_BATCH_COMPLETE CHRE_BLE_EVENT_ID(4)
 
 // NOTE: Do not add new events with ID > 15
 /** @} */
@@ -284,7 +297,7 @@ enum chreBleAdType {
   CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16 = 0x16,
 
   //! Manufacturer Specific Data
-  //! @since v1.7
+  //! @since v1.8
   CHRE_BLE_AD_TYPE_MANUFACTURER_DATA = 0xff,
 };
 
