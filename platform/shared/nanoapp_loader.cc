@@ -114,7 +114,7 @@ double roundOverride(double val) {
 
 // This function is required to be exposed to nanoapps to handle errors from
 // invoking virtual functions.
-void __cxa_pure_virtual(void) {
+extern "C" void __cxa_pure_virtual(void) {
   chreAbort(CHRE_ERROR /* abortCode */);
 }
 
