@@ -18,6 +18,7 @@
 #define ANDROID_HARDWARE_CONTEXTHUB_COMMON_MULTICLIENTS_HAL_BASE_H_
 
 #include <aidl/android/hardware/contexthub/BnContextHub.h>
+#include <chre_host/generated/host_messages_generated.h>
 
 #include "chre_connection_callback.h"
 #include "chre_host/preloaded_nanoapp_loader.h"
@@ -65,11 +66,11 @@ class MultiClientContextHubBase
       const std::shared_ptr<IContextHubCallback> &callback) override;
   ScopedAStatus sendMessageToHub(int32_t contextHubId,
                                  const ContextHubMessage &message) override;
-  ScopedAStatus onHostEndpointConnected(
-      const HostEndpointInfo &in_info) override;
+  ScopedAStatus onHostEndpointConnected(const HostEndpointInfo &info) override;
   ScopedAStatus onHostEndpointDisconnected(char16_t in_hostEndpointId) override;
   ScopedAStatus getPreloadedNanoappIds(std::vector<int64_t> *result) override;
   ScopedAStatus onNanSessionStateChanged(bool in_state) override;
+  ScopedAStatus setTestMode(bool enable) override;
 
   // The callback function implementing ChreConnectionCallback
   void handleMessageFromChre(const unsigned char *messageBuffer,
@@ -90,6 +91,7 @@ class MultiClientContextHubBase
   void onUnloadNanoappResponse(
       const ::chre::fbs::UnloadNanoappResponseT &response,
       HalClientId clientid);
+  void onNanoappMessage(const ::chre::fbs::NanoappMessageT &message);
 
   // HAL is the unique owner of the communication channel to CHRE.
   std::unique_ptr<ChreConnection> mConnection{};
