@@ -39,6 +39,7 @@
 using aidl::android::hardware::contexthub::AsyncEventType;
 using aidl::android::hardware::contexthub::BnContextHubCallback;
 using aidl::android::hardware::contexthub::ContextHubMessage;
+using aidl::android::hardware::contexthub::HostEndpointInfo;
 using aidl::android::hardware::contexthub::IContextHub;
 using aidl::android::hardware::contexthub::NanoappBinary;
 using aidl::android::hardware::contexthub::NanoappInfo;
@@ -59,43 +60,53 @@ const char *kPredefinedNanoappPaths[] = {
     "/vendor/dsp/sdsp/",
     "/vendor/lib/rfsa/adsp/",
 };
+// Please keep kUsage in alphabetical order
 constexpr char kUsage[] = R"(
 Usage: chre_aidl_hal_client COMMAND [ARGS]
 COMMAND ARGS...:
+  disableTestMode             - disable test mode.
+  enableTestMode              - enable test mode.
   list <PATH_OF_NANOAPPS>     - list all the nanoapps' header info in the path.
   load <APP_NAME>             - load the nanoapp specified by the name.
                                 If an absolute path like /path/to/awesome.so,
                                 which is optional, is not provided then default
                                 locations are searched.
   query                       - show all loaded nanoapps (system apps excluded)
+  sendMessage <HEX_HOST_ENDPOINT_ID> <HEX_NANOAPP_ID | APP_NAME> <HEX_PAYLOAD>
+                              - send a payload to a nanoapp.
   unload <HEX_NANOAPP_ID | APP_NAME>
                               - unload the nanoapp specified by either the
                                 nanoapp id in hex format or the app name.
                                 If an absolute path like /path/to/awesome.so,
                                 which is optional, is not provided then default
                                 locations are searched.
-  enableTestMode              - enables test mode.
-  disableTestMode             - disables test mode.
 )";
 
 inline void throwError(const std::string &message) {
   throw std::system_error{std::error_code(), message};
 }
 
-bool isValidNanoappHexId(const std::string &number) {
+bool isValidHexNumber(const std::string &number) {
   if (number.empty() ||
       (number.substr(0, 2) != "0x" && number.substr(0, 2) != "0X")) {
     return false;
-  }
-  // Once the input has the hex prefix, an exception will be thrown if it is
-  // malformed because it shouldn't be treated as an app name anymore.
-  if (number.size() > 18 || number.size() < 3) {
-    throwError("Hex app id must has a length of [3, 18] including the prefix.");
   }
   for (int i = 2; i < number.size(); i++) {
     if (!isxdigit(number[i])) {
       throwError("Hex app id " + number + " contains invalid character.");
     }
+  }
+  return number.size() > 2;
+}
+
+bool isValidNanoappHexId(const std::string &number) {
+  if (!isValidHexNumber(number)) {
+    return false;
+  }
+  // Once the input has the hex prefix, an exception will be thrown if it is
+  // malformed because it shouldn't be treated as an app name anymore.
+  if (number.size() > 18) {
+    throwError("Hex app id must has a length of [3, 18] including the prefix.");
   }
   return true;
 }
@@ -136,16 +147,29 @@ class ContextHubCallback : public BnContextHubCallback {
     promise.set_value();
     return ScopedAStatus::ok();
   }
+
   ScopedAStatus handleContextHubMessage(
-      const ContextHubMessage & /*message*/,
+      const ContextHubMessage &message,
       const std::vector<std::string> & /*msgContentPerms*/) override {
+    std::cout << "Received a message with type " << message.messageType
+              << " size " << message.messageBody.size() << " from nanoapp 0x"
+              << std::hex << message.nanoappId
+              << " sent to the host endpoint 0x" << message.hostEndPoint
+              << std::endl;
+    std::cout << "message: 0x";
+    for (const uint8_t &data : message.messageBody) {
+      std::cout << std::hex << static_cast<uint32_t>(data);
+    }
+    std::cout << std::endl;
     promise.set_value();
     return ScopedAStatus::ok();
   }
+
   ScopedAStatus handleContextHubAsyncEvent(AsyncEventType /*event*/) override {
     promise.set_value();
     return ScopedAStatus::ok();
   }
+
   // Called after loading/unloading a nanoapp.
   ScopedAStatus handleTransactionResult(int32_t transactionId,
                                         bool success) override {
@@ -248,6 +272,7 @@ void verifyStatusAndSignal(const std::string &operation,
                ToString(kTimeOutThresholdInSec.count()) + " seconds");
   }
 }
+
 /** Finds the .napp_header file associated to the nanoapp.
  *
  * This function guarantees to return a non-null {@link NanoAppBinaryHeader}
@@ -292,6 +317,18 @@ std::unique_ptr<NanoAppBinaryHeader> findHeaderAndNormalizePath(
   return nullptr;
 }
 
+int64_t getNanoappIdFrom(std::string &appIdOrName) {
+  int64_t appId;
+  if (isValidNanoappHexId(appIdOrName)) {
+    appId = std::stoll(appIdOrName, nullptr, 16);
+  } else {
+    // Treat the appIdOrName as the app name and try again
+    appId =
+        static_cast<int64_t>(findHeaderAndNormalizePath(appIdOrName)->appId);
+  }
+  return appId;
+}
+
 void loadNanoapp(std::string &pathAndName) {
   auto header = findHeaderAndNormalizePath(pathAndName);
   std::vector<uint8_t> soBuffer{};
@@ -317,14 +354,7 @@ void loadNanoapp(std::string &pathAndName) {
 
 void unloadNanoapp(std::string &appIdOrName) {
   std::future<void> callbackSignal;
-  int64_t appId;
-  if (isValidNanoappHexId(appIdOrName)) {
-    appId = std::stoll(appIdOrName, nullptr, 16);
-  } else {
-    // Treat the appIdOrName as the app name and try again
-    appId =
-        static_cast<int64_t>(findHeaderAndNormalizePath(appIdOrName)->appId);
-  }
+  auto appId = getNanoappIdFrom(appIdOrName);
   auto status = getContextHub(callbackSignal)
                     ->unloadNanoapp(kContextHubId, appId, kUnloadTransactionId);
   verifyStatusAndSignal(/* operation= */ "unloading nanoapp " + appIdOrName,
@@ -336,6 +366,51 @@ void queryNanoapps() {
   auto status = getContextHub(callbackSignal)->queryNanoapps(kContextHubId);
   verifyStatusAndSignal(/* operation= */ "querying nanoapps", status,
                         callbackSignal);
+}
+
+/** Sends a hexPayload from hexHostEndpointId to appIdOrName. */
+void sendMessageToNanoapp(const std::string &hexHostEndpointId,
+                          std::string &appIdOrName,
+                          const std::string &hexPayload) {
+  if (!isValidHexNumber(hexHostEndpointId) || hexHostEndpointId.size() > 6) {
+    throwError("host endpoint id must be a 16-bits long hex number.");
+  }
+  if (!isValidHexNumber(hexPayload)) {
+    throwError("Invalid hex payload.");
+  }
+  auto appId = getNanoappIdFrom(appIdOrName);
+
+  auto hostEndpointId = static_cast<uint16_t>(
+      std::stoi(hexHostEndpointId, /* idx= */ nullptr, /* base= */ 16));
+  HostEndpointInfo info = {
+      .hostEndpointId = hostEndpointId,
+      .type = HostEndpointInfo::Type::APP,
+      .packageName = "chre_aidl_hal_client",
+      .attributionTag{},
+  };
+  ContextHubMessage contextHubMessage = {
+      .nanoappId = appId,
+      .hostEndPoint = hostEndpointId,
+      .messageBody = {},
+      .permissions = {},
+  };
+  // populate the payload
+  for (int i = 2; i < hexPayload.size(); i += 2) {
+    contextHubMessage.messageBody.push_back(
+        std::stoi(hexPayload.substr(i, 2), /* idx= */ 0, /* base= */ 16));
+  }
+
+  std::future<void> callbackSignal;
+  auto contextHub = getContextHub(callbackSignal);
+  // connect the endpoint to HAL
+  contextHub->onHostEndpointConnected(info);
+  std::cout << "onHostEndpointConnected() is called. " << std::endl;
+  auto status = contextHub->sendMessageToHub(kContextHubId, contextHubMessage);
+  verifyStatusAndSignal(/* operation= */ "sending a message to " + appIdOrName,
+                        status, callbackSignal);
+  // disconnect the endpoint from HAL
+  std::cout << "onHostEndpointDisconnected() is called. " << std::endl;
+  contextHub->onHostEndpointDisconnected(hostEndpointId);
 }
 
 void enableTestModeOnContextHub() {
@@ -352,13 +427,15 @@ void disableTestModeOnContextHub() {
                         callbackSignal);
 }
 
+// Please keep Command in alphabetical order
 enum Command {
+  disableTestMode,
+  enableTestMode,
   list,
   load,
   query,
+  sendMessage,
   unload,
-  enableTestMode,
-  disableTestMode,
   unsupported
 };
 
@@ -369,12 +446,13 @@ struct CommandInfo {
 
 Command parseCommand(const std::vector<std::string> &cmdLine) {
   std::map<std::string, CommandInfo> commandMap{
+      {"disableTestMode", {disableTestMode, 1}},
+      {"enableTestMode", {enableTestMode, 1}},
       {"list", {list, 2}},
       {"load", {load, 2}},
       {"query", {query, 1}},
+      {"sendMessage", {sendMessage, 4}},
       {"unload", {unload, 2}},
-      {"enableTestMode", {enableTestMode, 1}},
-      {"disableTestMode", {disableTestMode, 1}},
   };
   if (cmdLine.empty() || commandMap.find(cmdLine[0]) == commandMap.end()) {
     return unsupported;
@@ -395,6 +473,14 @@ int main(int argc, char *argv[]) {
   }
   try {
     switch (parseCommand(cmdLine)) {
+      case disableTestMode: {
+        disableTestModeOnContextHub();
+        break;
+      }
+      case enableTestMode: {
+        enableTestModeOnContextHub();
+        break;
+      }
       case list: {
         std::map<std::string, NanoAppBinaryHeader> nanoapps{};
         readNanoappHeaders(nanoapps, cmdLine[1]);
@@ -408,20 +494,16 @@ int main(int argc, char *argv[]) {
         loadNanoapp(cmdLine[1]);
         break;
       }
-      case unload: {
-        unloadNanoapp(cmdLine[1]);
-        break;
-      }
       case query: {
         queryNanoapps();
         break;
       }
-      case enableTestMode: {
-        enableTestModeOnContextHub();
+      case sendMessage: {
+        sendMessageToNanoapp(cmdLine[1], cmdLine[2], cmdLine[3]);
         break;
       }
-      case disableTestMode: {
-        disableTestModeOnContextHub();
+      case unload: {
+        unloadNanoapp(cmdLine[1]);
         break;
       }
       default:
