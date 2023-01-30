@@ -294,16 +294,25 @@ ScopedAStatus ContextHub::setTestMode(bool enable) {
 ScopedAStatus ContextHub::onHostEndpointConnected(
     const HostEndpointInfo &in_info) {
   std::lock_guard<std::mutex> lock(mConnectedHostEndpointsMutex);
+  uint8_t type;
+  switch (in_info.type) {
+    case HostEndpointInfo::Type::APP:
+      type = CHRE_HOST_ENDPOINT_TYPE_APP;
+      break;
+    case HostEndpointInfo::Type::NATIVE:
+      type = CHRE_HOST_ENDPOINT_TYPE_NATIVE;
+      break;
+    case HostEndpointInfo::Type::FRAMEWORK:
+      type = CHRE_HOST_ENDPOINT_TYPE_FRAMEWORK;
+      break;
+    default:
+      LOGE("Unsupported host endpoint type %" PRIu32, type);
+      return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
+  }
   mConnectedHostEndpoints.insert(in_info.hostEndpointId);
-
-  uint8_t type = (in_info.type == HostEndpointInfo::Type::FRAMEWORK)
-                     ? CHRE_HOST_ENDPOINT_TYPE_FRAMEWORK
-                     : CHRE_HOST_ENDPOINT_TYPE_APP;
-
   mConnection.onHostEndpointConnected(
       in_info.hostEndpointId, type, in_info.packageName.value_or(std::string()),
       in_info.attributionTag.value_or(std::string()));
-
   return ndk::ScopedAStatus::ok();
 }
 
