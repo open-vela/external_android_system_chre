@@ -60,6 +60,7 @@ cc_library_static {
         "host/hal_generic/common/multi_client_context_hub_base.cc",
     ],
     local_include_dirs: [
+        "chre_api/include/chre_api",
         "external/flatbuffers/include",
         "host/hal_generic/common",
         "platform/shared/include",
@@ -81,7 +82,7 @@ cc_library_static {
         "pw_span_headers",
         "pw_polyfill_headers",
     ],
-    cflags: ["-Wall", "-Werror"]
+    cflags: ["-Wall", "-Werror", "-DCHRE_MESSAGE_TO_HOST_MAX_SIZE=4096",]
 }
 
 cc_library_static {
