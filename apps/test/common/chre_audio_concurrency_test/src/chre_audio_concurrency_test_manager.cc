@@ -193,13 +193,10 @@ void Manager::cancelTimeoutTimer() {
 }
 
 bool Manager::validateAudioDataEvent(const chreAudioDataEvent *data) {
-  bool ulaw8 = false;
-
   bool success = false;
   if (data == nullptr) {
     LOGE("data is nullptr");
   } else if (data->format == CHRE_AUDIO_DATA_FORMAT_8_BIT_U_LAW) {
-    ulaw8 = true;
     if (data->samplesULaw8 == nullptr) {
       LOGE("samplesULaw8 is nullptr");
     }
