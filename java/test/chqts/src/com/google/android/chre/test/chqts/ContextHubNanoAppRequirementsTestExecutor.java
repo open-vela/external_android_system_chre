@@ -26,6 +26,7 @@ import android.hardware.location.NanoAppBinary;
 import androidx.test.InstrumentationRegistry;
 
 import com.google.android.chre.utils.pigweed.ChreRpcClient;
+import com.google.android.utils.chre.ChreApiTestUtil;
 import com.google.android.utils.chre.ChreTestUtil;
 import com.google.protobuf.MessageLite;
 
@@ -97,28 +98,7 @@ public class ContextHubNanoAppRequirementsTestExecutor extends ContextHubClientC
         mContextHub = contextHubs.get(0);
         mContextHubClient = mContextHubManager.createClient(mContextHub, this);
 
-        Service chreApiService = new Service("chre.rpc.ChreApiTestService",
-                Service.unaryMethod("ChreBleGetCapabilities",
-                        ChreApiTest.Void.class,
-                        ChreApiTest.Capabilities.class),
-                Service.unaryMethod("ChreBleGetFilterCapabilities",
-                        ChreApiTest.Void.class,
-                        ChreApiTest.Capabilities.class),
-                Service.unaryMethod("ChreSensorFindDefault",
-                        ChreApiTest.ChreSensorFindDefaultInput.class,
-                        ChreApiTest.ChreSensorFindDefaultOutput.class),
-                Service.unaryMethod("ChreGetSensorInfo",
-                        ChreApiTest.ChreHandleInput.class,
-                        ChreApiTest.ChreGetSensorInfoOutput.class),
-                Service.unaryMethod("ChreGetSensorSamplingStatus",
-                        ChreApiTest.ChreHandleInput.class,
-                        ChreApiTest.ChreGetSensorSamplingStatusOutput.class),
-                Service.unaryMethod("ChreSensorConfigureModeOnly",
-                        ChreApiTest.ChreSensorConfigureModeOnlyInput.class,
-                        ChreApiTest.Status.class),
-                Service.unaryMethod("ChreAudioGetSource",
-                        ChreApiTest.ChreHandleInput.class,
-                        ChreApiTest.ChreAudioGetSourceOutput.class));
+        Service chreApiService = ChreApiTestUtil.getChreApiService();
         mRpcClient = new ChreRpcClient(mContextHubManager, mContextHub, mNanoAppId,
                 List.of(chreApiService), this);
     }
