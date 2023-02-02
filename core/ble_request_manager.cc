@@ -468,11 +468,6 @@ uint8_t BleRequestManager::readRssi(uint16_t connectionHandle) {
 }
 #endif
 
-bool BleRequestManager::getScanStatus(struct chreBleScanStatus * /* status */) {
-  // TODO(b/266820139): Implement this
-  return false;
-}
-
 void BleRequestManager::onSettingChanged(Setting setting, bool /* state */) {
   if (setting == Setting::BLE_AVAILABLE) {
     if (asyncResponsePending()) {
