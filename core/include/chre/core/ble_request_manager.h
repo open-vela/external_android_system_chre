@@ -173,6 +173,16 @@ class BleRequestManager : public NonCopyable {
 #endif
 
   /**
+   * Retrieves the current scan status.
+   *
+   * @param status A non-null pointer to where the scan status will be
+   *               populated.
+   *
+   * @return True if the status was obtained successfully.
+   */
+  bool getScanStatus(struct chreBleScanStatus *status);
+
+  /**
    * Invoked when the host notifies CHRE that ble access has been
    * disabled via the user settings.
    *
