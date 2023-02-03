@@ -254,6 +254,12 @@ bool chreBleReadRssiAsync(uint16_t connectionHandle, const void *cookie) {
   return (fptr != nullptr) ? fptr(connectionHandle, cookie) : false;
 }
 
+WEAK_SYMBOL
+bool chreBleGetScanStatus(struct chreBleScanStatus *status) {
+  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreBleGetScanStatus);
+  return (fptr != nullptr) ? fptr(status) : false;
+}
+
 #endif /* CHRE_NANOAPP_USES_BLE */
 
 WEAK_SYMBOL
