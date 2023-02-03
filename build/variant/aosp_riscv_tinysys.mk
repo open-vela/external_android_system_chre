@@ -49,6 +49,14 @@ TARGET_SO_LDFLAGS += -shared
 TARGET_CFLAGS += -fpic
 endif
 
+ifneq ($(IS_NANOAPP_BUILD),)
+# Used to expose libc headers to nanoapps that aren't supported on the given platform
+TARGET_CFLAGS += -I$(CHRE_PREFIX)/platform/shared/include/chre/platform/shared/libc
+
+TARGET_VARIANT_SRCS += $(DSO_SUPPORT_LIB_SRCS)
+TARGET_CFLAGS += $(DSO_SUPPORT_LIB_CFLAGS)
+endif
+
 TARGET_CFLAGS += --target=riscv32-unknown-elf
 TARGET_CFLAGS += -march=rv32imafcv
 TARGET_CFLAGS += -mcpu=MRV55E03
