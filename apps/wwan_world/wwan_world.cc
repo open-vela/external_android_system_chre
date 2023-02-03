@@ -21,8 +21,6 @@
 #include "chre/util/time.h"
 #include "chre_api/chre.h"
 
-#define LOG_TAG "[WwanWorld]"
-
 #ifdef CHRE_NANOAPP_INTERNAL
 namespace chre {
 namespace {
@@ -32,7 +30,8 @@ namespace {
 const uint32_t kCellInfoCookie = 0x1337;
 
 //! The interval for cell info requests.
-const Nanoseconds kCellInfoInterval = Nanoseconds(Seconds(10));
+const chre::Nanoseconds kCellInfoInterval =
+    chre::Nanoseconds(chre::Seconds(10));
 
 //! A handle for  the cyclic timer to request periodic cell info.
 uint32_t gCellInfoTimerHandle;
