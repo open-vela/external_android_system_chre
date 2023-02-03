@@ -56,6 +56,15 @@ uint64_t gEnableDisablePeriodNs = 10 * chre::kOneSecondInNanoseconds;
 //! True if BLE scans are currently enabled
 bool gBleEnabled = false;
 
+//! A timer handle to poll for RSSI.
+uint32_t gReadRssiTimerHandle = CHRE_TIMER_INVALID;
+//! A hardcoded connection handle on which the RSSI will be read
+//! On the Broadcom controllers used by Pixel, if a connection is made
+//! immediately after startup, it will be on this handle.
+uint16_t gReadRssiConnectionHandle = 0x40;
+//! The period at which to read RSSI of kConnectionHandle.
+uint64_t gReadRssiPeriodNs = 3 * chre::kOneSecondInNanoseconds;
+
 bool enableBleScans() {
   struct chreBleScanFilter filter;
   chreBleGenericFilter genericFilters[kNumScanFilters];
@@ -103,6 +112,19 @@ bool nanoappStart() {
     }
 #endif  // BLE_WORLD_ENABLE_BATCHING
   }
+
+  if (capabilities & CHRE_BLE_CAPABILITIES_READ_RSSI) {
+    gReadRssiPeriodNs = chreTimerSet(gReadRssiPeriodNs, &gReadRssiTimerHandle,
+                                     false /* oneShot */);
+    if (gReadRssiTimerHandle == CHRE_TIMER_INVALID) {
+      LOGE("Could not set RSSI timer");
+    }
+  } else {
+    LOGW(
+        "Skipping RSSI read since CHRE_BLE_CAPABILITIES_READ_RSSI not "
+        "supported");
+  }
+
   return true;
 }
 
@@ -171,9 +193,18 @@ void handleTimerEvent(const void *cookie) {
       }
     }
 #endif  // BLE_WORLD_ENABLE_BATCHING
+  } else if (cookie == &gReadRssiTimerHandle) {
+    auto ok = chreBleReadRssiAsync(gReadRssiConnectionHandle, nullptr);
+    LOGI("Reading RSSI for handle 0x%" PRIx16 ", status=%" PRId8,
+         gReadRssiConnectionHandle, ok);
   } else {
     LOGE("Received unknown timer cookie %p", cookie);
   }
+}
+
+void handleRssiEvent(const chreBleReadRssiEvent *event) {
+  LOGI("Received RSSI Read with status 0x%" PRIx8 " and rssi %" PRIi8,
+       event->result.errorCode, event->rssi);
 }
 
 void nanoappHandleEvent(uint32_t senderInstanceId, uint16_t eventType,
@@ -195,6 +226,9 @@ void nanoappHandleEvent(uint32_t senderInstanceId, uint16_t eventType,
     case CHRE_EVENT_BLE_FLUSH_COMPLETE:
       LOGI("Received flush complete");
       break;
+    case CHRE_EVENT_BLE_RSSI_READ:
+      handleRssiEvent(static_cast<const chreBleReadRssiEvent *>(eventData));
+      break;
     default:
       LOGW("Unhandled event type %" PRIu16, eventType);
       break;
@@ -213,6 +247,9 @@ void nanoappEnd() {
     LOGE("Error canceling BLE flush timer");
   }
 #endif
+  if (!chreTimerCancel(gReadRssiTimerHandle)) {
+    LOGE("Error canceling RSSI read timer");
+  }
   LOGI("nanoapp stopped");
 }
 

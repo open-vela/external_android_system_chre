@@ -489,6 +489,9 @@ struct chreHostEndpointNotification {
 //! The host endpoint is an Android app.
 #define CHRE_HOST_ENDPOINT_TYPE_APP UINT8_C(1)
 
+//! The host endpoint is an Android native program.
+#define CHRE_HOST_ENDPOINT_TYPE_NATIVE UINT8_C(2)
+
 //! Values in the range [CHRE_HOST_ENDPOINT_TYPE_VENDOR_START,
 //! CHRE_HOST_ENDPOINT_TYPE_VENDOR_END] can be a custom defined host endpoint
 //! type for platform-specific vendor use.

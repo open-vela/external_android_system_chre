@@ -162,9 +162,21 @@ extern "C" {
  * CHRE_BLE_CAPABILITIES_SCAN_RESULT_BATCHING enabled, and a non-zero
  * reportDelayMs in chreBleStartScanAsync() was accepted).
  *
+ * If the nanoapp receives a CHRE_EVENT_BLE_SCAN_STATUS_CHANGE with a non-zero
+ * reportDelayMs and enabled set to true, then this event must be generated.
+ *
  * @since v1.8
  */
 #define CHRE_EVENT_BLE_BATCH_COMPLETE CHRE_BLE_EVENT_ID(4)
+
+/**
+ * nanoappHandleEvent argument: struct chreBleScanStatus
+ *
+ * This event is generated when the values in chreBleScanStatus changes.
+ *
+ * @since v1.8
+ */
+#define CHRE_EVENT_BLE_SCAN_STATUS_CHANGE CHRE_BLE_EVENT_ID(5)
 
 // NOTE: Do not add new events with ID > 15
 /** @} */
@@ -538,6 +550,25 @@ struct chreBleReadRssiEvent {
 };
 
 /**
+ * Describes the current status of the BLE request in the platform.
+ *
+ * @since v1.8
+ */
+struct chreBleScanStatus {
+  //! The currently configured report delay in the scan configuration.
+  //! If enabled is false, this value does not have meaning.
+  uint32_t reportDelayMs;
+
+  //! True if the BLE scan is currently enabled. This can be set to false
+  //! if BLE scan was temporarily disabled (e.g. BT subsystem is down,
+  //! or due to user settings).
+  bool enabled;
+
+  //! Reserved for future use - set to zero.
+  uint8_t reserved[3];
+};
+
+/**
  * Retrieves a set of flags indicating the BLE features supported by the
  * current CHRE implementation. The value returned by this function must be
  * consistent for the entire duration of the nanoapp's execution.
@@ -651,6 +682,9 @@ static inline uint8_t chreBleGetEventTypeAndDataStatus(uint8_t eventType,
  * Legacy-only: false
  * PHY type: PHY_LE_ALL_SUPPORTED
  *
+ * For v1.8 and greater, a CHRE_EVENT_BLE_SCAN_STATUS_CHANGE will be generated
+ * if the values in chreBleScanStatus changes as a result of this call.
+ *
  * @param mode Scanning mode selected among enum chreBleScanMode
  * @param reportDelayMs Maximum requested batching delay in ms. 0 indicates no
  *                      batching. Note that the system may deliver results
@@ -740,6 +774,18 @@ bool chreBleFlushAsync(const void *cookie);
  *
  */
 bool chreBleReadRssiAsync(uint16_t connectionHandle, const void *cookie);
+
+/**
+ * Retrieves the current state of the BLE scan on the platform.
+ *
+ * @param status A non-null pointer to where the scan status will be
+ *               populated.
+ *
+ * @return True if the status was obtained successfully.
+ *
+ * @since v1.8
+ */
+bool chreBleGetScanStatus(struct chreBleScanStatus *status);
 
 /**
  * Definitions for handling unsupported CHRE BLE scenarios.
