@@ -89,3 +89,15 @@ DLL_EXPORT bool chreBleReadRssiAsync(uint16_t connectionHandle,
   return false;
 #endif  // CHRE_BLE_READ_RSSI_SUPPORT_ENABLED
 }
+
+DLL_EXPORT bool chreBleGetScanStatus(struct chreBleScanStatus *status) {
+#ifdef CHRE_BLE_SUPPORT_ENABLED
+  chre::Nanoapp *nanoapp = EventLoopManager::validateChreApiCall(__func__);
+  return nanoapp->permitPermissionUse(NanoappPermissions::CHRE_PERMS_BLE) &&
+         EventLoopManagerSingleton::get()->getBleRequestManager().getScanStatus(
+             status);
+#else
+  UNUSED_VAR(status);
+  return false;
+#endif  // CHRE_BLE_SUPPORT_ENABLED
+}
