@@ -184,6 +184,7 @@ const ExportedData kExportedData[] = {
     ADD_EXPORTED_C_SYMBOL(chreBleStartScanAsync),
     ADD_EXPORTED_C_SYMBOL(chreBleStopScanAsync),
     ADD_EXPORTED_C_SYMBOL(chreBleReadRssiAsync),
+    ADD_EXPORTED_C_SYMBOL(chreBleGetScanStatus),
     ADD_EXPORTED_C_SYMBOL(chreConfigureDebugDumpEvent),
     ADD_EXPORTED_C_SYMBOL(chreConfigureHostSleepStateEvents),
     ADD_EXPORTED_C_SYMBOL(chreConfigureNanoappInfoEvents),
