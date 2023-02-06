@@ -18,6 +18,7 @@
 
 namespace android::hardware::contexthub::common::implementation {
 
+using aidl::android::hardware::contexthub::ContextHubMessage;
 using aidl::android::hardware::contexthub::HostEndpointInfo;
 using aidl::android::hardware::contexthub::IContextHubCallback;
 
@@ -298,13 +299,13 @@ std::shared_ptr<IContextHubCallback> HalClientManager::getCallbackForEndpoint(
   return mClientIdsToClientInfo[clientId].callback;
 }
 
-void HalClientManager::forAllCallbacks(
-    const std::function<void(std::shared_ptr<IContextHubCallback>)>
-        &halCallback) {
+void HalClientManager::sendMessageForAllCallbacks(
+    const ContextHubMessage &message,
+    const std::vector<std::string> &messageParams) {
   const std::lock_guard<std::mutex> lock(mLock);
   for (const auto &[_, clientInfo] : mClientIdsToClientInfo) {
     if (clientInfo.callback != nullptr) {
-      halCallback(clientInfo.callback);
+      clientInfo.callback->handleContextHubMessage(message, messageParams);
     }
   }
 }
