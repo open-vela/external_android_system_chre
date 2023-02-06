@@ -18,6 +18,7 @@
 #include <chre/platform/shared/host_protocol_common.h>
 #include <chre_host/generated/host_messages_generated.h>
 #include <chre_host/log.h>
+#include "chre/event.h"
 #include "chre_host/fragmented_load_transaction.h"
 #include "chre_host/host_protocol_host.h"
 #include "permissions_util.h"
@@ -214,19 +215,51 @@ ScopedAStatus MultiClientContextHubBase::sendMessageToHub(
 }
 
 ScopedAStatus MultiClientContextHubBase::onHostEndpointConnected(
-    const HostEndpointInfo & /*in_info*/) {
-  // To be implemented.
-  return ScopedAStatus::ok();
+    const HostEndpointInfo &info) {
+  uint8_t type;
+  switch (info.type) {
+    case HostEndpointInfo::Type::APP:
+      type = CHRE_HOST_ENDPOINT_TYPE_APP;
+      break;
+    case HostEndpointInfo::Type::NATIVE:
+      type = CHRE_HOST_ENDPOINT_TYPE_NATIVE;
+      break;
+    case HostEndpointInfo::Type::FRAMEWORK:
+      type = CHRE_HOST_ENDPOINT_TYPE_FRAMEWORK;
+      break;
+    default:
+      LOGE("Unsupported host endpoint type %" PRIu32, type);
+      return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
+  }
+  if (!mHalClientManager->registerEndpointId(info.hostEndpointId)) {
+    return fromResult(false);
+  }
+  flatbuffers::FlatBufferBuilder builder(64);
+  HostProtocolHost::encodeHostEndpointConnected(
+      builder, info.hostEndpointId, type,
+      info.packageName.value_or(std::string()),
+      info.attributionTag.value_or(std::string()));
+  return fromResult(mConnection->sendMessage(builder));
 }
 
 ScopedAStatus MultiClientContextHubBase::onHostEndpointDisconnected(
-    char16_t /*in_hostEndpointId*/) {
-  // To be implemented.
-  return ScopedAStatus::ok();
+    char16_t hostEndpointId) {
+  if (!mHalClientManager->removeEndpointId(hostEndpointId)) {
+    return fromResult(false);
+  }
+
+  flatbuffers::FlatBufferBuilder builder(64);
+  HostProtocolHost::encodeHostEndpointDisconnected(builder, hostEndpointId);
+  return fromResult(mConnection->sendMessage(builder));
 }
 
 ScopedAStatus MultiClientContextHubBase::onNanSessionStateChanged(
     bool /*in_state*/) {
+  // To be implemented.
+  return ScopedAStatus::ok();
+}
+
+ScopedAStatus MultiClientContextHubBase::setTestMode(bool /*enable*/) {
   // To be implemented.
   return ScopedAStatus::ok();
 }
@@ -257,6 +290,10 @@ void MultiClientContextHubBase::handleMessageFromChre(
     }
     case fbs::ChreMessage::UnloadNanoappResponse: {
       onUnloadNanoappResponse(*message.AsUnloadNanoappResponse(), clientId);
+      break;
+    }
+    case fbs::ChreMessage::NanoappMessage: {
+      onNanoappMessage(*message.AsNanoappMessage());
       break;
     }
     default:
@@ -352,6 +389,28 @@ void MultiClientContextHubBase::onUnloadNanoappResponse(
       callback != nullptr) {
     callback->handleTransactionResult(response.transaction_id,
                                       /* in_success= */ response.success);
+  }
+}
+void MultiClientContextHubBase::onNanoappMessage(
+    const ::chre::fbs::NanoappMessageT &message) {
+  ContextHubMessage outMessage;
+  outMessage.nanoappId = message.app_id;
+  outMessage.hostEndPoint = message.host_endpoint;
+  outMessage.messageType = message.message_type;
+  outMessage.messageBody = message.message;
+  outMessage.permissions = chreToAndroidPermissions(message.permissions);
+  auto messageContentPerms =
+      chreToAndroidPermissions(message.message_permissions);
+  // broadcast message is sent to every connected endpoint
+  if (message.host_endpoint == CHRE_HOST_ENDPOINT_BROADCAST) {
+    mHalClientManager->forAllCallbacks(
+        [&](const std::shared_ptr<IContextHubCallback> &callback) {
+          callback->handleContextHubMessage(outMessage, messageContentPerms);
+        });
+  } else if (auto callback = mHalClientManager->getCallbackForEndpoint(
+                 message.host_endpoint);
+             callback != nullptr) {
+    callback->handleContextHubMessage(outMessage, messageContentPerms);
   }
 }
 }  // namespace android::hardware::contexthub::common::implementation
