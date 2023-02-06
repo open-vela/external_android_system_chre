@@ -403,10 +403,8 @@ void MultiClientContextHubBase::onNanoappMessage(
       chreToAndroidPermissions(message.message_permissions);
   // broadcast message is sent to every connected endpoint
   if (message.host_endpoint == CHRE_HOST_ENDPOINT_BROADCAST) {
-    mHalClientManager->forAllCallbacks(
-        [&](const std::shared_ptr<IContextHubCallback> &callback) {
-          callback->handleContextHubMessage(outMessage, messageContentPerms);
-        });
+    mHalClientManager->sendMessageForAllCallbacks(outMessage,
+                                                  messageContentPerms);
   } else if (auto callback = mHalClientManager->getCallbackForEndpoint(
                  message.host_endpoint);
              callback != nullptr) {

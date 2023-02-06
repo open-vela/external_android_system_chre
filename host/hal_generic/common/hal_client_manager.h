@@ -16,6 +16,7 @@
 #ifndef ANDROID_HARDWARE_CONTEXTHUB_COMMON_HAL_CLIENT_MANAGER_H_
 #define ANDROID_HARDWARE_CONTEXTHUB_COMMON_HAL_CLIENT_MANAGER_H_
 
+#include <aidl/android/hardware/contexthub/ContextHubMessage.h>
 #include <aidl/android/hardware/contexthub/IContextHub.h>
 #include <aidl/android/hardware/contexthub/IContextHubCallback.h>
 #include <chre_host/fragmented_load_transaction.h>
@@ -27,6 +28,7 @@
 #include "chre_host/log.h"
 #include "hal_client_id.h"
 
+using aidl::android::hardware::contexthub::ContextHubMessage;
 using aidl::android::hardware::contexthub::HostEndpointInfo;
 using aidl::android::hardware::contexthub::IContextHubCallback;
 using HostEndpointId = uint16_t;
@@ -154,10 +156,10 @@ class HalClientManager {
    */
   bool removeEndpointId(const HostEndpointId &endpointId);
 
-  /** Incur the callback function of every connected endpoints. */
-  void forAllCallbacks(
-      const std::function<void(std::shared_ptr<IContextHubCallback>)>
-          &halCallback);
+  /** Sends a message to every connected endpoints. */
+  void sendMessageForAllCallbacks(
+      const ContextHubMessage &message,
+      const std::vector<std::string> &messageParams);
 
   std::shared_ptr<IContextHubCallback> getCallbackForEndpoint(
       const HostEndpointId &endpointId);
