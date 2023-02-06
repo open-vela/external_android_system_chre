@@ -194,9 +194,9 @@ void handleTimerEvent(const void *cookie) {
     }
 #endif  // BLE_WORLD_ENABLE_BATCHING
   } else if (cookie == &gReadRssiTimerHandle) {
-    auto ok = chreBleReadRssiAsync(gReadRssiConnectionHandle, nullptr);
-    LOGI("Reading RSSI for handle 0x%" PRIx16 ", status=%" PRId8,
-         gReadRssiConnectionHandle, ok);
+    bool success = chreBleReadRssiAsync(gReadRssiConnectionHandle, nullptr);
+    LOGI("Reading RSSI for handle 0x%" PRIx16 ", status=%d",
+         gReadRssiConnectionHandle, success);
   } else {
     LOGE("Received unknown timer cookie %p", cookie);
   }
