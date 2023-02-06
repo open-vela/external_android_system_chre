@@ -33,6 +33,9 @@ COMMON_CFLAGS += -DLOG_TAG=\"[BleWorld]\"
 COMMON_CFLAGS += -DNANOAPP_MINIMUM_LOG_LEVEL=CHRE_LOG_LEVEL_DEBUG
 COMMON_CFLAGS += -DCHRE_ASSERTIONS_ENABLED
 
+# Uncomment this line to test batching
+# COMMON_CFLAGS += -DBLE_WORLD_ENABLE_BATCHING
+
 # Common Source Files ##########################################################
 
 COMMON_SRCS += ble_world.cc
