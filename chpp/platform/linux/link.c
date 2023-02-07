@@ -140,7 +140,6 @@ static struct ChppLinkConfiguration getConfig(void *linkContext) {
   const struct ChppLinkConfiguration config = {
       .txBufferLen = CHPP_LINUX_LINK_TX_MTU_BYTES,
       .rxBufferLen = CHPP_LINUX_LINK_RX_MTU_BYTES,
-      .timeoutInMs = CHPP_LINUX_TRANSPORT_TIMEOUT_MS,
   };
   return config;
 }

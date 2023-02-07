@@ -30,7 +30,6 @@ extern "C" {
 
 #define CHPP_LINUX_LINK_TX_MTU_BYTES 1280
 #define CHPP_LINUX_LINK_RX_MTU_BYTES 1280
-#define CHPP_LINUX_TRANSPORT_TIMEOUT_MS 1000
 
 // Forward declaration
 struct ChppTransportState;

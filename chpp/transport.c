@@ -1781,9 +1781,6 @@ void chppTransportSendReset(struct ChppTransportState *context,
     // Note: current implementation does not support a window size >1
     config->windowSize = 1;
 
-    // Advertised transport layer (ACK) timeout
-    config->timeoutInMs = linkConfig.timeoutInMs;
-
     if (resetType == CHPP_TRANSPORT_ATTR_RESET_ACK) {
       CHPP_LOGD("Sending RESET-ACK");
     } else {

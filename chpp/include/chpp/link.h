@@ -73,10 +73,6 @@ struct ChppLinkConfiguration {
    * CHPP_TRANSPORT_ENCODING_OVERHEAD_BYTES.
    */
   size_t rxBufferLen;
-  /**
-   * Transport layer timeout in milliseconds (i.e. to receive ACK).
-   */
-  uint16_t timeoutInMs;
 };
 
 struct ChppLinkApi {
