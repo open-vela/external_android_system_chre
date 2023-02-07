@@ -34,7 +34,7 @@ TARGET_CFLAGS += -DCFG_AMP_CORE1_EN
 # chre platform
 TARGET_CFLAGS += -DCHRE_FIRST_SUPPORTED_API_VERSION=CHRE_API_VERSION_1_7
 # TODO(b/254121302): Needs to confirm with MTK about the max message size below
-TARGET_CFLAGS += -DCHRE_MESSAGE_TO_HOST_MAX_SIZE=2048
+TARGET_CFLAGS += -DCHRE_MESSAGE_TO_HOST_MAX_SIZE=4096
 TARGET_CFLAGS += -DCHRE_FREERTOS_TASK_PRIORITY=2
 # TODO(b/255828039): Enabling buffered logging incurs linking error
 # TARGET_CFLAGS += -DCHRE_USE_BUFFERED_LOGGING
@@ -66,3 +66,4 @@ TARGET_CFLAGS += -mcpu=MRV55E03
 include $(CHRE_PREFIX)/build/arch/riscv.mk
 include $(CHRE_PREFIX)/build/build_template.mk
 endif
+
