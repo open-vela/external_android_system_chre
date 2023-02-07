@@ -20,11 +20,6 @@
 #include <cinttypes>
 #include <cstddef>
 
-#include "chre/platform/atomic.h"
-#include "chre/platform/mutex.h"
-#include "chre/platform/shared/host_protocol_chre.h"
-#include "chre/util/lock_guard.h"
-
 namespace chre {
 
 /**
@@ -39,13 +34,7 @@ void sendDebugDumpResultToHost(uint16_t hostClientId, const char *debugStr,
  */
 class HostLinkBase {
  public:
-  HostLinkBase();
-
-  static void vChreTask(void * /*pvParameters*/);
-  static void chreIpiHandler(unsigned int /*id*/, void * /*prdata*/,
-                             void * /*data*/, unsigned int /*len*/);
-  void initializeIpi(void);
-
+  HostLinkBase() = default;
   /**
    * Implements the IPC message receive handler.
    *
@@ -54,7 +43,7 @@ class HostLinkBase {
    * @param message The host message sent to CHRE.
    * @param messageLen The host message length in bytes.
    */
-  static void receive(HostLinkBase * /*instance*/, void * /*message*/,
+  static void receive(void * /*cookie*/, void * /*message*/,
                       int /*messageLen*/);
   /**
    * Send a message to the host.
@@ -63,15 +52,7 @@ class HostLinkBase {
    * @param dataLen Size of the message payload in bytes.
    * @return true if the operation succeeds, false otherwise.
    */
-  static bool send(uint8_t * /*data*/, size_t /*dataLen*/);
-
-  void setInitialized(bool initialized) {
-    mInitialized = initialized;
-  }
-
-  bool isInitialized() const {
-    return mInitialized;
-  }
+  bool send(uint8_t * /*data*/, size_t /*dataLen*/);
 
   /**
    * Sends a request to the host for a time sync message.
@@ -88,9 +69,6 @@ class HostLinkBase {
   void sendLogMessageV2(const uint8_t * /*logMessage*/,
                         size_t /*logMessageSize*/,
                         uint32_t /*num_logs_dropped*/);
-
- private:
-  AtomicBool mInitialized = false;
 };
 }  // namespace chre
 
