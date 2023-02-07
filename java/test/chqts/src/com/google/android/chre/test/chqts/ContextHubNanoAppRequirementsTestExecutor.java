@@ -57,9 +57,9 @@ public class ContextHubNanoAppRequirementsTestExecutor extends ContextHubClientC
     private static final int MAX_AUDIO_SOURCES_TO_TRY = 10;
 
     /**
-    * Formats for audio that can be provided to a nanoapp. See enum chreAudioDataFormat in the
-    * CHRE API.
-    */
+     * Formats for audio that can be provided to a nanoapp. See enum chreAudioDataFormat in the
+     * CHRE API.
+     */
     public enum ChreAudioDataFormat {
         /**
          * Unsigned, 8-bit u-Law encoded data as specified by ITU-T G.711.
