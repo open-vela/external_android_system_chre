@@ -28,20 +28,15 @@ import androidx.test.InstrumentationRegistry;
 import com.google.android.chre.utils.pigweed.ChreRpcClient;
 import com.google.android.utils.chre.ChreApiTestUtil;
 import com.google.android.utils.chre.ChreTestUtil;
-import com.google.protobuf.MessageLite;
 
 import org.junit.Assert;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import dev.chre.rpc.proto.ChreApiTest;
-import dev.pigweed.pw_rpc.Call.UnaryFuture;
-import dev.pigweed.pw_rpc.MethodClient;
 import dev.pigweed.pw_rpc.Service;
-import dev.pigweed.pw_rpc.UnaryResult;
 
 public class ContextHubNanoAppRequirementsTestExecutor extends ContextHubClientCallback {
     private final Context mContext = InstrumentationRegistry.getTargetContext();
@@ -153,7 +148,8 @@ public class ContextHubNanoAppRequirementsTestExecutor extends ContextHubClientC
         ChreApiTest.ChreSensorFindDefaultInput input = ChreApiTest.ChreSensorFindDefaultInput
                 .newBuilder().setSensorType(sensorType).build();
         ChreApiTest.ChreSensorFindDefaultOutput response =
-                callRpcMethod("chre.rpc.ChreApiTestService.ChreSensorFindDefault", input);
+                ChreApiTestUtil.callUnaryRpcMethodSync(mRpcClient,
+                        "chre.rpc.ChreApiTestService.ChreSensorFindDefault", input);
         Assert.assertTrue("Did not find sensor with type: " + sensorType,
                 response.getFoundSensor());
         return response.getSensorHandle();
@@ -173,7 +169,8 @@ public class ContextHubNanoAppRequirementsTestExecutor extends ContextHubClientC
                 ChreApiTest.ChreHandleInput.newBuilder()
                 .setHandle(sensorHandle).build();
         ChreApiTest.ChreGetSensorInfoOutput response =
-                callRpcMethod("chre.rpc.ChreApiTestService.ChreGetSensorInfo", input);
+                ChreApiTestUtil.callUnaryRpcMethodSync(mRpcClient,
+                        "chre.rpc.ChreApiTestService.ChreGetSensorInfo", input);
         Assert.assertTrue("Failed to get sensor info for sensor with handle: " + sensorHandle,
                 response.getStatus());
         Assert.assertTrue("The sensor with handle: " + sensorHandle
@@ -196,7 +193,8 @@ public class ContextHubNanoAppRequirementsTestExecutor extends ContextHubClientC
                     ChreApiTest.ChreHandleInput.newBuilder()
                     .setHandle(i).build();
             ChreApiTest.ChreAudioGetSourceOutput response =
-                    callRpcMethod("chre.rpc.ChreApiTestService.ChreAudioGetSource", input);
+                    ChreApiTestUtil.callUnaryRpcMethodSync(mRpcClient,
+                            "chre.rpc.ChreApiTestService.ChreAudioGetSource", input);
             if (response.getStatus()
                     && response.getMinBufferDuration() >= expectedMinBufferSizeNs
                     && response.getFormat() == format.getId()) {
@@ -249,46 +247,11 @@ public class ContextHubNanoAppRequirementsTestExecutor extends ContextHubClientC
      *
     private void getCapabilitiesAndAssertCapabilityExists(String function,
             int capability, String errorMessage) throws Exception {
-        ChreApiTest.Capabilities capabilitiesResponse = callRpcMethod(function);
+        ChreApiTest.Capabilities capabilitiesResponse =
+                ChreApiTestUtil.callUnaryRpcMethodSync(mRpcClient, function);
         int capabilities = capabilitiesResponse.getCapabilities();
         Assert.assertTrue(errorMessage + ": " + capability,
                 (capabilities & capability) != 0);
-    }
-    */
-
-    /**
-     * Calls an RPC method with RPC_TIMEOUT_IN_SECONDS seconds of timeout
-     *
-     * @param <InputType>   the type of the input (proto generated type)
-     * @param <OutputType>  the type of the output (proto generated type)
-     * @param method        the fully-qualified method name
-     * @param input         the input object
-     *
-     * @return              the proto output
-     */
-    private <InputType extends MessageLite, OutputType extends MessageLite> OutputType
-            callRpcMethod(String method, InputType input) throws Exception {
-        MethodClient methodClient = mRpcClient.getMethodClient(method);
-        UnaryFuture<OutputType> responseFuture = methodClient.invokeUnaryFuture(input);
-        UnaryResult<OutputType> responseResult = responseFuture.get(RPC_TIMEOUT_IN_SECONDS,
-                TimeUnit.SECONDS);
-        return responseResult.response();
-    }
-
-    // TODO(b/262043286): Enable this once BLE is available
-    /*
-    /**
-     * Calls an RPC method with RPC_TIMEOUT_IN_SECONDS seconds of timeout with a void input
-     *
-     * @param <OutputType>  the type of the output (proto generated type)
-     * @param method        the fully-qualified method name
-     *
-     * @return              the proto output
-     *
-    private <OutputType extends MessageLite> OutputType callRpcMethod(String method)
-            throws Exception {
-        ChreApiTest.Void input = ChreApiTest.Void.newBuilder().build();
-        return callRpcMethod(method, input);
     }
     */
 }
