@@ -62,7 +62,6 @@ struct ChppLinkConfiguration getConfig(void * /*linkContext*/) {
   return ChppLinkConfiguration{
       .txBufferLen = CHPP_TEST_LINK_TX_MTU_BYTES,
       .rxBufferLen = CHPP_TEST_LINK_RX_MTU_BYTES,
-      .timeoutInMs = CHPP_TEST_TRANSPORT_TIMEOUT_MS,
   };
 }
 
@@ -99,13 +98,12 @@ class FakeLinkSyncTests : public testing::Test {
     // Proceed to the initialized state by performing the CHPP 3-way handshake
     ASSERT_TRUE(mFakeLink->waitForTxPacket());
     std::vector<uint8_t> resetPkt = mFakeLink->popTxPacket();
-    ASSERT_TRUE(comparePacket(
-        resetPkt, generateResetPacket(CHPP_TEST_LINK_RX_MTU_BYTES,
-                                      CHPP_TEST_TRANSPORT_TIMEOUT_MS)))
+    ASSERT_TRUE(comparePacket(resetPkt,
+                              generateResetPacket(CHPP_TEST_LINK_RX_MTU_BYTES)))
         << "Full packet: " << asResetPacket(resetPkt);
 
-    ChppResetPacket resetAck = generateResetAckPacket(
-        CHPP_TEST_LINK_RX_MTU_BYTES, CHPP_TEST_TRANSPORT_TIMEOUT_MS);
+    ChppResetPacket resetAck =
+        generateResetAckPacket(CHPP_TEST_LINK_RX_MTU_BYTES);
     chppRxDataCb(&mTransportContext, reinterpret_cast<uint8_t *>(&resetAck),
                  sizeof(resetAck));
 

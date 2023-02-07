@@ -292,9 +292,6 @@ struct ChppTransportConfiguration {
 
   //! Max outstanding packet window size (1 for current implementation).
   uint16_t windowSize;
-
-  //! Transport layer timeout in milliseconds (i.e. to receive ACK).
-  uint16_t timeoutInMs;
 } CHPP_PACKED_ATTR;
 CHPP_PACKED_END
 // LINT.ThenChange(chpp/test/packet_util.cpp)

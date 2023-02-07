@@ -216,7 +216,7 @@ In order to be able to use different link layers, the link layer API is now defi
 You first need to create a `struct` holding the state of the link layer.
 This state `struct` is free form but would usually contain:
 - The TX buffer - it was owned by the transport layer in the previous version.
-  The buffer size must be added to the configuration `ChppLinkConfiguration` struct.
+  The TX buffer size must be added to the configuration `ChppLinkConfiguration` struct.
   You can compute the size from your former `CHPP_PLATFORM_LINK_TX_MTU_BYTES`.
   The formula to use is `min(CHPP_PLATFORM_LINK_TX_MTU_BYTES, 1024) + CHPP_TRANSPORT_ENCODING_OVERHEAD_BYTES`.
   For example if your `CHPP_PLATFORM_LINK_TX_MTU_BYTES` was 2048, the TX buffer size should be `1024 + CHPP_TRANSPORT_ENCODING_OVERHEAD_BYTES`.
@@ -235,7 +235,7 @@ The added `getConfig` function returns the configuration `ChppLinkConfiguration`
 
 The added `getTxBuffer` function returns a pointer to the TX buffer that is part in the state.
 
-Then you need to create the `ChppLinkConfiguration` struct. It contains the size of TX buffer, the size of the RX buffer, and the transport layer timeout. Those are equivalent to the former defines.
+Then you need to create the `ChppLinkConfiguration` struct. It contains the size of TX buffer, the size of the RX buffer. Those are equivalent to the former defines. Note that `CHPP_PLATFORM_TRANSPORT_TIMEOUT_MS` was not used and has been deleted.
 
 Other changes:
 

@@ -23,7 +23,6 @@ extern "C" {
 
 #define CHPP_TEST_LINK_TX_MTU_BYTES ((size_t)1280)
 #define CHPP_TEST_LINK_RX_MTU_BYTES ((size_t)1280)
-#define CHPP_TEST_TRANSPORT_TIMEOUT_MS ((uint16_t)10)
 
 struct ChppTestLinkState {
   void *fake;
