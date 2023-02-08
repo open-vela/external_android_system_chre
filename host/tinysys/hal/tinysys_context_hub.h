@@ -21,7 +21,6 @@
 #include "chre_host/time_syncer.h"
 #include "multi_client_context_hub_base.h"
 #include "tinysys_chre_connection.h"
-#include "tinysys_hal_client_manager.h"
 
 namespace aidl::android::hardware::contexthub {
 

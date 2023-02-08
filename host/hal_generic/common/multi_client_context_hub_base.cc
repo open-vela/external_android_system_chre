@@ -199,6 +199,14 @@ ScopedAStatus MultiClientContextHubBase::registerCallback(
     return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
   }
   mHalClientManager->registerCallback(callback);
+  // once the call to AIBinder_linkToDeath() is successful, the cookie is
+  // supposed to be release by the death recipient later.
+  auto *cookie = new HalDeathRecipientCookie(this, AIBinder_getCallingPid());
+  if (AIBinder_linkToDeath(callback->asBinder().get(), mDeathRecipient.get(),
+                           cookie) != STATUS_OK) {
+    LOGE("Failed to link client binder to death recipient");
+    delete cookie;
+  }
   return ScopedAStatus::ok();
 }
 
@@ -410,5 +418,19 @@ void MultiClientContextHubBase::onNanoappMessage(
              callback != nullptr) {
     callback->handleContextHubMessage(outMessage, messageContentPerms);
   }
+}
+
+void MultiClientContextHubBase::onClientDied(void *cookie) {
+  auto *info = static_cast<HalDeathRecipientCookie *>(cookie);
+  if (auto endpoints = info->hal->mHalClientManager->getAllConnectedEndpoints(
+          info->clientPid)) {
+    for (const auto &endpointId : *endpoints) {
+      flatbuffers::FlatBufferBuilder builder(64);
+      HostProtocolHost::encodeHostEndpointDisconnected(builder, endpointId);
+      info->hal->mConnection->sendMessage(builder);
+    }
+  }
+  info->hal->mHalClientManager->handleClientDeath(info->clientPid);
+  delete info;
 }
 }  // namespace android::hardware::contexthub::common::implementation
