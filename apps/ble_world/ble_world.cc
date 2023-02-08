@@ -89,6 +89,7 @@ bool nanoappStart() {
     LOGE("BLE scan result batching is unavailable");
   } else {
     gBleBatchDurationMs = 5000;
+    LOGI("BLE batching enabled");
   }
 #endif  // BLE_WORLD_ENABLE_BATCHING
   bool success = enableBleScans();
@@ -207,6 +208,11 @@ void handleRssiEvent(const chreBleReadRssiEvent *event) {
        event->result.errorCode, event->rssi);
 }
 
+void handleBatchCompleteEvent(const chreBatchCompleteEvent *event) {
+  LOGI("Received Batch complete event with event type %" PRIu16,
+       event->eventType);
+}
+
 void nanoappHandleEvent(uint32_t senderInstanceId, uint16_t eventType,
                         const void *eventData) {
   LOGI("Received event 0x%" PRIx16 " from 0x%" PRIx32 " at time %" PRIu64 " ms",
@@ -229,6 +235,9 @@ void nanoappHandleEvent(uint32_t senderInstanceId, uint16_t eventType,
     case CHRE_EVENT_BLE_RSSI_READ:
       handleRssiEvent(static_cast<const chreBleReadRssiEvent *>(eventData));
       break;
+    case CHRE_EVENT_BLE_BATCH_COMPLETE:
+      handleBatchCompleteEvent(
+          static_cast<const chreBatchCompleteEvent *>(eventData));
     default:
       LOGW("Unhandled event type %" PRIu16, eventType);
       break;

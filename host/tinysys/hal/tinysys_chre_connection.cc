@@ -65,7 +65,7 @@ void TinysysChreConnection::messageListenerTask(
 
 bool TinysysChreConnection::sendMessage(void *data, size_t length) {
   if (length <= 0 || length > kMaxPayloadBytes) {
-    LOGE("length %lu is not within the accepted range.", length);
+    LOGE("length %zu is not within the accepted range.", length);
     return false;
   }
   mChreMessage->setData(data, length);
