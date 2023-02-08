@@ -98,12 +98,10 @@ class FakeLinkSyncTests : public testing::Test {
     // Proceed to the initialized state by performing the CHPP 3-way handshake
     ASSERT_TRUE(mFakeLink->waitForTxPacket());
     std::vector<uint8_t> resetPkt = mFakeLink->popTxPacket();
-    ASSERT_TRUE(comparePacket(resetPkt,
-                              generateResetPacket(CHPP_TEST_LINK_RX_MTU_BYTES)))
+    ASSERT_TRUE(comparePacket(resetPkt, generateResetPacket()))
         << "Full packet: " << asResetPacket(resetPkt);
 
-    ChppResetPacket resetAck =
-        generateResetAckPacket(CHPP_TEST_LINK_RX_MTU_BYTES);
+    ChppResetPacket resetAck = generateResetAckPacket();
     chppRxDataCb(&mTransportContext, reinterpret_cast<uint8_t *>(&resetAck),
                  sizeof(resetAck));
 

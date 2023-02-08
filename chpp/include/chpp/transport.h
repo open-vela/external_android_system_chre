@@ -287,9 +287,6 @@ struct ChppTransportConfiguration {
   //! CHPP transport version.
   struct ChppVersion version;
 
-  //! Receive MTU size.
-  uint16_t rxMtu;
-
   //! Max outstanding packet window size (1 for current implementation).
   uint16_t windowSize;
 } CHPP_PACKED_ATTR;
