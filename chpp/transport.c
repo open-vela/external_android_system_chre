@@ -1771,12 +1771,6 @@ void chppTransportSendReset(struct ChppTransportState *context,
     config->version.minor = 0;
     config->version.patch = 0;
 
-    // Rx MTU size
-    const struct ChppLinkConfiguration linkConfig =
-        context->linkApi->getConfig(context->linkContext);
-
-    config->rxMtu = (uint16_t)linkConfig.rxBufferLen;
-
     // Max Rx window size
     // Note: current implementation does not support a window size >1
     config->windowSize = 1;

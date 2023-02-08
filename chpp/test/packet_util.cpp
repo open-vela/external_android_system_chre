@@ -42,8 +42,7 @@ ChppEmptyPacket generateEmptyPacket(uint8_t ackSeq, uint8_t seq,
   return pkt;
 }
 
-ChppResetPacket generateResetPacket(size_t rxBufferLen, uint8_t ackSeq,
-                                    uint8_t seq) {
+ChppResetPacket generateResetPacket(uint8_t ackSeq, uint8_t seq) {
   // clang-format off
   ChppResetPacket pkt = {
     .preamble = kPreamble,
@@ -64,7 +63,6 @@ ChppResetPacket generateResetPacket(size_t rxBufferLen, uint8_t ackSeq,
         .minor = 0,
         .patch = 0,
       },
-      .rxMtu = static_cast<uint16_t>(rxBufferLen),
       .windowSize = 1,
     }
   };
@@ -73,9 +71,8 @@ ChppResetPacket generateResetPacket(size_t rxBufferLen, uint8_t ackSeq,
   return pkt;
 }
 
-ChppResetPacket generateResetAckPacket(size_t rxBufferLen, uint8_t ackSeq,
-                                       uint8_t seq) {
-  ChppResetPacket pkt = generateResetPacket(rxBufferLen, ackSeq, seq);
+ChppResetPacket generateResetAckPacket(uint8_t ackSeq, uint8_t seq) {
+  ChppResetPacket pkt = generateResetPacket(ackSeq, seq);
   pkt.header.packetCode =
       static_cast<uint8_t>(CHPP_ATTR_AND_ERROR_TO_PACKET_CODE(
           CHPP_TRANSPORT_ATTR_RESET_ACK, CHPP_TRANSPORT_ERROR_NONE));
@@ -220,7 +217,6 @@ void dumpConfig(std::ostream &os, const ChppTransportConfiguration &cfg) {
      << "  version: " << std::dec << (unsigned)cfg.version.major << "."
      << std::dec << (unsigned)cfg.version.minor << "." << std::dec
      << cfg.version.patch << std::endl
-     << "  rxMtu: " << std::dec << cfg.rxMtu << std::endl
      << "  windowSize: " << std::dec << cfg.windowSize << std::endl
      << "}" << std::endl;
 }
@@ -334,7 +330,6 @@ bool comparePacket(const std::vector<uint8_t> &received,
     EXPECT_EQ(rx->config.version.major, expected.config.version.major);
     EXPECT_EQ(rx->config.version.minor, expected.config.version.minor);
     EXPECT_EQ(rx->config.version.patch, expected.config.version.patch);
-    EXPECT_EQ(rx->config.rxMtu, expected.config.rxMtu);
     EXPECT_EQ(rx->config.windowSize, expected.config.windowSize);
     EXPECT_EQ(rx->footer.checksum, expected.footer.checksum);
   }
