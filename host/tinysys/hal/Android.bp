@@ -31,7 +31,6 @@ cc_binary {
         "service.cc",
         "tinysys_chre_connection.cc",
         "tinysys_context_hub.cc",
-        "tinysys_hal_client_manager.cc",
     ],
     include_dirs: [
         "system/chre/util/include/",
