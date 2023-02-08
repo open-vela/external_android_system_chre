@@ -122,8 +122,8 @@ inline HostCommsManager &getHostCommsManager() {
 
 bool generateMessageFromBuilder(ChreFlatBufferBuilder *builder,
                                 bool isEncodedLogMessage) {
-  LOGV("%s: message size %d", __func__, builder->GetSize());
   CHRE_ASSERT(builder != nullptr);
+  LOGV("%s: message size %d", __func__, builder->GetSize());
   bool result =
       HostLinkBase::send(builder->GetBufferPointer(), builder->GetSize());
 
