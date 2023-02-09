@@ -105,6 +105,11 @@ class MultiClientContextHubBase
       HalClientId clientid);
   void onNanoappMessage(const ::chre::fbs::NanoappMessageT &message);
 
+  inline bool isSettingEnabled(Setting setting) {
+    return mSettingEnabled.find(setting) != mSettingEnabled.end() &&
+           mSettingEnabled[setting];
+  }
+
   // HAL is the unique owner of the communication channel to CHRE.
   std::unique_ptr<ChreConnection> mConnection{};
 
@@ -122,6 +127,11 @@ class MultiClientContextHubBase
 
   // Death recipient handling clients' disconnections
   ndk::ScopedAIBinder_DeathRecipient mDeathRecipient;
+
+  // States of settings
+  std::unordered_map<Setting, bool> mSettingEnabled;
+  std::optional<bool> mIsWifiAvailable;
+  std::optional<bool> mIsBleAvailable;
 };
 }  // namespace android::hardware::contexthub::common::implementation
 #endif  // ANDROID_HARDWARE_CONTEXTHUB_COMMON_MULTICLIENTS_HAL_BASE_H_
