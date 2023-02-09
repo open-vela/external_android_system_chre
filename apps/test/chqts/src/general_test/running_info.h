@@ -21,7 +21,7 @@
 
 #include <cstdint>
 
-#include "chre_api/chre.h"
+#include <chre.h>
 
 namespace general_test {
 
