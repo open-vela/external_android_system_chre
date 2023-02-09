@@ -33,8 +33,9 @@
 #include <cstdlib>
 #include <new>
 
-#include <chre.h>
 #include "chre/util/nanoapp/assert.h"
+
+#include "chre_api/chre.h"
 
 #if defined(stderr) && !defined(_CSTD)
 // Provides a definition for stderr when the macro has been defined, but the
@@ -96,5 +97,10 @@ void operator delete(void * /*ptr*/, std::align_val_t /*al*/) {
 
 void operator delete(void * /*ptr*/, std::size_t /*sz*/,
                      std::align_val_t /*al*/) {
+  CHRE_ASSERT(false);
+}
+
+// This is needed for nanoapps to handle errors from virtual functions.
+extern "C" void __cxa_pure_virtual() {
   CHRE_ASSERT(false);
 }
