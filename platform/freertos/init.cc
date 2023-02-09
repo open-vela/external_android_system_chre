@@ -16,9 +16,7 @@
 
 #include "chre/core/init.h"
 
-#ifdef CHRE_ENABLE_CHPP
 #include "chpp/platform/chpp_init.h"
-#endif
 #include "chre/core/event_loop_manager.h"
 #include "chre/core/static_nanoapps.h"
 #include "chre/platform/shared/dram_vote_client.h"
@@ -35,19 +33,9 @@ namespace chre {
 namespace freertos {
 namespace {
 
-#ifdef CHRE_FREERTOS_TASK_PRIORITY
-constexpr UBaseType_t kChreTaskPriority =
-    tskIDLE_PRIORITY + CHRE_FREERTOS_TASK_PRIORITY;
-#else
-constexpr UBaseType_t kChreTaskPriority = tskIDLE_PRIORITY + 1;
-#endif
-
-#ifdef CHRE_FREERTOS_STACK_DEPTH_IN_WORDS
-constexpr configSTACK_DEPTH_TYPE kChreTaskStackDepthWords =
-    CHRE_FREERTOS_STACK_DEPTH_IN_WORDS;
-#else
 constexpr configSTACK_DEPTH_TYPE kChreTaskStackDepthWords = 0x800;
-#endif
+
+constexpr UBaseType_t kChreTaskPriority = tskIDLE_PRIORITY + 1;
 
 TaskHandle_t gChreTaskHandle;
 
@@ -107,15 +95,7 @@ BaseType_t init() {
 
   DramVoteClientSingleton::init();
 
-#ifdef CHRE_USE_BUFFERED_LOGGING
-  chre::LogBufferManagerSingleton::init(gPrimaryLogBufferData,
-                                        gSecondaryLogBufferData,
-                                        sizeof(gPrimaryLogBufferData));
-
-  rc = xTaskCreate(chreFlushLogsToHostThreadEntry, getChreFlushTaskName(),
-                   kChreTaskStackDepthWords, nullptr /* args */,
-                   kChreTaskPriority, &gChreFlushTaskHandle);
-#endif
+  rc = initLogger();
 
   if (rc == pdPASS) {
     rc = xTaskCreate(chreThreadEntry, getChreTaskName(),
@@ -125,10 +105,24 @@ BaseType_t init() {
 
   CHRE_ASSERT(rc == pdPASS);
 
-#ifdef CHRE_ENABLE_CHPP
   chpp::init();
-#endif
 
+  return rc;
+}
+
+BaseType_t initLogger() {
+  BaseType_t rc = pdPASS;
+#ifdef CHRE_USE_BUFFERED_LOGGING
+  if (!chre::LogBufferManagerSingleton::isInitialized()) {
+    chre::LogBufferManagerSingleton::init(gPrimaryLogBufferData,
+                                          gSecondaryLogBufferData,
+                                          sizeof(gPrimaryLogBufferData));
+
+    rc = xTaskCreate(chreFlushLogsToHostThreadEntry, getChreFlushTaskName(),
+                     kChreTaskStackDepthWords, nullptr /* args */,
+                     kChreTaskPriority, &gChreFlushTaskHandle);
+  }
+#endif
   return rc;
 }
 
@@ -139,9 +133,7 @@ void deinit() {
     chre::EventLoopManagerSingleton::get()->getEventLoop().stop();
   }
 
-#ifdef CHRE_ENABLE_CHPP
   chpp::deinit();
-#endif
 }
 
 const char *getChreTaskName() {

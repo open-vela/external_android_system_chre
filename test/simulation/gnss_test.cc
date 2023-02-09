@@ -64,13 +64,13 @@ TEST_F(TestBase, GnssSubscriptionWithSettingChange) {
   struct App : public TestNanoapp {
     uint32_t perms = NanoappPermissions::CHRE_PERMS_GNSS;
 
-    decltype(nanoappStart) *start = []() {
+    bool (*start)() = []() {
       chreUserSettingConfigureEvents(CHRE_USER_SETTING_LOCATION,
                                      true /*enabled*/);
       return true;
     };
 
-    decltype(nanoappHandleEvent) *handleEvent =
+    void (*handleEvent)(uint32_t, uint16_t, const void *) =
         [](uint32_t, uint16_t eventType, const void *eventData) {
           static uint32_t cookie;
           switch (eventType) {
@@ -115,7 +115,7 @@ TEST_F(TestBase, GnssSubscriptionWithSettingChange) {
           }
         };
 
-    decltype(nanoappEnd) *end = []() {
+    void (*end)() = []() {
       chreUserSettingConfigureEvents(CHRE_USER_SETTING_LOCATION,
                                      false /*enabled*/);
     };
@@ -176,8 +176,9 @@ TEST_F(TestBase, GnssCanSubscribeAndUnsubscribeToLocation) {
   struct App : public TestNanoapp {
     uint32_t perms = NanoappPermissions::CHRE_PERMS_GNSS;
 
-    decltype(nanoappHandleEvent) *handleEvent = [](uint32_t, uint16_t eventType,
-                                                   const void *eventData) {
+    void (*handleEvent)(uint32_t, uint16_t,
+                        const void *) = [](uint32_t, uint16_t eventType,
+                                           const void *eventData) {
       static uint32_t cookie;
       switch (eventType) {
         case CHRE_EVENT_GNSS_ASYNC_RESULT: {
@@ -248,8 +249,9 @@ TEST_F(TestBase, GnssUnsubscribeToLocationOnUnload) {
   struct App : public TestNanoapp {
     uint32_t perms = NanoappPermissions::CHRE_PERMS_GNSS;
 
-    decltype(nanoappHandleEvent) *handleEvent = [](uint32_t, uint16_t eventType,
-                                                   const void *eventData) {
+    void (*handleEvent)(uint32_t, uint16_t,
+                        const void *) = [](uint32_t, uint16_t eventType,
+                                           const void *eventData) {
       static uint32_t cookie;
       switch (eventType) {
         case CHRE_EVENT_GNSS_ASYNC_RESULT: {
@@ -311,7 +313,7 @@ TEST_F(TestBase, GnssCanSubscribeAndUnsubscribeToMeasurement) {
   struct App : public TestNanoapp {
     uint32_t perms = NanoappPermissions::CHRE_PERMS_GNSS;
 
-    decltype(nanoappHandleEvent) *handleEvent =
+    void (*handleEvent)(uint32_t, uint16_t, const void *) =
         [](uint32_t, uint16_t eventType, const void *eventData) {
           static uint32_t cookie;
           switch (eventType) {
@@ -383,7 +385,7 @@ TEST_F(TestBase, GnssUnsubscribeToMeasurementOnUnload) {
   struct App : public TestNanoapp {
     uint32_t perms = NanoappPermissions::CHRE_PERMS_GNSS;
 
-    decltype(nanoappHandleEvent) *handleEvent =
+    void (*handleEvent)(uint32_t, uint16_t, const void *) =
         [](uint32_t, uint16_t eventType, const void *eventData) {
           static uint32_t cookie;
           switch (eventType) {
@@ -441,7 +443,7 @@ TEST_F(TestBase, GnssCanSubscribeAndUnsubscribeToPassiveListener) {
   struct App : public TestNanoapp {
     uint32_t perms = NanoappPermissions::CHRE_PERMS_GNSS;
 
-    decltype(nanoappHandleEvent) *handleEvent =
+    void (*handleEvent)(uint32_t, uint16_t, const void *) =
         [](uint32_t, uint16_t eventType, const void *eventData) {
           switch (eventType) {
             case CHRE_EVENT_TEST_EVENT: {
@@ -482,7 +484,7 @@ TEST_F(TestBase, GnssUnsubscribeToPassiveListenerOnUnload) {
   struct App : public TestNanoapp {
     uint32_t perms = NanoappPermissions::CHRE_PERMS_GNSS;
 
-    decltype(nanoappHandleEvent) *handleEvent =
+    void (*handleEvent)(uint32_t, uint16_t, const void *) =
         [](uint32_t, uint16_t eventType, const void *eventData) {
           switch (eventType) {
             case CHRE_EVENT_TEST_EVENT: {

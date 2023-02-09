@@ -16,7 +16,6 @@
 
 #include "chre/pal/sensor.h"
 
-#include "chre/platform/linux/task_util/task_manager.h"
 #include "chre/platform/memory.h"
 #include "chre/util/macros.h"
 #include "chre/util/memory.h"
@@ -25,14 +24,13 @@
 #include <chrono>
 #include <cinttypes>
 #include <cstdint>
+#include <future>
+#include <thread>
 
 /**
  * A simulated implementation of the Sensor PAL for the linux platform.
  */
 namespace {
-
-using chre::TaskManagerSingleton;
-
 const struct chrePalSystemApi *gSystemApi = nullptr;
 const struct chrePalSensorCallbacks *gCallbacks = nullptr;
 
@@ -50,32 +48,33 @@ struct chreSensorInfo gSensors[] = {
     },
 };
 
-//! Task to deliver asynchronous sensor data after a CHRE request.
-std::optional<uint32_t> gSensor0TaskId;
+//! Thread to deliver asynchronous sensor data after a CHRE request.
+std::thread gSensor0Thread;
+std::promise<void> gStopSensor0Thread;
 bool gIsSensor0Enabled = false;
 
-void stopSensor0Task() {
-  if (gSensor0TaskId.has_value()) {
-    TaskManagerSingleton::get()->cancelTask(gSensor0TaskId.value());
+void stopSensor0Thread() {
+  if (gSensor0Thread.joinable()) {
+    gStopSensor0Thread.set_value();
+    gSensor0Thread.join();
   }
 }
 
 void chrePalSensorApiClose() {
-  stopSensor0Task();
+  stopSensor0Thread();
 }
 
 bool chrePalSensorApiOpen(const struct chrePalSystemApi *systemApi,
                           const struct chrePalSensorCallbacks *callbacks) {
   chrePalSensorApiClose();
 
-  bool success = false;
   if (systemApi != nullptr && callbacks != nullptr) {
     gSystemApi = systemApi;
     gCallbacks = callbacks;
-    success = true;
+    return true;
   }
 
-  return success;
+  return false;
 }
 
 bool chrePalSensorApiGetSensors(const struct chreSensorInfo **sensors,
@@ -97,16 +96,20 @@ void sendSensor0StatusUpdate(uint64_t intervalNs, bool enabled) {
   gCallbacks->samplingStatusUpdateCallback(0, status.release());
 }
 
-void sendSensor0Events() {
-  auto data = chre::MakeUniqueZeroFill<struct chreSensorThreeAxisData>();
+void sendSensor0Events(uint64_t intervalNs) {
+  std::future<void> signal = gStopSensor0Thread.get_future();
+  while (signal.wait_for(std::chrono::nanoseconds(intervalNs)) ==
+         std::future_status::timeout) {
+    auto data = chre::MakeUniqueZeroFill<struct chreSensorThreeAxisData>();
 
-  data->header.baseTimestamp = gSystemApi->getCurrentTime();
-  data->header.sensorHandle = 0;
-  data->header.readingCount = 1;
-  data->header.accuracy = CHRE_SENSOR_ACCURACY_UNRELIABLE;
-  data->header.reserved = 0;
+    data->header.baseTimestamp = gSystemApi->getCurrentTime();
+    data->header.sensorHandle = 0;
+    data->header.readingCount = 1;
+    data->header.accuracy = CHRE_SENSOR_ACCURACY_UNRELIABLE;
+    data->header.reserved = 0;
 
-  gCallbacks->dataEventCallback(0, data.release());
+    gCallbacks->dataEventCallback(0, data.release());
+  }
 }
 
 bool chrePalSensorApiConfigureSensor(uint32_t sensorInfoIndex,
@@ -123,18 +126,16 @@ bool chrePalSensorApiConfigureSensor(uint32_t sensorInfoIndex,
   }
 
   if (mode == CHRE_SENSOR_CONFIGURE_MODE_CONTINUOUS) {
-    stopSensor0Task();
+    stopSensor0Thread();
     gIsSensor0Enabled = true;
     sendSensor0StatusUpdate(intervalNs, true /*enabled*/);
-    gSensor0TaskId = TaskManagerSingleton::get()->addTask(
-        sendSensor0Events,
-        std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::nanoseconds(intervalNs)));
-    return gSensor0TaskId.has_value();
+    gStopSensor0Thread = std::promise<void>();
+    gSensor0Thread = std::thread(sendSensor0Events, intervalNs);
+    return true;
   }
 
   if (mode == CHRE_SENSOR_CONFIGURE_MODE_DONE) {
-    stopSensor0Task();
+    stopSensor0Thread();
     gIsSensor0Enabled = false;
     sendSensor0StatusUpdate(intervalNs, false /*enabled*/);
     return true;

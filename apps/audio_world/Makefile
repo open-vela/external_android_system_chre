@@ -22,6 +22,10 @@ NANOAPP_VERSION = 0x00000001
 
 NANOAPP_NAME_STRING = \"Audio\ World\"
 
+# Enable CHRE Overrides ########################################################
+
+CHRE_STD_OVERRIDES_ALLOWED = true
+
 # Common Compiler Flags ########################################################
 
 # Include paths.
@@ -32,7 +36,6 @@ COMMON_CFLAGS += -I$(CHRE_PREFIX)/util/include
 # Defines.
 COMMON_CFLAGS += -DNANOAPP_MINIMUM_LOG_LEVEL=CHRE_LOG_LEVEL_DEBUG
 COMMON_CFLAGS += -DFIXED_POINT
-COMMON_CFLAGS += -DCHRE_ASSERTIONS_ENABLED
 
 # Common Source Files ##########################################################
 
