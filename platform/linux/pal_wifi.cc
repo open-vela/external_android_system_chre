@@ -14,99 +14,59 @@
  * limitations under the License.
  */
 
-#include "chre/platform/linux/pal_wifi.h"
+#include "chre/pal/wifi.h"
 
-#include <atomic>
+#include "chre/util/memory.h"
+#include "chre/util/unique_ptr.h"
+
+#include "chre/platform/linux/pal_nan.h"
+
 #include <chrono>
 #include <cinttypes>
-#include <optional>
-
-#include "chre/pal/wifi.h"
-#include "chre/platform/linux/pal_nan.h"
-#include "chre/platform/linux/task_util/task_manager.h"
-#include "chre/util/enum.h"
-#include "chre/util/memory.h"
-#include "chre/util/time.h"
-#include "chre/util/unique_ptr.h"
+#include <thread>
 
 /**
  * A simulated implementation of the WiFi PAL for the linux platform.
  */
 namespace {
-
-using chre::TaskManagerSingleton;
-
 const struct chrePalSystemApi *gSystemApi = nullptr;
 const struct chrePalWifiCallbacks *gCallbacks = nullptr;
 
+//! Thread to deliver asynchronous WiFi scan results after a CHRE request.
+std::thread gScanEventsThread;
+
+//! Thread to use when delivering a scan monitor status update.
+std::thread gScanMonitorStatusThread;
+
 //! Whether scan monitoring is active.
-std::atomic_bool gScanMonitoringActive(false);
-
-//! Whether PAL should respond to RRT ranging request.
-std::atomic_bool gEnableRangingResponse(true);
-
-//! Whether PAL should respond to configure scan monitor request.
-std::atomic_bool gEnableScanMonitorResponse(true);
-
-//! Whether PAL should respond to scan request.
-std::atomic_bool gEnableScanResponse(true);
-
-//! Task IDs for the scanning tasks
-std::optional<uint32_t> gScanMonitorTaskId;
-std::optional<uint32_t> gRequestScanTaskId;
-std::optional<uint32_t> gRequestRangingTaskId;
-
-//! How long should each the PAL hold before response.
-//! Use to mimic real world hardware process time.
-std::chrono::milliseconds gAsyncRequestDelayResponseTime[chre::asBaseType(
-    PalWifiAsyncRequestTypes::NUM_WIFI_REQUEST_TYPE)];
+bool gScanMonitoringActive = false;
 
 void sendScanResponse() {
-  if (gEnableScanResponse) {
-    auto event = chre::MakeUniqueZeroFill<struct chreWifiScanEvent>();
-    auto result = chre::MakeUniqueZeroFill<struct chreWifiScanResult>();
-    event->resultCount = 1;
-    event->resultTotal = 1;
-    event->referenceTime = gSystemApi->getCurrentTime();
-    event->results = result.release();
-    gCallbacks->scanEventCallback(event.release());
-  }
+  gCallbacks->scanResponseCallback(true, CHRE_ERROR_NONE);
 
-  // We just want to delay this task - only execute it once.
-  TaskManagerSingleton::get()->cancelTask(gRequestScanTaskId.value());
+  auto event = chre::MakeUniqueZeroFill<struct chreWifiScanEvent>();
+  auto result = chre::MakeUniqueZeroFill<struct chreWifiScanResult>();
+  event->resultCount = 1;
+  event->resultTotal = 1;
+  event->referenceTime = gSystemApi->getCurrentTime();
+  event->results = result.release();
+
+  gCallbacks->scanEventCallback(event.release());
 }
 
 void sendScanMonitorResponse(bool enable) {
-  if (gEnableScanMonitorResponse) {
-    gCallbacks->scanMonitorStatusChangeCallback(enable, CHRE_ERROR_NONE);
+  gCallbacks->scanMonitorStatusChangeCallback(enable, CHRE_ERROR_NONE);
+}
+
+void stopScanEventThreads() {
+  if (gScanEventsThread.joinable()) {
+    gScanEventsThread.join();
   }
 }
 
-void sendRangingResponse() {
-  if (gEnableRangingResponse) {
-    auto event = chre::MakeUniqueZeroFill<struct chreWifiRangingEvent>();
-    auto result = chre::MakeUniqueZeroFill<struct chreWifiRangingResult>();
-    event->resultCount = 1;
-    event->results = result.release();
-    gCallbacks->rangingEventCallback(CHRE_ERROR_NONE, event.release());
-  }
-}
-
-void stopScanMonitorTask() {
-  if (gScanMonitorTaskId.has_value()) {
-    TaskManagerSingleton::get()->cancelTask(gScanMonitorTaskId.value());
-  }
-}
-
-void stopRequestScanTask() {
-  if (gRequestScanTaskId.has_value()) {
-    TaskManagerSingleton::get()->cancelTask(gRequestScanTaskId.value());
-  }
-}
-
-void stopRequestRangingTask() {
-  if (gRequestRangingTaskId.has_value()) {
-    TaskManagerSingleton::get()->cancelTask(gRequestRangingTaskId.value());
+void stopScanMonitorThreads() {
+  if (gScanMonitorStatusThread.joinable()) {
+    gScanMonitorStatusThread.join();
   }
 }
 
@@ -116,39 +76,26 @@ uint32_t chrePalWifiGetCapabilities() {
 }
 
 bool chrePalWifiConfigureScanMonitor(bool enable) {
-  stopScanMonitorTask();
+  stopScanMonitorThreads();
 
-  gScanMonitorTaskId = TaskManagerSingleton::get()->addTask(
-      [enable]() { sendScanMonitorResponse(enable); });
+  gScanMonitorStatusThread = std::thread(sendScanMonitorResponse, enable);
   gScanMonitoringActive = enable;
-  return gScanMonitorTaskId.has_value();
+
+  return true;
 }
 
 bool chrePalWifiApiRequestScan(const struct chreWifiScanParams * /* params */) {
-  stopRequestScanTask();
+  stopScanEventThreads();
 
-  std::optional<uint32_t> requestScanTaskCallbackId =
-      TaskManagerSingleton::get()->addTask([]() {
-        if (gEnableScanResponse) {
-          gCallbacks->scanResponseCallback(true, CHRE_ERROR_NONE);
-        }
-      });
-  if (requestScanTaskCallbackId.has_value()) {
-    gRequestScanTaskId = TaskManagerSingleton::get()->addTask(
-        sendScanResponse, gAsyncRequestDelayResponseTime[chre::asBaseType(
-                              PalWifiAsyncRequestTypes::SCAN)]);
-    return gRequestScanTaskId.has_value();
-  }
-  return false;
+  gScanEventsThread = std::thread(sendScanResponse);
+
+  return true;
 }
 
 bool chrePalWifiApiRequestRanging(
     const struct chreWifiRangingParams * /* params */) {
-  stopRequestRangingTask();
-
-  gRequestRangingTaskId =
-      TaskManagerSingleton::get()->addTask(sendRangingResponse);
-  return gRequestRangingTaskId.has_value();
+  // unimplemented
+  return false;
 }
 
 void chrePalWifiApiReleaseScanEvent(struct chreWifiScanEvent *event) {
@@ -205,9 +152,8 @@ bool chrePalWifiApiRequestNanRanging(
 }
 
 void chrePalWifiApiClose() {
-  stopScanMonitorTask();
-  stopRequestScanTask();
-  stopRequestRangingTask();
+  stopScanEventThreads();
+  stopScanMonitorThreads();
 }
 
 bool chrePalWifiApiOpen(const struct chrePalSystemApi *systemApi,
@@ -229,35 +175,8 @@ bool chrePalWifiApiOpen(const struct chrePalSystemApi *systemApi,
 
 }  // anonymous namespace
 
-void chrePalWifiEnableResponse(PalWifiAsyncRequestTypes requestType,
-                               bool enableResponse) {
-  switch (requestType) {
-    case PalWifiAsyncRequestTypes::RANGING:
-      gEnableRangingResponse = enableResponse;
-      break;
-
-    case PalWifiAsyncRequestTypes::SCAN_MONITORING:
-      gEnableScanMonitorResponse = enableResponse;
-      break;
-
-    case PalWifiAsyncRequestTypes::SCAN:
-      gEnableScanResponse = enableResponse;
-      break;
-
-    default:
-      LOGE("Cannot enable/disable request type: %" PRIu8,
-           static_cast<uint8_t>(requestType));
-  }
-}
-
 bool chrePalWifiIsScanMonitoringActive() {
   return gScanMonitoringActive;
-}
-
-void chrePalWifiDelayResponse(PalWifiAsyncRequestTypes requestType,
-                              std::chrono::seconds seconds) {
-  gAsyncRequestDelayResponseTime[chre::asBaseType(requestType)] =
-      std::chrono::duration_cast<std::chrono::milliseconds>(seconds);
 }
 
 const struct chrePalWifiApi *chrePalWifiGetApi(uint32_t requestedApiVersion) {
