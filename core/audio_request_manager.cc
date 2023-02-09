@@ -22,7 +22,6 @@
 #include "chre/platform/system_time.h"
 #include "chre/util/nested_data_ptr.h"
 #include "chre/util/system/debug_dump.h"
-#include "chre/util/system/event_callbacks.h"
 #include "chre/util/time.h"
 
 /*
@@ -87,14 +86,9 @@ void AudioRequestManager::handleAudioDataEvent(
   // Cast off the event const so that it can be provided to the callback as
   // non-const. The event is provided to nanoapps as const and the runtime
   // itself will not modify this memory so this is safe.
-  struct chreAudioDataEvent *event =
-      const_cast<struct chreAudioDataEvent *>(audioDataEvent);
-  if (!EventLoopManagerSingleton::get()->deferCallback(
-          SystemCallbackType::AudioHandleDataEvent, event, callback)) {
-    EventLoopManagerSingleton::get()
-        ->getAudioRequestManager()
-        .handleFreeAudioDataEvent(event);
-  }
+  EventLoopManagerSingleton::get()->deferCallback(
+      SystemCallbackType::AudioHandleDataEvent,
+      const_cast<struct chreAudioDataEvent *>(audioDataEvent), callback);
 }
 
 void AudioRequestManager::handleAudioAvailability(uint32_t handle,

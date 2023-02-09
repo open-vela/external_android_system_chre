@@ -17,7 +17,7 @@
 #ifndef CHRE_UTIL_SYSTEM_WIFI_UTIL_H_
 #define CHRE_UTIL_SYSTEM_WIFI_UTIL_H_
 
-#include "chre_api/chre.h"
+#include <chre.h>
 
 namespace chre {
 
