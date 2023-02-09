@@ -454,7 +454,7 @@ static void chppProcessTransportLoopbackRequest(
 
     chppAddFooter(&context->pendingTxPacket);
 
-    CHPP_LOGI("Trans-looping back len=%" PRIu16 " RX len=%" PRIuSIZE,
+    CHPP_LOGD("Trans-looping back len=%" PRIu16 " RX len=%" PRIuSIZE,
               txHeader->length, context->rxDatagram.length);
     enum ChppLinkErrorCode error = chppSendPendingPacket(context);
 
@@ -603,6 +603,12 @@ static void chppProcessRxPacket(struct ChppTransportState *context) {
   } else if (context->rxHeader.length > 0) {
     // Process payload and send ACK
     chppProcessRxPayload(context);
+  } else if (!context->txStatus.hasPacketsToSend) {
+    // Nothing to send and nothing to receive, i.e. this is an ACK before an
+    // indefinite period of inactivity. Kick the work thread so it recalculates
+    // the notifier timeout.
+    chppNotifierSignal(&context->notifier,
+                       CHPP_TRANSPORT_SIGNAL_RECALC_TIMEOUT);
   }
 }
 
@@ -1113,13 +1119,13 @@ static bool chppEnqueueTxDatagram(struct ChppTransportState *context,
   } else {
     if ((len < sizeof(struct ChppAppHeader)) ||
         (CHPP_TRANSPORT_GET_ATTR(packetCode) != 0)) {
-      CHPP_LOGI("Enqueue TX: code=0x%" PRIx8 "%s len=%" PRIuSIZE
+      CHPP_LOGD("Enqueue TX: code=0x%" PRIx8 "%s len=%" PRIuSIZE
                 " pending=%" PRIu8,
                 packetCode, chppGetPacketAttrStr(packetCode), len,
                 (uint8_t)(context->txDatagramQueue.pending + 1));
     } else {
       struct ChppAppHeader *header = buf;
-      CHPP_LOGI(
+      CHPP_LOGD(
           "Enqueue TX: len=%" PRIuSIZE " H#%" PRIu8 " type=0x%" PRIx8
           " ID=%" PRIu8 " err=%" PRIu8 " cmd=0x%" PRIx16 " pending=%" PRIu8,
           len, header->handle, header->type, header->transaction, header->error,
@@ -1367,6 +1373,8 @@ void chppTransportDeinit(struct ChppTransportState *transportContext) {
   chppMutexDeinit(&transportContext->mutex);
 
   chppClearTxDatagramQueue(transportContext);
+
+  CHPP_FREE_AND_NULLIFY(transportContext->rxDatagram.payload);
 
   transportContext->initialized = false;
 }
