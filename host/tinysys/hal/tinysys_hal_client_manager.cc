@@ -14,19 +14,16 @@
  * limitations under the License.
  */
 
-#include "tinysys_context_hub.h"
+#include "tinysys_hal_client_manager.h"
 
 namespace aidl::android::hardware::contexthub {
-TinysysContextHub::TinysysContextHub() {
-  mConnection = std::make_unique<TinysysChreConnection>(this);
-  mHalClientManager = TinysysHalClientManager::getInstance();
-  mPreloadedNanoappLoader =
-      std::make_unique<PreloadedNanoappLoader>(mConnection.get());
-  if (mConnection->init()) {
-    if (!kPreloadedNanoappsConfigPath.empty()) {
-      mPreloadedNanoappLoader->loadPreloadedNanoapps(
-          kPreloadedNanoappsConfigPath);
-    }
-  }
+
+std::mutex TinysysHalClientManager::sInstanceLock;
+std::unique_ptr<TinysysHalClientManager> TinysysHalClientManager::sInstance;
+
+void TinysysHalClientManager::onClientDied(void *cookie) {
+  auto *pid = static_cast<pid_t *>(cookie);
+  getInstance()->handleClientDeath(*pid);
+  delete pid;
 }
 }  // namespace aidl::android::hardware::contexthub

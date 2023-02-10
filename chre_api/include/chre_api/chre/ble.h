@@ -326,7 +326,7 @@ enum chreBleAdType {
  * as defined in the Bluetooth spec Assigned Numbers, Generic Access Profile
  * (ref: https://www.bluetooth.com/specifications/assigned-numbers/). This
  * generic structure is used by the Advertising Packet Content Filter
- * (APCF) HCI generic AD type sub-command 0x08 (ref:
+ * (APCF) HCI generic AD type sub-command 0x09 (ref:
  * https://source.android.com/devices/bluetooth/hci_requirements#le_apcf_command).
  *
  * Note that the CHRE implementation may not support every kind of filter that
