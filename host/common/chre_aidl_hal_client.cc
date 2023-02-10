@@ -44,6 +44,7 @@ using aidl::android::hardware::contexthub::HostEndpointInfo;
 using aidl::android::hardware::contexthub::IContextHub;
 using aidl::android::hardware::contexthub::NanoappBinary;
 using aidl::android::hardware::contexthub::NanoappInfo;
+using aidl::android::hardware::contexthub::Setting;
 using android::chre::NanoAppBinaryHeader;
 using android::chre::readFileContents;
 using android::internal::ToString;
@@ -74,10 +75,14 @@ COMMAND ARGS...:
   connectEndpoint <HEX_HOST_ENDPOINT_ID>
                               - associate an endpoint with the current client
                                 and notify HAL.
+  disableSetting <SETTING>    - disable a setting identified by a number defined
+                                in android/hardware/contexthub/Setting.aidl.
   disableTestMode             - disable test mode.
   disconnectEndpoint <HEX_HOST_ENDPOINT_ID>
                               - remove an endpoint with the current client and
                                 notify HAL.
+  enableSetting <SETTING>     - enable a setting identified by a number defined
+                                in android/hardware/contexthub/Setting.aidl.
   enableTestMode              - enable test mode.
   getContextHubs              - get all the context hubs.
   list <PATH_OF_NANOAPPS>     - list all the nanoapps' header info in the path.
@@ -481,6 +486,20 @@ void sendMessageToNanoapp(const std::string &hexHostEndpointId,
   onEndpointConnected(hexHostEndpointId);
 }
 
+void changeSetting(const std::string &setting, bool enabled) {
+  auto contextHub = getContextHub();
+  int settingType = std::stoi(setting);
+  if (settingType < 1 || settingType > 7) {
+    throwError("setting type must be within [1, 7].");
+  }
+  ScopedAStatus status =
+      contextHub->onSettingChanged(static_cast<Setting>(settingType), enabled);
+  std::cout << "onSettingChanged is called to "
+            << (enabled ? "enable" : "disable") << " setting type "
+            << settingType << std::endl;
+  verifyStatus("change setting", status);
+}
+
 void enableTestModeOnContextHub() {
   auto status = getContextHub()->setTestMode(true);
   verifyStatusAndSignal(/* operation= */ "enabling test mode", status,
@@ -497,8 +516,10 @@ void disableTestModeOnContextHub() {
 enum Command {
   connect,
   connectEndpoint,
+  disableSetting,
   disableTestMode,
   disconnectEndpoint,
+  enableSetting,
   enableTestMode,
   getContextHubs,
   list,
@@ -518,8 +539,10 @@ Command parseCommand(const std::vector<std::string> &cmdLine) {
   std::map<std::string, CommandInfo> commandMap{
       {"connect", {connect, 1}},
       {"connectEndpoint", {connectEndpoint, 2}},
+      {"disableSetting", {disableSetting, 2}},
       {"disableTestMode", {disableTestMode, 1}},
       {"disconnectEndpoint", {disconnectEndpoint, 2}},
+      {"enableSetting", {enableSetting, 2}},
       {"enableTestMode", {enableTestMode, 1}},
       {"getContextHubs", {getContextHubs, 1}},
       {"list", {list, 2}},
@@ -541,12 +564,20 @@ void executeCommand(std::vector<std::string> cmdLine) {
       onEndpointConnected(cmdLine[1]);
       break;
     }
+    case disableSetting: {
+      changeSetting(cmdLine[1], false);
+      break;
+    }
     case disableTestMode: {
       disableTestModeOnContextHub();
       break;
     }
     case disconnectEndpoint: {
       onEndpointDisconnected(cmdLine[1]);
+      break;
+    }
+    case enableSetting: {
+      changeSetting(cmdLine[1], true);
       break;
     }
     case enableTestMode: {
