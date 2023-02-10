@@ -534,6 +534,52 @@ cc_test_host {
     },
 }
 
+// pw_rpc rules instantiation
+
+cc_defaults {
+    name: "pw_rpc_cflags_chre",
+    cflags: [
+        "-DPW_RPC_USE_GLOBAL_MUTEX=0",
+        "-DPW_RPC_CLIENT_STREAM_END_CALLBACK",
+        "-DPW_RPC_DYNAMIC_ALLOCATION",
+    ],
+}
+
+cc_library_static {
+    name: "pw_rpc_chre",
+    defaults: [
+        "pw_rpc_cflags_chre",
+        "pw_rpc_defaults",
+    ],
+}
+
+cc_library_static {
+    name: "pw_rpc_nanopb_chre",
+    defaults: [
+        "pw_rpc_cflags_chre",
+        "pw_rpc_nanopb_defaults",
+    ],
+    static_libs: [
+        "pw_rpc_raw_chre",
+        "pw_rpc_chre",
+    ],
+    export_static_lib_headers: [
+        "pw_rpc_raw_chre",
+        "pw_rpc_chre",
+    ],
+}
+
+cc_library_static {
+    name: "pw_rpc_raw_chre",
+    defaults: [
+        "pw_rpc_cflags_chre",
+        "pw_rpc_raw_defaults",
+    ],
+    static_libs: [
+        "pw_rpc_chre",
+    ],
+}
+
 genrule {
     name: "rpc_test_proto_header",
     defaults: [
@@ -592,22 +638,18 @@ cc_test_host {
         "libprotobuf-c-nano",
         "pw_containers",
         "pw_protobuf",
-        "pw_rpc_nanopb",
-        "pw_rpc",
+        "pw_rpc_nanopb_chre",
+        "pw_rpc_chre",
         "pw_stream",
         "pw_varint",
     ],
     defaults: [
         "chre_linux_cflags",
+        "pw_rpc_cflags_chre",
     ],
     sanitize: {
         address: true,
     },
-    cflags: [
-        "-DPW_RPC_USE_GLOBAL_MUTEX=0",
-        "-DPW_RPC_CLIENT_STREAM_END_CALLBACK",
-        "-DPW_RPC_DYNAMIC_ALLOCATION",
-    ],
 }
 
 cc_library_static {
@@ -704,18 +746,14 @@ cc_library_static {
     ],
     defaults: [
         "chre_linux_cflags",
+        "pw_rpc_cflags_chre",
     ],
     static_libs: [
         "libgtest",
         "libgmock",
-        "pw_rpc",
+        "pw_rpc_chre",
     ],
     host_supported: true,
-    cflags: [
-        "-DPW_RPC_USE_GLOBAL_MUTEX=0",
-        "-DPW_RPC_CLIENT_STREAM_END_CALLBACK",
-        "-DPW_RPC_DYNAMIC_ALLOCATION",
-    ],
 }
 
 cc_defaults {
