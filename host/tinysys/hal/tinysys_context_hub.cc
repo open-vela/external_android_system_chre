@@ -18,8 +18,10 @@
 
 namespace aidl::android::hardware::contexthub {
 TinysysContextHub::TinysysContextHub() {
+  mDeathRecipient = ndk::ScopedAIBinder_DeathRecipient(
+      AIBinder_DeathRecipient_new(onClientDied));
   mConnection = std::make_unique<TinysysChreConnection>(this);
-  mHalClientManager = TinysysHalClientManager::getInstance();
+  mHalClientManager = std::make_unique<HalClientManager>();
   mPreloadedNanoappLoader =
       std::make_unique<PreloadedNanoappLoader>(mConnection.get());
   if (mConnection->init()) {
