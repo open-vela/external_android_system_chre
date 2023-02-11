@@ -49,6 +49,31 @@ bool isValidContextHubId(uint32_t hubId) {
   return true;
 }
 
+bool getFbsSetting(const Setting &setting, fbs::Setting *fbsSetting) {
+  bool foundSetting = true;
+  switch (setting) {
+    case Setting::LOCATION:
+      *fbsSetting = fbs::Setting::LOCATION;
+      break;
+    case Setting::AIRPLANE_MODE:
+      *fbsSetting = fbs::Setting::AIRPLANE_MODE;
+      break;
+    case Setting::MICROPHONE:
+      *fbsSetting = fbs::Setting::MICROPHONE;
+      break;
+    default:
+      foundSetting = false;
+      LOGE("Setting update with invalid enum value %hhu", setting);
+      break;
+  }
+  return foundSetting;
+}
+
+chre::fbs::SettingState toFbsSettingState(bool enabled) {
+  return enabled ? chre::fbs::SettingState::ENABLED
+                 : chre::fbs::SettingState::DISABLED;
+}
+
 // functions that extract different version numbers
 inline constexpr int8_t extractChreApiMajorVersion(uint32_t chreVersion) {
   return static_cast<int8_t>(chreVersion >> 24);
@@ -164,9 +189,54 @@ ScopedAStatus MultiClientContextHubBase::enableNanoapp(
   return ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
 }
 
-ScopedAStatus MultiClientContextHubBase::onSettingChanged(Setting /*setting*/,
-                                                          bool /*enabled*/) {
-  // To be implemented.
+ScopedAStatus MultiClientContextHubBase::onSettingChanged(Setting setting,
+                                                          bool enabled) {
+  mSettingEnabled[setting] = enabled;
+  fbs::Setting fbsSetting;
+  bool isWifiOrBtSetting =
+      (setting == Setting::WIFI_MAIN || setting == Setting::WIFI_SCANNING ||
+       setting == Setting::BT_MAIN || setting == Setting::BT_SCANNING);
+  if (!isWifiOrBtSetting && getFbsSetting(setting, &fbsSetting)) {
+    flatbuffers::FlatBufferBuilder builder(64);
+    HostProtocolHost::encodeSettingChangeNotification(
+        builder, fbsSetting, toFbsSettingState(enabled));
+    mConnection->sendMessage(builder);
+  }
+
+  bool isWifiMainEnabled = isSettingEnabled(Setting::WIFI_MAIN);
+  bool isWifiScanEnabled = isSettingEnabled(Setting::WIFI_SCANNING);
+  bool isAirplaneModeEnabled = isSettingEnabled(Setting::AIRPLANE_MODE);
+
+  // Because the airplane mode impact on WiFi is not standardized in Android,
+  // we write a specific handling in the Context Hub HAL to inform CHRE.
+  // The following definition is a default one, and can be adjusted
+  // appropriately if necessary.
+  bool isWifiAvailable = isAirplaneModeEnabled
+                             ? (isWifiMainEnabled)
+                             : (isWifiMainEnabled || isWifiScanEnabled);
+  if (!mIsWifiAvailable.has_value() || (isWifiAvailable != mIsWifiAvailable)) {
+    flatbuffers::FlatBufferBuilder builder(64);
+    HostProtocolHost::encodeSettingChangeNotification(
+        builder, fbs::Setting::WIFI_AVAILABLE,
+        toFbsSettingState(isWifiAvailable));
+    mConnection->sendMessage(builder);
+    mIsWifiAvailable = isWifiAvailable;
+  }
+
+  // The BT switches determine whether we can BLE scan which is why things are
+  // mapped like this into CHRE.
+  bool isBtMainEnabled = isSettingEnabled(Setting::BT_MAIN);
+  bool isBtScanEnabled = isSettingEnabled(Setting::BT_SCANNING);
+  bool isBleAvailable = isBtMainEnabled || isBtScanEnabled;
+  if (!mIsBleAvailable.has_value() || (isBleAvailable != mIsBleAvailable)) {
+    flatbuffers::FlatBufferBuilder builder(64);
+    HostProtocolHost::encodeSettingChangeNotification(
+        builder, fbs::Setting::BLE_AVAILABLE,
+        toFbsSettingState(isBleAvailable));
+    mConnection->sendMessage(builder);
+    mIsBleAvailable = isBleAvailable;
+  }
+
   return ScopedAStatus::ok();
 }
 
@@ -199,6 +269,14 @@ ScopedAStatus MultiClientContextHubBase::registerCallback(
     return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
   }
   mHalClientManager->registerCallback(callback);
+  // once the call to AIBinder_linkToDeath() is successful, the cookie is
+  // supposed to be release by the death recipient later.
+  auto *cookie = new HalDeathRecipientCookie(this, AIBinder_getCallingPid());
+  if (AIBinder_linkToDeath(callback->asBinder().get(), mDeathRecipient.get(),
+                           cookie) != STATUS_OK) {
+    LOGE("Failed to link client binder to death recipient");
+    delete cookie;
+  }
   return ScopedAStatus::ok();
 }
 
@@ -410,5 +488,19 @@ void MultiClientContextHubBase::onNanoappMessage(
              callback != nullptr) {
     callback->handleContextHubMessage(outMessage, messageContentPerms);
   }
+}
+
+void MultiClientContextHubBase::onClientDied(void *cookie) {
+  auto *info = static_cast<HalDeathRecipientCookie *>(cookie);
+  if (auto endpoints = info->hal->mHalClientManager->getAllConnectedEndpoints(
+          info->clientPid)) {
+    for (const auto &endpointId : *endpoints) {
+      flatbuffers::FlatBufferBuilder builder(64);
+      HostProtocolHost::encodeHostEndpointDisconnected(builder, endpointId);
+      info->hal->mConnection->sendMessage(builder);
+    }
+  }
+  info->hal->mHalClientManager->handleClientDeath(info->clientPid);
+  delete info;
 }
 }  // namespace android::hardware::contexthub::common::implementation

@@ -47,6 +47,9 @@ class MultiClientContextHubBase
       public ::android::hardware::contexthub::common::implementation::
           ChreConnectionCallback {
  public:
+  /** The entry point of death recipient for a disconnected client. */
+  static void onClientDied(void *cookie);
+
   // functions implementing IContextHub
   ScopedAStatus getContextHubs(
       std::vector<ContextHubInfo> *contextHubInfos) override;
@@ -77,6 +80,15 @@ class MultiClientContextHubBase
                              size_t messageLen) override;
 
  protected:
+  // The data needed by the death client to clear states of a client.
+  struct HalDeathRecipientCookie {
+    MultiClientContextHubBase *hal;
+    pid_t clientPid;
+    HalDeathRecipientCookie(MultiClientContextHubBase *hal, pid_t pid) {
+      this->hal = hal;
+      this->clientPid = pid;
+    }
+  };
   MultiClientContextHubBase() = default;
 
   bool sendFragmentedLoadRequest(HalClientId clientId,
@@ -93,12 +105,17 @@ class MultiClientContextHubBase
       HalClientId clientid);
   void onNanoappMessage(const ::chre::fbs::NanoappMessageT &message);
 
+  inline bool isSettingEnabled(Setting setting) {
+    return mSettingEnabled.find(setting) != mSettingEnabled.end() &&
+           mSettingEnabled[setting];
+  }
+
   // HAL is the unique owner of the communication channel to CHRE.
   std::unique_ptr<ChreConnection> mConnection{};
 
-  // HalClientManager class should be a singleton and the only owner of the
-  // HalClientManager instance. HAL just needs a pointer to call its APIs.
-  HalClientManager *mHalClientManager{};
+  // HalClientManager maintains states of hal clients. Each HAL should only have
+  // one instance of a HalClientManager.
+  std::unique_ptr<HalClientManager> mHalClientManager{};
 
   std::unique_ptr<PreloadedNanoappLoader> mPreloadedNanoappLoader{};
 
@@ -107,6 +124,14 @@ class MultiClientContextHubBase
   // Mutex and CV are used to get context hub info synchronously.
   std::mutex mHubInfoMutex;
   std::condition_variable mHubInfoCondition;
+
+  // Death recipient handling clients' disconnections
+  ndk::ScopedAIBinder_DeathRecipient mDeathRecipient;
+
+  // States of settings
+  std::unordered_map<Setting, bool> mSettingEnabled;
+  std::optional<bool> mIsWifiAvailable;
+  std::optional<bool> mIsBleAvailable;
 };
 }  // namespace android::hardware::contexthub::common::implementation
 #endif  // ANDROID_HARDWARE_CONTEXTHUB_COMMON_MULTICLIENTS_HAL_BASE_H_
