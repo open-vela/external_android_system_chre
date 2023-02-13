@@ -38,6 +38,13 @@
 namespace chre {
 namespace {
 
+struct UnloadNanoappCallbackData {
+  uint64_t appId;
+  uint32_t transactionId;
+  uint16_t hostClientId;
+  bool allowSystemNanoappUnload;
+};
+
 uint32_t gChreIpiRecvData[2];
 uint32_t gChreIpiAckToHost[2];  // SCP reply ack data (AP to SCP)
 int gChreIpiAckFromHost[2];     // SCP get ack data from AP (SCP to AP)
@@ -299,6 +306,33 @@ void buildNanoappListResponse(ChreFlatBufferBuilder &builder, void *cookie) {
   eventLoop.forEachNanoapp(nanoappAdderCallback, cbData);
   HostProtocolChre::finishNanoappListResponse(builder, cbData->nanoappEntries,
                                               cbData->hostClientId);
+}
+
+void handleUnloadNanoappCallback(uint16_t /*type*/, void *data,
+                                 void * /*extraData*/) {
+  auto *cbData = static_cast<UnloadNanoappCallbackData *>(data);
+  bool success = false;
+  uint16_t instanceId;
+  EventLoop &eventLoop = EventLoopManagerSingleton::get()->getEventLoop();
+  if (!eventLoop.findNanoappInstanceIdByAppId(cbData->appId, &instanceId)) {
+    LOGE("Couldn't unload app ID 0x%016" PRIx64 ": not found", cbData->appId);
+  } else {
+    success =
+        eventLoop.unloadNanoapp(instanceId, cbData->allowSystemNanoappUnload);
+  }
+
+  constexpr size_t kInitialBufferSize = 52;
+  ChreFlatBufferBuilder builder(kInitialBufferSize);
+  HostProtocolChre::encodeUnloadNanoappResponse(builder, cbData->hostClientId,
+                                                cbData->transactionId, success);
+
+  if (!getHostCommsManager().send(builder.GetBufferPointer(),
+                                  builder.GetSize())) {
+    LOGE("Failed to send unload response to host: %x transactionID: 0x%x",
+         cbData->hostClientId, cbData->transactionId);
+  }
+
+  memoryFree(data);
 }
 
 }  // anonymous namespace
@@ -580,7 +614,23 @@ void HostMessageHandlers::handleUnloadNanoappRequest(
   LOGD("Unload nanoapp request from client %" PRIu16 " (txnID %" PRIu32
        ") for appId 0x%016" PRIx64 " system %d",
        hostClientId, transactionId, appId, allowSystemNanoappUnload);
-  // TODO(b/263958729): Implement this.
+  auto *cbData = memoryAlloc<UnloadNanoappCallbackData>();
+  if (cbData == nullptr) {
+    LOG_OOM();
+  } else {
+    cbData->appId = appId;
+    cbData->transactionId = transactionId;
+    cbData->hostClientId = hostClientId;
+    cbData->allowSystemNanoappUnload = allowSystemNanoappUnload;
+
+    EventLoopManagerSingleton::get()->deferCallback(
+        SystemCallbackType::HandleUnloadNanoapp, cbData,
+        handleUnloadNanoappCallback);
+  }
+}
+
+void HostLink::flushMessagesSentByNanoapp(uint64_t /* appId */) {
+  // Not implemented
 }
 
 void HostMessageHandlers::handleTimeSyncMessage(int64_t offset) {
