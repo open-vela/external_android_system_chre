@@ -507,7 +507,6 @@ endif
 # Compiler flags
 
 # Variables
-TINYSYS_CLANG_PREFIX = $(RISCV_TINYSYS_PREFIX)/../../../../prebuilts/clang
 TINYSYS_PLATFORM = mt6985
 
 # CHRE include paths
@@ -534,8 +533,8 @@ TINYSYS_CFLAGS += -I$(RISCV_TINYSYS_PREFIX)/scp/project/RV55_A/$(TINYSYS_PLATFOR
 TINYSYS_CFLAGS += -I$(RISCV_TINYSYS_PREFIX)/scp/project/RV55_A/common/platform/inc
 
 # Clang include paths
-TINYSYS_CFLAGS += -I$(TINYSYS_CLANG_PREFIX)/md32rv/linux-x86/lib/clang/9.0.1/include
-TINYSYS_CFLAGS += -I$(TINYSYS_CLANG_PREFIX)/md32rv/linux-x86/dkwlib/MRV55E03v/include
+TINYSYS_CFLAGS += -I$(RISCV_TOOLCHAIN_PATH)/lib/clang/9.0.1/include
+TINYSYS_CFLAGS += -I$(RISCV_TOOLCHAIN_PATH)/dkwlib/MRV55E03v/include
 
 TINYSYS_CFLAGS += $(FLATBUFFERS_CFLAGS)
 
