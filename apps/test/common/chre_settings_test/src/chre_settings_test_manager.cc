@@ -439,6 +439,7 @@ void Manager::handleWifiScanResult(const chreWifiScanEvent *result) {
       LOGE("Received empty WiFi scan result");
       sendTestResult(mTestSession->hostEndpointId, false /* success */);
     } else {
+      mReceivedScanResults += result->resultCount;
       chreWifiRangingTarget target;
       // Try to find an AP with the FTM responder flag set. The RTT ranging
       // request should still work equivalently even if the flag is not set (but
@@ -454,10 +455,12 @@ void Manager::handleWifiScanResult(const chreWifiScanEvent *result) {
       }
       chreWifiRangingTargetFromScanResult(&result->results[index], &target);
       mCachedRangingTarget = target;
-
-      test_shared::sendEmptyMessageToHost(
-          mTestSession->hostEndpointId,
-          chre_settings_test_MessageType_TEST_SETUP_COMPLETE);
+      if (result->resultTotal == mReceivedScanResults) {
+        mReceivedScanResults = 0;
+        test_shared::sendEmptyMessageToHost(
+            mTestSession->hostEndpointId,
+            chre_settings_test_MessageType_TEST_SETUP_COMPLETE);
+      }
     }
   }
 }
