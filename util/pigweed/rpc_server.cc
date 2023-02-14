@@ -52,11 +52,6 @@ bool RpcServer::registerServices(size_t numServices,
 
   for (size_t i = 0; i < numServices; ++i) {
     const Service &service = services[i];
-
-    if (mServer.IsServiceRegistered(service.service)) {
-      return false;
-    }
-
     chreServices[i] = {
         .id = service.id,
         .version = service.version,
