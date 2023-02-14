@@ -24,7 +24,7 @@
 #define CHRE_FASTRPC_DAEMON_H_
 
 #include "chre/platform/slpi/fastrpc.h"
-#include "chre_host/fbs_daemon_base.h"
+#include "chre_host/daemon_base.h"
 #include "chre_host/st_hal_lpma_handler.h"
 
 #include <utils/SystemClock.h>
@@ -35,7 +35,7 @@
 namespace android {
 namespace chre {
 
-class FastRpcChreDaemon : public FbsDaemonBase {
+class FastRpcChreDaemon : public ChreDaemonBase {
  public:
   FastRpcChreDaemon();
 
@@ -82,7 +82,7 @@ class FastRpcChreDaemon : public FbsDaemonBase {
    *
    * @return clock drift offset in nanoseconds
    */
-  int64_t getTimeOffset(bool *success) override;
+  int64_t getTimeOffset(bool *success);
 
   /**
    * Entry point for the thread that blocks in a FastRPC call to monitor for
