@@ -18,6 +18,7 @@
 
 #include "chre/pal/sensor.h"
 #include "chre/platform/condition_variable.h"
+#include "chre/platform/linux/task_util/task_manager.h"
 #include "chre/platform/mutex.h"
 #include "chre/platform/shared/pal_system_api.h"
 #include "chre/util/fixed_size_vector.h"
@@ -124,6 +125,7 @@ void flushCompleteCallback(uint32_t sensorInfoIndex, uint32_t flushRequestId,
 class PalSensorTest : public testing::Test {
  protected:
   void SetUp() override {
+    chre::TaskManagerSingleton::init();
     gCallbacks = MakeUnique<Callbacks>();
     mApi = chrePalSensorGetApi(CHRE_PAL_SENSOR_API_CURRENT_VERSION);
     ASSERT_NE(mApi, nullptr);
@@ -136,6 +138,7 @@ class PalSensorTest : public testing::Test {
     if (mApi != nullptr) {
       mApi->close();
     }
+    chre::TaskManagerSingleton::deinit();
   }
 
   //! CHRE PAL implementation API.
@@ -170,6 +173,7 @@ TEST_F(PalSensorTest, EnableAContinuousSensor) {
   EXPECT_EQ(gCallbacks->mStatusSensorIndex.value(), 0);
   EXPECT_TRUE(gCallbacks->mStatus.has_value());
   EXPECT_TRUE(gCallbacks->mStatus.value()->enabled);
+  mApi->releaseSamplingStatusEvent(gCallbacks->mStatus.value());
 
   gCallbacks->mCondVarEvents.wait_for(
       gCallbacks->mMutex,
@@ -197,6 +201,7 @@ TEST_F(PalSensorTest, DisableAContinuousSensor) {
   EXPECT_EQ(gCallbacks->mStatusSensorIndex.value(), 0);
   EXPECT_TRUE(gCallbacks->mStatus.has_value());
   EXPECT_FALSE(gCallbacks->mStatus.value()->enabled);
+  mApi->releaseSamplingStatusEvent(gCallbacks->mStatus.value());
 }
 
 }  // namespace
