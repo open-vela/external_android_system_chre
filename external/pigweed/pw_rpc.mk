@@ -37,7 +37,7 @@ PW_RPC_GENERATOR_COMPILED_PROTO = $(PW_RPC_GEN_PATH)/py/pw_rpc/internal/packet_p
 # their protoc plugins
 PW_RPC_GENERATOR_CMD = PYTHONPATH=$$PYTHONPATH:$(PW_RPC_GEN_PATH)/py:$\
   $(PIGWEED_DIR)/pw_status/py:$(PIGWEED_DIR)/pw_protobuf/py:$\
-  $(PIGWEED_DIR)/pw_protobuf_compiler/py $(PYTHON)
+  $(PIGWEED_DIR)/pw_protobuf_compiler/py python3
 
 $(PW_RPC_GENERATOR_COMPILED_PROTO): $(PW_RPC_GENERATOR_PROTO_SRCS)
 	@echo " [PW_RPC] $<"

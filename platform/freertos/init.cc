@@ -95,15 +95,7 @@ BaseType_t init() {
 
   DramVoteClientSingleton::init();
 
-#ifdef CHRE_USE_BUFFERED_LOGGING
-  chre::LogBufferManagerSingleton::init(gPrimaryLogBufferData,
-                                        gSecondaryLogBufferData,
-                                        sizeof(gPrimaryLogBufferData));
-
-  rc = xTaskCreate(chreFlushLogsToHostThreadEntry, getChreFlushTaskName(),
-                   kChreTaskStackDepthWords, nullptr /* args */,
-                   kChreTaskPriority, &gChreFlushTaskHandle);
-#endif
+  rc = initLogger();
 
   if (rc == pdPASS) {
     rc = xTaskCreate(chreThreadEntry, getChreTaskName(),
@@ -115,6 +107,22 @@ BaseType_t init() {
 
   chpp::init();
 
+  return rc;
+}
+
+BaseType_t initLogger() {
+  BaseType_t rc = pdPASS;
+#ifdef CHRE_USE_BUFFERED_LOGGING
+  if (!chre::LogBufferManagerSingleton::isInitialized()) {
+    chre::LogBufferManagerSingleton::init(gPrimaryLogBufferData,
+                                          gSecondaryLogBufferData,
+                                          sizeof(gPrimaryLogBufferData));
+
+    rc = xTaskCreate(chreFlushLogsToHostThreadEntry, getChreFlushTaskName(),
+                     kChreTaskStackDepthWords, nullptr /* args */,
+                     kChreTaskPriority, &gChreFlushTaskHandle);
+  }
+#endif
   return rc;
 }
 
