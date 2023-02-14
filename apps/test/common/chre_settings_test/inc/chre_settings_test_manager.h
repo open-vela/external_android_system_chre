@@ -181,6 +181,9 @@ class Manager {
 
   //! The cached target to issue an RTT ranging request.
   chre::Optional<chreWifiRangingTarget> mCachedRangingTarget;
+
+  //! The number of scan result received when after getting a wifi async result.
+  uint16_t mReceivedScanResults;
 };
 
 // The settings test manager singleton.
