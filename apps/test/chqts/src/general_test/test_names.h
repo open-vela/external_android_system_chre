@@ -227,11 +227,6 @@ enum class TestNames : uint32_t {
    * Test: SensorFlushAsyncTest
    */
   kBasicSensorFlushAsyncTest = 0x0426,
-
-  /**
-   * Test: BasicBleTest
-   */
-  kBasicBleTest = 0x0427,
 };
 
 }  // namespace general_test
