@@ -352,6 +352,15 @@ class NanoappLoader {
    * @return The value found at the entry. 0 if the entry isn't found.
    */
   static ElfWord getDynEntry(DynamicHeader *dyn, int field);
+
+  /**
+   * Handle reolcation for entries in the specified table.
+   *
+   * @param dyn The dynamic header for the binary.
+   * @param tableTag The dynamic tag (DT_x) of the relocation table.
+   * @return True if success or unsupported, false if failure.
+   */
+  bool relocateTable(DynamicHeader *dyn, int tableTag);
 };
 
 }  // namespace chre

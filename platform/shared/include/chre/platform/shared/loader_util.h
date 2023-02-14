@@ -29,10 +29,10 @@
 #ifndef __WORDSIZE
 // Until we can get a hold of wordsize.h, we need to define it here.
 // Only 32-bit architectures currently supported.
-#ifndef __aarch64__
+#if defined(__arm__) || (defined(__riscv) && __riscv_xlen == 32)
 #define __WORDSIZE 32
 #else
-#error "Only 32-bit architectures currently supported"
+#error "Architecture not supported by CHRE dynamic loading"
 #endif
 #endif
 // https://refspecs.linuxbase.org/elf/gabi4+/ch4.reloc.html
@@ -61,6 +61,7 @@ struct ExportedData {
 #endif
 
 #define EM_ARM 40
+#define EM_RISCV 243
 #define EI_MAG0 0
 #define EI_MAG1 1
 #define EI_MAG2 2
@@ -230,6 +231,10 @@ typedef struct elf32_sym {
 #define R_ARM_GLOB_DAT 21
 #define R_ARM_JUMP_SLOT 22
 #define R_ARM_RELATIVE 23
+#define R_RISCV_NONE 0
+#define R_RISCV_32 1
+#define R_RISCV_RELATIVE 3
+#define R_RISCV_JUMP_SLOT 5
 // Undefined symbol.
 #define SHN_UNDEF 0
 

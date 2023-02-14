@@ -16,6 +16,7 @@
 
 #include "chre/platform/memory.h"
 #include "chre/platform/shared/memory.h"
+#include "portable.h"
 
 namespace chre {
 
@@ -26,7 +27,7 @@ void nanoappBinaryFree(void *pointer) {
 }
 
 void nanoappBinaryDramFree(void *pointer) {
-  memoryFree(pointer);
+  vPortDramFree(pointer);
 }
 
 void *memoryAllocDram(size_t size) {
@@ -50,9 +51,8 @@ void *nanoappBinaryAlloc(size_t /*size*/, size_t /*alignment*/) {
   return nullptr;
 }
 
-void *nanoappBinaryDramAlloc(size_t /*size*/, size_t /*alignment*/) {
-  // TODO(b/252874047): Implementation is only required for dynamic loading.
-  return nullptr;
+void *nanoappBinaryDramAlloc(size_t size, size_t /*alignment*/) {
+  return pvPortDramMalloc(size);
 }
 
 }  // namespace chre
