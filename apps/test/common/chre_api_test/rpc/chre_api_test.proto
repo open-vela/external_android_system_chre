@@ -1,0 +1,102 @@
+syntax = "proto3";
+
+package chre.rpc;
+
+option java_package = "dev.chre.rpc.proto";
+
+service ChreApiTestService {
+  // Returns the BLE capabilities
+  rpc ChreBleGetCapabilities(Void) returns (Capabilities) {}
+
+  // Returns the BLE filter capabilities
+  rpc ChreBleGetFilterCapabilities(Void) returns (Capabilities) {}
+
+  // Finds the default sensor for the given sensor type
+  rpc ChreSensorFindDefault(ChreSensorFindDefaultInput)
+      returns (ChreSensorFindDefaultOutput) {}
+
+  rpc ChreGetSensorInfo(ChreHandleInput) returns (ChreGetSensorInfoOutput) {}
+
+  // Gets the sampling status for the sensor
+  rpc ChreGetSensorSamplingStatus(ChreHandleInput)
+      returns (ChreGetSensorSamplingStatusOutput) {}
+
+  // Configures a sensor's mode
+  rpc ChreSensorConfigureModeOnly(ChreSensorConfigureModeOnlyInput)
+      returns (Status) {}
+
+  // Gets the audio source's information
+  rpc ChreAudioGetSource(ChreHandleInput) returns (ChreAudioGetSourceOutput) {}
+}
+
+// General messages
+
+// Empty message (void)
+message Void {}
+
+// Contains a capabilities uint32
+message Capabilities {
+  uint32 capabilities = 1;
+}
+
+// Status message
+message Status {
+  bool status = 1;
+}
+
+// Input with a handle
+message ChreHandleInput {
+  uint32 handle = 1;
+}
+
+// Function specific messages
+
+// Input value for ChreSensorFindDefault
+message ChreSensorFindDefaultInput {
+  uint32 sensorType = 1;
+}
+
+// Return value for ChreSensorFindDefault. sensorHandle is only valid if
+// foundSensor is true.
+message ChreSensorFindDefaultOutput {
+  bool foundSensor = 1;
+  uint32 sensorHandle = 2;
+}
+
+// Return value for ChreGetSensorInfo
+message ChreGetSensorInfoOutput {
+  bool status = 1;
+  string sensorName = 2;
+  uint32 sensorType = 3;
+  uint32 isOnChange = 4;
+  uint32 isOneShot = 5;
+  uint32 reportsBiasEvents = 6;
+  uint32 supportsPassiveMode = 7;
+  uint32 unusedFlags = 8;
+  uint64 minInterval = 9;
+  uint32 sensorIndex = 10;
+}
+
+// Return value for ChreGetSensorSamplingStatus
+message ChreGetSensorSamplingStatusOutput {
+  bool status = 1;
+  uint64 interval = 2;
+  uint64 latency = 3;
+  bool enabled = 4;
+}
+
+// Input value for ChreSensorConfigureModeOnly
+message ChreSensorConfigureModeOnlyInput {
+  uint32 sensorHandle = 1;
+  uint32 mode = 2;
+}
+
+// Return value for ChreAudioGetSource
+message ChreAudioGetSourceOutput {
+  bool status = 1;
+  string name = 2;
+  uint32 sampleRate = 3;
+  uint64 minBufferDuration = 4;
+  uint64 maxBufferDuration = 5;
+  uint32 format = 6;
+}

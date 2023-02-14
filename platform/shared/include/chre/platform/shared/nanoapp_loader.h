@@ -219,21 +219,36 @@ class NanoappLoader {
   bool verifySectionHeaders();
 
   /**
-   * Retrieves the symbol name of data located at the given position in the
-   * symbol table.
+   * Retrieves the symbol at the given position in the symbol table.
    *
    * @param posInSymbolTable The position in the symbol table where information
    *     about the symbol can be found.
-   * @return The symbol's name or nullptr if not found.
+   * @return The symbol or nullptr if not found.
    */
-  const char *getDataName(size_t posInSymbolTable);
+  ElfSym *getDynamicSymbol(size_t posInSymbolTable);
 
   /**
-   * Retrieves the name of the section header located at the given offset in the
-   * section name table.
+   * Retrieves the symbol name.
    *
-   * @param headerOffset The offset in the section names table where the header
-   *     is located.
+   * @param symbol A pointer to the symbol.
+   * @return The symbol's name or nullptr if not found.
+   */
+  const char *getDataName(const ElfSym *symbol);
+
+  /**
+   * Retrieves the target address of the symbol.
+   *
+   * @param symbol A pointer to the symbol.
+   * @return The target address or nullptr if the symbol is not defined.
+   */
+  void *getSymbolTarget(const ElfSym *symbol);
+
+  /**
+   * Retrieves the name of the section header located at the given offset in
+   * the section name table.
+   *
+   * @param headerOffset The offset in the section names table where the
+   * header is located.
    * @return The section's name or the empty string if the offset is 0.
    */
   const char *getSectionHeaderName(size_t headerOffset);
@@ -337,6 +352,15 @@ class NanoappLoader {
    * @return The value found at the entry. 0 if the entry isn't found.
    */
   static ElfWord getDynEntry(DynamicHeader *dyn, int field);
+
+  /**
+   * Handle reolcation for entries in the specified table.
+   *
+   * @param dyn The dynamic header for the binary.
+   * @param tableTag The dynamic tag (DT_x) of the relocation table.
+   * @return True if success or unsupported, false if failure.
+   */
+  bool relocateTable(DynamicHeader *dyn, int tableTag);
 };
 
 }  // namespace chre

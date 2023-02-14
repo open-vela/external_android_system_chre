@@ -19,11 +19,11 @@
 
 #include "chre_settings_test.nanopb.h"
 
-#include <chre.h>
 #include <cinttypes>
 
 #include "chre/util/optional.h"
 #include "chre/util/singleton.h"
+#include "chre_api/chre.h"
 
 namespace chre {
 
@@ -41,6 +41,7 @@ class Manager {
     GNSS_MEASUREMENT,
     WWAN_CELL_INFO,
     AUDIO,
+    BLE_SCANNING,
   };
 
   enum class FeatureState : uint8_t {
@@ -155,7 +156,17 @@ class Manager {
    */
   void handleAudioDataEvent(const struct chreAudioDataEvent *event);
 
-  void handleTimeout();
+  /*
+   * @param data CHRE event data containing the cookie used to set the timer.
+   */
+  void handleTimeout(const void *data);
+
+  /**
+   * Handles the BLE async result
+   *
+   * @param result The BLE scan event result
+   */
+  void handleBleAsyncResult(const chreAsyncResult *result);
 
   /**
    * End the current test session and sends result to host.
