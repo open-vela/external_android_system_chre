@@ -32,6 +32,10 @@
 namespace chre {
 namespace {
 
+#ifndef CHRE_NANOAPP_LOAD_ALIGNMENT
+#define CHRE_NANOAPP_LOAD_ALIGNMENT 0
+#endif
+
 const char kDefaultAppVersionString[] = "<undefined>";
 size_t kDefaultAppVersionStringSize = ARRAY_SIZE(kDefaultAppVersionString);
 
@@ -177,7 +181,8 @@ bool PlatformNanoappBase::reserveBuffer(uint64_t appId, uint32_t appVersion,
   forceDramAccess();
 
   bool success = false;
-  mAppBinary = nanoappBinaryDramAlloc(appBinaryLen);
+  mAppBinary =
+      nanoappBinaryDramAlloc(appBinaryLen, CHRE_NANOAPP_LOAD_ALIGNMENT);
 
   bool isSigned = IS_BIT_SET(appFlags, CHRE_NAPP_HEADER_SIGNED);
   if (!isSigned) {
