@@ -23,6 +23,7 @@ TARGET_LD = $(RISCV_TOOLCHAIN_PATH)/bin/ld.lld
 
 # Shared Object Linker Flags ###################################################
 
+TARGET_SO_LDFLAGS += --gc-sections
 TARGET_SO_LDFLAGS += -shared
 
 # Optimization Level ###########################################################
