@@ -1560,18 +1560,19 @@ uint64_t chppTransportGetTimeUntilNextDoWorkNs(
                                      : context->txStatus.lastTxTimeNs));
   }
 
+  if (nextDoWorkTime == CHPP_TIME_MAX) {
+    CHPP_LOGD("NextDoWork=n/a currentTime=%" PRIu64,
+              currentTime / CHPP_NSEC_PER_MSEC);
+    return CHPP_TRANSPORT_TIMEOUT_INFINITE;
+  }
+
   CHPP_LOGD("NextDoWork=%" PRIu64 " currentTime=%" PRIu64 " delta=%" PRId64,
             nextDoWorkTime / CHPP_NSEC_PER_MSEC,
             currentTime / CHPP_NSEC_PER_MSEC,
             (nextDoWorkTime - currentTime) / (int64_t)CHPP_NSEC_PER_MSEC);
 
-  if (nextDoWorkTime == CHPP_TIME_MAX) {
-    return CHPP_TRANSPORT_TIMEOUT_INFINITE;
-  } else if (nextDoWorkTime <= currentTime) {
-    return CHPP_TRANSPORT_TIMEOUT_IMMEDIATE;
-  } else {
-    return nextDoWorkTime - currentTime;
-  }
+  return nextDoWorkTime <= currentTime ? CHPP_TRANSPORT_TIMEOUT_IMMEDIATE
+                                       : nextDoWorkTime - currentTime;
 }
 
 void chppWorkThreadStart(struct ChppTransportState *context) {
