@@ -225,6 +225,30 @@ TEST_F(TestBase, PwRpcCanNotPublishServicesOutsideOfNanoappStart) {
   EXPECT_EQ(napp->getRpcServices().size(), 0);
 }
 
+TEST_F(TestBase, PwRpcRegisterServicesShouldGracefullyFailOnDuplicatedService) {
+  struct App : public TestNanoapp {
+    decltype(nanoappStart) *start = []() -> bool {
+      static RpcTestService testService;
+      EnvSingleton::init();
+      chre::RpcServer::Service service = {.service = testService,
+                                          .id = 0xca8f7150a3f05847,
+                                          .version = 0x01020034};
+
+      chre::RpcServer &server = EnvSingleton::get()->mServer;
+
+      bool status = server.registerServices(1, &service);
+
+      EXPECT_TRUE(status);
+
+      EXPECT_FALSE(server.registerServices(1, &service));
+
+      return status;
+    };
+  };
+
+  auto app = loadNanoapp<App>();
+}
+
 TEST_F(TestBase, PwRpcGetNanoappInfoByAppIdReturnsServices) {
   CREATE_CHRE_TEST_EVENT(QUERY_INFO, 0);
 

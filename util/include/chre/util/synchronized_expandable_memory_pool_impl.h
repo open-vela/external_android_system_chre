@@ -93,8 +93,25 @@ void SynchronizedExpandableMemoryPool<
 
 template <typename ElementType, size_t kMemoryPoolSize,
           size_t kMaxMemoryPoolCount>
+size_t SynchronizedExpandableMemoryPool<
+    ElementType, kMemoryPoolSize, kMaxMemoryPoolCount>::getFreeSpaceCount() {
+  LockGuard<Mutex> lock(mMutex);
+  return kMaxMemoryPoolCount * kMemoryPoolSize - mSize;
+}
+
+template <typename ElementType, size_t kMemoryPoolSize,
+          size_t kMaxMemoryPoolCount>
+bool SynchronizedExpandableMemoryPool<ElementType, kMemoryPoolSize,
+                                      kMaxMemoryPoolCount>::full() {
+  LockGuard<Mutex> lock(mMutex);
+  return kMaxMemoryPoolCount * kMemoryPoolSize == mSize;
+}
+
+template <typename ElementType, size_t kMemoryPoolSize,
+          size_t kMaxMemoryPoolCount>
 size_t SynchronizedExpandableMemoryPool<ElementType, kMemoryPoolSize,
                                         kMaxMemoryPoolCount>::getBlockCount() {
+  LockGuard<Mutex> lock(mMutex);
   return mMemoryPoolPtrs.size();
 }
 
@@ -118,6 +135,13 @@ bool SynchronizedExpandableMemoryPool<ElementType, kMemoryPoolSize,
   return success;
 }
 
+template <typename ElementType, size_t kMemoryPoolSize,
+          size_t kMaxMemoryPoolCount>
+bool SynchronizedExpandableMemoryPool<
+    ElementType, kMemoryPoolSize,
+    kMaxMemoryPoolCount>::isHalfFullBlock(Block *block) {
+  return block->getFreeBlockCount() < kMemoryPoolSize / 2;
+}
 }  // namespace chre
 
 #endif  // CHRE_UTIL_SYNCHRONIZED_EXPANDABLE_MEMORY_POOL_IMPL_H_

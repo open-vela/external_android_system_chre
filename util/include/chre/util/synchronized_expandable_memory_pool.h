@@ -81,9 +81,7 @@ class SynchronizedExpandableMemoryPool : public NonCopyable {
   /**
    * @return the number of new element that this memory pool can add.
    */
-  inline size_t getFreeSpaceCount() {
-    return kMaxMemoryPoolCount * kMemoryPoolSize - mSize;
-  };
+  size_t getFreeSpaceCount();
 
   /**
    * @return size_t Return the number of blocks currently in the memory pool.
@@ -93,9 +91,7 @@ class SynchronizedExpandableMemoryPool : public NonCopyable {
   /**
    * @return if the memory pool is full.
    */
-  inline bool full() {
-    return mSize == kMaxMemoryPoolCount * kMemoryPoolSize;
-  };
+  inline bool full();
 
  private:
   //! Number of blocks that will be allocate in the beginning and will only be
@@ -123,9 +119,7 @@ class SynchronizedExpandableMemoryPool : public NonCopyable {
   /**
    * @return true if this block is more than half full.
    */
-  bool isHalfFullBlock(Block *block) {
-    return block->getFreeBlockCount() < kMemoryPoolSize / 2;
-  }
+  bool isHalfFullBlock(Block *block);
 };
 
 }  // namespace chre
