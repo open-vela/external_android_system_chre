@@ -54,6 +54,14 @@ TARGET_CFLAGS += -I$(CHRE_PREFIX)/platform/shared/include/chre/platform/shared/l
 
 TARGET_VARIANT_SRCS += $(DSO_SUPPORT_LIB_SRCS)
 TARGET_CFLAGS += $(DSO_SUPPORT_LIB_CFLAGS)
+
+ifeq ($(CHRE_TCM_ENABLED),true)
+TARGET_CFLAGS += -DCHRE_TCM_ENABLED
+# Flags:
+# Signed                 = 0x00000001
+# TCM-capable            = 0x00000004
+TARGET_NANOAPP_FLAGS = 0x00000005
+endif
 endif
 
 # Other makefiles ##############################################################
