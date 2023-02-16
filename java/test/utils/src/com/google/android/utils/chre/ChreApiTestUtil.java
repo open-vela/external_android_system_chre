@@ -19,12 +19,16 @@ package com.google.android.utils.chre;
 import com.google.android.chre.utils.pigweed.ChreRpcClient;
 import com.google.protobuf.MessageLite;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import dev.chre.rpc.proto.ChreApiTest;
+import dev.pigweed.pw_rpc.Call.ServerStreamingFuture;
 import dev.pigweed.pw_rpc.Call.UnaryFuture;
 import dev.pigweed.pw_rpc.MethodClient;
 import dev.pigweed.pw_rpc.Service;
+import dev.pigweed.pw_rpc.Status;
 import dev.pigweed.pw_rpc.UnaryResult;
 
 /**
@@ -34,35 +38,71 @@ public class ChreApiTestUtil {
     /**
      * The default timeout for an RPC call in seconds.
      */
-    public static final int RPC_TIMEOUT_IN_SECONDS = 2;
+    public static final int RPC_TIMEOUT_IN_SECONDS = 5;
 
     /**
-     * Gets the RPC service for the CHRE API Test nanoapp.
+     * Storage for server streaming messages.
      */
-    public static Service getChreApiService() {
-        Service chreApiService = new Service("chre.rpc.ChreApiTestService",
-                Service.unaryMethod("ChreBleGetCapabilities",
-                        ChreApiTest.Void.class,
-                        ChreApiTest.Capabilities.class),
-                Service.unaryMethod("ChreBleGetFilterCapabilities",
-                        ChreApiTest.Void.class,
-                        ChreApiTest.Capabilities.class),
-                Service.unaryMethod("ChreSensorFindDefault",
-                        ChreApiTest.ChreSensorFindDefaultInput.class,
-                        ChreApiTest.ChreSensorFindDefaultOutput.class),
-                Service.unaryMethod("ChreGetSensorInfo",
-                        ChreApiTest.ChreHandleInput.class,
-                        ChreApiTest.ChreGetSensorInfoOutput.class),
-                Service.unaryMethod("ChreGetSensorSamplingStatus",
-                        ChreApiTest.ChreHandleInput.class,
-                        ChreApiTest.ChreGetSensorSamplingStatusOutput.class),
-                Service.unaryMethod("ChreSensorConfigureModeOnly",
-                        ChreApiTest.ChreSensorConfigureModeOnlyInput.class,
-                        ChreApiTest.Status.class),
-                Service.unaryMethod("ChreAudioGetSource",
-                        ChreApiTest.ChreHandleInput.class,
-                        ChreApiTest.ChreAudioGetSourceOutput.class));
-        return chreApiService;
+    private final List<MessageLite> mServerStreamingMessages = new ArrayList<MessageLite>();
+
+    /**
+     * Calls a server streaming RPC method with RPC_TIMEOUT_IN_SECONDS seconds of timeout.
+     *
+     * @param <RequestType>   the type of the request (proto generated type).
+     * @param <ResponseType>  the type of the response (proto generated type).
+     * @param rpcClient       the RPC client.
+     * @param method          the fully-qualified method name.
+     * @param request         the request object.
+     *
+     * @return                the proto response.
+     */
+    public <RequestType extends MessageLite, ResponseType extends MessageLite> List<ResponseType>
+            callServerStreamingRpcMethodSync(ChreRpcClient rpcClient, String method,
+                    RequestType request) throws Exception {
+        ServerStreamingFuture responseFuture;
+        synchronized (mServerStreamingMessages) {
+            if (mServerStreamingMessages.size() > 0) {
+                return null;
+            }
+
+            MethodClient methodClient = rpcClient.getMethodClient(method);
+            responseFuture = methodClient.invokeServerStreamingFuture(request,
+                    (ResponseType response) -> {
+                        synchronized (mServerStreamingMessages) {
+                            mServerStreamingMessages.add(response);
+                        }
+                    });
+        }
+
+        Status status = responseFuture.get(RPC_TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
+        synchronized (mServerStreamingMessages) {
+            List<ResponseType> response = null;
+            if (status == Status.OK) {
+                response = new ArrayList<ResponseType>();
+                for (MessageLite message: mServerStreamingMessages) {
+                    response.add((ResponseType) message);
+                }
+            }
+            mServerStreamingMessages.clear();
+            return response;
+        }
+    }
+
+    /**
+     * Calls a server streaming RPC method with RPC_TIMEOUT_IN_SECONDS seconds of
+     * timeout with a void request.
+     *
+     * @param <ResponseType>  the type of the response (proto generated type).
+     * @param rpcClient       the RPC client.
+     * @param method          the fully-qualified method name.
+     *
+     * @return                the proto response.
+     */
+    public <ResponseType extends MessageLite> List<ResponseType>
+            callServerStreamingRpcMethodSync(ChreRpcClient rpcClient, String method)
+                    throws Exception {
+        ChreApiTest.Void request = ChreApiTest.Void.newBuilder().build();
+        return callServerStreamingRpcMethodSync(rpcClient, method, request);
     }
 
     /**
@@ -100,5 +140,46 @@ public class ChreApiTestUtil {
             throws Exception {
         ChreApiTest.Void request = ChreApiTest.Void.newBuilder().build();
         return callUnaryRpcMethodSync(rpcClient, method, request);
+    }
+
+    /**
+     * Gets the RPC service for the CHRE API Test nanoapp.
+     */
+    public static Service getChreApiService() {
+        Service chreApiService = new Service("chre.rpc.ChreApiTestService",
+                Service.unaryMethod("ChreBleGetCapabilities",
+                        ChreApiTest.Void.class,
+                        ChreApiTest.Capabilities.class),
+                Service.unaryMethod("ChreBleGetFilterCapabilities",
+                        ChreApiTest.Void.class,
+                        ChreApiTest.Capabilities.class),
+                Service.unaryMethod("ChreBleStartScanAsync",
+                        ChreApiTest.ChreBleStartScanAsyncInput.class,
+                        ChreApiTest.Status.class),
+                Service.serverStreamingMethod("ChreBleStartScanSync",
+                        ChreApiTest.ChreBleStartScanAsyncInput.class,
+                        ChreApiTest.GeneralSyncMessage.class),
+                Service.unaryMethod("ChreBleStopScanAsync",
+                        ChreApiTest.Void.class,
+                        ChreApiTest.Status.class),
+                Service.serverStreamingMethod("ChreBleStopScanSync",
+                        ChreApiTest.Void.class,
+                        ChreApiTest.GeneralSyncMessage.class),
+                Service.unaryMethod("ChreSensorFindDefault",
+                        ChreApiTest.ChreSensorFindDefaultInput.class,
+                        ChreApiTest.ChreSensorFindDefaultOutput.class),
+                Service.unaryMethod("ChreGetSensorInfo",
+                        ChreApiTest.ChreHandleInput.class,
+                        ChreApiTest.ChreGetSensorInfoOutput.class),
+                Service.unaryMethod("ChreGetSensorSamplingStatus",
+                        ChreApiTest.ChreHandleInput.class,
+                        ChreApiTest.ChreGetSensorSamplingStatusOutput.class),
+                Service.unaryMethod("ChreSensorConfigureModeOnly",
+                        ChreApiTest.ChreSensorConfigureModeOnlyInput.class,
+                        ChreApiTest.Status.class),
+                Service.unaryMethod("ChreAudioGetSource",
+                        ChreApiTest.ChreHandleInput.class,
+                        ChreApiTest.ChreAudioGetSourceOutput.class));
+        return chreApiService;
     }
 }
