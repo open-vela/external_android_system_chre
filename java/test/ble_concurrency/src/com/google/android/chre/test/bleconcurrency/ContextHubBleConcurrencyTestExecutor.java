@@ -18,6 +18,14 @@ package com.google.android.chre.test.bleconcurrency;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothManager;
+import android.bluetooth.le.BluetoothLeScanner;
+import android.bluetooth.le.ScanCallback;
+import android.bluetooth.le.ScanFilter;
+import android.bluetooth.le.ScanRecord;
+import android.bluetooth.le.ScanResult;
+import android.bluetooth.le.ScanSettings;
 import android.content.Context;
 import android.hardware.location.ContextHubClient;
 import android.hardware.location.ContextHubClientCallback;
@@ -30,6 +38,7 @@ import androidx.test.InstrumentationRegistry;
 import com.google.android.chre.utils.pigweed.ChreRpcClient;
 import com.google.android.utils.chre.ChreApiTestUtil;
 import com.google.android.utils.chre.ChreTestUtil;
+import com.google.common.collect.ImmutableList;
 import com.google.protobuf.ByteString;
 
 import org.junit.Assert;
@@ -62,6 +71,7 @@ public class ContextHubBleConcurrencyTestExecutor extends ContextHubClientCallba
      */
     private static final int CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16 = 0x16;
 
+    private final BluetoothLeScanner mBluetoothLeScanner;
     private final Context mContext = InstrumentationRegistry.getTargetContext();
     private final ContextHubInfo mContextHub;
     private final ContextHubClient mContextHubClient;
@@ -70,6 +80,23 @@ public class ContextHubBleConcurrencyTestExecutor extends ContextHubClientCallba
     private final NanoAppBinary mNanoAppBinary;
     private final long mNanoAppId;
     private final ChreRpcClient mRpcClient;
+
+    private final ScanCallback mScanCallback = new ScanCallback() {
+        @Override
+        public void onBatchScanResults(List<ScanResult> results) {
+            // do nothing
+        }
+
+        @Override
+        public void onScanFailed(int errorCode) {
+            Assert.fail("Failed to start a BLE scan on the host");
+        }
+
+        @Override
+        public void onScanResult(int callbackType, ScanResult result) {
+            // do nothing
+        }
+    };
 
     public ContextHubBleConcurrencyTestExecutor(NanoAppBinary nanoapp) {
         mNanoAppBinary = nanoapp;
@@ -83,6 +110,13 @@ public class ContextHubBleConcurrencyTestExecutor extends ContextHubClientCallba
         Service chreApiService = ChreApiTestUtil.getChreApiService();
         mRpcClient = new ChreRpcClient(mContextHubManager, mContextHub, mNanoAppId,
                 List.of(chreApiService), /* callback= */ this);
+
+        BluetoothManager bluetoothManager = mContext.getSystemService(BluetoothManager.class);
+        assertThat(bluetoothManager).isNotNull();
+        BluetoothAdapter bluetoothAdapter = bluetoothManager.getAdapter();
+        assertThat(bluetoothAdapter).isNotNull();
+        mBluetoothLeScanner = bluetoothAdapter.getBluetoothLeScanner();
+        assertThat(mBluetoothLeScanner).isNotNull();
     }
 
     @Override
@@ -102,7 +136,9 @@ public class ContextHubBleConcurrencyTestExecutor extends ContextHubClientCallba
      * Runs the test.
      */
     public void run() throws Exception {
-        // TODO(b/266122703): Implement test
+        testHostScanFirst();
+        Thread.sleep(1000);
+        testChreScanFirst();
     }
 
     /**
@@ -147,6 +183,31 @@ public class ContextHubBleConcurrencyTestExecutor extends ContextHubClientCallba
     }
 
     /**
+     * Generates a BLE scan filter that filters only for the known Google beacons:
+     * Google Eddystone and Nearby Fastpair. We specify the filter data in (little-endian) LE
+     * here as the CHRE code will take BE input and transform it to LE.
+     */
+    private static List<ScanFilter> getDefaultScanFilterHost() {
+        assertThat(CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16)
+                .isEqualTo(ScanRecord.DATA_TYPE_SERVICE_DATA_16_BIT);
+
+        ScanFilter scanFilter = new ScanFilter.Builder()
+                .setAdvertisingDataTypeWithData(
+                        ScanRecord.DATA_TYPE_SERVICE_DATA_16_BIT,
+                        ByteString.copyFrom(HexFormat.of().parseHex("AAFE")).toByteArray(),
+                        ByteString.copyFrom(HexFormat.of().parseHex("FFFF")).toByteArray())
+                .build();
+        ScanFilter scanFilter2 = new ScanFilter.Builder()
+                .setAdvertisingDataTypeWithData(
+                        ScanRecord.DATA_TYPE_SERVICE_DATA_16_BIT,
+                        ByteString.copyFrom(HexFormat.of().parseHex("2CFE")).toByteArray(),
+                        ByteString.copyFrom(HexFormat.of().parseHex("FFFF")).toByteArray())
+                .build();
+
+        return ImmutableList.of(scanFilter, scanFilter2);
+    }
+
+    /**
      * Starts a BLE scan and asserts it was started successfully in a synchronous manner.
      * This waits for the event to be received and returns the status in the event.
      *
@@ -186,5 +247,46 @@ public class ContextHubBleConcurrencyTestExecutor extends ContextHubClientCallba
         for (ChreApiTest.GeneralSyncMessage status: response) {
             assertThat(status.getStatus()).isTrue();
         }
+    }
+
+    /**
+     * Starts a BLE scan on the host side with known Google beacon filters.
+     */
+    private void startBleScanOnHost() {
+        ScanSettings scanSettings = new ScanSettings.Builder()
+                .setCallbackType(ScanSettings.CALLBACK_TYPE_ALL_MATCHES)
+                .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+                .build();
+        mBluetoothLeScanner.startScan(getDefaultScanFilterHost(),
+                scanSettings, mScanCallback);
+    }
+
+    /**
+     * Stops a BLE scan on the host side.
+     */
+    private void stopBleScanOnHost() {
+        mBluetoothLeScanner.stopScan(mScanCallback);
+    }
+
+    /**
+     * Tests with the host starting scanning first.
+     */
+    private void testHostScanFirst() throws Exception {
+        startBleScanOnHost();
+        chreBleStartScanSync(getDefaultScanFilter());
+        Thread.sleep(1000);
+        chreBleStopScanSync();
+        stopBleScanOnHost();
+    }
+
+    /**
+     * Tests with CHRE starting scanning first.
+     */
+    private void testChreScanFirst() throws Exception {
+        chreBleStartScanSync(getDefaultScanFilter());
+        startBleScanOnHost();
+        Thread.sleep(1000);
+        stopBleScanOnHost();
+        chreBleStopScanSync();
     }
 }
