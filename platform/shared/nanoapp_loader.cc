@@ -396,7 +396,7 @@ bool NanoappLoader::callInitArray() {
 
 uintptr_t NanoappLoader::roundDownToAlign(uintptr_t virtualAddr,
                                           size_t alignment) {
-  return virtualAddr & -alignment;
+  return alignment == 0 ? virtualAddr : virtualAddr & -alignment;
 }
 
 void NanoappLoader::freeAllocatedData() {
