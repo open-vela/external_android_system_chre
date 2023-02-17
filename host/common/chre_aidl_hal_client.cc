@@ -483,7 +483,7 @@ void sendMessageToNanoapp(const std::string &hexHostEndpointId,
   auto status = contextHub->sendMessageToHub(kContextHubId, contextHubMessage);
   verifyStatusAndSignal(/* operation= */ "sending a message to " + appIdOrName,
                         status, gCallback->promise.get_future());
-  onEndpointConnected(hexHostEndpointId);
+  onEndpointDisconnected(hexHostEndpointId);
 }
 
 void changeSetting(const std::string &setting, bool enabled) {
