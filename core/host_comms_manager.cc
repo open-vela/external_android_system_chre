@@ -157,11 +157,9 @@ void HostCommsManager::sendMessageToNanoappFromHost(uint64_t appId,
             .sendDeferredMessageToNanoappFromHost(
                 static_cast<MessageFromHost *>(data));
       };
-      if (!EventLoopManagerSingleton::get()->deferCallback(
-              SystemCallbackType::DeferredMessageToNanoappFromHost,
-              craftedMessage, callback)) {
-        mMessagePool.deallocate(craftedMessage);
-      }
+      EventLoopManagerSingleton::get()->deferCallback(
+          SystemCallbackType::DeferredMessageToNanoappFromHost, craftedMessage,
+          callback);
     }
   }
 }
@@ -203,12 +201,8 @@ void HostCommsManager::onMessageToHostComplete(const MessageToHost *message) {
           static_cast<MessageToHost *>(data));
     };
 
-    if (!EventLoopManagerSingleton::get()->deferCallback(
-            SystemCallbackType::MessageToHostComplete, msgToHost,
-            freeMsgCallback)) {
-      EventLoopManagerSingleton::get()->getHostCommsManager().freeMessageToHost(
-          static_cast<MessageToHost *>(msgToHost));
-    }
+    EventLoopManagerSingleton::get()->deferCallback(
+        SystemCallbackType::MessageToHostComplete, msgToHost, freeMsgCallback);
   }
 }
 

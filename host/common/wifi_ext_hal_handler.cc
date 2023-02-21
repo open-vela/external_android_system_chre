@@ -28,9 +28,9 @@ WifiExtHalHandler::WifiExtHalHandler(
     const std::function<void(bool)> &statusChangeCallback) {
   mEnableConfig.reset();
   mThread = std::thread(&WifiExtHalHandler::wifiExtHandlerThreadEntry, this);
-  mDeathRecipient =
-      AIBinder_DeathRecipient_new(WifiExtHalHandler::onWifiExtHalServiceDeath);
-  mCallback = ndk::SharedRefBase::make<WifiExtCallback>(statusChangeCallback);
+  auto cb = [&]() { onWifiExtHalServiceDeath(); };
+  mDeathRecipient = new WifiExtHalDeathRecipient(cb);
+  mCallback = new WifiExtCallback(statusChangeCallback);
 }
 
 void WifiExtHalHandler::handleConfigurationRequest(bool enable) {
@@ -40,31 +40,44 @@ void WifiExtHalHandler::handleConfigurationRequest(bool enable) {
 }
 
 void WifiExtHalHandler::dispatchConfigurationRequest(bool enable) {
-  if (checkWifiExtHalConnected()) {
-    auto result = mService->requestWifiChreNanRtt(enable);
-    if (!result.isOk()) {
-      LOGE("wifi ext hal config request for %s failed with code: %d",
-           (enable == true) ? "Enable" : "Disable",
-           result.getServiceSpecificError());
+  auto hidlCb = [this, enable](const WifiStatus &status) {
+    bool success = (status.code == WifiStatusCode::SUCCESS) ? true : false;
+    if (!success) {
+      LOGE("wifi ext hal config request for %s failed with code: %d (%s)",
+           (enable == true) ? "Enable" : "Disable", status.code,
+           status.description.c_str());
     }
-    mCallback->onStatusChanged(result.isOk());
+    mCallback->onStatusChanged(success);
+  };
+
+  if (checkWifiExtHalConnected()) {
+    auto result = mService->requestWifiChreNanRtt(enable, hidlCb);
+    if (!result.isOk()) {
+      LOGE("Failed to %s NAN: %s", (enable == true) ? "Enable" : "Disable",
+           result.description().c_str());
+    }
   }
 }
 
 bool WifiExtHalHandler::checkWifiExtHalConnected() {
   bool success = false;
   if (mService == nullptr) {
-    auto serviceName = std::string() + IWifiExt::descriptor + "/default";
-    mService = IWifiExt::fromBinder(
-        ndk::SpAIBinder(AServiceManager_waitForService(serviceName.c_str())));
+    mService = IWifiExt::getService();
     if (mService != nullptr) {
       LOGD("Connected to Wifi Ext HAL service");
-      AIBinder_linkToDeath(mService->asBinder().get(), mDeathRecipient,
-                           reinterpret_cast<void *>(&mService) /* cookie */);
-      auto result = mService->registerChreCallback(mCallback);
+      mService->linkToDeath(mDeathRecipient, 0 /*cookie*/);
+
+      auto hidlCb = [&success](const WifiStatus &status) {
+        success = (status.code == WifiStatusCode::SUCCESS);
+        if (!success) {
+          LOGE("Failed to register CHRE callback with WifiExt: %s",
+               status.description.c_str());
+        }
+      };
+      auto result = mService->registerChreCallback(mCallback, hidlCb);
       if (!result.isOk()) {
-        LOGE("Failed to register CHRE callback with WifiExt, code: %d",
-             result.getServiceSpecificError());
+        LOGE("Failed to register CHRE callback with WifiEmDeathRecipientxt: %s",
+             result.description().c_str());
       } else {
         success = true;
       }
@@ -75,10 +88,9 @@ bool WifiExtHalHandler::checkWifiExtHalConnected() {
   return success;
 }
 
-void WifiExtHalHandler::onWifiExtHalServiceDeath(void *cookie) {
+void WifiExtHalHandler::onWifiExtHalServiceDeath() {
   LOGI("WiFi Ext HAL service died");
-  // Cookie is expected to be a pointer to mService.
-  *((std::shared_ptr<IWifiExt> *)cookie) = nullptr;
+  mService = nullptr;
   // TODO(b/204226580): Figure out if wifi ext HAL is stateful and if it
   // isn't, notify CHRE of a NAN disabled status change to enable nanoapps
   // to not expect NAN data until the service is back up, and expect it to

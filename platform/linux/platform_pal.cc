@@ -16,12 +16,8 @@
 
 #include "chre/platform/shared/platform_pal.h"
 
-#include "chre/util/macros.h"
-
 namespace chre {
 
-void PlatformPal::prePalApiCall(PalType palType) const {
-  UNUSED_VAR(palType);
-}
+void PlatformPal::prePalApiCall() const {}
 
 }  // namespace chre
