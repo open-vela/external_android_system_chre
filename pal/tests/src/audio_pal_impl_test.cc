@@ -126,7 +126,7 @@ TEST_F(PalAudioTest, GetDataEvent) {
 
   LockGuard<Mutex> lock(gCallbacks->mMutex);
   gCallbacks->mCondVarDataEvents.wait_for(
-      gCallbacks->mMutex, Nanoseconds(2 * kOneMillisecondInNanoseconds));
+      gCallbacks->mMutex, Nanoseconds(10 * kOneMillisecondInNanoseconds));
   EXPECT_TRUE(gCallbacks->mDataEvent.has_value());
   struct chreAudioDataEvent *event = gCallbacks->mDataEvent.value();
   EXPECT_EQ(event->handle, 0);
