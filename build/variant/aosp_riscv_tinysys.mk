@@ -47,6 +47,11 @@ TARGET_CFLAGS += -DCHRE_CREATE_MUTEX_ON_HEAP
 ifeq ($(IS_ARCHIVE_ONLY_BUILD),)
 TARGET_SO_LDFLAGS += -shared
 TARGET_CFLAGS += -fpic
+
+# Enable compiler-rt dependencies
+LLVM_RTLIB=$(RISCV_TOOLCHAIN_PATH)/lib/clang/9.0.1/libpic/riscv32/MRV55E03
+TARGET_SO_LDFLAGS += -L$(LLVM_RTLIB)
+TARGET_SO_LDFLAGS += -lclang_rt.builtins-riscv32
 endif
 
 ifneq ($(IS_NANOAPP_BUILD),)
