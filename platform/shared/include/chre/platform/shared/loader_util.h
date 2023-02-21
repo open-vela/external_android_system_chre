@@ -29,7 +29,7 @@
 #ifndef __WORDSIZE
 // Until we can get a hold of wordsize.h, we need to define it here.
 // Only 32-bit architectures currently supported.
-#if defined(__arm__) || (defined(__riscv) && __riscv_xlen == 32)
+#ifdef CHRE_32_BIT_WORD_SIZE
 #define __WORDSIZE 32
 #else
 #error "Architecture not supported by CHRE dynamic loading"
