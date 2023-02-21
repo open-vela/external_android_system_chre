@@ -108,7 +108,7 @@ public class ContextHubLoadAndUnloadNanoAppsTestExecutor {
     }
 
     public void init() throws Exception {
-        mTestHelper.initAndUnloadAllNanoApps();
+        mTestHelper.init();
     }
 
     public void deinit() {
