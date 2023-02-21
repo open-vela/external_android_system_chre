@@ -18,7 +18,7 @@
 
 #include <general_test/cell_info_base.h>
 
-#include "chre_api/chre.h"
+#include <chre.h>
 
 namespace general_test {
 
