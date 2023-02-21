@@ -531,7 +531,7 @@ void chppClientProcessOpenResponse(struct ChppClientState *clientState,
     CHPP_LOGE("Service open failed at service");
     clientState->openState = CHPP_OPEN_STATE_CLOSED;
   } else {
-    CHPP_LOGI("Service open succeeded at service");
+    CHPP_LOGD("Service open succeeded at service");
     clientState->openState = CHPP_OPEN_STATE_OPENED;
   }
 }

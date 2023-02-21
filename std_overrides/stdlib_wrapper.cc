@@ -33,8 +33,9 @@
 #include <cstdlib>
 #include <new>
 
-#include <chre.h>
 #include "chre/util/nanoapp/assert.h"
+
+#include "chre_api/chre.h"
 
 #if defined(stderr) && !defined(_CSTD)
 // Provides a definition for stderr when the macro has been defined, but the
