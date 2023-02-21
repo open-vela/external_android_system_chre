@@ -303,7 +303,7 @@ bool NanoappLoader::open() {
     } else {
       // Wipe caches before calling init array to ensure initializers are not in
       // the data cache.
-      wipeSystemCaches();
+      wipeSystemCaches(reinterpret_cast<uintptr_t>(mMapping), mMemorySpan);
       if (!callInitArray()) {
         LOGE("Failed to perform static init");
       } else {
@@ -691,6 +691,7 @@ bool NanoappLoader::createMappings() {
         LOG_OOM();
       } else {
         LOGV("Starting location of mappings %p", mMapping);
+        mMemorySpan = memorySpan;
 
         // Calculate the load bias using the first load segment.
         uintptr_t adjustedFirstLoadSegAddr =

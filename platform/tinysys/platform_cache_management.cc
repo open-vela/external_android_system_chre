@@ -15,11 +15,23 @@
  */
 
 #include "chre/target_platform/platform_cache_management.h"
+#include "chre/platform/shared/nanoapp_loader.h"
+
+#include "dma_api.h"
 
 namespace chre {
 
-void wipeSystemCaches() {
-  // TODO(b/252874047): Implementation is only required for dynamic loading.
+void wipeSystemCaches(uintptr_t address, uint32_t span) {
+  if (span == 0) return;
+
+  auto aligned_addr = NanoappLoader::roundDownToAlign(address, CACHE_LINE_SIZE);
+  auto aligned_span = (span + CACHE_LINE_SIZE - 1) & ~(CACHE_LINE_SIZE - 1);
+  LOGV("Invalidate cache at 0x%lx for %u", aligned_addr, aligned_span);
+
+  // Flush D cache first for updating binary to heap memory
+  mrv_dcache_flush_multi_addr(aligned_addr, aligned_span);
+  // Invalid I cache for fetch instructions
+  mrv_icache_invalid_multi_addr(aligned_addr, aligned_span);
 }
 
 }  // namespace chre
