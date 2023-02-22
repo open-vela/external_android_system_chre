@@ -52,12 +52,31 @@ namespace android::hardware::contexthub::common::implementation {
  * ContextHubService. Multiple apps with different host endpoint IDs can have
  * the same client ID.
  *
+ * For a host endpoint connected to ContextHubService, its endpoint id is kept
+ *in the form below during the communication with CHRE.
+ *
+ *  0                   1
+ *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |0|      endpoint_id            |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *
+ * For vendor host endpoints,  the client id is embedded into the endpoint id
+ * before sending a message to CHRE. When that happens, the highest bit is set
+ * to 1 and the endpoint id is mutated to the format below:
+ *
+ *  0                   1
+ *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |1|   client_id     |endpoint_id|
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *
  * Note that HalClientManager is not responsible for generating endpoint ids,
  * which should be managed by HAL clients themselves.
  */
 class HalClientManager {
  public:
-  HalClientManager() = default;
+  HalClientManager();
   virtual ~HalClientManager() = default;
 
   /** Disable copy constructor and copy assignment to avoid duplicates. */
@@ -152,6 +171,18 @@ class HalClientManager {
   bool removeEndpointId(const HostEndpointId &endpointId);
 
   /**
+   * Mutates the endpoint id if the hal client is not the framework service.
+   *
+   * @return true if success, otherwise false.
+   */
+  bool mutateEndpointIdFromHostIfNeeded(const pid_t &pid,
+                                        HostEndpointId &endpointId);
+
+  /** Returns the original endpoint id sent by the host client. */
+  static HostEndpointId convertToOriginalEndpointId(
+      const HostEndpointId &endpointId);
+
+  /**
    * Gets all the connected endpoints for the client identified by the pid.
    *
    * @return the pointer to the endpoint id set if the client is identifiable,
@@ -175,7 +206,17 @@ class HalClientManager {
   void handleClientDeath(pid_t pid);
 
  protected:
+  static constexpr char kClientMappingFilePath[] =
+      "/data/vendor/chre_hal_clients.json";
+  static constexpr char kJsonClientId[] = "ClientId";
+  static constexpr char kJsonProcessName[] = "ProcessName";
   static constexpr int64_t kTransactionTimeoutThresholdMs = 5000;  // 5 seconds
+  static constexpr char kSystemServerName[] = "system_server";
+  static constexpr uint8_t kNumOfBitsForEndpointId = 6;
+  static constexpr HostEndpointId kMaxVendorEndpointId =
+      (1 << kNumOfBitsForEndpointId) - 1;
+  // The endpoint id is from a vendor client if the highest bit is set to 1.
+  static constexpr HostEndpointId kVendorEndpointIdBitMask = 0x8000;
 
   struct HalClientInfo {
     explicit HalClientInfo(
@@ -220,15 +261,26 @@ class HalClientManager {
     }
   };
 
-  /** Returns a newly created client id to uniquely identify a HAL client. */
-  virtual HalClientId createClientId();
+  /**
+   * Creates a client id to uniquely identify a HAL client.
+   *
+   * A file is maintained on the device for the mappings between client names
+   * and client ids so that if a client has connected to HAL before the same
+   * client id is always assigned to it.
+   *
+   * mLock must be held when this function is called.
+   *
+   * @param processName the process name of the client
+   */
+  virtual std::optional<HalClientId> createClientIdLocked(
+      const std::string &processName);
 
   /**
    * Returns true if the load transaction is expected.
    *
    * mLock must be held when this function is called.
    */
-  bool isPendingLoadTransactionExpected(
+  bool isPendingLoadTransactionExpectedLocked(
       HalClientId clientId, uint32_t transactionId,
       std::optional<size_t> currentFragmentId);
 
@@ -247,14 +299,14 @@ class HalClientManager {
    * @param clientId id of the client trying to register the transaction
    * @return true if registration is allowed, otherwise false.
    */
-  bool isNewTransactionAllowed(HalClientId clientId);
+  bool isNewTransactionAllowedLocked(HalClientId clientId);
 
   /**
    * Returns true if the clientId is being used.
    *
    * mLock must be held when this function is called.
    */
-  inline bool isAllocatedClientId(HalClientId clientId) {
+  inline bool isAllocatedClientIdLocked(HalClientId clientId) {
     return mClientIdsToClientInfo.find(clientId) !=
                mClientIdsToClientInfo.end() ||
            clientId == kDefaultHalClientId || clientId == kHalId;
@@ -265,24 +317,47 @@ class HalClientManager {
    *
    * mLock must be held when this function is called.
    */
-  inline bool isKnownPId(pid_t pid) {
+  inline bool isKnownPIdLocked(pid_t pid) {
     return mPIdsToClientIds.find(pid) != mPIdsToClientIds.end();
   }
 
+  /** Returns true if the endpoint id is within the accepted range. */
+  [[nodiscard]] inline bool isValidEndpointId(
+      const HalClientId &clientId, const HostEndpointId &endpointId) const {
+    if (clientId != mFrameworkServiceClientId) {
+      return endpointId <= kMaxVendorEndpointId;
+    }
+    return true;
+  }
+
+  /**
+   * Extracts the client id from the endpoint id.
+   *
+   * @param endpointId the endpoint id received from CHRE, before any conversion
+   */
+  [[nodiscard]] inline HalClientId getClientIdFromEndpointId(
+      const HostEndpointId &endpointId) const {
+    if (endpointId & kVendorEndpointIdBitMask) {
+      return endpointId >> kNumOfBitsForEndpointId & kMaxHalClientId;
+    }
+    return mFrameworkServiceClientId;
+  }
+
   // next available client id
-  HalClientId mNextClientId = 1;
+  HalClientId mNextClientId = kDefaultHalClientId + 1;
+  // framework service client id
+  HalClientId mFrameworkServiceClientId = kDefaultHalClientId;
 
   // The lock guarding the access to clients' states and pending transactions
   std::mutex mLock;
-  // The lock guarding the creation of client Ids
-  std::mutex mClientIdLock;
 
+  // Map from process name to client id which stays consistent with the file
+  // stored at kClientMappingFilePath
+  std::unordered_map<std::string, HalClientId> mProcessNamesToClientIds{};
   // Map from pids to client ids
   std::unordered_map<pid_t, HalClientId> mPIdsToClientIds{};
   // Map from client ids to ClientInfos
   std::unordered_map<HalClientId, HalClientInfo> mClientIdsToClientInfo{};
-  // Map from endpoint ids to client ids
-  std::unordered_map<HostEndpointId, HalClientId> mEndpointIdsToClientIds{};
 
   // States tracking pending transactions
   std::optional<PendingLoadTransaction> mPendingLoadTransaction = std::nullopt;
