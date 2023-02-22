@@ -23,8 +23,11 @@ namespace android::hardware::contexthub::common::implementation {
 
 using HalClientId = uint16_t;
 
-/** Max number of HAL clients supported */
-constexpr uint16_t kMaxNumOfHalClients = 100;
+/** The max HAL client Id. */
+constexpr HalClientId kMaxHalClientId = 0x1ff;
+
+/** Max number of HAL clients supported. */
+constexpr uint16_t kMaxNumOfHalClients = kMaxHalClientId - 1;
 
 /** The default HAL client id indicating the id is not assigned. */
 constexpr HalClientId kDefaultHalClientId = 0;
@@ -32,7 +35,7 @@ constexpr HalClientId kDefaultHalClientId = 0;
 /**
  * The HAL client id indicating the message is actually sent to the HAL itself.
  */
-constexpr HalClientId kHalId = std::numeric_limits<HalClientId>::max();
+constexpr HalClientId kHalId = kMaxHalClientId;
 
 }  // namespace android::hardware::contexthub::common::implementation
 
