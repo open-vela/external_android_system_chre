@@ -14,13 +14,29 @@
  * limitations under the License.
  */
 #include "hal_client_manager.h"
+#include <android-base/strings.h>
 #include <utils/SystemClock.h>
+#include <fstream>
 
 namespace android::hardware::contexthub::common::implementation {
 
 using aidl::android::hardware::contexthub::ContextHubMessage;
 using aidl::android::hardware::contexthub::HostEndpointInfo;
 using aidl::android::hardware::contexthub::IContextHubCallback;
+
+namespace {
+std::string getProcessName(pid_t pid) {
+  std::ifstream processNameFile("/proc/" + internal::ToString(pid) +
+                                "/cmdline");
+  std::string processName;
+  processNameFile >> processName;
+  std::replace(processName.begin(), processName.end(), /* old_value= */ '\0',
+               /* new_value= */ ' ');
+  std::vector<std::string> tokens =
+      base::Tokenize(processName, /* delimiters= */ " ");
+  return tokens.front();
+}
+}  // namespace
 
 HalClientId HalClientManager::createClientId() {
   const std::lock_guard<std::mutex> lock(mClientIdLock);
@@ -29,9 +45,9 @@ HalClientId HalClientManager::createClientId() {
     return kDefaultHalClientId;
   }
   while (isAllocatedClientId(mNextClientId)) {
-    mNextClientId++;
+    mNextClientId = (mNextClientId + 1) % kMaxHalClientId;
   }
-  return mNextClientId++;
+  return mNextClientId;
 }
 
 HalClientId HalClientManager::getClientId() {
@@ -69,6 +85,10 @@ bool HalClientManager::registerCallback(
     }
     mPIdsToClientIds[pid] = clientId;
     mClientIdsToClientInfo.emplace(clientId, HalClientInfo(callback));
+    if (mFrameworkServiceClientId == kDefaultHalClientId &&
+        getProcessName(pid) == kSystemServerName) {
+      mFrameworkServiceClientId = clientId;
+    }
   }
   return true;
 }
@@ -96,10 +116,10 @@ void HalClientManager::handleClientDeath(pid_t pid) {
       mPendingUnloadTransaction->clientId == clientId) {
     mPendingUnloadTransaction.reset();
   }
-  for (const auto &endpointId : clientInfo.endpointIds) {
-    mEndpointIdsToClientIds.erase(endpointId);
-  }
   mClientIdsToClientInfo.erase(clientId);
+  if (mFrameworkServiceClientId == clientId) {
+    mFrameworkServiceClientId = kDefaultHalClientId;
+  }
   LOGI("Process %" PRIu32 " is disconnected from HAL.", pid);
 }
 
@@ -116,7 +136,6 @@ bool HalClientManager::registerPendingLoadTransaction(
     LOGE("Unknown HAL client when registering its pending load transaction.");
     return false;
   }
-
   auto clientId = mPIdsToClientIds[pid];
   if (!isNewTransactionAllowed(clientId)) {
     return false;
@@ -241,12 +260,24 @@ bool HalClientManager::registerEndpointId(const HostEndpointId &endpointId) {
   pid_t pid = AIBinder_getCallingPid();
   const std::lock_guard<std::mutex> lock(mLock);
   if (!isKnownPId(pid)) {
-    LOGE("Unknown HAL client. Please register the callback first.");
+    LOGE(
+        "Unknown HAL client (pid %d). Register the callback before registering "
+        "an endpoint.",
+        pid);
     return false;
   }
   HalClientId clientId = mPIdsToClientIds[pid];
+  if (!isValidEndpointId(clientId, endpointId)) {
+    LOGE("Endpoint id %" PRIu16 " from process %d is out of range.", endpointId,
+         pid);
+    return false;
+  }
+  if (mClientIdsToClientInfo[clientId].endpointIds.find(endpointId) !=
+      mClientIdsToClientInfo[clientId].endpointIds.end()) {
+    LOGW("The endpoint %" PRIu16 " is already connected.", endpointId);
+    return false;
+  }
   mClientIdsToClientInfo[clientId].endpointIds.insert(endpointId);
-  mEndpointIdsToClientIds[endpointId] = clientId;
   LOGI("Endpoint id %" PRIu16 " is connected to client %" PRIu16, endpointId,
        clientId);
   return true;
@@ -256,16 +287,23 @@ bool HalClientManager::removeEndpointId(const HostEndpointId &endpointId) {
   pid_t pid = AIBinder_getCallingPid();
   const std::lock_guard<std::mutex> lock(mLock);
   if (!isKnownPId(pid)) {
-    LOGE("Unknown HAL client. Please register the callback first.");
+    LOGE(
+        "Unknown HAL client (pid %d). A callback should have been registered "
+        "before removing an endpoint.",
+        pid);
     return false;
   }
   HalClientId clientId = mPIdsToClientIds[pid];
-  if (mEndpointIdsToClientIds.find(endpointId) ==
-      mEndpointIdsToClientIds.end()) {
+  if (!isValidEndpointId(clientId, endpointId)) {
+    LOGE("Endpoint id %" PRIu16 " from process %d is out of range.", endpointId,
+         pid);
+    return false;
+  }
+  if (mClientIdsToClientInfo[clientId].endpointIds.find(endpointId) ==
+      mClientIdsToClientInfo[clientId].endpointIds.end()) {
     LOGW("The endpoint %" PRIu16 " is not connected.", endpointId);
     return false;
   }
-  mEndpointIdsToClientIds.erase(endpointId);
   mClientIdsToClientInfo[clientId].endpointIds.erase(endpointId);
   LOGI("Endpoint id %" PRIu16 " is removed from client %" PRIu16, endpointId,
        clientId);
@@ -275,13 +313,12 @@ bool HalClientManager::removeEndpointId(const HostEndpointId &endpointId) {
 std::shared_ptr<IContextHubCallback> HalClientManager::getCallbackForEndpoint(
     const HostEndpointId &endpointId) {
   const std::lock_guard<std::mutex> lock(mLock);
-  if (mEndpointIdsToClientIds.find(endpointId) ==
-      mEndpointIdsToClientIds.end()) {
+  HalClientId clientId = getClientIdFromEndpointId(endpointId);
+  if (!isAllocatedClientId(clientId)) {
     LOGE("Unknown endpoint id %" PRIu16 ". Please register the callback first.",
          endpointId);
     return nullptr;
   }
-  HalClientId clientId = mEndpointIdsToClientIds[endpointId];
   return mClientIdsToClientInfo[clientId].callback;
 }
 
@@ -309,5 +346,29 @@ const std::unordered_set<HostEndpointId>
     return nullptr;
   }
   return &mClientIdsToClientInfo[clientId].endpointIds;
+}
+
+bool HalClientManager::mutateEndpointIdFromHostIfNeeded(
+    const pid_t &pid, HostEndpointId &endpointId) {
+  const std::lock_guard<std::mutex> lock(mLock);
+  if (!isKnownPId(pid)) {
+    LOGE("Unknown HAL client with pid %d", pid);
+    return false;
+  }
+  // no need to mutate client id for framework service
+  if (mPIdsToClientIds[pid] != mFrameworkServiceClientId) {
+    HalClientId clientId = mPIdsToClientIds[pid];
+    endpointId = kVendorEndpointIdBitMask |
+                 clientId << kNumOfBitsForEndpointId | endpointId;
+  }
+  return true;
+}
+
+HostEndpointId HalClientManager::convertToOriginalEndpointId(
+    const HostEndpointId &endpointId) {
+  if (endpointId & kVendorEndpointIdBitMask) {
+    return endpointId & kMaxVendorEndpointId;
+  }
+  return endpointId;
 }
 }  // namespace android::hardware::contexthub::common::implementation

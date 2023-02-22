@@ -52,6 +52,25 @@ namespace android::hardware::contexthub::common::implementation {
  * ContextHubService. Multiple apps with different host endpoint IDs can have
  * the same client ID.
  *
+ * For a host endpoint connected to ContextHubService, its endpoint id is kept
+ *in the form below during the communication with CHRE.
+ *
+ *  0                   1
+ *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |0|      endpoint_id            |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *
+ * For vendor host endpoints,  the client id is embedded into the endpoint id
+ * before sending a message to CHRE. When that happens, the highest bit is set
+ * to 1 and the endpoint id is mutated to the format below:
+ *
+ *  0                   1
+ *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |1|   client_id     |endpoint_id|
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *
  * Note that HalClientManager is not responsible for generating endpoint ids,
  * which should be managed by HAL clients themselves.
  */
@@ -152,6 +171,18 @@ class HalClientManager {
   bool removeEndpointId(const HostEndpointId &endpointId);
 
   /**
+   * Mutates the endpoint id if the hal client is not the framework service.
+   *
+   * @return true if success, otherwise false.
+   */
+  bool mutateEndpointIdFromHostIfNeeded(const pid_t &pid,
+                                        HostEndpointId &endpointId);
+
+  /** Returns the original endpoint id sent by the host client. */
+  static HostEndpointId convertToOriginalEndpointId(
+      const HostEndpointId &endpointId);
+
+  /**
    * Gets all the connected endpoints for the client identified by the pid.
    *
    * @return the pointer to the endpoint id set if the client is identifiable,
@@ -176,6 +207,12 @@ class HalClientManager {
 
  protected:
   static constexpr int64_t kTransactionTimeoutThresholdMs = 5000;  // 5 seconds
+  static constexpr char kSystemServerName[] = "system_server";
+  static constexpr uint8_t kNumOfBitsForEndpointId = 6;
+  static constexpr HostEndpointId kMaxVendorEndpointId =
+      (1 << kNumOfBitsForEndpointId) - 1;
+  // The endpoint id is from a vendor client if the highest bit is set to 1.
+  static constexpr HostEndpointId kVendorEndpointIdBitMask = 0x8000;
 
   struct HalClientInfo {
     explicit HalClientInfo(
@@ -269,8 +306,32 @@ class HalClientManager {
     return mPIdsToClientIds.find(pid) != mPIdsToClientIds.end();
   }
 
+  /** Returns true if the endpoint id is within the accepted range. */
+  [[nodiscard]] inline bool isValidEndpointId(
+      const HalClientId &clientId, const HostEndpointId &endpointId) const {
+    if (clientId != mFrameworkServiceClientId) {
+      return endpointId <= kMaxVendorEndpointId;
+    }
+    return true;
+  }
+
+  /**
+   * Extracts the client id from the endpoint id.
+   *
+   * @param endpointId the endpoint id received from CHRE, before any conversion
+   */
+  [[nodiscard]] inline HalClientId getClientIdFromEndpointId(
+      const HostEndpointId &endpointId) const {
+    if (endpointId & kVendorEndpointIdBitMask) {
+      return endpointId >> kNumOfBitsForEndpointId & kMaxHalClientId;
+    }
+    return mFrameworkServiceClientId;
+  }
+
   // next available client id
   HalClientId mNextClientId = 1;
+  // framework service client id
+  HalClientId mFrameworkServiceClientId = kDefaultHalClientId;
 
   // The lock guarding the access to clients' states and pending transactions
   std::mutex mLock;
@@ -281,8 +342,6 @@ class HalClientManager {
   std::unordered_map<pid_t, HalClientId> mPIdsToClientIds{};
   // Map from client ids to ClientInfos
   std::unordered_map<HalClientId, HalClientInfo> mClientIdsToClientInfo{};
-  // Map from endpoint ids to client ids
-  std::unordered_map<HostEndpointId, HalClientId> mEndpointIdsToClientIds{};
 
   // States tracking pending transactions
   std::optional<PendingLoadTransaction> mPendingLoadTransaction = std::nullopt;
