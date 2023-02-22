@@ -39,6 +39,9 @@ using ::ndk::ScopedAStatus;
  *
  * TODO(b/247124878): A few things are pending:
  *   - Some APIs of IContextHub are not implemented yet;
+ *   - OnHostEndpointConnected/Disconnected now returns an error if the endpoint
+ *     id is illegal or already connected/disconnected. The doc of
+ *     IContextHub.aidl should be updated accordingly.
  *   - Involve EventLogger to log API calls;
  *   - extends DebugDumpHelper to ease debugging
  */
