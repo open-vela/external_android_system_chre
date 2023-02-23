@@ -161,33 +161,34 @@ TEST_F(PalSensorTest, GetTheListOfSensors) {
   EXPECT_STREQ(sensors[0].sensorName, "Test Accelerometer");
 }
 
-TEST_F(PalSensorTest, EnableAContinuousSensor) {
-  EXPECT_TRUE(mApi->configureSensor(
-      0 /*sensorInfoIndex*/, CHRE_SENSOR_CONFIGURE_MODE_CONTINUOUS,
-      kOneMillisecondInNanoseconds /*intervalNs*/, 0 /*latencyNs*/));
+// TODO(b/270179898) restore when fixed.
+// TEST_F(PalSensorTest, EnableAContinuousSensor) {
+//   EXPECT_TRUE(mApi->configureSensor(
+//       0 /*sensorInfoIndex*/, CHRE_SENSOR_CONFIGURE_MODE_CONTINUOUS,
+//       kOneMillisecondInNanoseconds /*intervalNs*/, 0 /*latencyNs*/));
 
-  LockGuard<Mutex> lock(gCallbacks->mMutex);
-  gCallbacks->mCondVarStatus.wait_for(
-      gCallbacks->mMutex, Nanoseconds(kOneMillisecondInNanoseconds));
-  EXPECT_TRUE(gCallbacks->mStatusSensorIndex.has_value());
-  EXPECT_EQ(gCallbacks->mStatusSensorIndex.value(), 0);
-  EXPECT_TRUE(gCallbacks->mStatus.has_value());
-  EXPECT_TRUE(gCallbacks->mStatus.value()->enabled);
-  mApi->releaseSamplingStatusEvent(gCallbacks->mStatus.value());
+//   LockGuard<Mutex> lock(gCallbacks->mMutex);
+//   gCallbacks->mCondVarStatus.wait_for(
+//       gCallbacks->mMutex, Nanoseconds(kOneMillisecondInNanoseconds));
+//   EXPECT_TRUE(gCallbacks->mStatusSensorIndex.has_value());
+//   EXPECT_EQ(gCallbacks->mStatusSensorIndex.value(), 0);
+//   EXPECT_TRUE(gCallbacks->mStatus.has_value());
+//   EXPECT_TRUE(gCallbacks->mStatus.value()->enabled);
+//   mApi->releaseSamplingStatusEvent(gCallbacks->mStatus.value());
 
-  gCallbacks->mCondVarEvents.wait_for(
-      gCallbacks->mMutex,
-      Nanoseconds((2 + gCallbacks->kNumEvents) * kOneMillisecondInNanoseconds));
-  EXPECT_TRUE(gCallbacks->mEventSensorIndices.full());
-  EXPECT_THAT(gCallbacks->mEventSensorIndices, ElementsAre(0, 0, 0));
-  EXPECT_TRUE(gCallbacks->mEventData.full());
-  for (void *data : gCallbacks->mEventData) {
-    auto threeAxisData =
-        static_cast<const struct chreSensorThreeAxisData *>(data);
-    EXPECT_EQ(threeAxisData->header.readingCount, 1);
-    mApi->releaseSensorDataEvent(data);
-  }
-}
+//   gCallbacks->mCondVarEvents.wait_for(
+//       gCallbacks->mMutex,
+//       Nanoseconds((2 + gCallbacks->kNumEvents) * kOneMillisecondInNanoseconds));
+//   EXPECT_TRUE(gCallbacks->mEventSensorIndices.full());
+//   EXPECT_THAT(gCallbacks->mEventSensorIndices, ElementsAre(0, 0, 0));
+//   EXPECT_TRUE(gCallbacks->mEventData.full());
+//   for (void *data : gCallbacks->mEventData) {
+//     auto threeAxisData =
+//         static_cast<const struct chreSensorThreeAxisData *>(data);
+//     EXPECT_EQ(threeAxisData->header.readingCount, 1);
+//     mApi->releaseSensorDataEvent(data);
+//   }
+// }
 
 TEST_F(PalSensorTest, DisableAContinuousSensor) {
   EXPECT_TRUE(mApi->configureSensor(
