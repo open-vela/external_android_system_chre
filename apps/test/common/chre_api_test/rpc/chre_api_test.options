@@ -1,2 +1,6 @@
 chre.rpc.ChreGetSensorInfoOutput.sensorName max_size:100
 chre.rpc.ChreAudioGetSourceOutput.name max_size:100
+chre.rpc.ChreBleGenericFilter.data max_size:29 # CHRE_BLE_DATA_LEN_MAX
+chre.rpc.ChreBleGenericFilter.mask max_size:29 # CHRE_BLE_DATA_LEN_MAX
+chre.rpc.ChreBleScanFilter.scanFilters max_count:10
+chre.rpc.ChreBleScanFilter.scanFilters fixed_count:true

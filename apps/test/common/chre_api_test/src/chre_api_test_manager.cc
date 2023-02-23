@@ -19,7 +19,17 @@
 #include <limits>
 
 #include "chre.h"
+#include "chre/util/nanoapp/ble.h"
 #include "chre/util/nanoapp/log.h"
+#include "chre/util/time.h"
+
+using ::chre::createBleGenericFilter;
+
+namespace {
+constexpr uint32_t kMaxBleScanFilters = 10;   // chre_api_test.options
+constexpr uint32_t kMaxNameStringSize = 100;  // chre_api_test.options
+constexpr uint64_t kSyncFunctionTimeout = 2 * chre::kOneSecondInNanoseconds;
+}  // namespace
 
 pw::Status ChreApiTestService::ChreBleGetCapabilities(
     const chre_rpc_Void & /* request */, chre_rpc_Capabilities &response) {
@@ -40,6 +50,65 @@ pw::Status ChreApiTestService::ChreBleGetFilterCapabilities(
   LOGD("ChreBleGetFilterCapabilities: capabilities: %" PRIu32,
        response.capabilities);
   return pw::OkStatus();
+}
+
+pw::Status ChreApiTestService::ChreBleStartScanAsync(
+    const chre_rpc_ChreBleStartScanAsyncInput &request,
+    chre_rpc_Status &response) {
+  ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
+      CHRE_MESSAGE_PERMISSION_NONE);
+  return validateInputAndCallChreBleStartScanAsync(request, response)
+             ? pw::OkStatus()
+             : pw::Status::InvalidArgument();
+}
+
+void ChreApiTestService::ChreBleStartScanSync(
+    const chre_rpc_ChreBleStartScanAsyncInput &request,
+    ServerWriter<chre_rpc_GeneralSyncMessage> &writer) {
+  if (mWriter.has_value()) {
+    LOGE("ChreBleStartScanSync: a sync message already exists");
+    return;
+  }
+
+  mWriter = std::move(writer);
+  mTimerHandle = CHRE_TIMER_INVALID;
+  mRequestType = CHRE_BLE_REQUEST_TYPE_START_SCAN;
+
+  chre_rpc_Status status;
+  if (!validateInputAndCallChreBleStartScanAsync(request, status) ||
+      !status.status || !setSyncTimer()) {
+    sendFailureAndFinishSyncMessage();
+    LOGD("ChreBleStartScanSync: status: false (error)");
+  }
+}
+
+pw::Status ChreApiTestService::ChreBleStopScanAsync(
+    const chre_rpc_Void &request, chre_rpc_Status &response) {
+  ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
+      CHRE_MESSAGE_PERMISSION_NONE);
+  return validateInputAndCallChreBleStopScanAsync(request, response)
+             ? pw::OkStatus()
+             : pw::Status::InvalidArgument();
+}
+
+void ChreApiTestService::ChreBleStopScanSync(
+    const chre_rpc_Void &request,
+    ServerWriter<chre_rpc_GeneralSyncMessage> &writer) {
+  if (mWriter.has_value()) {
+    LOGE("ChreBleStopScanSync: a sync message already exists");
+    return;
+  }
+
+  mWriter = std::move(writer);
+  mTimerHandle = CHRE_TIMER_INVALID;
+  mRequestType = CHRE_BLE_REQUEST_TYPE_STOP_SCAN;
+
+  chre_rpc_Status status;
+  if (!validateInputAndCallChreBleStopScanAsync(request, status) ||
+      !status.status || !setSyncTimer()) {
+    sendFailureAndFinishSyncMessage();
+    LOGD("ChreBleStopScanSync: status: false (error)");
+  }
 }
 
 pw::Status ChreApiTestService::ChreSensorFindDefault(
@@ -168,6 +237,29 @@ pw::Status ChreApiTestService::ChreAudioGetSource(
   return pw::OkStatus();
 }
 
+void ChreApiTestService::handleBleAsyncResult(const chreAsyncResult *result) {
+  if (result == nullptr || !mWriter.has_value()) {
+    return;
+  }
+
+  if (result->requestType == mRequestType) {
+    chreTimerCancel(mTimerHandle);
+
+    chre_rpc_GeneralSyncMessage generalSyncMessage;
+    generalSyncMessage.status = result->success;
+    sendAndFinishSyncMessage(generalSyncMessage);
+    LOGD("Active BLE sync function: status: %s",
+         generalSyncMessage.status ? "true" : "false");
+  }
+}
+
+void ChreApiTestService::handleTimerEvent(const void *cookie) {
+  if (mWriter.has_value() && cookie == &mTimerHandle) {
+    sendFailureAndFinishSyncMessage();
+    LOGD("Active sync function: status: false (timeout)");
+  }
+}
+
 void ChreApiTestService::copyString(char *destination, const char *source,
                                     size_t maxChars) {
   CHRE_ASSERT_NOT_NULL(destination);
@@ -185,6 +277,123 @@ void ChreApiTestService::copyString(char *destination, const char *source,
   memset(&destination[i], 0, maxChars - i);
 }
 
+void ChreApiTestService::sendFailureAndFinishSyncMessage() {
+  if (mWriter.has_value()) {
+    chre_rpc_GeneralSyncMessage generalSyncMessage;
+    generalSyncMessage.status = false;
+    sendAndFinishSyncMessage(generalSyncMessage);
+  }
+}
+
+void ChreApiTestService::sendAndFinishSyncMessage(
+    const chre_rpc_GeneralSyncMessage &message) {
+  if (mWriter.has_value()) {
+    ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
+        CHRE_MESSAGE_PERMISSION_NONE);
+    mWriter->Write(message);
+
+    ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
+        CHRE_MESSAGE_PERMISSION_NONE);
+    mWriter->Finish();
+
+    mWriter.reset();
+    mTimerHandle = CHRE_TIMER_INVALID;
+  }
+}
+
+bool ChreApiTestService::setSyncTimer() {
+  mTimerHandle = chreTimerSet(kSyncFunctionTimeout, &mTimerHandle /* cookie */,
+                              true /* oneShot */);
+  return mTimerHandle != CHRE_TIMER_INVALID;
+}
+
+bool ChreApiTestService::validateInputAndCallChreBleStartScanAsync(
+    const chre_rpc_ChreBleStartScanAsyncInput &request,
+    chre_rpc_Status &response) {
+  bool success = false;
+  if (request.mode < _chre_rpc_ChreBleScanMode_MIN ||
+      request.mode > _chre_rpc_ChreBleScanMode_MAX ||
+      request.mode == chre_rpc_ChreBleScanMode_INVALID) {
+    LOGE("ChreBleStartScanAsync: invalid mode");
+  } else if (!request.hasFilter) {
+    chreBleScanMode mode = static_cast<chreBleScanMode>(request.mode);
+    response.status =
+        chreBleStartScanAsync(mode, request.reportDelayMs, nullptr);
+
+    LOGD("ChreBleStartScanAsync: mode: %s, reportDelayMs: %" PRIu32
+         ", filter: nullptr, status: %s",
+         mode == CHRE_BLE_SCAN_MODE_BACKGROUND
+             ? "background"
+             : (mode == CHRE_BLE_SCAN_MODE_FOREGROUND ? "foreground"
+                                                      : "aggressive"),
+         request.reportDelayMs, response.status ? "true" : "false");
+    success = true;
+  } else if (request.filter.rssiThreshold <
+                 std::numeric_limits<int8_t>::min() ||
+             request.filter.rssiThreshold >
+                 std::numeric_limits<int8_t>::max()) {
+    LOGE("ChreBleStartScanAsync: invalid filter.rssiThreshold");
+  } else if (request.filter.scanFilterCount == 0 ||
+             request.filter.scanFilterCount > kMaxBleScanFilters) {
+    LOGE("ChreBleStartScanAsync: invalid filter.scanFilterCount");
+  } else {
+    chreBleGenericFilter genericFilters[request.filter.scanFilterCount];
+    bool validateFiltersSuccess = true;
+    for (uint32_t i = 0;
+         validateFiltersSuccess && i < request.filter.scanFilterCount; ++i) {
+      const chre_rpc_ChreBleGenericFilter &scanFilter =
+          request.filter.scanFilters[i];
+      if (scanFilter.type > std::numeric_limits<uint8_t>::max() ||
+          scanFilter.length > std::numeric_limits<uint8_t>::max()) {
+        LOGE(
+            "ChreBleStartScanAsync: invalid request.filter.scanFilters member: "
+            "type: %" PRIu32 " or length: %" PRIu32,
+            scanFilter.type, scanFilter.length);
+        validateFiltersSuccess = false;
+      } else if (scanFilter.data.size < scanFilter.length ||
+                 scanFilter.mask.size < scanFilter.length) {
+        LOGE(
+            "ChreBleStartScanAsync: invalid request.filter.scanFilters member: "
+            "data or mask size");
+        validateFiltersSuccess = false;
+      } else {
+        genericFilters[i] = createBleGenericFilter(
+            scanFilter.type, scanFilter.length, scanFilter.data.bytes,
+            scanFilter.mask.bytes);
+      }
+    }
+
+    if (validateFiltersSuccess) {
+      struct chreBleScanFilter filter;
+      filter.rssiThreshold = request.filter.rssiThreshold;
+      filter.scanFilterCount = request.filter.scanFilterCount;
+      filter.scanFilters = genericFilters;
+
+      chreBleScanMode mode = static_cast<chreBleScanMode>(request.mode);
+      response.status =
+          chreBleStartScanAsync(mode, request.reportDelayMs, &filter);
+
+      LOGD("ChreBleStartScanAsync: mode: %s, reportDelayMs: %" PRIu32
+           ", scanFilterCount: %" PRIu32 ", status: %s",
+           mode == CHRE_BLE_SCAN_MODE_BACKGROUND
+               ? "background"
+               : (mode == CHRE_BLE_SCAN_MODE_FOREGROUND ? "foreground"
+                                                        : "aggressive"),
+           request.reportDelayMs, request.filter.scanFilterCount,
+           response.status ? "true" : "false");
+      success = true;
+    }
+  }
+  return success;
+}
+
+bool ChreApiTestService::validateInputAndCallChreBleStopScanAsync(
+    const chre_rpc_Void & /* request */, chre_rpc_Status &response) {
+  response.status = chreBleStopScanAsync();
+  LOGD("ChreBleStopScanAsync: status: %s", response.status ? "true" : "false");
+  return true;
+}
+
 bool ChreApiTestManager::start() {
   chre::RpcServer::Service service = {.service = mChreApiTestService,
                                       .id = 0x61002d392de8430a,
@@ -197,8 +406,8 @@ bool ChreApiTestManager::start() {
   return true;
 }
 
-void ChreApiTestManager::setPermissionForNextMessage(uint32_t permission) {
-  mServer.setPermissionForNextMessage(permission);
+void ChreApiTestManager::end() {
+  // do nothing
 }
 
 void ChreApiTestManager::handleEvent(uint32_t senderInstanceId,
@@ -207,8 +416,23 @@ void ChreApiTestManager::handleEvent(uint32_t senderInstanceId,
   if (!mServer.handleEvent(senderInstanceId, eventType, eventData)) {
     LOGE("An RPC error occurred");
   }
+
+  switch (eventType) {
+    case CHRE_EVENT_BLE_ASYNC_RESULT: {
+      mChreApiTestService.handleBleAsyncResult(
+          static_cast<const chreAsyncResult *>(eventData));
+      break;
+    }
+    case CHRE_EVENT_TIMER: {
+      mChreApiTestService.handleTimerEvent(eventData);
+      break;
+    }
+    default: {
+      // ignore
+    }
+  }
 }
 
-void ChreApiTestManager::end() {
-  // do nothing
+void ChreApiTestManager::setPermissionForNextMessage(uint32_t permission) {
+  mServer.setPermissionForNextMessage(permission);
 }
