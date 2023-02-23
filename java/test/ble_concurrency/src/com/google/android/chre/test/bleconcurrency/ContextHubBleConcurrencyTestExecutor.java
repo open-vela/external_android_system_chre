@@ -71,6 +71,12 @@ public class ContextHubBleConcurrencyTestExecutor extends ContextHubClientCallba
      */
     private static final int CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16 = 0x16;
 
+    /**
+     * CHRE BLE capabilities and filter capabilities.
+     */
+    private static final int CHRE_BLE_CAPABILITIES_SCAN = 1 << 0;
+    private static final int CHRE_BLE_FILTER_CAPABILITIES_SERVICE_DATA = 1 << 7;
+
     private final BluetoothLeScanner mBluetoothLeScanner;
     private final Context mContext = InstrumentationRegistry.getTargetContext();
     private final ContextHubInfo mContextHub;
@@ -136,9 +142,11 @@ public class ContextHubBleConcurrencyTestExecutor extends ContextHubClientCallba
      * Runs the test.
      */
     public void run() throws Exception {
-        testHostScanFirst();
-        Thread.sleep(1000);
-        testChreScanFirst();
+        if (doesNecessaryBleCapabilitiesExist()) {
+            testHostScanFirst();
+            Thread.sleep(1000);
+            testChreScanFirst();
+        }
     }
 
     /**
@@ -247,6 +255,25 @@ public class ContextHubBleConcurrencyTestExecutor extends ContextHubClientCallba
         for (ChreApiTest.GeneralSyncMessage status: response) {
             assertThat(status.getStatus()).isTrue();
         }
+    }
+
+    /**
+     * Returns true if the required BLE capabilities and filter capabilities exist,
+     * otherwise returns false.
+     */
+    private boolean doesNecessaryBleCapabilitiesExist() throws Exception {
+        ChreApiTest.Capabilities capabilitiesResponse =
+                ChreApiTestUtil.callUnaryRpcMethodSync(mRpcClient,
+                        "chre.rpc.ChreApiTestService.ChreBleGetCapabilities");
+        int capabilities = capabilitiesResponse.getCapabilities();
+        if ((capabilities & CHRE_BLE_CAPABILITIES_SCAN) != 0) {
+            ChreApiTest.Capabilities filterCapabilitiesResponse =
+                    ChreApiTestUtil.callUnaryRpcMethodSync(mRpcClient,
+                            "chre.rpc.ChreApiTestService.ChreBleGetFilterCapabilities");
+            int filterCapabilities = filterCapabilitiesResponse.getCapabilities();
+            return (filterCapabilities & CHRE_BLE_FILTER_CAPABILITIES_SERVICE_DATA) != 0;
+        }
+        return false;
     }
 
     /**
