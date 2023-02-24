@@ -31,9 +31,14 @@ bool NanoappLoader::relocateTable(DynamicHeader *dyn, int tag) {
         break;
       }
 
+      // The value of the RELA entry in dynamic table is the sh_addr field
+      // of ".rela.dyn" section header. We actually need to use the sh_offset
+      // which is usually the same, but on occasions can be different.
+      SectionHeader *dynamicRelaTablePtr = getSectionHeader(".rela.dyn");
+      CHRE_ASSERT(dynamicRelaTablePtr != nullptr);
       ElfRela *reloc =
-          reinterpret_cast<ElfRela *>(mBinary + getDynEntry(dyn, tag));
-      size_t relocSize = getDynEntry(dyn, DT_RELASZ);
+          reinterpret_cast<ElfRela *>(mBinary + dynamicRelaTablePtr->sh_offset);
+      size_t relocSize = dynamicRelaTablePtr->sh_size;
       size_t nRelocs = relocSize / sizeof(ElfRela);
       LOGV("Relocation %zu entries in DT_RELA table", nRelocs);
 
