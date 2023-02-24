@@ -22,10 +22,7 @@
 #include <shared/send_message.h>
 #include <shared/time_util.h>
 
-#include "chre/util/nanoapp/log.h"
-#include "chre_api/chre.h"
-
-#define LOG_TAG "[HeapExhaustionStabilityTest]"
+#include <chre.h>
 
 using nanoapp_testing::kOneMillisecondInNanoseconds;
 using nanoapp_testing::kOneSecondInNanoseconds;
@@ -139,7 +136,7 @@ void HeapExhaustionStabilityTest::setUp(uint32_t messageSize,
 void HeapExhaustionStabilityTest::testLog(uint32_t zero) {
   // This doesn't need to land in the log (and indeed we have no automated
   // means of checking that right now anyway), but it shouldn't crash.
-  LOGI("Test log %s, zero: %" PRId32, "message", zero);
+  chreLog(CHRE_LOG_INFO, "Test log %s, zero: %" PRId32, "message", zero);
 }
 
 void HeapExhaustionStabilityTest::testSetTimer() {
@@ -265,7 +262,7 @@ void HeapExhaustionStabilityTest::handleSelfEvent(uint32_t senderInstanceId,
 }
 
 void HeapExhaustionStabilityTest::markSuccess(uint32_t stage) {
-  LOGD("Stage %" PRIu32 " succeeded", stage);
+  chreLog(CHRE_LOG_DEBUG, "Stage %" PRIu32 " succeeded", stage);
   uint32_t finishedBit = (1 << stage);
   if ((kAllFinished & finishedBit) == 0) {
     sendFatalFailureToHost("markSuccess bad stage", &stage);
