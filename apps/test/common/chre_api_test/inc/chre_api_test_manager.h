@@ -55,24 +55,10 @@ class ChreApiTestService final
       chre_rpc_Status &response);
 
   /**
-   * Starts a BLE scan synchronously. Waits for the CHRE_EVENT_BLE_ASYNC_RESULT
-   * event.
-   */
-  void ChreBleStartScanSync(const chre_rpc_ChreBleStartScanAsyncInput &request,
-                            ServerWriter<chre_rpc_GeneralSyncMessage> &writer);
-
-  /**
    * Stops a BLE scan.
    */
   pw::Status ChreBleStopScanAsync(const chre_rpc_Void &request,
                                   chre_rpc_Status &response);
-
-  /**
-   * Stops a BLE scan synchronously. Waits for the CHRE_EVENT_BLE_ASYNC_RESULT
-   * event.
-   */
-  void ChreBleStopScanSync(const chre_rpc_Void &request,
-                           ServerWriter<chre_rpc_GeneralSyncMessage> &writer);
 
   /**
    * Finds the default sensor and returns the handle in the output.
@@ -106,6 +92,20 @@ class ChreApiTestService final
    */
   pw::Status ChreAudioGetSource(const chre_rpc_ChreHandleInput &request,
                                 chre_rpc_ChreAudioGetSourceOutput &response);
+
+  /**
+   * Starts a BLE scan synchronously. Waits for the CHRE_EVENT_BLE_ASYNC_RESULT
+   * event.
+   */
+  void ChreBleStartScanSync(const chre_rpc_ChreBleStartScanAsyncInput &request,
+                            ServerWriter<chre_rpc_GeneralSyncMessage> &writer);
+
+  /**
+   * Stops a BLE scan synchronously. Waits for the CHRE_EVENT_BLE_ASYNC_RESULT
+   * event.
+   */
+  void ChreBleStopScanSync(const chre_rpc_Void &request,
+                           ServerWriter<chre_rpc_GeneralSyncMessage> &writer);
 
   /**
    * Handles a BLE event from CHRE.
@@ -158,29 +158,46 @@ class ChreApiTestService final
   bool setSyncTimer();
 
   /**
-   * Validates the RPC input: request, calls chreBleStartScanAsync, and sets
-   * the return value in response.
+   * The following functions validate the RPC input: request, calls the
+   * underlying function, and sets the return value in response.
    *
-   * @param request           the request.
-   * @param response          the response.
-   * @return                  true if the input was validated correctly;
-   *                          false otherwise.
+   * @param request              the request.
+   * @param response             the response.
+   * @return                     true if the input was validated correctly;
+   *                             false otherwise.
    */
+  bool validateInputAndCallChreBleGetCapabilities(
+      const chre_rpc_Void &request, chre_rpc_Capabilities &response);
+
+  bool validateInputAndCallChreBleGetFilterCapabilities(
+      const chre_rpc_Void &request, chre_rpc_Capabilities &response);
+
   bool validateInputAndCallChreBleStartScanAsync(
       const chre_rpc_ChreBleStartScanAsyncInput &request,
       chre_rpc_Status &response);
 
-  /**
-   * Validates the RPC input: request, calls chreBleStopScanAsync, and sets
-   * the return value in response.
-   *
-   * @param request           the request.
-   * @param response          the response.
-   * @return                  true if the input was validated correctly;
-   *                          false otherwise.
-   */
   bool validateInputAndCallChreBleStopScanAsync(const chre_rpc_Void &request,
                                                 chre_rpc_Status &response);
+
+  bool validateInputAndCallChreSensorFindDefault(
+      const chre_rpc_ChreSensorFindDefaultInput &request,
+      chre_rpc_ChreSensorFindDefaultOutput &response);
+
+  bool validateInputAndCallChreGetSensorInfo(
+      const chre_rpc_ChreHandleInput &request,
+      chre_rpc_ChreGetSensorInfoOutput &response);
+
+  bool validateInputAndCallChreGetSensorSamplingStatus(
+      const chre_rpc_ChreHandleInput &request,
+      chre_rpc_ChreGetSensorSamplingStatusOutput &response);
+
+  bool validateInputAndCallChreSensorConfigureModeOnly(
+      const chre_rpc_ChreSensorConfigureModeOnlyInput &request,
+      chre_rpc_Status &response);
+
+  bool validateInputAndCallChreAudioGetSource(
+      const chre_rpc_ChreHandleInput &request,
+      chre_rpc_ChreAudioGetSourceOutput &response);
 
   /**
    * Variables to control synchronization for sync API calls.

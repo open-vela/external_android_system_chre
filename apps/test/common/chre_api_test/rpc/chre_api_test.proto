@@ -17,26 +17,11 @@ service ChreApiTestService {
    */
   rpc ChreBleStartScanAsync(ChreBleStartScanAsyncInput) returns (Status) {}
 
-  /* Starts a BLE scan synchronously. This will wait for the
-   * event and will return success if the chreBleStartScanAsync
-   * function returns success and the event is seen. This will
-   * return the event's success field.
-   */
-  rpc ChreBleStartScanSync(ChreBleStartScanAsyncInput)
-      returns (stream GeneralSyncMessage) {}
-
   /* Stops a BLE scan asynchronously. This will not wait for the
    * event but will return success if the chreBleStopScanAsync
    * function returns success.
    */
   rpc ChreBleStopScanAsync(Void) returns (Status) {}
-
-  /* Stops a BLE scan synchronously. This will wait for the
-   * event and will return success if the chreBleStopScanAsync
-   * function returns success and the event is seen. This will
-   * return the event's success field.
-   */
-  rpc ChreBleStopScanSync(Void) returns (stream GeneralSyncMessage) {}
 
   // Finds the default sensor for the given sensor type.
   rpc ChreSensorFindDefault(ChreSensorFindDefaultInput)
@@ -55,6 +40,23 @@ service ChreApiTestService {
 
   // Gets the audio source's information.
   rpc ChreAudioGetSource(ChreHandleInput) returns (ChreAudioGetSourceOutput) {}
+
+  // Start synchronous functions
+
+  /* Starts a BLE scan synchronously. This will wait for the
+   * event and will return success if the chreBleStartScanAsync
+   * function returns success and the event is seen. This will
+   * return the event's success field.
+   */
+  rpc ChreBleStartScanSync(ChreBleStartScanAsyncInput)
+      returns (stream GeneralSyncMessage) {}
+
+  /* Stops a BLE scan synchronously. This will wait for the
+   * event and will return success if the chreBleStopScanAsync
+   * function returns success and the event is seen. This will
+   * return the event's success field.
+   */
+  rpc ChreBleStopScanSync(Void) returns (stream GeneralSyncMessage) {}
 }
 
 // General messages

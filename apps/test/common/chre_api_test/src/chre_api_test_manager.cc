@@ -16,40 +16,32 @@
 
 #include "chre_api_test_manager.h"
 
-#include <limits>
-
 #include "chre.h"
-#include "chre/util/nanoapp/ble.h"
 #include "chre/util/nanoapp/log.h"
 #include "chre/util/time.h"
 
-using ::chre::createBleGenericFilter;
-
 namespace {
-constexpr uint32_t kMaxBleScanFilters = 10;   // chre_api_test.options
-constexpr uint32_t kMaxNameStringSize = 100;  // chre_api_test.options
 constexpr uint64_t kSyncFunctionTimeout = 2 * chre::kOneSecondInNanoseconds;
 }  // namespace
 
+// Start ChreApiTestService RPC generated functions
+
 pw::Status ChreApiTestService::ChreBleGetCapabilities(
-    const chre_rpc_Void & /* request */, chre_rpc_Capabilities &response) {
+    const chre_rpc_Void &request, chre_rpc_Capabilities &response) {
   ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
       CHRE_MESSAGE_PERMISSION_NONE);
-  response.capabilities = chreBleGetCapabilities();
-
-  LOGD("ChreBleGetCapabilities: capabilities: %" PRIu32, response.capabilities);
-  return pw::OkStatus();
+  return validateInputAndCallChreBleGetCapabilities(request, response)
+             ? pw::OkStatus()
+             : pw::Status::InvalidArgument();
 }
 
 pw::Status ChreApiTestService::ChreBleGetFilterCapabilities(
-    const chre_rpc_Void & /* request */, chre_rpc_Capabilities &response) {
+    const chre_rpc_Void &request, chre_rpc_Capabilities &response) {
   ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
       CHRE_MESSAGE_PERMISSION_NONE);
-  response.capabilities = chreBleGetFilterCapabilities();
-
-  LOGD("ChreBleGetFilterCapabilities: capabilities: %" PRIu32,
-       response.capabilities);
-  return pw::OkStatus();
+  return validateInputAndCallChreBleGetFilterCapabilities(request, response)
+             ? pw::OkStatus()
+             : pw::Status::InvalidArgument();
 }
 
 pw::Status ChreApiTestService::ChreBleStartScanAsync(
@@ -61,6 +53,69 @@ pw::Status ChreApiTestService::ChreBleStartScanAsync(
              ? pw::OkStatus()
              : pw::Status::InvalidArgument();
 }
+
+pw::Status ChreApiTestService::ChreBleStopScanAsync(
+    const chre_rpc_Void &request, chre_rpc_Status &response) {
+  ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
+      CHRE_MESSAGE_PERMISSION_NONE);
+  return validateInputAndCallChreBleStopScanAsync(request, response)
+             ? pw::OkStatus()
+             : pw::Status::InvalidArgument();
+}
+
+pw::Status ChreApiTestService::ChreSensorFindDefault(
+    const chre_rpc_ChreSensorFindDefaultInput &request,
+    chre_rpc_ChreSensorFindDefaultOutput &response) {
+  ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
+      CHRE_MESSAGE_PERMISSION_NONE);
+  return validateInputAndCallChreSensorFindDefault(request, response)
+             ? pw::OkStatus()
+             : pw::Status::InvalidArgument();
+}
+
+pw::Status ChreApiTestService::ChreGetSensorInfo(
+    const chre_rpc_ChreHandleInput &request,
+    chre_rpc_ChreGetSensorInfoOutput &response) {
+  ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
+      CHRE_MESSAGE_PERMISSION_NONE);
+  return validateInputAndCallChreGetSensorInfo(request, response)
+             ? pw::OkStatus()
+             : pw::Status::InvalidArgument();
+}
+
+pw::Status ChreApiTestService::ChreGetSensorSamplingStatus(
+    const chre_rpc_ChreHandleInput &request,
+    chre_rpc_ChreGetSensorSamplingStatusOutput &response) {
+  ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
+      CHRE_MESSAGE_PERMISSION_NONE);
+  return validateInputAndCallChreGetSensorSamplingStatus(request, response)
+             ? pw::OkStatus()
+             : pw::Status::InvalidArgument();
+}
+
+pw::Status ChreApiTestService::ChreSensorConfigureModeOnly(
+    const chre_rpc_ChreSensorConfigureModeOnlyInput &request,
+    chre_rpc_Status &response) {
+  ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
+      CHRE_MESSAGE_PERMISSION_NONE);
+  return validateInputAndCallChreSensorConfigureModeOnly(request, response)
+             ? pw::OkStatus()
+             : pw::Status::InvalidArgument();
+}
+
+pw::Status ChreApiTestService::ChreAudioGetSource(
+    const chre_rpc_ChreHandleInput &request,
+    chre_rpc_ChreAudioGetSourceOutput &response) {
+  ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
+      CHRE_MESSAGE_PERMISSION_NONE);
+  return validateInputAndCallChreAudioGetSource(request, response)
+             ? pw::OkStatus()
+             : pw::Status::InvalidArgument();
+}
+
+// End ChreApiTestService RPC generated functions
+
+// Start ChreApiTestService RPC sync functions
 
 void ChreApiTestService::ChreBleStartScanSync(
     const chre_rpc_ChreBleStartScanAsyncInput &request,
@@ -80,15 +135,6 @@ void ChreApiTestService::ChreBleStartScanSync(
     sendFailureAndFinishSyncMessage();
     LOGD("ChreBleStartScanSync: status: false (error)");
   }
-}
-
-pw::Status ChreApiTestService::ChreBleStopScanAsync(
-    const chre_rpc_Void &request, chre_rpc_Status &response) {
-  ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
-      CHRE_MESSAGE_PERMISSION_NONE);
-  return validateInputAndCallChreBleStopScanAsync(request, response)
-             ? pw::OkStatus()
-             : pw::Status::InvalidArgument();
 }
 
 void ChreApiTestService::ChreBleStopScanSync(
@@ -111,131 +157,7 @@ void ChreApiTestService::ChreBleStopScanSync(
   }
 }
 
-pw::Status ChreApiTestService::ChreSensorFindDefault(
-    const chre_rpc_ChreSensorFindDefaultInput &request,
-    chre_rpc_ChreSensorFindDefaultOutput &response) {
-  ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
-      CHRE_MESSAGE_PERMISSION_NONE);
-
-  if (request.sensorType > std::numeric_limits<uint8_t>::max()) {
-    return pw::Status::InvalidArgument();
-  }
-
-  uint8_t sensorType = (uint8_t)request.sensorType;
-  response.foundSensor =
-      chreSensorFindDefault(sensorType, &response.sensorHandle);
-
-  LOGD("ChreSensorFindDefault: foundSensor: %s, sensorHandle: %" PRIu32,
-       response.foundSensor ? "true" : "false", response.sensorHandle);
-  return pw::OkStatus();
-}
-
-pw::Status ChreApiTestService::ChreGetSensorInfo(
-    const chre_rpc_ChreHandleInput &request,
-    chre_rpc_ChreGetSensorInfoOutput &response) {
-  ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
-      CHRE_MESSAGE_PERMISSION_NONE);
-
-  struct chreSensorInfo sensorInfo;
-  memset(&sensorInfo, 0, sizeof(sensorInfo));
-
-  response.status = chreGetSensorInfo(request.handle, &sensorInfo);
-
-  if (response.status) {
-    copyString(response.sensorName, sensorInfo.sensorName, kMaxNameStringSize);
-  } else {
-    response.sensorName[0] = '\0';
-  }
-
-  response.sensorType = sensorInfo.sensorType;
-  response.isOnChange = sensorInfo.isOnChange;
-  response.isOneShot = sensorInfo.isOneShot;
-  response.reportsBiasEvents = sensorInfo.reportsBiasEvents;
-  response.supportsPassiveMode = sensorInfo.supportsPassiveMode;
-  response.unusedFlags = sensorInfo.unusedFlags;
-  response.minInterval = sensorInfo.minInterval;
-  response.sensorIndex = sensorInfo.sensorIndex;
-
-  LOGD("ChreGetSensorInfo: status: %s, sensorType: %" PRIu32
-       ", isOnChange: %" PRIu32
-       ", "
-       "isOneShot: %" PRIu32 ", reportsBiasEvents: %" PRIu32
-       ", supportsPassiveMode: %" PRIu32 ", unusedFlags: %" PRIu32
-       ", minInterval: %" PRIu64 ", sensorIndex: %" PRIu32,
-       response.status ? "true" : "false", response.sensorType,
-       response.isOnChange, response.isOneShot, response.reportsBiasEvents,
-       response.supportsPassiveMode, response.unusedFlags, response.minInterval,
-       response.sensorIndex);
-  return pw::OkStatus();
-}
-
-pw::Status ChreApiTestService::ChreGetSensorSamplingStatus(
-    const chre_rpc_ChreHandleInput &request,
-    chre_rpc_ChreGetSensorSamplingStatusOutput &response) {
-  ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
-      CHRE_MESSAGE_PERMISSION_NONE);
-
-  struct chreSensorSamplingStatus samplingStatus;
-  memset(&samplingStatus, 0, sizeof(samplingStatus));
-
-  response.status =
-      chreGetSensorSamplingStatus(request.handle, &samplingStatus);
-  response.interval = samplingStatus.interval;
-  response.latency = samplingStatus.latency;
-  response.enabled = samplingStatus.enabled;
-
-  LOGD("ChreGetSensorSamplingStatus: status: %s, interval: %" PRIu64
-       ", latency: %" PRIu64 ", enabled: %s",
-       response.status ? "true" : "false", response.interval, response.latency,
-       response.enabled ? "true" : "false");
-  return pw::OkStatus();
-}
-
-pw::Status ChreApiTestService::ChreSensorConfigureModeOnly(
-    const chre_rpc_ChreSensorConfigureModeOnlyInput &request,
-    chre_rpc_Status &response) {
-  ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
-      CHRE_MESSAGE_PERMISSION_NONE);
-
-  chreSensorConfigureMode mode =
-      static_cast<chreSensorConfigureMode>(request.mode);
-  response.status = chreSensorConfigureModeOnly(request.sensorHandle, mode);
-
-  LOGD("ChreSensorConfigureModeOnly: status: %s",
-       response.status ? "true" : "false");
-  return pw::OkStatus();
-}
-
-pw::Status ChreApiTestService::ChreAudioGetSource(
-    const chre_rpc_ChreHandleInput &request,
-    chre_rpc_ChreAudioGetSourceOutput &response) {
-  ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
-      CHRE_MESSAGE_PERMISSION_NONE);
-
-  struct chreAudioSource audioSource;
-  memset(&audioSource, 0, sizeof(audioSource));
-
-  response.status = chreAudioGetSource(request.handle, &audioSource);
-
-  if (response.status) {
-    copyString(response.name, audioSource.name, kMaxNameStringSize);
-  } else {
-    response.name[0] = '\0';
-  }
-
-  response.sampleRate = audioSource.sampleRate;
-  response.minBufferDuration = audioSource.minBufferDuration;
-  response.maxBufferDuration = audioSource.maxBufferDuration;
-  response.format = audioSource.format;
-
-  LOGD("ChreAudioGetSource: status: %s, name: %s, sampleRate %" PRIu32
-       ", "
-       "minBufferDuration: %" PRIu64 ", maxBufferDuration %" PRIu64
-       ", format: %" PRIu32,
-       response.status ? "true" : "false", response.name, response.sampleRate,
-       response.minBufferDuration, response.maxBufferDuration, response.format);
-  return pw::OkStatus();
-}
+// End ChreApiTestService RPC sync functions
 
 void ChreApiTestService::handleBleAsyncResult(const chreAsyncResult *result) {
   if (result == nullptr || !mWriter.has_value()) {
@@ -307,92 +229,7 @@ bool ChreApiTestService::setSyncTimer() {
   return mTimerHandle != CHRE_TIMER_INVALID;
 }
 
-bool ChreApiTestService::validateInputAndCallChreBleStartScanAsync(
-    const chre_rpc_ChreBleStartScanAsyncInput &request,
-    chre_rpc_Status &response) {
-  bool success = false;
-  if (request.mode < _chre_rpc_ChreBleScanMode_MIN ||
-      request.mode > _chre_rpc_ChreBleScanMode_MAX ||
-      request.mode == chre_rpc_ChreBleScanMode_INVALID) {
-    LOGE("ChreBleStartScanAsync: invalid mode");
-  } else if (!request.hasFilter) {
-    chreBleScanMode mode = static_cast<chreBleScanMode>(request.mode);
-    response.status =
-        chreBleStartScanAsync(mode, request.reportDelayMs, nullptr);
-
-    LOGD("ChreBleStartScanAsync: mode: %s, reportDelayMs: %" PRIu32
-         ", filter: nullptr, status: %s",
-         mode == CHRE_BLE_SCAN_MODE_BACKGROUND
-             ? "background"
-             : (mode == CHRE_BLE_SCAN_MODE_FOREGROUND ? "foreground"
-                                                      : "aggressive"),
-         request.reportDelayMs, response.status ? "true" : "false");
-    success = true;
-  } else if (request.filter.rssiThreshold <
-                 std::numeric_limits<int8_t>::min() ||
-             request.filter.rssiThreshold >
-                 std::numeric_limits<int8_t>::max()) {
-    LOGE("ChreBleStartScanAsync: invalid filter.rssiThreshold");
-  } else if (request.filter.scanFilterCount == 0 ||
-             request.filter.scanFilterCount > kMaxBleScanFilters) {
-    LOGE("ChreBleStartScanAsync: invalid filter.scanFilterCount");
-  } else {
-    chreBleGenericFilter genericFilters[request.filter.scanFilterCount];
-    bool validateFiltersSuccess = true;
-    for (uint32_t i = 0;
-         validateFiltersSuccess && i < request.filter.scanFilterCount; ++i) {
-      const chre_rpc_ChreBleGenericFilter &scanFilter =
-          request.filter.scanFilters[i];
-      if (scanFilter.type > std::numeric_limits<uint8_t>::max() ||
-          scanFilter.length > std::numeric_limits<uint8_t>::max()) {
-        LOGE(
-            "ChreBleStartScanAsync: invalid request.filter.scanFilters member: "
-            "type: %" PRIu32 " or length: %" PRIu32,
-            scanFilter.type, scanFilter.length);
-        validateFiltersSuccess = false;
-      } else if (scanFilter.data.size < scanFilter.length ||
-                 scanFilter.mask.size < scanFilter.length) {
-        LOGE(
-            "ChreBleStartScanAsync: invalid request.filter.scanFilters member: "
-            "data or mask size");
-        validateFiltersSuccess = false;
-      } else {
-        genericFilters[i] = createBleGenericFilter(
-            scanFilter.type, scanFilter.length, scanFilter.data.bytes,
-            scanFilter.mask.bytes);
-      }
-    }
-
-    if (validateFiltersSuccess) {
-      struct chreBleScanFilter filter;
-      filter.rssiThreshold = request.filter.rssiThreshold;
-      filter.scanFilterCount = request.filter.scanFilterCount;
-      filter.scanFilters = genericFilters;
-
-      chreBleScanMode mode = static_cast<chreBleScanMode>(request.mode);
-      response.status =
-          chreBleStartScanAsync(mode, request.reportDelayMs, &filter);
-
-      LOGD("ChreBleStartScanAsync: mode: %s, reportDelayMs: %" PRIu32
-           ", scanFilterCount: %" PRIu32 ", status: %s",
-           mode == CHRE_BLE_SCAN_MODE_BACKGROUND
-               ? "background"
-               : (mode == CHRE_BLE_SCAN_MODE_FOREGROUND ? "foreground"
-                                                        : "aggressive"),
-           request.reportDelayMs, request.filter.scanFilterCount,
-           response.status ? "true" : "false");
-      success = true;
-    }
-  }
-  return success;
-}
-
-bool ChreApiTestService::validateInputAndCallChreBleStopScanAsync(
-    const chre_rpc_Void & /* request */, chre_rpc_Status &response) {
-  response.status = chreBleStopScanAsync();
-  LOGD("ChreBleStopScanAsync: status: %s", response.status ? "true" : "false");
-  return true;
-}
+// Start ChreApiTestManager functions
 
 bool ChreApiTestManager::start() {
   chre::RpcServer::Service service = {.service = mChreApiTestService,
@@ -436,3 +273,5 @@ void ChreApiTestManager::handleEvent(uint32_t senderInstanceId,
 void ChreApiTestManager::setPermissionForNextMessage(uint32_t permission) {
   mServer.setPermissionForNextMessage(permission);
 }
+
+// End ChreApiTestManager functions
