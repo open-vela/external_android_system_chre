@@ -22,7 +22,7 @@
 
 #include <shared/test_success_marker.h>
 
-#include "chre_api/chre.h"
+#include <chre.h>
 
 namespace general_test {
 

@@ -42,18 +42,6 @@ UniquePtr<Nanoapp> createStaticNanoapp(
     decltype(nanoappEnd) *endFunc);
 
 /**
- * @return the statically loaded nanoapp based on the arguments, additionally
- * sets info struct version
- *
- * @see chreNslNanoappInfo for param descriptions.
- */
-UniquePtr<Nanoapp> createStaticNanoapp(
-    uint8_t infoStructVersion, const char *name, uint64_t appId,
-    uint32_t appVersion, uint32_t appPerms, decltype(nanoappStart) *startFunc,
-    decltype(nanoappHandleEvent) *handleEventFunc,
-    decltype(nanoappEnd) *endFunc);
-
-/**
  * Deletes memory allocated by createStaticNanoapp.
  *
  * This function must be called when the nanoapp is no more used.
@@ -157,12 +145,13 @@ struct TestNanoapp {
   uint32_t version = 0;
   uint32_t perms = NanoappPermissions::CHRE_PERMS_NONE;
 
-  decltype(nanoappStart) *start = []() { return true; };
+  bool (*start)() = []() { return true; };
 
-  decltype(nanoappHandleEvent) *handleEvent = [](uint32_t, uint16_t,
-                                                 const void *) {};
+  void (*handleEvent)(uint32_t senderInstanceId, uint16_t eventType,
+                      const void *eventData) = [](uint32_t, uint16_t,
+                                                  const void *) {};
 
-  decltype(nanoappEnd) *end = []() {};
+  void (*end)() = []() {};
 };
 
 /**

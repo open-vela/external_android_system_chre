@@ -87,24 +87,6 @@ class NanoappLoader {
    */
   void registerAtexitFunction(void (*function)(void));
 
-  /**
-   * Rounds the given address down to the closest alignment boundary.
-   *
-   * The alignment follows ELF's p_align semantics:
-   *
-   * [p_align] holds the value to which the segments are aligned in memory and
-   * in the file. Loadable process segments must have congruent values for
-   * p_vaddr and p_offset, modulo the page size. Values of zero and one mean no
-   * alignment is required. Otherwise, p_align should be a positive, integral
-   * power of two, and p_vaddr should equal p_offset, modulo p_align.
-   *
-   * @param virtualAddr The address to be rounded.
-   * @param alignment Alignment to which the address is rounded to.
-   * @return An address that is a multiple of the platform's alignment and is
-   *     less than or equal to virtualAddr.
-   */
-  static uintptr_t roundDownToAlign(uintptr_t virtualAddr, size_t alignment);
-
  private:
   /**
    * Opens the ELF binary. This maps the binary into memory, resolves symbols,
@@ -156,8 +138,6 @@ class NanoappLoader {
   uint8_t *mBinary = nullptr;
   //! The starting location of the memory that has been mapped into the system.
   uint8_t *mMapping = nullptr;
-  //! The span of memory that has been mapped into the system.
-  size_t mMemorySpan = 0;
   //! The difference between where the first load segment was mapped into
   //! virtual memory and what the virtual load offset was of that segment.
   ElfAddr mLoadBias = 0;
@@ -239,39 +219,34 @@ class NanoappLoader {
   bool verifySectionHeaders();
 
   /**
-   * Retrieves the symbol at the given position in the symbol table.
+   * Retrieves the symbol name of data located at the given position in the
+   * symbol table.
    *
    * @param posInSymbolTable The position in the symbol table where information
    *     about the symbol can be found.
-   * @return The symbol or nullptr if not found.
-   */
-  ElfSym *getDynamicSymbol(size_t posInSymbolTable);
-
-  /**
-   * Retrieves the symbol name.
-   *
-   * @param symbol A pointer to the symbol.
    * @return The symbol's name or nullptr if not found.
    */
-  const char *getDataName(const ElfSym *symbol);
+  const char *getDataName(size_t posInSymbolTable);
 
   /**
-   * Retrieves the target address of the symbol.
+   * Retrieves the name of the section header located at the given offset in the
+   * section name table.
    *
-   * @param symbol A pointer to the symbol.
-   * @return The target address or nullptr if the symbol is not defined.
-   */
-  void *getSymbolTarget(const ElfSym *symbol);
-
-  /**
-   * Retrieves the name of the section header located at the given offset in
-   * the section name table.
-   *
-   * @param headerOffset The offset in the section names table where the
-   * header is located.
+   * @param headerOffset The offset in the section names table where the header
+   *     is located.
    * @return The section's name or the empty string if the offset is 0.
    */
   const char *getSectionHeaderName(size_t headerOffset);
+
+  /**
+   * Rounds the given address down to the closest alignment boundary.
+   *
+   * @param virtualAddr The address to be rounded.
+   * @param alignment Alignment to which the address is rounded to.
+   * @return An address that is a multiple of the platform's alignment and is
+   *     less than or equal to virtualAddr.
+   */
+  uintptr_t roundDownToAlign(uintptr_t virtualAddr, size_t alignment);
 
   /**
    * Frees any data that was allocated as part of loading the ELF into memory.
@@ -362,15 +337,6 @@ class NanoappLoader {
    * @return The value found at the entry. 0 if the entry isn't found.
    */
   static ElfWord getDynEntry(DynamicHeader *dyn, int field);
-
-  /**
-   * Handle reolcation for entries in the specified table.
-   *
-   * @param dyn The dynamic header for the binary.
-   * @param tableTag The dynamic tag (DT_x) of the relocation table.
-   * @return True if success or unsupported, false if failure.
-   */
-  bool relocateTable(DynamicHeader *dyn, int tableTag);
 };
 
 }  // namespace chre

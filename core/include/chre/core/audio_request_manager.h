@@ -132,11 +132,11 @@ class AudioRequestManager : public NonCopyable {
    * One instance of an audio request from a nanoapp.
    */
   struct AudioRequest {
-    AudioRequest(uint32_t numSamplesIn, Nanoseconds deliveryIntervalIn,
-                 Nanoseconds nextEventTimestampIn)
-        : numSamples(numSamplesIn),
-          deliveryInterval(deliveryIntervalIn),
-          nextEventTimestamp(nextEventTimestampIn) {}
+    AudioRequest(uint32_t numSamples, Nanoseconds deliveryInterval,
+                 Nanoseconds nextEventTimestamp)
+        : numSamples(numSamples),
+          deliveryInterval(deliveryInterval),
+          nextEventTimestamp(nextEventTimestamp) {}
 
     //! The nanoapp instance IDs that own this request.
     DynamicVector<uint16_t> instanceIds;
@@ -178,9 +178,18 @@ class AudioRequestManager : public NonCopyable {
    * kind of logic from appearing in the AudioRequestManager.
    */
   struct AudioDataEventRefCount {
-    AudioDataEventRefCount(struct chreAudioDataEvent *eventIn,
-                           const uint32_t refCountIn = 0)
-        : event(eventIn), refCount(refCountIn) {}
+    /**
+     * Constructs an AudioDataEventRefCount object with an uninitialized
+     * refCount to allow searching in a list using the equality comparison
+     * below.
+     *
+     * @param event The event that this object tracks.
+     */
+    explicit AudioDataEventRefCount(struct chreAudioDataEvent *event)
+        : event(event) {}
+
+    AudioDataEventRefCount(struct chreAudioDataEvent *event, uint32_t refCount)
+        : event(event), refCount(refCount) {}
 
     /**
      * @param audioDataEventRefCount The other object to perform an equality
