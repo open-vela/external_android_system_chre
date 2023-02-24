@@ -87,6 +87,24 @@ class NanoappLoader {
    */
   void registerAtexitFunction(void (*function)(void));
 
+  /**
+   * Rounds the given address down to the closest alignment boundary.
+   *
+   * The alignment follows ELF's p_align semantics:
+   *
+   * [p_align] holds the value to which the segments are aligned in memory and
+   * in the file. Loadable process segments must have congruent values for
+   * p_vaddr and p_offset, modulo the page size. Values of zero and one mean no
+   * alignment is required. Otherwise, p_align should be a positive, integral
+   * power of two, and p_vaddr should equal p_offset, modulo p_align.
+   *
+   * @param virtualAddr The address to be rounded.
+   * @param alignment Alignment to which the address is rounded to.
+   * @return An address that is a multiple of the platform's alignment and is
+   *     less than or equal to virtualAddr.
+   */
+  static uintptr_t roundDownToAlign(uintptr_t virtualAddr, size_t alignment);
+
  private:
   /**
    * Opens the ELF binary. This maps the binary into memory, resolves symbols,
@@ -138,6 +156,8 @@ class NanoappLoader {
   uint8_t *mBinary = nullptr;
   //! The starting location of the memory that has been mapped into the system.
   uint8_t *mMapping = nullptr;
+  //! The span of memory that has been mapped into the system.
+  size_t mMemorySpan = 0;
   //! The difference between where the first load segment was mapped into
   //! virtual memory and what the virtual load offset was of that segment.
   ElfAddr mLoadBias = 0;
@@ -252,24 +272,6 @@ class NanoappLoader {
    * @return The section's name or the empty string if the offset is 0.
    */
   const char *getSectionHeaderName(size_t headerOffset);
-
-  /**
-   * Rounds the given address down to the closest alignment boundary.
-   *
-   * The alignment follows ELF's p_align semantics:
-   *
-   * [p_align] holds the value to which the segments are aligned in memory and
-   * in the file. Loadable process segments must have congruent values for
-   * p_vaddr and p_offset, modulo the page size. Values of zero and one mean no
-   * alignment is required. Otherwise, p_align should be a positive, integral
-   * power of two, and p_vaddr should equal p_offset, modulo p_align.
-   *
-   * @param virtualAddr The address to be rounded.
-   * @param alignment Alignment to which the address is rounded to.
-   * @return An address that is a multiple of the platform's alignment and is
-   *     less than or equal to virtualAddr.
-   */
-  uintptr_t roundDownToAlign(uintptr_t virtualAddr, size_t alignment);
 
   /**
    * Frees any data that was allocated as part of loading the ELF into memory.
