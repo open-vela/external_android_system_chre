@@ -328,7 +328,7 @@ static void chppGnssClientNotifyReset(void *clientContext) {
       !gnssClientContext->client.pseudoOpen) {
     CHPP_LOGW("GNSS client reset but wasn't open");
   } else {
-    CHPP_LOGI("GNSS client reopening from state=%" PRIu8,
+    CHPP_LOGD("GNSS client reopening from state=%" PRIu8,
               gnssClientContext->client.openState);
     gnssClientContext->requestStateResyncPending = true;
     chppClientSendOpenRequest(&gGnssClientContext.client,
