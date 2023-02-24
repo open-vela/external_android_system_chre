@@ -5,27 +5,55 @@ package chre.rpc;
 option java_package = "dev.chre.rpc.proto";
 
 service ChreApiTestService {
-  // Returns the BLE capabilities
+  // Returns the BLE capabilities.
   rpc ChreBleGetCapabilities(Void) returns (Capabilities) {}
 
-  // Returns the BLE filter capabilities
+  // Returns the BLE filter capabilities.
   rpc ChreBleGetFilterCapabilities(Void) returns (Capabilities) {}
 
-  // Finds the default sensor for the given sensor type
+  /* Starts a BLE scan asynchronously. This will not wait for the
+   * event but will return success if the chreBleStartScanAsync
+   * function returns success.
+   */
+  rpc ChreBleStartScanAsync(ChreBleStartScanAsyncInput) returns (Status) {}
+
+  /* Starts a BLE scan synchronously. This will wait for the
+   * event and will return success if the chreBleStartScanAsync
+   * function returns success and the event is seen. This will
+   * return the event's success field.
+   */
+  rpc ChreBleStartScanSync(ChreBleStartScanAsyncInput)
+      returns (stream GeneralSyncMessage) {}
+
+  /* Stops a BLE scan asynchronously. This will not wait for the
+   * event but will return success if the chreBleStopScanAsync
+   * function returns success.
+   */
+  rpc ChreBleStopScanAsync(Void) returns (Status) {}
+
+  /* Stops a BLE scan synchronously. This will wait for the
+   * event and will return success if the chreBleStopScanAsync
+   * function returns success and the event is seen. This will
+   * return the event's success field.
+   */
+  rpc ChreBleStopScanSync(Void) returns (stream GeneralSyncMessage) {}
+
+  // Finds the default sensor for the given sensor type.
   rpc ChreSensorFindDefault(ChreSensorFindDefaultInput)
       returns (ChreSensorFindDefaultOutput) {}
 
+  // Gets the information about a sensor.
   rpc ChreGetSensorInfo(ChreHandleInput) returns (ChreGetSensorInfoOutput) {}
 
-  // Gets the sampling status for the sensor
+  // Gets the sampling status for the sensor.
   rpc ChreGetSensorSamplingStatus(ChreHandleInput)
       returns (ChreGetSensorSamplingStatusOutput) {}
 
-  // Configures a sensor's mode
+  // Configures a sensor's mode.
   rpc ChreSensorConfigureModeOnly(ChreSensorConfigureModeOnlyInput)
       returns (Status) {}
 
-  // Gets the audio source's information
+  // Gets the audio source's information.
   rpc ChreAudioGetSource(ChreHandleInput) returns (ChreAudioGetSourceOutput) {}
 }
 
@@ -47,6 +75,11 @@ message Status {
 // Input with a handle
 message ChreHandleInput {
   uint32 handle = 1;
+}
+
+// Message for sync function output
+message GeneralSyncMessage {
+  bool status = 1;
 }
 
 // Function specific messages
@@ -99,4 +132,35 @@ message ChreAudioGetSourceOutput {
   uint64 minBufferDuration = 4;
   uint64 maxBufferDuration = 5;
   uint32 format = 6;
+}
+
+// Enumeration for BLE scan mode
+enum ChreBleScanMode {
+  INVALID = 0;
+  CHRE_BLE_SCAN_MODE_BACKGROUND = 1;
+  CHRE_BLE_SCAN_MODE_FOREGROUND = 2;
+  CHRE_BLE_SCAN_MODE_AGGRESSIVE = 3;
+}
+
+// BLE scan filters
+message ChreBleGenericFilter {
+  uint32 type = 1;
+  uint32 length = 2;
+  bytes data = 3;
+  bytes mask = 4;
+}
+
+// Scan filter for BLE scanning
+message ChreBleScanFilter {
+  int32 rssiThreshold = 1;
+  uint32 scanFilterCount = 2;
+  repeated ChreBleGenericFilter scanFilters = 3;
+}
+
+// Input value for ChreBleStartScanAsync
+message ChreBleStartScanAsyncInput {
+  ChreBleScanMode mode = 1;
+  uint32 reportDelayMs = 2;
+  bool hasFilter = 3;
+  ChreBleScanFilter filter = 4;
 }

@@ -26,36 +26,56 @@
 #include "chre_api/chre.h"
 #include "rpc/chre_api_test.rpc.pb.h"
 
+using ::chre::Optional;
+
+/**
+ * Contains signature-generated RPC functions for the ChreApiTest service.
+ */
 class ChreApiTestService final
     : public chre::rpc::pw_rpc::nanopb::ChreApiTestService::Service<
           ChreApiTestService> {
  public:
   /**
    * Returns the BLE capabilities.
-   *
-   * @param request           the request (Void)
-   * @param response          the response (Capabilities)
-   * @return                  status
    */
   pw::Status ChreBleGetCapabilities(const chre_rpc_Void &request,
                                     chre_rpc_Capabilities &response);
 
   /**
    * Returns the BLE filter capabilities.
-   *
-   * @param request           the request (Void)
-   * @param response          the response (Capabilities)
-   * @return                  status
    */
   pw::Status ChreBleGetFilterCapabilities(const chre_rpc_Void &request,
                                           chre_rpc_Capabilities &response);
 
   /**
+   * Starts a BLE scan.
+   */
+  pw::Status ChreBleStartScanAsync(
+      const chre_rpc_ChreBleStartScanAsyncInput &request,
+      chre_rpc_Status &response);
+
+  /**
+   * Starts a BLE scan synchronously. Waits for the CHRE_EVENT_BLE_ASYNC_RESULT
+   * event.
+   */
+  void ChreBleStartScanSync(const chre_rpc_ChreBleStartScanAsyncInput &request,
+                            ServerWriter<chre_rpc_GeneralSyncMessage> &writer);
+
+  /**
+   * Stops a BLE scan.
+   */
+  pw::Status ChreBleStopScanAsync(const chre_rpc_Void &request,
+                                  chre_rpc_Status &response);
+
+  /**
+   * Stops a BLE scan synchronously. Waits for the CHRE_EVENT_BLE_ASYNC_RESULT
+   * event.
+   */
+  void ChreBleStopScanSync(const chre_rpc_Void &request,
+                           ServerWriter<chre_rpc_GeneralSyncMessage> &writer);
+
+  /**
    * Finds the default sensor and returns the handle in the output.
-   *
-   * @param request         the request (ChreSensorFindDefaultInput)
-   * @param response        the response (ChreSensorFindDefaultOutput)
-   * @return                status
    */
   pw::Status ChreSensorFindDefault(
       const chre_rpc_ChreSensorFindDefaultInput &request,
@@ -63,20 +83,12 @@ class ChreApiTestService final
 
   /**
    * Gets the sensor information.
-   *
-   * @param request         the request (ChreHandleInput)
-   * @param response        the response (ChreGetSensorInfoOutput)
-   * @return                status
    */
   pw::Status ChreGetSensorInfo(const chre_rpc_ChreHandleInput &request,
                                chre_rpc_ChreGetSensorInfoOutput &response);
 
   /**
    * Gets the sensor sampling status for a given sensor.
-   *
-   * @param request         the request (ChreHandleInput)
-   * @param response        the response (ChreGetSensorSamplingStatusOutput)
-   * @return                status
    */
   pw::Status ChreGetSensorSamplingStatus(
       const chre_rpc_ChreHandleInput &request,
@@ -84,10 +96,6 @@ class ChreApiTestService final
 
   /**
    * Configures the mode for a sensor.
-   *
-   * @param request         the request (ChreSensorConfigureModeOnlyInput)
-   * @param response        the response (Status)
-   * @return                status
    */
   pw::Status ChreSensorConfigureModeOnly(
       const chre_rpc_ChreSensorConfigureModeOnlyInput &request,
@@ -95,29 +103,92 @@ class ChreApiTestService final
 
   /**
    * Gets the audio source information.
-   *
-   * @param request         the request (ChreHandleInput)
-   * @param response        the response (ChreAudioGetSourceOutput)
-   * @return                status
    */
   pw::Status ChreAudioGetSource(const chre_rpc_ChreHandleInput &request,
                                 chre_rpc_ChreAudioGetSourceOutput &response);
 
- private:
   /**
-   * Max size of the name string
+   * Handles a BLE event from CHRE.
+   *
+   * @param result              the event result.
    */
-  static const uint32_t kMaxNameStringSize = 100;
+  void handleBleAsyncResult(const chreAsyncResult *result);
 
+  /**
+   * Handles a timer event from CHRE.
+   *
+   * @param cookie              the cookie from the event.
+   */
+  void handleTimerEvent(const void *cookie);
+
+ private:
   /**
    * Copies a string from source to destination up to the length of the source
    * or the max value. Pads with null characters.
    *
-   * @param destination         the destination string
-   * @param source              the source string
-   * @param maxChars            the maximum number of chars
+   * @param destination         the destination string.
+   * @param source              the source string.
+   * @param maxChars            the maximum number of chars.
    */
   void copyString(char *destination, const char *source, size_t maxChars);
+
+  /**
+   * Sends a failure message. If there is not a valid writer, this returns
+   * without doing anything. This function assumes the synchronous function
+   * timeout timer has either been triggered or is already invalid, cancelled,
+   * or never started.
+   */
+  void sendFailureAndFinishSyncMessage();
+
+  /**
+   * Writes a message to the writer, then closes the writer and invalidates the
+   * stored writer and the synchronous function timeout timer handle. This
+   * assumes the timer has either been triggered or is already invalid,
+   * cancelled, or never started.
+   *
+   * @param message              the message to write.
+   */
+  void sendAndFinishSyncMessage(const chre_rpc_GeneralSyncMessage &message);
+
+  /**
+   * Sets the synchronous timeout timer for the active sync message.
+   *
+   * @return                     if the operation was successful.
+   */
+  bool setSyncTimer();
+
+  /**
+   * Validates the RPC input: request, calls chreBleStartScanAsync, and sets
+   * the return value in response.
+   *
+   * @param request           the request.
+   * @param response          the response.
+   * @return                  true if the input was validated correctly;
+   *                          false otherwise.
+   */
+  bool validateInputAndCallChreBleStartScanAsync(
+      const chre_rpc_ChreBleStartScanAsyncInput &request,
+      chre_rpc_Status &response);
+
+  /**
+   * Validates the RPC input: request, calls chreBleStopScanAsync, and sets
+   * the return value in response.
+   *
+   * @param request           the request.
+   * @param response          the response.
+   * @return                  true if the input was validated correctly;
+   *                          false otherwise.
+   */
+  bool validateInputAndCallChreBleStopScanAsync(const chre_rpc_Void &request,
+                                                chre_rpc_Status &response);
+
+  /**
+   * Variables to control synchronization for sync API calls.
+   * Only one sync API call may be made at a time.
+   */
+  Optional<ServerWriter<chre_rpc_GeneralSyncMessage>> mWriter;
+  uint32_t mTimerHandle;
+  uint8_t mRequestType;
 };
 
 /**
@@ -131,6 +202,11 @@ class ChreApiTestManager {
   bool start();
 
   /**
+   * Allows the manager to do any cleanup necessary as part of nanoappEnd.
+   */
+  void end();
+
+  /**
    * Handle a CHRE event.
    *
    * @param senderInstanceId    the instand ID that sent the event.
@@ -139,11 +215,6 @@ class ChreApiTestManager {
    */
   void handleEvent(uint32_t senderInstanceId, uint16_t eventType,
                    const void *eventData);
-
-  /**
-   * Allows the manager to do any cleanup necessary as part of nanoappEnd.
-   */
-  void end();
 
   /**
    * Sets the permission for the next server message.

@@ -256,6 +256,14 @@ class NanoappLoader {
   /**
    * Rounds the given address down to the closest alignment boundary.
    *
+   * The alignment follows ELF's p_align semantics:
+   *
+   * [p_align] holds the value to which the segments are aligned in memory and
+   * in the file. Loadable process segments must have congruent values for
+   * p_vaddr and p_offset, modulo the page size. Values of zero and one mean no
+   * alignment is required. Otherwise, p_align should be a positive, integral
+   * power of two, and p_vaddr should equal p_offset, modulo p_align.
+   *
    * @param virtualAddr The address to be rounded.
    * @param alignment Alignment to which the address is rounded to.
    * @return An address that is a multiple of the platform's alignment and is
