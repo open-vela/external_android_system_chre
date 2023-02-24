@@ -1,0 +1,6 @@
+service vendor.contexthub-default /vendor/bin/hw/android.hardware.contexthub-service.tinysys
+    class hal late_start
+    user context_hub
+    group wakelock context_hub system
+    capabilities BLOCK_SUSPEND
+    shutdown critical

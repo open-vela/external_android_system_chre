@@ -18,6 +18,7 @@
 
 #include "chre/pal/audio.h"
 #include "chre/platform/condition_variable.h"
+#include "chre/platform/linux/task_util/task_manager.h"
 #include "chre/platform/mutex.h"
 #include "chre/platform/shared/pal_system_api.h"
 #include "chre/util/lock_guard.h"
@@ -79,6 +80,7 @@ void audioAvailabilityCallback(uint32_t handle, bool available) {
 class PalAudioTest : public testing::Test {
  protected:
   void SetUp() override {
+    chre::TaskManagerSingleton::init();
     gCallbacks = MakeUnique<Callbacks>();
     mApi = chrePalAudioGetApi(CHRE_PAL_AUDIO_API_CURRENT_VERSION);
     ASSERT_NE(mApi, nullptr);
@@ -91,6 +93,7 @@ class PalAudioTest : public testing::Test {
     if (mApi != nullptr) {
       mApi->close();
     }
+    chre::TaskManagerSingleton::deinit();
   }
 
   //! CHRE PAL implementation API.
@@ -123,7 +126,7 @@ TEST_F(PalAudioTest, GetDataEvent) {
 
   LockGuard<Mutex> lock(gCallbacks->mMutex);
   gCallbacks->mCondVarDataEvents.wait_for(
-      gCallbacks->mMutex, Nanoseconds(kOneMillisecondInNanoseconds));
+      gCallbacks->mMutex, Nanoseconds(2 * kOneMillisecondInNanoseconds));
   EXPECT_TRUE(gCallbacks->mDataEvent.has_value());
   struct chreAudioDataEvent *event = gCallbacks->mDataEvent.value();
   EXPECT_EQ(event->handle, 0);

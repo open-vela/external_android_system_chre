@@ -20,9 +20,7 @@
 // be included via chre/platform/shared
 
 #include "chre_nsl_internal/platform/shared/nanoapp_support_lib_dso.h"
-
-#include <chre.h>
-
+#include "chre_api/chre.h"
 #include "chre_nsl_internal/platform/shared/debug_dump.h"
 #include "chre_nsl_internal/util/macros.h"
 #include "chre_nsl_internal/util/system/napp_permissions.h"
@@ -115,11 +113,11 @@ void nanoappHandleEventCompat(uint32_t senderInstanceId, uint16_t eventType,
 //! sections, since for compilers with a default size-1 alignment, there might
 //! be a spill-over from the previous segment if not zero-padded, when we
 //! attempt to read the string.
-DLL_EXPORT extern "C" const char _chreNanoappUnstableId[]
+extern "C" DLL_EXPORT const char _chreNanoappUnstableId[]
     __attribute__((section(".unstable_id"))) __attribute__((aligned(8))) =
         NANOAPP_UNSTABLE_ID;
 
-DLL_EXPORT extern "C" const struct chreNslNanoappInfo _chreNslDsoNanoappInfo = {
+extern "C" DLL_EXPORT const struct chreNslNanoappInfo _chreNslDsoNanoappInfo = {
     /* magic */ CHRE_NSL_NANOAPP_INFO_MAGIC,
     /* structMinorVersion */ CHRE_NSL_NANOAPP_INFO_STRUCT_MINOR_VERSION,
     /* isSystemNanoapp */ NANOAPP_IS_SYSTEM_NANOAPP,
@@ -147,6 +145,10 @@ DLL_EXPORT extern "C" const struct chreNslNanoappInfo _chreNslDsoNanoappInfo = {
     /* appPermissions */ kNanoappPermissions,
 };
 
+const struct chreNslNanoappInfo *getChreNslDsoNanoappInfo() {
+  return &_chreNslDsoNanoappInfo;
+}
+
 // The code section below provides default implementations for new symbols
 // introduced in CHRE API v1.2+ to provide binary compatibility with previous
 // CHRE implementations. Note that we don't presently include symbols for v1.1,
@@ -160,6 +162,15 @@ DLL_EXPORT extern "C" const struct chreNslNanoappInfo _chreNslDsoNanoappInfo = {
 #ifndef CHRE_NANOAPP_DISABLE_BACKCOMPAT
 
 #include <dlfcn.h>
+
+namespace {
+// Populate chreNanoappInfo for CHRE API pre v1.8.
+void populateChreNanoappInfoPre18(struct chreNanoappInfo *info) {
+  info->rpcServiceCount = 0;
+  info->rpcServices = nullptr;
+  memset(&info->reserved, 0, sizeof(info->reserved));
+}
+}  // namespace
 
 /**
  * Lazily calls dlsym to find the function pointer for a given function
@@ -219,6 +230,12 @@ uint32_t chreBleGetFilterCapabilities() {
 }
 
 WEAK_SYMBOL
+bool chreBleFlushAsync(const void *cookie) {
+  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreBleFlushAsync);
+  return (fptr != nullptr) ? fptr(cookie) : false;
+}
+
+WEAK_SYMBOL
 bool chreBleStartScanAsync(chreBleScanMode mode, uint32_t reportDelayMs,
                            const struct chreBleScanFilter *filter) {
   auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreBleStartScanAsync);
@@ -229,6 +246,18 @@ WEAK_SYMBOL
 bool chreBleStopScanAsync() {
   auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreBleStopScanAsync);
   return (fptr != nullptr) ? fptr() : false;
+}
+
+WEAK_SYMBOL
+bool chreBleReadRssiAsync(uint16_t connectionHandle, const void *cookie) {
+  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreBleReadRssiAsync);
+  return (fptr != nullptr) ? fptr(connectionHandle, cookie) : false;
+}
+
+WEAK_SYMBOL
+bool chreBleGetScanStatus(struct chreBleScanStatus *status) {
+  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreBleGetScanStatus);
+  return (fptr != nullptr) ? fptr(status) : false;
 }
 
 #endif /* CHRE_NANOAPP_USES_BLE */
@@ -407,6 +436,25 @@ bool chreGetHostEndpointInfo(uint16_t hostEndpointId,
                              struct chreHostEndpointInfo *info) {
   auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreGetHostEndpointInfo);
   return (fptr != nullptr) ? fptr(hostEndpointId, info) : false;
+}
+
+bool chreGetNanoappInfoByAppId(uint64_t appId, struct chreNanoappInfo *info) {
+  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreGetNanoappInfoByAppId);
+  bool success = (fptr != nullptr) ? fptr(appId, info) : false;
+  if (success && chreGetApiVersion() < CHRE_API_VERSION_1_8) {
+    populateChreNanoappInfoPre18(info);
+  }
+  return success;
+}
+
+bool chreGetNanoappInfoByInstanceId(uint32_t instanceId,
+                                    struct chreNanoappInfo *info) {
+  auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreGetNanoappInfoByInstanceId);
+  bool success = (fptr != nullptr) ? fptr(instanceId, info) : false;
+  if (success && chreGetApiVersion() < CHRE_API_VERSION_1_8) {
+    populateChreNanoappInfoPre18(info);
+  }
+  return success;
 }
 
 #endif  // CHRE_NANOAPP_DISABLE_BACKCOMPAT

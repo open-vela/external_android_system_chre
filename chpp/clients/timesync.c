@@ -139,7 +139,7 @@ bool chppDispatchTimesyncServiceResponse(struct ChppAppState *context,
 
     context->timesyncClientContext->timesyncResult.error = CHPP_APP_ERROR_NONE;
 
-    CHPP_LOGI("Timesync RTT=%" PRIu64 " correction=%" PRId64 " offset=%" PRId64
+    CHPP_LOGD("Timesync RTT=%" PRIu64 " correction=%" PRId64 " offset=%" PRId64
               " t=%" PRIu64,
               context->timesyncClientContext->timesyncResult.rttNs /
                   CHPP_NSEC_PER_MSEC,
@@ -154,9 +154,8 @@ bool chppDispatchTimesyncServiceResponse(struct ChppAppState *context,
 
 bool chppTimesyncMeasureOffset(struct ChppAppState *context) {
   bool result = false;
-  CHPP_LOGI("Measuring timesync t=%" PRIu64,
+  CHPP_LOGD("Measuring timesync t=%" PRIu64,
             chppGetCurrentTimeNs() / CHPP_NSEC_PER_MSEC);
-
   CHPP_NOT_NULL(context->timesyncClientContext);
 
   context->timesyncClientContext->timesyncResult.error =
