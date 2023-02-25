@@ -42,8 +42,9 @@ constexpr uint32_t kTestResultMessageType =
     chre_audio_concurrency_test_MessageType_TEST_RESULT;
 
 //! The maximum number of samples that can be missed before triggering a suspend
-//! event.
-constexpr uint32_t kMaxMissedSamples = 10;
+//! event. 50 samples at a sample rate of 44100 (typical) is approximately 1 ms
+//! of audio gap.
+constexpr uint32_t kMaxMissedSamples = 50;
 
 bool isTestSupported() {
   // CHRE audio was supported in CHRE v1.2
@@ -232,9 +233,8 @@ bool Manager::validateAudioDataEvent(const chreAudioDataEvent *data) {
           !mSawSuspendAudioEvent) {
         LOGE(
             "Audio was suspended, but we did not receive a "
-            "CHRE_EVENT_AUDIO_SAMPLING_CHANGE event with "
-            "suspended set correctly. gap = %" PRIu64 " ns",
-            gapNs);
+            "CHRE_EVENT_AUDIO_SAMPLING_CHANGE event.");
+        LOGE("gap = %" PRIu64 " ns", gapNs);
         gapValidationValid = false;
       }
     }
