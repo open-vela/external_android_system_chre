@@ -39,9 +39,6 @@ using ::ndk::ScopedAStatus;
  *
  * TODO(b/247124878): A few things are pending:
  *   - Some APIs of IContextHub are not implemented yet;
- *   - OnHostEndpointConnected/Disconnected now returns an error if the endpoint
- *     id is illegal or already connected/disconnected. The doc of
- *     IContextHub.aidl should be updated accordingly.
  *   - Involve EventLogger to log API calls;
  *   - extends DebugDumpHelper to ease debugging
  */
@@ -107,8 +104,6 @@ class MultiClientContextHubBase
       const ::chre::fbs::UnloadNanoappResponseT &response,
       HalClientId clientid);
   void onNanoappMessage(const ::chre::fbs::NanoappMessageT &message);
-
-  void handleClientDeath(pid_t pid);
 
   inline bool isSettingEnabled(Setting setting) {
     return mSettingEnabled.find(setting) != mSettingEnabled.end() &&
