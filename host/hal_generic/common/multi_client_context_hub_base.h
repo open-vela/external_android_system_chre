@@ -108,6 +108,8 @@ class MultiClientContextHubBase
       HalClientId clientid);
   void onNanoappMessage(const ::chre::fbs::NanoappMessageT &message);
 
+  void handleClientDeath(pid_t pid);
+
   inline bool isSettingEnabled(Setting setting) {
     return mSettingEnabled.find(setting) != mSettingEnabled.end() &&
            mSettingEnabled[setting];
