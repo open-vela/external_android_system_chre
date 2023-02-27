@@ -125,7 +125,7 @@ ScopedAStatus MultiClientContextHubBase::loadNanoapp(
   if (!isValidContextHubId(contextHubId)) {
     return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
   }
-  LOGI("Loading nanoapp 0x%" PRIx64, appBinary.nanoappId);
+
   uint32_t targetApiVersion = (appBinary.targetChreApiMajorVersion << 24) |
                               (appBinary.targetChreApiMinorVersion << 16);
   auto transaction = std::make_unique<FragmentedLoadTransaction>(
@@ -285,14 +285,9 @@ ScopedAStatus MultiClientContextHubBase::sendMessageToHub(
   if (!isValidContextHubId(contextHubId)) {
     return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
   }
-  HostEndpointId hostEndpointId = message.hostEndPoint;
-  if (!mHalClientManager->mutateEndpointIdFromHostIfNeeded(
-          AIBinder_getCallingPid(), hostEndpointId)) {
-    return fromResult(false);
-  }
   flatbuffers::FlatBufferBuilder builder(1024);
   HostProtocolHost::encodeNanoappMessage(
-      builder, message.nanoappId, message.messageType, hostEndpointId,
+      builder, message.nanoappId, message.messageType, message.hostEndPoint,
       message.messageBody.data(), message.messageBody.size());
   return fromResult(mConnection->sendMessage(builder));
 }
@@ -314,28 +309,23 @@ ScopedAStatus MultiClientContextHubBase::onHostEndpointConnected(
       LOGE("Unsupported host endpoint type %" PRIu32, type);
       return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
   }
-
-  uint16_t endpointId = info.hostEndpointId;
-  if (!mHalClientManager->registerEndpointId(info.hostEndpointId) ||
-      !mHalClientManager->mutateEndpointIdFromHostIfNeeded(
-          AIBinder_getCallingPid(), endpointId)) {
-    return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
+  if (!mHalClientManager->registerEndpointId(info.hostEndpointId)) {
+    return fromResult(false);
   }
   flatbuffers::FlatBufferBuilder builder(64);
   HostProtocolHost::encodeHostEndpointConnected(
-      builder, endpointId, type, info.packageName.value_or(std::string()),
+      builder, info.hostEndpointId, type,
+      info.packageName.value_or(std::string()),
       info.attributionTag.value_or(std::string()));
   return fromResult(mConnection->sendMessage(builder));
 }
 
 ScopedAStatus MultiClientContextHubBase::onHostEndpointDisconnected(
-    char16_t in_hostEndpointId) {
-  HostEndpointId hostEndpointId = in_hostEndpointId;
-  if (!mHalClientManager->removeEndpointId(hostEndpointId) ||
-      !mHalClientManager->mutateEndpointIdFromHostIfNeeded(
-          AIBinder_getCallingPid(), hostEndpointId)) {
-    return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
+    char16_t hostEndpointId) {
+  if (!mHalClientManager->removeEndpointId(hostEndpointId)) {
+    return fromResult(false);
   }
+
   flatbuffers::FlatBufferBuilder builder(64);
   HostProtocolHost::encodeHostEndpointDisconnected(builder, hostEndpointId);
   return fromResult(mConnection->sendMessage(builder));
@@ -496,32 +486,21 @@ void MultiClientContextHubBase::onNanoappMessage(
   } else if (auto callback = mHalClientManager->getCallbackForEndpoint(
                  message.host_endpoint);
              callback != nullptr) {
-    outMessage.hostEndPoint =
-        HalClientManager::convertToOriginalEndpointId(message.host_endpoint);
     callback->handleContextHubMessage(outMessage, messageContentPerms);
   }
 }
 
 void MultiClientContextHubBase::onClientDied(void *cookie) {
   auto *info = static_cast<HalDeathRecipientCookie *>(cookie);
-  info->hal->handleClientDeath(info->clientPid);
-  delete info;
-}
-
-void MultiClientContextHubBase::handleClientDeath(pid_t clientPid) {
-  LOGI("Process %d is dead. Cleaning up.", clientPid);
-  if (auto endpoints = mHalClientManager->getAllConnectedEndpoints(clientPid)) {
-    for (auto endpointId : *endpoints) {
-      LOGI("Sending message to remove endpoint 0x%" PRIx16, endpointId);
-      if (!mHalClientManager->mutateEndpointIdFromHostIfNeeded(clientPid,
-                                                               endpointId)) {
-        continue;
-      }
+  if (auto endpoints = info->hal->mHalClientManager->getAllConnectedEndpoints(
+          info->clientPid)) {
+    for (const auto &endpointId : *endpoints) {
       flatbuffers::FlatBufferBuilder builder(64);
       HostProtocolHost::encodeHostEndpointDisconnected(builder, endpointId);
-      mConnection->sendMessage(builder);
+      info->hal->mConnection->sendMessage(builder);
     }
   }
-  mHalClientManager->handleClientDeath(clientPid);
+  info->hal->mHalClientManager->handleClientDeath(info->clientPid);
+  delete info;
 }
 }  // namespace android::hardware::contexthub::common::implementation

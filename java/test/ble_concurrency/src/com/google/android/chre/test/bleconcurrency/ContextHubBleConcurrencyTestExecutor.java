@@ -110,7 +110,7 @@ public class ContextHubBleConcurrencyTestExecutor extends ContextHubClientCallba
         mContextHubManager = mContext.getSystemService(ContextHubManager.class);
         assertThat(mContextHubManager).isNotNull();
         List<ContextHubInfo> contextHubs = mContextHubManager.getContextHubs();
-        assertThat(contextHubs.size() > 0).isTrue();
+        assertThat(contextHubs).isNotEmpty();
         mContextHub = contextHubs.get(0);
         mContextHubClient = mContextHubManager.createClient(mContextHub, /* callback= */ this);
         Service chreApiService = ChreApiTestUtil.getChreApiService();
@@ -236,7 +236,7 @@ public class ContextHubBleConcurrencyTestExecutor extends ContextHubClientCallba
                 util.callServerStreamingRpcMethodSync(mRpcClient,
                         "chre.rpc.ChreApiTestService.ChreBleStartScanSync",
                         inputBuilder.build());
-        assertThat(response.size() > 0).isTrue();
+        assertThat(response).isNotEmpty();
         for (ChreApiTest.GeneralSyncMessage status: response) {
             assertThat(status.getStatus()).isTrue();
         }
@@ -251,7 +251,7 @@ public class ContextHubBleConcurrencyTestExecutor extends ContextHubClientCallba
         List<ChreApiTest.GeneralSyncMessage> response =
                 util.callServerStreamingRpcMethodSync(mRpcClient,
                         "chre.rpc.ChreApiTestService.ChreBleStopScanSync");
-        assertThat(response.size() > 0).isTrue();
+        assertThat(response).isNotEmpty();
         for (ChreApiTest.GeneralSyncMessage status: response) {
             assertThat(status.getStatus()).isTrue();
         }
