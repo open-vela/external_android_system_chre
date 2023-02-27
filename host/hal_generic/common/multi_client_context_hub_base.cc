@@ -504,21 +504,24 @@ void MultiClientContextHubBase::onNanoappMessage(
 
 void MultiClientContextHubBase::onClientDied(void *cookie) {
   auto *info = static_cast<HalDeathRecipientCookie *>(cookie);
-  LOGI("Process %d is dead. Cleaning up.", info->clientPid);
-  if (auto endpoints = info->hal->mHalClientManager->getAllConnectedEndpoints(
-          info->clientPid)) {
+  info->hal->handleClientDeath(info->clientPid);
+  delete info;
+}
+
+void MultiClientContextHubBase::handleClientDeath(pid_t clientPid) {
+  LOGI("Process %d is dead. Cleaning up.", clientPid);
+  if (auto endpoints = mHalClientManager->getAllConnectedEndpoints(clientPid)) {
     for (auto endpointId : *endpoints) {
       LOGI("Sending message to remove endpoint 0x%" PRIx16, endpointId);
-      if (!info->hal->mHalClientManager->mutateEndpointIdFromHostIfNeeded(
-              info->clientPid, endpointId)) {
+      if (!mHalClientManager->mutateEndpointIdFromHostIfNeeded(clientPid,
+                                                               endpointId)) {
         continue;
       }
       flatbuffers::FlatBufferBuilder builder(64);
       HostProtocolHost::encodeHostEndpointDisconnected(builder, endpointId);
-      info->hal->mConnection->sendMessage(builder);
+      mConnection->sendMessage(builder);
     }
   }
-  info->hal->mHalClientManager->handleClientDeath(info->clientPid);
-  delete info;
+  mHalClientManager->handleClientDeath(clientPid);
 }
 }  // namespace android::hardware::contexthub::common::implementation
