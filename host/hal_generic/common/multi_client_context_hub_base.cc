@@ -268,9 +268,7 @@ ScopedAStatus MultiClientContextHubBase::registerCallback(
     LOGE("Callback of context hub HAL must not be null.");
     return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
   }
-  if (!mHalClientManager->registerCallback(callback)) {
-    return fromResult(false);
-  }
+  mHalClientManager->registerCallback(callback);
   // once the call to AIBinder_linkToDeath() is successful, the cookie is
   // supposed to be release by the death recipient later.
   auto *cookie = new HalDeathRecipientCookie(this, AIBinder_getCallingPid());
