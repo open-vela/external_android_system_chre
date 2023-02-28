@@ -46,7 +46,23 @@ public class ContextHubNanoAppRequirementsTestExecutor extends ContextHubClientC
     private final AtomicBoolean mChreReset = new AtomicBoolean(false);
     private final ContextHubManager mContextHubManager;
     private final ContextHubInfo mContextHub;
+    private final List<Long> mPreloadedNanoappIds;
     private final ChreRpcClient mRpcClient;
+
+    private static final int CHRE_SENSOR_ACCELEROMETER_INTERVAL_NS = 20000000;
+    private static final int CHRE_SENSOR_GYROSCOPE_INTERVAL_NS = 2500000;
+
+    // TODO(b/262043286): Enable this once BLE is available
+    /*
+    private static final int CHRE_BLE_CAPABILITIES_SCAN = 1 << 0;
+    private static final int CHRE_BLE_FILTER_CAPABILITIES_SERVICE_DATA = 1 << 7;
+    */
+
+    private static final int CHRE_SENSOR_TYPE_INSTANT_MOTION_DETECT = 2;
+    private static final int CHRE_SENSOR_TYPE_ACCELEROMETER = 1;
+    private static final int CHRE_SENSOR_TYPE_GYROSCOPE = 6;
+
+    private static final int CHRE_AUDIO_MIN_BUFFER_SIZE_NS = 2000000000;
 
     private static final int RPC_TIMEOUT_IN_SECONDS = 2;
     private static final int MAX_AUDIO_SOURCES_TO_TRY = 10;
@@ -93,6 +109,11 @@ public class ContextHubNanoAppRequirementsTestExecutor extends ContextHubClientC
         mContextHub = contextHubs.get(0);
         mContextHubClient = mContextHubManager.createClient(mContextHub, this);
 
+        mPreloadedNanoappIds = new ArrayList<Long>();
+        for (long nanoappId: mContextHubManager.getPreloadedNanoAppIds(mContextHub)) {
+            mPreloadedNanoappIds.add(nanoappId);
+        }
+
         Service chreApiService = ChreApiTestUtil.getChreApiService();
         mRpcClient = new ChreRpcClient(mContextHubManager, mContextHub, mNanoAppId,
                 List.of(chreApiService), this);
@@ -125,16 +146,47 @@ public class ContextHubNanoAppRequirementsTestExecutor extends ContextHubClientC
     }
 
     /**
-     * Gets the preloaded nanoapp IDs
-     *
-     * @return List<Long>       the list of nanoapp IDs
+     * Tests for specific sensors for activity.
      */
-    public List<Long> getPreloadedNanoappIds() {
-        List<Long> preloadedNanoappIds = new ArrayList<Long>();
-        for (long nanoappId: mContextHubManager.getPreloadedNanoAppIds(mContextHub)) {
-            preloadedNanoappIds.add(nanoappId);
-        }
-        return preloadedNanoappIds;
+    public void assertActivitySensors() throws Exception {
+        findDefaultSensorAndAssertItExists(CHRE_SENSOR_TYPE_INSTANT_MOTION_DETECT);
+        int accelerometerHandle =
+                findDefaultSensorAndAssertItExists(CHRE_SENSOR_TYPE_ACCELEROMETER);
+        getSensorInfoAndVerifyInterval(accelerometerHandle,
+                CHRE_SENSOR_ACCELEROMETER_INTERVAL_NS);
+    }
+
+    /**
+     * Tests for specific sensors for movement.
+     */
+    public void assertMovementSensors() throws Exception {
+        findDefaultSensorAndAssertItExists(CHRE_SENSOR_TYPE_ACCELEROMETER);
+        int gyroscopeHandle =
+                findDefaultSensorAndAssertItExists(CHRE_SENSOR_TYPE_GYROSCOPE);
+        getSensorInfoAndVerifyInterval(gyroscopeHandle,
+                CHRE_SENSOR_GYROSCOPE_INTERVAL_NS);
+
+        findAudioSourceAndAssertItExists(CHRE_AUDIO_MIN_BUFFER_SIZE_NS,
+                ChreAudioDataFormat.CHRE_AUDIO_DATA_FORMAT_16_BIT_SIGNED_PCM);
+    }
+
+    /**
+     * Tests for specific BLE capabilities.
+     */
+    public void assertBleSensors() throws Exception {
+        // TODO(b/262043286): Enable this once BLE is available
+        /*
+        mExecutor.getBleCapabilitiesAndAssertCapabilityExists(CHRE_BLE_CAPABILITIES_SCAN);
+        mExecutor.getBleFilterCapabilitiesAndAssertCapabilityExists(
+                CHRE_BLE_FILTER_CAPABILITIES_SERVICE_DATA);
+        */
+    }
+
+    /**
+     * Returns true if the nanoappId represents a preloaded nanoapp; false otherwise.
+     */
+    public boolean isNanoappPreloaded(long nanoappId) {
+        return mPreloadedNanoappIds.contains(nanoappId);
     }
 
     /**
