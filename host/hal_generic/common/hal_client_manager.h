@@ -76,7 +76,7 @@ namespace android::hardware::contexthub::common::implementation {
  */
 class HalClientManager {
  public:
-  HalClientManager();
+  HalClientManager() = default;
   virtual ~HalClientManager() = default;
 
   /** Disable copy constructor and copy assignment to avoid duplicates. */
@@ -206,10 +206,6 @@ class HalClientManager {
   void handleClientDeath(pid_t pid);
 
  protected:
-  static constexpr char kClientMappingFilePath[] =
-      "/data/vendor/chre_hal_clients.json";
-  static constexpr char kJsonClientId[] = "ClientId";
-  static constexpr char kJsonProcessName[] = "ProcessName";
   static constexpr int64_t kTransactionTimeoutThresholdMs = 5000;  // 5 seconds
   static constexpr char kSystemServerName[] = "system_server";
   static constexpr uint8_t kNumOfBitsForEndpointId = 6;
@@ -261,26 +257,15 @@ class HalClientManager {
     }
   };
 
-  /**
-   * Creates a client id to uniquely identify a HAL client.
-   *
-   * A file is maintained on the device for the mappings between client names
-   * and client ids so that if a client has connected to HAL before the same
-   * client id is always assigned to it.
-   *
-   * mLock must be held when this function is called.
-   *
-   * @param processName the process name of the client
-   */
-  virtual std::optional<HalClientId> createClientIdLocked(
-      const std::string &processName);
+  /** Returns a newly created client id to uniquely identify a HAL client. */
+  virtual HalClientId createClientId();
 
   /**
    * Returns true if the load transaction is expected.
    *
    * mLock must be held when this function is called.
    */
-  bool isPendingLoadTransactionExpectedLocked(
+  bool isPendingLoadTransactionExpected(
       HalClientId clientId, uint32_t transactionId,
       std::optional<size_t> currentFragmentId);
 
@@ -299,14 +284,14 @@ class HalClientManager {
    * @param clientId id of the client trying to register the transaction
    * @return true if registration is allowed, otherwise false.
    */
-  bool isNewTransactionAllowedLocked(HalClientId clientId);
+  bool isNewTransactionAllowed(HalClientId clientId);
 
   /**
    * Returns true if the clientId is being used.
    *
    * mLock must be held when this function is called.
    */
-  inline bool isAllocatedClientIdLocked(HalClientId clientId) {
+  inline bool isAllocatedClientId(HalClientId clientId) {
     return mClientIdsToClientInfo.find(clientId) !=
                mClientIdsToClientInfo.end() ||
            clientId == kDefaultHalClientId || clientId == kHalId;
@@ -317,7 +302,7 @@ class HalClientManager {
    *
    * mLock must be held when this function is called.
    */
-  inline bool isKnownPIdLocked(pid_t pid) {
+  inline bool isKnownPId(pid_t pid) {
     return mPIdsToClientIds.find(pid) != mPIdsToClientIds.end();
   }
 
@@ -344,16 +329,15 @@ class HalClientManager {
   }
 
   // next available client id
-  HalClientId mNextClientId = kDefaultHalClientId + 1;
+  HalClientId mNextClientId = 1;
   // framework service client id
   HalClientId mFrameworkServiceClientId = kDefaultHalClientId;
 
   // The lock guarding the access to clients' states and pending transactions
   std::mutex mLock;
+  // The lock guarding the creation of client Ids
+  std::mutex mClientIdLock;
 
-  // Map from process name to client id which stays consistent with the file
-  // stored at kClientMappingFilePath
-  std::unordered_map<std::string, HalClientId> mProcessNamesToClientIds{};
   // Map from pids to client ids
   std::unordered_map<pid_t, HalClientId> mPIdsToClientIds{};
   // Map from client ids to ClientInfos
