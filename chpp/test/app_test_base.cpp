@@ -53,13 +53,13 @@ void AppTestBase::SetUp() {
   // The linkSendThread in the link layer is a link "to" the remote end.
   mServiceLinkContext.linkThreadName = "Link to client";
   mServiceLinkContext.workThreadName = "Service work";
+  mServiceLinkContext.isLinkActive = true;
+  mServiceLinkContext.remoteTransportContext = &mClientTransportContext;
+
   mClientLinkContext.linkThreadName = "Link to service";
   mClientLinkContext.workThreadName = "Client work";
   mClientLinkContext.isLinkActive = true;
-  mServiceLinkContext.isLinkActive = true;
-
   mClientLinkContext.remoteTransportContext = &mServiceTransportContext;
-  mServiceLinkContext.remoteTransportContext = &mClientTransportContext;
 
   struct ChppClientServiceSet set;
   memset(&set, 0, sizeof(set));
@@ -69,6 +69,7 @@ void AppTestBase::SetUp() {
   set.loopbackClient = 1;
 
   const struct ChppLinkApi *linkApi = getLinuxLinkApi();
+
   chppTransportInit(&mClientTransportContext, &mClientAppContext,
                     &mClientLinkContext, linkApi);
   chppAppInitWithClientServiceSet(&mClientAppContext, &mClientTransportContext,
