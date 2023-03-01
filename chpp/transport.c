@@ -1232,7 +1232,7 @@ static void chppReset(struct ChppTransportState *transportContext,
   if (transportContext->txStatus.linkBusy == true) {
     // TODO: Give time for link layer to finish before resorting to a reset
 
-    transportContext->linkApi->reset(&transportContext->linkContext);
+    transportContext->linkApi->reset(transportContext->linkContext);
   }
 
   // Free memory allocated for any ongoing rx datagrams
