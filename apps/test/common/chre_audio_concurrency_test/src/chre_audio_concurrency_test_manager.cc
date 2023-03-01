@@ -294,9 +294,10 @@ void Manager::handleAudioSourceStatusEvent(
       sendTestResultToHost(mTestSession->hostEndpointId, kTestResultMessageType,
                            false /* success */);
       mTestSession.reset();
-    } else if (data->handle == kAudioHandle &&
-               mTestSession->step == TestStep::VERIFY_AUDIO_RESUME) {
-      mSawSuspendAudioEvent = data->status.suspended;
+    } else if (data->handle == kAudioHandle && data->status.suspended &&
+               (mTestSession->step == TestStep::ENABLE_AUDIO ||
+                mTestSession->step == TestStep::VERIFY_AUDIO_RESUME)) {
+      mSawSuspendAudioEvent = true;
     }
   }
 }
