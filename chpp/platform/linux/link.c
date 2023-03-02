@@ -23,12 +23,19 @@
 
 #include "chpp/log.h"
 #include "chpp/macros.h"
+#include "chpp/notifier.h"
 #include "chpp/platform/platform_link.h"
 #include "chpp/transport.h"
 
 // The set of signals to use for the linkSendThread.
 #define SIGNAL_EXIT UINT32_C(1 << 0)
 #define SIGNAL_DATA UINT32_C(1 << 1)
+
+struct ChppNotifier gCycleSendThreadNotifier;
+
+void cycleSendThread(void) {
+  chppNotifierSignal(&gCycleSendThreadNotifier, 1);
+}
 
 /**
  * This thread is used to "send" TX data to the remote endpoint. The remote
@@ -39,6 +46,9 @@ static void *linkSendThread(void *linkContext) {
   struct ChppLinuxLinkState *context =
       (struct ChppLinuxLinkState *)(linkContext);
   while (true) {
+    if (context->manualSendCycle) {
+      chppNotifierWait(&gCycleSendThreadNotifier);
+    }
     uint32_t signal = chppNotifierTimedWait(&context->notifier, CHPP_TIME_MAX);
 
     if (signal & SIGNAL_EXIT) {
@@ -84,6 +94,7 @@ static void init(void *linkContext,
   context->transportContext = transportContext;
   chppMutexInit(&context->mutex);
   chppNotifierInit(&context->notifier);
+  chppNotifierInit(&gCycleSendThreadNotifier);
   pthread_create(&context->linkSendThread, NULL /* attr */, linkSendThread,
                  context);
   if (context->linkThreadName != NULL) {
@@ -96,8 +107,13 @@ static void deinit(void *linkContext) {
       (struct ChppLinuxLinkState *)(linkContext);
   context->bufLen = 0;
   chppNotifierSignal(&context->notifier, SIGNAL_EXIT);
+  if (context->manualSendCycle) {
+    // Unblock the send thread so it exits.
+    cycleSendThread();
+  }
   pthread_join(context->linkSendThread, NULL /* retval */);
   chppNotifierDeinit(&context->notifier);
+  chppNotifierDeinit(&gCycleSendThreadNotifier);
   chppMutexDeinit(&context->mutex);
 }
 
