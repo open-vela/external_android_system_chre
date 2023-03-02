@@ -1164,6 +1164,10 @@ static bool chppWifiClientNanRequestNanRanging(
  *  Public Functions
  ***********************************************/
 
+void chppClearWifiClientContextTestOnly(void) {
+  memset(&gWifiClientContext, 0, sizeof(gWifiClientContext));
+}
+
 void chppRegisterWifiClient(struct ChppAppState *appContext) {
   chppRegisterClient(appContext, (void *)&gWifiClientContext,
                      &gWifiClientContext.client, gWifiClientContext.rRState,

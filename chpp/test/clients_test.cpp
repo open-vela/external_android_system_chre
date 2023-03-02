@@ -23,6 +23,9 @@
 
 #include "chpp/app.h"
 #include "chpp/clients.h"
+#include "chpp/clients/gnss.h"
+#include "chpp/clients/wifi.h"
+#include "chpp/clients/wwan.h"
 #include "chpp/macros.h"
 #include "chpp/memory.h"
 #include "chpp/platform/platform_link.h"
@@ -32,18 +35,22 @@
 #include "chpp/transport.h"
 #include "chre/pal/wwan.h"
 
-// Link layer state.
-struct ChppLinuxLinkState gChppLinuxLinkContext;
-
 class ClientsTest : public testing::Test {
  protected:
   void SetUp() override {
     chppClearTotalAllocBytes();
-    memset(&gChppLinuxLinkContext, 0, sizeof(struct ChppLinuxLinkState));
-    gChppLinuxLinkContext.linkEstablished = true;
-    const struct ChppLinkApi *linkApi = getLinuxLinkApi();
-    chppTransportInit(&mTransportContext, &mAppContext, &gChppLinuxLinkContext,
-                      linkApi);
+
+    chppClearGnssClientContextTestOnly();
+    chppClearWifiClientContextTestOnly();
+    chppClearWwanClientContextTestOnly();
+
+    memset(&mAppContext, 0, sizeof(mAppContext));
+    memset(&mTransportContext, 0, sizeof(mTransportContext));
+    memset(&mLinkContext, 0, sizeof(mLinkContext));
+    mLinkContext.linkEstablished = true;
+
+    chppTransportInit(&mTransportContext, &mAppContext, &mLinkContext,
+                      getLinuxLinkApi());
     chppAppInit(&mAppContext, &mTransportContext);
     mClientState =
         (struct ChppClientState *)mAppContext.registeredClientContexts[0];
@@ -61,7 +68,7 @@ class ClientsTest : public testing::Test {
 
   struct ChppTransportState mTransportContext;
   struct ChppAppState mAppContext;
-  struct ChppClient mClient;
+  struct ChppLinuxLinkState mLinkContext;
   struct ChppClientState *mClientState;
   struct ChppRequestResponseState mRRState;
 };
