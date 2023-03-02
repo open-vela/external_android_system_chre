@@ -783,7 +783,7 @@ static void chppRegisterRxAck(struct ChppTransportState *context) {
  * CHPP_TRANSPORT_ERROR_NONE indicates that no error was reported (i.e. either
  * an ACK or an implicit NACK)
  *
- * Note that the decision as to wheather to include a payload will be taken
+ * Note that the decision as to whether to include a payload will be taken
  * later, i.e. before the packet is being sent out from the queue. A payload is
  * expected to be included if there is one or more pending Tx datagrams and we
  * are not waiting on a pending ACK. A (repeat) payload is also included if we
@@ -1778,12 +1778,9 @@ void chppTransportSendReset(struct ChppTransportState *context,
 
     if (resetType == CHPP_TRANSPORT_ATTR_RESET_ACK) {
       CHPP_LOGD("Sending RESET-ACK");
+      chppSetResetComplete(context);
     } else {
       CHPP_LOGD("Sending RESET");
-    }
-
-    if (resetType == CHPP_TRANSPORT_ATTR_RESET_ACK) {
-      chppSetResetComplete(context);
     }
 
     context->resetTimeNs = chppGetCurrentTimeNs();

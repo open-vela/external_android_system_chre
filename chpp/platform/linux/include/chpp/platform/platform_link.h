@@ -66,6 +66,10 @@ struct ChppLinuxLinkState {
   //! will cause the CHPP link layer to fail to send/receive messages.
   bool isLinkActive;
 
+  //! Whether to wait for cycleSendThread to be called to unblock the send
+  //! thread loop.
+  bool manualSendCycle;
+
   //! State of the associated transport layer.
   struct ChppTransportState *transportContext;
 };
@@ -74,6 +78,12 @@ struct ChppLinuxLinkState {
  * @return a pointer to the link layer API.
  */
 const struct ChppLinkApi *getLinuxLinkApi(void);
+
+/**
+ * Starts the send thread loop when manualSendCycle is true.
+ * This function is a noop when manualSendCycle is false.
+ */
+void cycleSendThread(void);
 
 #ifdef __cplusplus
 }
