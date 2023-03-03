@@ -44,7 +44,6 @@ using aidl::android::hardware::contexthub::HostEndpointInfo;
 using aidl::android::hardware::contexthub::IContextHub;
 using aidl::android::hardware::contexthub::NanoappBinary;
 using aidl::android::hardware::contexthub::NanoappInfo;
-using aidl::android::hardware::contexthub::NanSessionRequest;
 using aidl::android::hardware::contexthub::Setting;
 using android::chre::NanoAppBinaryHeader;
 using android::chre::readFileContents;
@@ -211,8 +210,7 @@ class ContextHubCallback : public BnContextHubCallback {
     return ScopedAStatus::ok();
   }
 
-  ScopedAStatus handleNanSessionRequest(
-      const NanSessionRequest & /* request */) override {
+  ScopedAStatus handleNanSessionRequest(bool /* enable */) override {
     return ScopedAStatus::ok();
   }
 

@@ -74,10 +74,6 @@ void exit(int exitCode) {
     ;
 }
 
-void abort(void) {
-  exit(CHRE_ERROR);
-}
-
 int fprintf(FILE * /*stream*/, const char * /*fmt*/, ...) {
   return 0;
 }
