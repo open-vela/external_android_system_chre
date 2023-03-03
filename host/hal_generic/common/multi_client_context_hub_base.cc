@@ -344,9 +344,9 @@ ScopedAStatus MultiClientContextHubBase::onHostEndpointDisconnected(
 }
 
 ScopedAStatus MultiClientContextHubBase::onNanSessionStateChanged(
-    const NanSessionStateUpdate & /*in_update*/) {
-  // TODO(271471342): Add support for NAN session management.
-  return ndk::ScopedAStatus::ok();
+    bool /*in_state*/) {
+  // To be implemented.
+  return ScopedAStatus::ok();
 }
 
 ScopedAStatus MultiClientContextHubBase::setTestMode(bool /*enable*/) {
