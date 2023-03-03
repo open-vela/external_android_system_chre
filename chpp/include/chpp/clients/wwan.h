@@ -36,6 +36,13 @@ extern "C" {
  ***********************************************/
 
 /**
+ * TODO(b/271444173)
+ * Reset the state of the client.
+ * Must only be called from the tests.
+ */
+void chppClearWwanClientContextTestOnly(void);
+
+/**
  * Called by the App layer to register the WWAN (cellular) common client.
  *
  * @param appContext Maintains status for each app layer instance.

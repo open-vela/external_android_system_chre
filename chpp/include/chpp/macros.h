@@ -76,6 +76,10 @@ extern "C" {
 #endif  // CHPP_DEBUG_ASSERT_ENABLED
 #endif  // CHPP_DEBUG_ASSERT
 
+#ifndef CHPP_DEBUG_NOT_NULL
+#define CHPP_DEBUG_NOT_NULL(var) CHPP_DEBUG_ASSERT((var) != NULL)
+#endif
+
 #ifndef CHPP_DEBUG_ASSERT_LOG
 #define CHPP_DEBUG_ASSERT_LOG(var, fmt, ...) \
   do {                                       \

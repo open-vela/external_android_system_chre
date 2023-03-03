@@ -21,13 +21,13 @@
 extern "C" {
 #endif
 
-#define CHPP_PLATFORM_LINK_TX_MTU_BYTES 1280
-#define CHPP_PLATFORM_LINK_RX_MTU_BYTES 1280
+#define CHPP_TEST_LINK_TX_MTU_BYTES ((size_t)1280)
+#define CHPP_TEST_LINK_RX_MTU_BYTES ((size_t)1280)
 
-#define CHPP_PLATFORM_TRANSPORT_TIMEOUT_MS 10
-
-struct ChppPlatformLinkParameters {
+struct ChppTestLinkState {
   void *fake;
+  uint8_t txBuffer[CHPP_TEST_LINK_TX_MTU_BYTES];
+  const struct ChppTransportState *transportContext;
 };
 
 #ifdef __cplusplus

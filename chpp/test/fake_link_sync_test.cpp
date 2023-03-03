@@ -25,42 +25,73 @@
 #include "chpp/crc.h"
 #include "chpp/link.h"
 #include "chpp/log.h"
+#include "chpp/platform/platform_link.h"
 #include "chpp/transport.h"
 #include "fake_link.h"
 #include "packet_util.h"
 
 using chpp::test::FakeLink;
 
-void chppPlatformLinkInit(struct ChppPlatformLinkParameters *params) {
-  params->fake = new FakeLink();
+namespace {
+
+static void init(void *linkContext,
+                 struct ChppTransportState *transportContext) {
+  auto context = static_cast<struct ChppTestLinkState *>(linkContext);
+  context->fake = new FakeLink();
+  context->transportContext = transportContext;
 }
 
-void chppPlatformLinkDeinit(struct ChppPlatformLinkParameters *params) {
-  auto *fake = reinterpret_cast<FakeLink *>(params->fake);
+static void deinit(void *linkContext) {
+  auto context = static_cast<struct ChppTestLinkState *>(linkContext);
+  auto *fake = reinterpret_cast<FakeLink *>(context->fake);
   delete fake;
 }
 
-enum ChppLinkErrorCode chppPlatformLinkSend(
-    struct ChppPlatformLinkParameters *params, uint8_t *buf, size_t len) {
-  auto *fake = reinterpret_cast<FakeLink *>(params->fake);
-  fake->appendTxPacket(buf, len);
+static enum ChppLinkErrorCode send(void *linkContext, size_t len) {
+  auto context = static_cast<struct ChppTestLinkState *>(linkContext);
+  auto *fake = reinterpret_cast<FakeLink *>(context->fake);
+  fake->appendTxPacket(&context->txBuffer[0], len);
   return CHPP_LINK_ERROR_NONE_SENT;
 }
 
-void chppPlatformLinkDoWork(struct ChppPlatformLinkParameters * /*params*/,
-                            uint32_t /*signal*/) {}
+static void doWork(void * /*linkContext*/, uint32_t /*signal*/) {}
 
-void chppPlatformLinkReset(struct ChppPlatformLinkParameters * /*params*/) {}
+static void reset(void * /*linkContext*/) {}
+
+struct ChppLinkConfiguration getConfig(void * /*linkContext*/) {
+  return ChppLinkConfiguration{
+      .txBufferLen = CHPP_TEST_LINK_TX_MTU_BYTES,
+      .rxBufferLen = CHPP_TEST_LINK_RX_MTU_BYTES,
+  };
+}
+
+uint8_t *getTxBuffer(void *linkContext) {
+  auto context = static_cast<struct ChppTestLinkState *>(linkContext);
+  return &context->txBuffer[0];
+}
+
+}  // namespace
+
+const struct ChppLinkApi gLinkApi = {
+    .init = &init,
+    .deinit = &deinit,
+    .send = &send,
+    .doWork = &doWork,
+    .reset = &reset,
+    .getConfig = &getConfig,
+    .getTxBuffer = &getTxBuffer,
+};
 
 namespace chpp::test {
 
 class FakeLinkSyncTests : public testing::Test {
  protected:
   void SetUp() override {
-    chppTransportInit(&mTransportContext, &mAppContext);
+    chppTransportInit(&mTransportContext, &mAppContext, &mLinkContext,
+                      &gLinkApi);
     chppAppInitWithClientServiceSet(&mAppContext, &mTransportContext,
                                     /*clientServiceSet=*/{});
-    mFakeLink = reinterpret_cast<FakeLink *>(mTransportContext.linkParams.fake);
+    mFakeLink = reinterpret_cast<FakeLink *>(mLinkContext.fake);
 
     mWorkThread = std::thread(chppWorkThreadStart, &mTransportContext);
 
@@ -96,7 +127,7 @@ class FakeLinkSyncTests : public testing::Test {
 
   ChppTransportState mTransportContext = {};
   ChppAppState mAppContext = {};
-  ChppPlatformLinkParameters mLinkContext = {};
+  ChppTestLinkState mLinkContext = {};
   FakeLink *mFakeLink;
   std::thread mWorkThread;
 };

@@ -63,9 +63,7 @@ ChppResetPacket generateResetPacket(uint8_t ackSeq, uint8_t seq) {
         .minor = 0,
         .patch = 0,
       },
-      .rxMtu = CHPP_PLATFORM_LINK_RX_MTU_BYTES,
       .windowSize = 1,
-      .timeoutInMs = CHPP_PLATFORM_TRANSPORT_TIMEOUT_MS,
     }
   };
   // clang-format on
@@ -219,9 +217,7 @@ void dumpConfig(std::ostream &os, const ChppTransportConfiguration &cfg) {
      << "  version: " << std::dec << (unsigned)cfg.version.major << "."
      << std::dec << (unsigned)cfg.version.minor << "." << std::dec
      << cfg.version.patch << std::endl
-     << "  rxMtu: " << std::dec << cfg.rxMtu << std::endl
      << "  windowSize: " << std::dec << cfg.windowSize << std::endl
-     << "  timeoutInMs: " << std::dec << cfg.timeoutInMs << std::endl
      << "}" << std::endl;
 }
 
@@ -334,9 +330,7 @@ bool comparePacket(const std::vector<uint8_t> &received,
     EXPECT_EQ(rx->config.version.major, expected.config.version.major);
     EXPECT_EQ(rx->config.version.minor, expected.config.version.minor);
     EXPECT_EQ(rx->config.version.patch, expected.config.version.patch);
-    EXPECT_EQ(rx->config.rxMtu, expected.config.rxMtu);
     EXPECT_EQ(rx->config.windowSize, expected.config.windowSize);
-    EXPECT_EQ(rx->config.timeoutInMs, expected.config.timeoutInMs);
     EXPECT_EQ(rx->footer.checksum, expected.footer.checksum);
   }
   return (received.size() == sizeof(expected) &&
