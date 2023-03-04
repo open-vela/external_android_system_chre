@@ -77,7 +77,8 @@ class MultiClientContextHubBase
   ScopedAStatus onHostEndpointConnected(const HostEndpointInfo &info) override;
   ScopedAStatus onHostEndpointDisconnected(char16_t in_hostEndpointId) override;
   ScopedAStatus getPreloadedNanoappIds(std::vector<int64_t> *result) override;
-  ScopedAStatus onNanSessionStateChanged(bool in_state) override;
+  ScopedAStatus onNanSessionStateChanged(
+      const NanSessionStateUpdate &in_update) override;
   ScopedAStatus setTestMode(bool enable) override;
 
   // The callback function implementing ChreConnectionCallback
