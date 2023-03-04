@@ -23,8 +23,43 @@
 #include "chre/platform/shared/loader_util.h"
 
 #include "chre/util/dynamic_vector.h"
+#include "chre/util/optional.h"
 
 namespace chre {
+
+/**
+ * @struct:
+ *   AtExitCallback
+ *
+ * @description:
+ *   Store callback information for both atexit and __cxa_atexit.
+ *
+ * @fields:
+ *   func0 ::
+ *     Callback function for atexit (no arg).
+ *
+ *   func1 ::
+ *     Callback function for __cxa_atexit (one arg).
+ *
+ *   arg ::
+ *     Optional arg for __cxa_atexit only.
+ */
+struct AtExitCallback {
+  union {
+    void (*func0)(void);
+    void (*func1)(void *);
+  };
+  Optional<void *> arg;
+
+  AtExitCallback(void (*func)(void)) {
+    func0 = func;
+  }
+
+  AtExitCallback(void (*func)(void *), void *a) {
+    func1 = func;
+    arg = a;
+  }
+};
 
 /**
  * Provides dynamic loading support for nanoapps on FreeRTOS-based platforms.
@@ -82,10 +117,10 @@ class NanoappLoader {
    * Registers a function provided through atexit during static initialization
    * that should be called prior to unloading a nanoapp.
    *
-   * @param function Function that should be invoked prior to unloading a
+   * @param callback Callback info that should be invoked prior to unloading a
    *     nanoapp.
    */
-  void registerAtexitFunction(void (*function)(void));
+  void registerAtexitFunction(struct AtExitCallback &cb);
 
   /**
    * Rounds the given address down to the closest alignment boundary.
@@ -164,7 +199,7 @@ class NanoappLoader {
   //! Dynamic vector containing functions that should be invoked prior to
   //! unloading this nanoapp. Note that functions are stored in the order they
   //! were added and should be called in reverse.
-  DynamicVector<void (*)(void)> mAtexitFunctions;
+  DynamicVector<struct AtExitCallback> mAtexitFunctions;
   //! Whether this loader instance is managing a TCM nanoapp binary.
   bool mIsTcmBinary = false;
 
