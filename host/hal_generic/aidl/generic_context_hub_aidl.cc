@@ -331,8 +331,9 @@ ScopedAStatus ContextHub::onHostEndpointDisconnected(
   return ndk::ScopedAStatus::ok();
 }
 
-ScopedAStatus ContextHub::onNanSessionStateChanged(bool /*in_state*/) {
-  // TODO(229888878): Add support for NAN session management.
+ScopedAStatus ContextHub::onNanSessionStateChanged(
+    const NanSessionStateUpdate & /*in_update*/) {
+  // TODO(271471342): Add support for NAN session management.
   return ndk::ScopedAStatus::ok();
 }
 

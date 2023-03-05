@@ -82,7 +82,8 @@ class ContextHub : public BnContextHub,
       const HostEndpointInfo &in_info) override;
   ::ndk::ScopedAStatus onHostEndpointDisconnected(
       char16_t in_hostEndpointId) override;
-  ::ndk::ScopedAStatus onNanSessionStateChanged(bool in_state) override;
+  ::ndk::ScopedAStatus onNanSessionStateChanged(
+      const NanSessionStateUpdate &in_update) override;
 
   void onNanoappMessage(const ::chre::fbs::NanoappMessageT &message) override;
 

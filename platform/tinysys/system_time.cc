@@ -22,21 +22,21 @@ extern "C" {
 #include "xgpt.h"
 }
 
-namespace chre {
+extern int64_t ap_sync_time_offset;
 
-namespace {
-int64_t gEstimatedHostTimeOffset = 0;
-}  // anonymous namespace
+namespace chre {
 
 Nanoseconds SystemTime::getMonotonicTime() {
   return Nanoseconds(get_boot_time_ns());
 }
 
 int64_t SystemTime::getEstimatedHostTimeOffset() {
-  return gEstimatedHostTimeOffset;
+  // TODO(b/264541538): switch to use timesync_get_host_offset_time()
+  // API when we go to the U build
+  return ap_sync_time_offset;
 }
 
 void SystemTime::setEstimatedHostTimeOffset(int64_t offset) {
-  gEstimatedHostTimeOffset = offset;
+  // not implemented for Tinysys
 }
 }  // namespace chre
