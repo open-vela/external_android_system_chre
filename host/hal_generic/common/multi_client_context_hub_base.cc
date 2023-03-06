@@ -253,7 +253,7 @@ ScopedAStatus MultiClientContextHubBase::queryNanoapps(int32_t contextHubId) {
 }
 
 ScopedAStatus MultiClientContextHubBase::getPreloadedNanoappIds(
-    std::vector<int64_t> * /*result*/) {
+    int32_t /* contextHubId */, std::vector<int64_t> * /*result*/) {
   // To be implemented.
   return ScopedAStatus::ok();
 }
