@@ -76,7 +76,8 @@ class MultiClientContextHubBase
                                  const ContextHubMessage &message) override;
   ScopedAStatus onHostEndpointConnected(const HostEndpointInfo &info) override;
   ScopedAStatus onHostEndpointDisconnected(char16_t in_hostEndpointId) override;
-  ScopedAStatus getPreloadedNanoappIds(std::vector<int64_t> *result) override;
+  ScopedAStatus getPreloadedNanoappIds(int32_t contextHubId,
+                                       std::vector<int64_t> *result) override;
   ScopedAStatus onNanSessionStateChanged(
       const NanSessionStateUpdate &in_update) override;
   ScopedAStatus setTestMode(bool enable) override;
