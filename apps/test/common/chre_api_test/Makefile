@@ -24,6 +24,7 @@ NANOAPP_PATH = $(CHRE_PREFIX)/apps/test/common/chre_api_test
 # Source Code ##################################################################
 
 COMMON_SRCS += $(NANOAPP_PATH)/src/chre_api_test_manager.cc
+COMMON_SRCS += $(NANOAPP_PATH)/src/chre_api_test_service.cc
 COMMON_SRCS += $(NANOAPP_PATH)/src/chre_api_test.cc
 
 # Utilities ####################################################################
