@@ -22,7 +22,7 @@ TOKEN_MAP_CSV_GEN_CMD = $(PYTHON) $(PIGWEED_SCRIPTS_DIR)/database.py create \
 
 # Pigweed source files
 COMMON_SRCS += $(PIGWEED_DIR)/pw_tokenizer/encode_args.cc
-COMMON_SRCS += $(PIGWEED_DIR)/pw_tokenizer/tokenize_to_global_handler_with_payload.cc
+COMMON_SRCS += $(PIGWEED_DIR)/pw_tokenizer/tokenize.cc
 COMMON_SRCS += $(PIGWEED_DIR)/pw_varint/varint.cc
 
 # Pigweed include paths

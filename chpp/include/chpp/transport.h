@@ -278,21 +278,17 @@ struct ChppVersion {
 CHPP_PACKED_END
 
 /**
- * Payload that is sent along reset and reset-ack packets.
+ * Payload that is sent along reset and reset-ack packets. This may be used to
+ * advertise the configuration parameters of this CHPP instance, and/or set the
+ * configuration parameters of the remote side (TODO).
  */
 CHPP_PACKED_START
 struct ChppTransportConfiguration {
   //! CHPP transport version.
   struct ChppVersion version;
 
-  //! CHPP 1.0.0 unused "Receive MTU size".
-  uint16_t reserved1;
-
-  //! CHPP 1.0.0 unused "window size".
-  uint16_t reserved2;
-
-  //! CHPP 1.0.0 unused "Transport layer timeout in milliseconds".
-  uint16_t reserved3;
+  //! Max outstanding packet window size (1 for current implementation).
+  uint16_t windowSize;
 } CHPP_PACKED_ATTR;
 CHPP_PACKED_END
 // LINT.ThenChange(chpp/test/packet_util.cpp)
