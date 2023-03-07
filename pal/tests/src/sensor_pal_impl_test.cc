@@ -44,6 +44,10 @@ using ::chre::Optional;
 using ::chre::UniquePtr;
 using ::testing::ElementsAre;
 
+const struct chrePalSensorApi *gApi = nullptr;
+
+constexpr uint32_t kTimeoutMultiplier = 10;
+
 class Callbacks {
  public:
   void samplingStatusUpdateCallback(uint32_t sensorInfoIndex,
@@ -58,12 +62,18 @@ class Callbacks {
 
   void dataEventCallback(uint32_t sensorInfoIndex, void *data) {
     LockGuard<Mutex> lock(mMutex);
+    if (gApi == nullptr) {
+      return;
+    }
+
     if (!mEventSensorIndices.full()) {
       mEventSensorIndices.push_back(sensorInfoIndex);
       mEventData.push_back(data);
       if (mEventSensorIndices.full()) {
         mCondVarEvents.notify_one();
       }
+    } else {
+      gApi->releaseSensorDataEvent(data);
     }
   }
 
@@ -125,24 +135,21 @@ void flushCompleteCallback(uint32_t sensorInfoIndex, uint32_t flushRequestId,
 class PalSensorTest : public testing::Test {
  protected:
   void SetUp() override {
-    chre::TaskManagerSingleton::init();
     gCallbacks = MakeUnique<Callbacks>();
-    mApi = chrePalSensorGetApi(CHRE_PAL_SENSOR_API_CURRENT_VERSION);
-    ASSERT_NE(mApi, nullptr);
-    EXPECT_EQ(mApi->moduleVersion, CHRE_PAL_SENSOR_API_CURRENT_VERSION);
-    ASSERT_TRUE(mApi->open(&gChrePalSystemApi, &mPalCallbacks));
+    chre::TaskManagerSingleton::init();
+    gApi = chrePalSensorGetApi(CHRE_PAL_SENSOR_API_CURRENT_VERSION);
+    ASSERT_NE(gApi, nullptr);
+    EXPECT_EQ(gApi->moduleVersion, CHRE_PAL_SENSOR_API_CURRENT_VERSION);
+    ASSERT_TRUE(gApi->open(&gChrePalSystemApi, &mPalCallbacks));
   }
 
   void TearDown() override {
-    gCallbacks = nullptr;
-    if (mApi != nullptr) {
-      mApi->close();
+    if (gApi != nullptr) {
+      gApi->close();
     }
     chre::TaskManagerSingleton::deinit();
+    gCallbacks = nullptr;
   }
-
-  //! CHRE PAL implementation API.
-  const struct chrePalSensorApi *mApi;
 
   const struct chrePalSensorCallbacks mPalCallbacks = {
       .samplingStatusUpdateCallback = samplingStatusUpdateCallback,
@@ -156,53 +163,55 @@ TEST_F(PalSensorTest, GetTheListOfSensors) {
   const struct chreSensorInfo *sensors;
   uint32_t arraySize;
 
-  EXPECT_TRUE(mApi->getSensors(&sensors, &arraySize));
+  EXPECT_TRUE(gApi->getSensors(&sensors, &arraySize));
   EXPECT_EQ(arraySize, 1);
   EXPECT_STREQ(sensors[0].sensorName, "Test Accelerometer");
 }
 
-// TODO(b/270179898) restore when fixed.
-// TEST_F(PalSensorTest, EnableAContinuousSensor) {
-//   EXPECT_TRUE(mApi->configureSensor(
-//       0 /*sensorInfoIndex*/, CHRE_SENSOR_CONFIGURE_MODE_CONTINUOUS,
-//       kOneMillisecondInNanoseconds /*intervalNs*/, 0 /*latencyNs*/));
-
-//   LockGuard<Mutex> lock(gCallbacks->mMutex);
-//   gCallbacks->mCondVarStatus.wait_for(
-//       gCallbacks->mMutex, Nanoseconds(kOneMillisecondInNanoseconds));
-//   EXPECT_TRUE(gCallbacks->mStatusSensorIndex.has_value());
-//   EXPECT_EQ(gCallbacks->mStatusSensorIndex.value(), 0);
-//   EXPECT_TRUE(gCallbacks->mStatus.has_value());
-//   EXPECT_TRUE(gCallbacks->mStatus.value()->enabled);
-//   mApi->releaseSamplingStatusEvent(gCallbacks->mStatus.value());
-
-//   gCallbacks->mCondVarEvents.wait_for(
-//       gCallbacks->mMutex,
-//       Nanoseconds((2 + gCallbacks->kNumEvents) * kOneMillisecondInNanoseconds));
-//   EXPECT_TRUE(gCallbacks->mEventSensorIndices.full());
-//   EXPECT_THAT(gCallbacks->mEventSensorIndices, ElementsAre(0, 0, 0));
-//   EXPECT_TRUE(gCallbacks->mEventData.full());
-//   for (void *data : gCallbacks->mEventData) {
-//     auto threeAxisData =
-//         static_cast<const struct chreSensorThreeAxisData *>(data);
-//     EXPECT_EQ(threeAxisData->header.readingCount, 1);
-//     mApi->releaseSensorDataEvent(data);
-//   }
-// }
-
-TEST_F(PalSensorTest, DisableAContinuousSensor) {
-  EXPECT_TRUE(mApi->configureSensor(
-      0 /*sensorInfoIndex*/, CHRE_SENSOR_CONFIGURE_MODE_DONE,
-      kOneMillisecondInNanoseconds /*intervalNs*/, 0 /*latencyNs*/));
+TEST_F(PalSensorTest, EnableAContinuousSensor) {
+  EXPECT_TRUE(gApi->configureSensor(
+      0 /* sensorInfoIndex */, CHRE_SENSOR_CONFIGURE_MODE_CONTINUOUS,
+      kOneMillisecondInNanoseconds /* intervalNs */, 0 /* latencyNs */));
 
   LockGuard<Mutex> lock(gCallbacks->mMutex);
   gCallbacks->mCondVarStatus.wait_for(
-      gCallbacks->mMutex, Nanoseconds(kOneMillisecondInNanoseconds));
+      gCallbacks->mMutex,
+      Nanoseconds(kTimeoutMultiplier * kOneMillisecondInNanoseconds));
+  ASSERT_TRUE(gCallbacks->mStatusSensorIndex.has_value());
+  EXPECT_EQ(gCallbacks->mStatusSensorIndex.value(), 0);
+  ASSERT_TRUE(gCallbacks->mStatus.has_value());
+  EXPECT_TRUE(gCallbacks->mStatus.value()->enabled);
+  gApi->releaseSamplingStatusEvent(gCallbacks->mStatus.value());
+
+  gCallbacks->mCondVarEvents.wait_for(
+      gCallbacks->mMutex,
+      Nanoseconds((2 + gCallbacks->kNumEvents) * kTimeoutMultiplier *
+                  kOneMillisecondInNanoseconds));
+  EXPECT_TRUE(gCallbacks->mEventSensorIndices.full());
+  EXPECT_THAT(gCallbacks->mEventSensorIndices, ElementsAre(0, 0, 0));
+  EXPECT_TRUE(gCallbacks->mEventData.full());
+  for (void *data : gCallbacks->mEventData) {
+    auto threeAxisData =
+        static_cast<const struct chreSensorThreeAxisData *>(data);
+    EXPECT_EQ(threeAxisData->header.readingCount, 1);
+    gApi->releaseSensorDataEvent(data);
+  }
+}
+
+TEST_F(PalSensorTest, DisableAContinuousSensor) {
+  EXPECT_TRUE(gApi->configureSensor(
+      0 /* sensorInfoIndex */, CHRE_SENSOR_CONFIGURE_MODE_DONE,
+      kOneMillisecondInNanoseconds /* intervalNs */, 0 /* latencyNs */));
+
+  LockGuard<Mutex> lock(gCallbacks->mMutex);
+  gCallbacks->mCondVarStatus.wait_for(
+      gCallbacks->mMutex,
+      Nanoseconds(kTimeoutMultiplier * kOneMillisecondInNanoseconds));
   EXPECT_TRUE(gCallbacks->mStatusSensorIndex.has_value());
   EXPECT_EQ(gCallbacks->mStatusSensorIndex.value(), 0);
   EXPECT_TRUE(gCallbacks->mStatus.has_value());
   EXPECT_FALSE(gCallbacks->mStatus.value()->enabled);
-  mApi->releaseSamplingStatusEvent(gCallbacks->mStatus.value());
+  gApi->releaseSamplingStatusEvent(gCallbacks->mStatus.value());
 }
 
 }  // namespace
