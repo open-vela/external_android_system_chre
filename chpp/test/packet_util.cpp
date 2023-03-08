@@ -63,7 +63,6 @@ ChppResetPacket generateResetPacket(uint8_t ackSeq, uint8_t seq) {
         .minor = 0,
         .patch = 0,
       },
-      .windowSize = 1,
     }
   };
   // clang-format on
@@ -217,7 +216,6 @@ void dumpConfig(std::ostream &os, const ChppTransportConfiguration &cfg) {
      << "  version: " << std::dec << (unsigned)cfg.version.major << "."
      << std::dec << (unsigned)cfg.version.minor << "." << std::dec
      << cfg.version.patch << std::endl
-     << "  windowSize: " << std::dec << cfg.windowSize << std::endl
      << "}" << std::endl;
 }
 
@@ -330,7 +328,6 @@ bool comparePacket(const std::vector<uint8_t> &received,
     EXPECT_EQ(rx->config.version.major, expected.config.version.major);
     EXPECT_EQ(rx->config.version.minor, expected.config.version.minor);
     EXPECT_EQ(rx->config.version.patch, expected.config.version.patch);
-    EXPECT_EQ(rx->config.windowSize, expected.config.windowSize);
     EXPECT_EQ(rx->footer.checksum, expected.footer.checksum);
   }
   return (received.size() == sizeof(expected) &&
