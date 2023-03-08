@@ -125,6 +125,14 @@ inline T *memoryAlloc(Args &&... args) {
   return storage;
 }
 
+template <typename T>
+void memoryFreeAndDestroy(T *element) {
+  if (element != nullptr) {
+    element->~T();
+    memoryFree(element);
+  }
+}
+
 }  // namespace chre
 
 #endif  // CHRE_UTIL_MEMORY_IMPL_H_
