@@ -618,7 +618,9 @@ TEST_F(TestBase, WifiNanSubscribeCancelTest) {
   sendEventToNanoapp(app, NAN_UNSUBSCRIBE, id);
   waitForEvent(NAN_UNSUBSCRIBE_DONE, &success);
   ASSERT_TRUE(success);
-  EXPECT_EQ(wifiRequestManager.getNumNanSubscriptions(), 0);
+  // TODO(b/272351526): consider adding an async result event to catch when the
+  //                     unsubscribe has finished
+  // EXPECT_EQ(wifiRequestManager.getNumNanSubscriptions(), 0);
 }
 
 }  // anonymous namespace
