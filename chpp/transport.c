@@ -1772,10 +1772,6 @@ void chppTransportSendReset(struct ChppTransportState *context,
     config->version.minor = 0;
     config->version.patch = 0;
 
-    // Max Rx window size
-    // Note: current implementation does not support a window size >1
-    config->windowSize = 1;
-
     if (resetType == CHPP_TRANSPORT_ATTR_RESET_ACK) {
       CHPP_LOGD("Sending RESET-ACK");
       chppSetResetComplete(context);
