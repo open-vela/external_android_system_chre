@@ -26,7 +26,7 @@
 #include "chre/util/pigweed/rpc_server.h"
 #include "chre/util/singleton.h"
 #include "chre_api/chre.h"
-#include "rpc/rpc_world.rpc.pb.h"
+#include "rpc_world.rpc.pb.h"
 
 class RpcWorldService final
     : public chre::rpc::pw_rpc::nanopb::RpcWorldService::Service<
