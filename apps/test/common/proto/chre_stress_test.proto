@@ -54,8 +54,6 @@ message TestCommand {
     SENSORS = 6;
     // Audio stress testing.
     AUDIO = 7;
-    // Enables BLE test only.
-    BLE = 8;
   }
 
   // The feature to test.

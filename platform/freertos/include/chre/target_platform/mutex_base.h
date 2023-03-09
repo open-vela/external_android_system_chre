@@ -30,7 +30,7 @@ namespace chre {
  */
 class MutexBase {
  protected:
-  SemaphoreHandle_t mSemaphoreHandle;
+  SemaphoreHandle_t mSemaphoreHandle = NULL;
 
   /**
    * Initialize the mutex handle using a static semaphore
@@ -41,10 +41,10 @@ class MutexBase {
     mSemaphoreHandle = xSemaphoreCreateMutex();
 #else
     mSemaphoreHandle = xSemaphoreCreateMutexStatic(&mStaticSemaphore);
+#endif
     if (mSemaphoreHandle == NULL) {
       FATAL_ERROR("Failed to initialize mutex");
     }
-#endif
   }
 
  private:
