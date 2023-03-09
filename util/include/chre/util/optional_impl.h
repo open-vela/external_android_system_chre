@@ -18,11 +18,15 @@
 #define UTIL_CHRE_OPTIONAL_IMPL_H_
 
 #include <new>
+#include <optional>
 #include <utility>
 
 #include "chre/util/optional.h"
 
 namespace chre {
+
+template <typename ObjectType>
+Optional<ObjectType>::Optional(std::nullopt_t) {}
 
 template <typename ObjectType>
 Optional<ObjectType>::Optional(const ObjectType &object) {
