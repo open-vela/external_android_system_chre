@@ -17,13 +17,9 @@
 #ifndef UTIL_CHRE_OPTIONAL_H_
 #define UTIL_CHRE_OPTIONAL_H_
 
-#include <optional>
 #include <type_traits>
 
 namespace chre {
-
-/** Alias chre::nullopt to std::nullopt */
-inline constexpr std::nullopt_t nullopt = std::nullopt;
 
 /**
  * This container keeps track of an optional object. The container is similar to
@@ -41,11 +37,6 @@ class Optional {
    * Default constructs the optional object with no initial value.
    */
   Optional() = default;
-
-  /**
-   * Constructs the optional object with no initial value.
-   */
-  Optional(std::nullopt_t);
 
   /**
    * Default copy constructor.
