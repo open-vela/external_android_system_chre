@@ -183,6 +183,7 @@ public class ContextHubStressTestExecutor extends ContextHubClientCallback {
                 ChreStressTest.TestCommand.Feature.WWAN,
                 ChreStressTest.TestCommand.Feature.SENSORS,
                 ChreStressTest.TestCommand.Feature.AUDIO,
+                ChreStressTest.TestCommand.Feature.BLE,
         };
 
         mTestResult.set(null);
