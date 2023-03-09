@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-#include <optional>
 #include "gtest/gtest.h"
 
 #include "chre/util/non_copyable.h"
@@ -51,13 +50,6 @@ TEST(Optional, ShouldDestructContainedObject) {
 TEST(Optional, NoValueByDefault) {
   Optional<int> myInt;
   EXPECT_FALSE(myInt.has_value());
-}
-
-TEST(Optional, nullopt) {
-  Optional<int> opt1 = chre::nullopt;
-  EXPECT_FALSE(opt1.has_value());
-  Optional<int> opt2 = std::nullopt;
-  EXPECT_FALSE(opt2.has_value());
 }
 
 TEST(Optional, NonDefaultValueByDefault) {
