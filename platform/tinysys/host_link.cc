@@ -56,7 +56,8 @@ size_t gChreSubregionSendSize;
 
 // TODO(b/263958729): move it to HostLinkBase, and revisit buffer size
 // payload buffers
-uint32_t gChreRecvBuffer[CHRE_MESSAGE_TO_HOST_MAX_SIZE / sizeof(uint32_t)]
+#define CHRE_IPI_RECV_BUFFER_SIZE (CHRE_MESSAGE_TO_HOST_MAX_SIZE + 128)
+uint32_t gChreRecvBuffer[CHRE_IPI_RECV_BUFFER_SIZE / sizeof(uint32_t)]
     __attribute__((aligned(CACHE_LINE_SIZE)));
 
 #ifdef SCP_CHRE_USE_DMA
@@ -119,6 +120,13 @@ struct PendingMessage {
     ChreFlatBufferBuilder *builder;
   } data;
 };
+
+constexpr size_t kOutboundQueueSize = 32;
+// TODO(b/272061818): static class constructor not initialzed properly.
+// Use a dynamically allocated singleton for now as a work around.
+// FixedSizeBlockingQueue<PendingMessage, kOutboundQueueSize> gOutboundQueue;
+typedef Singleton<FixedSizeBlockingQueue<PendingMessage, kOutboundQueueSize>>
+    gOutboundQueue;
 
 typedef void(MessageBuilderFunction)(ChreFlatBufferBuilder &builder,
                                      void *cookie);
@@ -239,10 +247,7 @@ bool dequeueMessage(PendingMessage pendingMsg) {
  * @return true if the message was successfully added to the queue.
  */
 bool enqueueMessage(PendingMessage pendingMsg) {
-  // TODO(b/263958729): implement output queue
-  //   return gOutboundQueue.push(pendingMsg);
-  // For now, just send the message right away
-  return dequeueMessage(pendingMsg);
+  return gOutboundQueue::get()->push(pendingMsg);
 }
 
 /**
@@ -349,18 +354,30 @@ HostLinkBase::HostLinkBase() {
   initializeIpi();
 }
 
-void HostLinkBase::vChreTask(void *pvParameters) {
+HostLinkBase::~HostLinkBase() {
+  LOGV("HostLinkBase::%s", __func__);
+  gOutboundQueue::deinit();
+}
+
+void HostLinkBase::vChreReceiveTask(void *pvParameters) {
   int i = 0;
   int ret = 0;
 
   LOGV("%s", __func__);
-  while (1) {
+  while (true) {
     LOGV("%s calling ipi_recv_reply(), Cnt=%d", __func__, i++);
     ret = ipi_recv_reply(IPI_IN_C_HOST_SCP_CHRE, (void *)&gChreIpiAckToHost[0],
                          1);
     if (ret != IPI_ACTION_DONE)
       LOGE("%s ipi_recv_reply() ret = %d", __func__, ret);
     LOGV("%s reply_end", __func__);
+  }
+}
+
+void HostLinkBase::vChreSendTask(void *pvParameters) {
+  while (true) {
+    auto msg = gOutboundQueue::get()->pop();
+    dequeueMessage(msg);
   }
 }
 
@@ -411,6 +428,8 @@ void HostLinkBase::initializeIpi(void) {
   LOGV("%s", __func__);
   bool success = false;
   int ret;
+  constexpr size_t kBackgroundTaskStackSize = 1024;
+  constexpr UBaseType_t kBackgroundTaskPriority = 2;
 
   // prepared share memory information and register the callback functions
   if (!(ret = scp_get_reserve_mem_by_id(SCP_CHRE_FROM_MEM_ID,
@@ -421,8 +440,9 @@ void HostLinkBase::initializeIpi(void) {
                                                &gChreSubregionSendAddr,
                                                &gChreSubregionSendSize))) {
     LOGE("%s: get SCP_CHRE_TO_MEM_ID memory fail", __func__);
-  } else if (pdPASS !=
-             xTaskCreate(vChreTask, "CHRE", 1024, (void *)0, 2, NULL)) {
+  } else if (pdPASS != xTaskCreate(vChreReceiveTask, "CHRE_RECEIVE",
+                                   kBackgroundTaskStackSize, (void *)0,
+                                   kBackgroundTaskPriority, NULL)) {
     LOGE("%s failed to create ipi receiver task", __func__);
   } else if (IPI_ACTION_DONE !=
              (ret = ipi_register(IPI_IN_C_HOST_SCP_CHRE, (void *)chreIpiHandler,
@@ -434,6 +454,13 @@ void HostLinkBase::initializeIpi(void) {
     LOGE("ipi_register IPI_OUT_C_SCP_HOST_CHRE failed, %d", ret);
   } else {
     success = true;
+  }
+
+  if (success) {
+    gOutboundQueue::init();
+    success = (pdPASS == xTaskCreate(vChreSendTask, "CHRE_SEND",
+                                     kBackgroundTaskStackSize, (void *)0,
+                                     kBackgroundTaskPriority, NULL));
   }
 
   if (!success) {
@@ -583,17 +610,29 @@ void HostMessageHandlers::sendFragmentResponse(uint16_t hostClientId,
                                                uint32_t transactionId,
                                                uint32_t fragmentId,
                                                bool success) {
-  constexpr size_t kInitialBufferSize = 52;
-  ChreFlatBufferBuilder builder(kInitialBufferSize);
-  HostProtocolChre::encodeLoadNanoappResponse(
-      builder, hostClientId, transactionId, success, fragmentId);
+  struct FragmentedLoadInfoResponse {
+    uint16_t hostClientId;
+    uint32_t transactionId;
+    uint32_t fragmentId;
+    bool success;
+  };
 
-  if (!getHostCommsManager().send(builder.GetBufferPointer(),
-                                  builder.GetSize())) {
-    LOGE("Failed to send fragment response for HostClientID: %" PRIx16
-         " , FragmentID: %" PRIx32 " transactionID: %" PRIx32,
-         hostClientId, fragmentId, transactionId);
-  }
+  auto msgBuilder = [](ChreFlatBufferBuilder &builder, void *cookie) {
+    auto *cbData = static_cast<FragmentedLoadInfoResponse *>(cookie);
+    HostProtocolChre::encodeLoadNanoappResponse(
+        builder, cbData->hostClientId, cbData->transactionId, cbData->success,
+        cbData->fragmentId);
+  };
+
+  FragmentedLoadInfoResponse response = {
+      .hostClientId = hostClientId,
+      .transactionId = transactionId,
+      .fragmentId = fragmentId,
+      .success = success,
+  };
+  constexpr size_t kInitialBufferSize = 52;
+  buildAndEnqueueMessage(PendingMessageType::LoadNanoappResponse,
+                         kInitialBufferSize, msgBuilder, &response);
 }
 
 void HostMessageHandlers::handleLoadNanoappRequest(
