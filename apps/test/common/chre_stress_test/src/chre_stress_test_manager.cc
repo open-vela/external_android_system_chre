@@ -20,9 +20,12 @@
 #include <pb_encode.h>
 
 #include "chre/util/macros.h"
+#include "chre/util/memory.h"
 #include "chre/util/nanoapp/audio.h"
+#include "chre/util/nanoapp/ble.h"
 #include "chre/util/nanoapp/callbacks.h"
 #include "chre/util/nanoapp/log.h"
+#include "chre/util/unique_ptr.h"
 #include "chre_stress_test.nanopb.h"
 #include "send_message.h"
 
@@ -43,11 +46,15 @@ namespace {
 
 constexpr chre::Nanoseconds kWifiScanInterval = chre::Seconds(5);
 constexpr chre::Nanoseconds kSensorRequestInterval = chre::Seconds(5);
-constexpr uint64_t kSensorSamplingDelayNs = 0;
 constexpr chre::Nanoseconds kAudioRequestInterval = chre::Seconds(5);
+constexpr chre::Nanoseconds kBleRequestInterval = chre::Seconds(5);
+constexpr uint64_t kSensorSamplingDelayNs = 0;
 constexpr uint8_t kAccelSensorIndex = 0;
 constexpr uint8_t kGyroSensorIndex = 1;
 constexpr uint8_t kInstantMotionSensorIndex = 1;
+
+//! Report delay for BLE scans.
+constexpr uint32_t gBleBatchDurationMs = 0;
 
 bool isRequestTypeForLocation(uint8_t requestType) {
   return (requestType == CHRE_GNSS_REQUEST_TYPE_LOCATION_SESSION_START) ||
@@ -57,6 +64,27 @@ bool isRequestTypeForLocation(uint8_t requestType) {
 bool isRequestTypeForMeasurement(uint8_t requestType) {
   return (requestType == CHRE_GNSS_REQUEST_TYPE_MEASUREMENT_SESSION_START) ||
          (requestType == CHRE_GNSS_REQUEST_TYPE_MEASUREMENT_SESSION_STOP);
+}
+
+bool enableBleScans() {
+  chreBleGenericFilter scanFilters[2];
+  uint8_t mask[2] = {0xFF, 0xFF};
+  // Google eddystone UUID.
+  uint8_t uuid1[2] = {0xFE, 0xAA};
+  scanFilters[0] = createBleGenericFilter(
+      CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16, 2, uuid1, mask);
+  // Google nearby fastpair UUID.
+  uint8_t uuid2[2] = {0xFE, 0x2C};
+  scanFilters[1] = createBleGenericFilter(
+      CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16, 2, uuid2, mask);
+  const struct chreBleScanFilter filter = {
+      .rssiThreshold = -128, .scanFilterCount = 2, .scanFilters = scanFilters};
+  return chreBleStartScanAsync(CHRE_BLE_SCAN_MODE_BACKGROUND,
+                               gBleBatchDurationMs, &filter);
+}
+
+bool disableBleScans() {
+  return chreBleStopScanAsync();
 }
 
 }  // anonymous namespace
@@ -137,6 +165,10 @@ void Manager::handleMessageFromHost(uint32_t senderInstanceId,
         }
         case chre_stress_test_TestCommand_Feature_AUDIO: {
           handleAudioStartCommand(testCommand.start);
+          break;
+        }
+        case chre_stress_test_TestCommand_Feature_BLE: {
+          handleBleStartCommand(testCommand.start);
           break;
         }
         default: {
@@ -223,6 +255,15 @@ void Manager::handleDataFromChre(uint16_t eventType, const void *eventData) {
           static_cast<const chreAudioSourceStatusEvent *>(eventData));
       break;
 
+    case CHRE_EVENT_BLE_ADVERTISEMENT:
+      handleBleAdvertismentEvent(
+          static_cast<const chreBleAdvertisementEvent *>(eventData));
+      break;
+
+    case CHRE_EVENT_BLE_ASYNC_RESULT:
+      handleBleAsyncResult(static_cast<const chreAsyncResult *>(eventData));
+      break;
+
     default:
       LOGW("Unknown event type %" PRIu16, eventType);
       break;
@@ -248,6 +289,8 @@ void Manager::handleTimerEvent(const uint32_t *handle) {
     sendFailure("GNSS measurement async result timed out");
   } else if (*handle == mWwanTimerHandle) {
     makeWwanCellInfoRequest();
+  } else if (*handle == mBleScanTimerHandle) {
+    makeBleScanRequest();
   } else if (*handle == mWifiScanMonitorAsyncTimerHandle) {
     sendFailure("WiFi scan monitor request timed out");
   } else if (*handle == mAudioTimerHandle) {
@@ -350,6 +393,29 @@ void Manager::validateGnssAsyncResult(const chreAsyncResult *result,
 
   cancelTimer(asyncTimerHandle);
   request.reset();
+}
+
+void Manager::handleBleAdvertismentEvent(
+    const chreBleAdvertisementEvent *event) {
+  for (uint8_t i = 0; i < event->numReports; i++) {
+    uint64_t timestamp =
+        event->reports[i].timestamp / chre::kOneMillisecondInNanoseconds;
+
+    checkTimestamp(timestamp, mPrevBleAdTimestampMs);
+    mPrevBleAdTimestampMs = timestamp;
+  }
+}
+
+void Manager::handleBleAsyncResult(const chreAsyncResult *result) {
+  const char *requestType =
+      result->requestType == CHRE_BLE_REQUEST_TYPE_START_SCAN ? "start"
+                                                              : "stop";
+  if (result->success) {
+    LOGI("BLE %s scan success", requestType);
+    mBleEnabled = (result->requestType == CHRE_BLE_REQUEST_TYPE_START_SCAN);
+  } else {
+    LOGW("BLE %s scan failure: %" PRIu8, requestType, result->errorCode);
+  }
 }
 
 void Manager::checkTimestamp(uint64_t timestamp, uint64_t pastTimestamp) {
@@ -624,6 +690,20 @@ void Manager::handleAudioStartCommand(bool start) {
   }
 }
 
+void Manager::handleBleStartCommand(bool start) {
+  if (chreBleGetCapabilities() & CHRE_BLE_CAPABILITIES_SCAN) {
+    mBleTestStarted = start;
+
+    if (start) {
+      makeBleScanRequest();
+    } else {
+      cancelTimer(&mBleScanTimerHandle);
+    }
+  } else {
+    sendFailure("Platform has no BLE capability");
+  }
+}
+
 void Manager::setTimer(uint64_t delayNs, bool oneShot, uint32_t *timerHandle) {
   *timerHandle = chreTimerSet(delayNs, timerHandle, oneShot);
   if (*timerHandle == CHRE_TIMER_INVALID) {
@@ -691,6 +771,23 @@ void Manager::stopSensorRequests() {
         LOGE("Failed to disable sensor: %s", sensor.info.sensorName);
       }
     }
+  }
+}
+
+void Manager::makeBleScanRequest() {
+  bool success = false;
+
+  if (!mBleEnabled) {
+    success = enableBleScans();
+  } else {
+    success = disableBleScans();
+  }
+
+  if (!success) {
+    LOGE("Failed to send BLE %s scan request", !mBleEnabled ? "start" : "stop");
+  } else {
+    setTimer(kBleRequestInterval.toRawNanoseconds(), true /* oneShot */,
+             &mBleScanTimerHandle);
   }
 }
 
