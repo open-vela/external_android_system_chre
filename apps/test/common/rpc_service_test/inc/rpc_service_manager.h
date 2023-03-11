@@ -25,7 +25,7 @@
 #include "chre/util/pigweed/rpc_server.h"
 #include "chre/util/singleton.h"
 #include "chre_api/chre.h"
-#include "pw_rpc/echo.rpc.pb.h"
+#include "echo.rpc.pb.h"
 
 namespace chre {
 namespace rpc_service_test {

@@ -17,7 +17,7 @@ endif
 NANOAPP_NAME = chre_stress_test
 NANOAPP_ID = 0x476f6f675400000a
 NANOAPP_NAME_STRING = \"CHRE\ Stress\ Test\"
-NANOAPP_VERSION = 0x00000006
+NANOAPP_VERSION = 0x00000007
 
 NANOAPP_PATH = $(CHRE_PREFIX)/apps/test/common/chre_stress_test
 TEST_SHARED_PATH = $(CHRE_PREFIX)/apps/test/common/shared
@@ -37,6 +37,7 @@ COMMON_SRCS += $(NANOAPP_PATH)/src/chre_stress_test.cc
 COMMON_SRCS += $(NANOAPP_PATH)/src/chre_stress_test_manager.cc
 COMMON_SRCS += $(TEST_SHARED_PATH)/src/send_message.cc
 COMMON_SRCS += $(CHRE_PREFIX)/util/nanoapp/callbacks.cc
+COMMON_SRCS += $(CHRE_PREFIX)/util/nanoapp/ble.cc
 
 # Compiler Flags ###############################################################
 
@@ -54,6 +55,7 @@ CHRE_NANOAPP_USES_WIFI = true
 CHRE_NANOAPP_USES_GNSS = true
 CHRE_NANOAPP_USES_WWAN = true
 CHRE_NANOAPP_USES_AUDIO = true
+CHRE_NANOAPP_USES_BLE = true
 
 # Makefile Includes ############################################################
 

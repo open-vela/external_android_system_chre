@@ -80,8 +80,7 @@ PW_RPC_GEN_SRCS = $(patsubst %.proto, \
 # Include to-be-generated files
 COMMON_CFLAGS += -I$(PW_RPC_GEN_PATH)
 COMMON_CFLAGS += -I$(PW_RPC_GEN_PATH)/$(PIGWEED_DIR)
-COMMON_CFLAGS += $(addprefix -I$(PW_RPC_GEN_PATH)/, $(abspath $(dir PW_RPC_SRCS)))
-COMMON_CFLAGS += $(addprefix -I$(PW_RPC_GEN_PATH)/, $(abspath $(NANOAPP_PATH)))
+COMMON_CFLAGS += $(addprefix -I$(PW_RPC_GEN_PATH)/, $(abspath $(dir $(PW_RPC_SRCS))))
 
 COMMON_SRCS += $(PW_RPC_GEN_SRCS)
 

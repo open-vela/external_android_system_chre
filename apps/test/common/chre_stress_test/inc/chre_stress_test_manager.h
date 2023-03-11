@@ -30,6 +30,13 @@ namespace chre {
 
 namespace stress_test {
 
+//! Lists types of BLE scan request.
+enum BleScanRequestType {
+  NO_FILTER = 0,
+  SERVICE_DATA_16 = 1,
+  STOP_SCAN = 2,
+};
+
 /**
  * A class to manage a CHRE stress test session.
  */
@@ -120,6 +127,7 @@ class Manager {
   void handleWifiScanMonitoringCommand(bool start);
   void handleSensorStartCommand(bool start);
   void handleAudioStartCommand(bool start);
+  void handleBleStartCommand(bool start);
 
   /**
    * @param result The WiFi async result from CHRE.
@@ -226,6 +234,29 @@ class Manager {
    */
   void makeAudioRequest();
 
+  /**
+   * @param event The BLE advertisement event from CHRE.
+   */
+  void handleBleAdvertismentEvent(const chreBleAdvertisementEvent *event);
+
+  /**
+   * @param event The BLE event from CHRE.
+   */
+  void handleBleAsyncResult(const chreAsyncResult *result);
+
+  /**
+   * Makes the next Ble request.
+   */
+  void makeBleScanRequest();
+
+  /**
+   * @param scanRequestType The current BLE scan request type.
+   *
+   * @return The pointer to a chreBleScanFilter that corresponds to the scan
+   * request type.
+   */
+  chreBleScanFilter *getBleScanFilter(BleScanRequestType &scanRequestType);
+
   //! The host endpoint of the current test host.
   Optional<uint16_t> mHostEndpoint;
 
@@ -240,6 +271,7 @@ class Manager {
   uint32_t mWifiScanMonitorAsyncTimerHandle = CHRE_TIMER_INVALID;
   uint32_t mSensorTimerHandle = CHRE_TIMER_INVALID;
   uint32_t mAudioTimerHandle = CHRE_TIMER_INVALID;
+  uint32_t mBleScanTimerHandle = CHRE_TIMER_INVALID;
 
   //! true if the test has been started for the feature.
   bool mWifiTestStarted = false;
@@ -248,12 +280,16 @@ class Manager {
   bool mWwanTestStarted = false;
   bool mSensorTestStarted = false;
   bool mAudioTestStarted = false;
+  bool mBleTestStarted = false;
 
   //! true if scan monitor is enabled for the nanoapp.
   bool mWifiScanMonitorEnabled = false;
 
   //! True if audio is enabled for the nanoapp.
   bool mAudioEnabled = false;
+
+  //! True if ble is enabled for the nanoapp.
+  bool mBleEnabled = false;
 
   //! The cookie to use for requests.
   const uint32_t kOnDemandWifiScanCookie = 0xface;
@@ -276,8 +312,15 @@ class Manager {
   uint64_t mPrevGyroEventTimestampNs = 0;
   uint64_t mPrevInstantMotionEventTimestampNs = 0;
   uint64_t mPrevAudioEventTimestampMs = 0;
+  uint64_t mPrevBleAdTimestampMs = 0;
 
-  //! The sensor sampling status
+  //! Number of ble scan mode.
+  static constexpr uint32_t kNumBleScanModes = 3;
+
+  //! List of all ble scan mode.
+  const chreBleScanMode kScanModes[kNumBleScanModes] = {
+      CHRE_BLE_SCAN_MODE_BACKGROUND, CHRE_BLE_SCAN_MODE_FOREGROUND,
+      CHRE_BLE_SCAN_MODE_AGGRESSIVE};
 
   //! Current number of sensors tested.
   static constexpr uint32_t kNumSensors = 3;

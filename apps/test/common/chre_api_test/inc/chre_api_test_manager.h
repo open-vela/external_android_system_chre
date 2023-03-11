@@ -24,7 +24,7 @@
 #include "chre/util/pigweed/rpc_server.h"
 #include "chre/util/singleton.h"
 #include "chre_api/chre.h"
-#include "rpc/chre_api_test.rpc.pb.h"
+#include "chre_api_test.rpc.pb.h"
 
 using ::chre::Optional;
 
