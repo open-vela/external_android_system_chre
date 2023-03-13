@@ -16,85 +16,70 @@
 
 #include "chre/platform/linux/pal_gnss.h"
 #include "chre/pal/gnss.h"
-#include "chre/platform/linux/task_util/task_manager.h"
-#include "chre/platform/log.h"
 
 #include "chre/util/memory.h"
 #include "chre/util/unique_ptr.h"
 
 #include <chrono>
 #include <cinttypes>
-#include <mutex>
-#include <optional>
+#include <future>
+#include <thread>
 
 /**
  * A simulated implementation of the GNSS PAL for the linux platform.
  */
 namespace {
-
-using chre::TaskManagerSingleton;
-
 const struct chrePalSystemApi *gSystemApi = nullptr;
 const struct chrePalGnssCallbacks *gCallbacks = nullptr;
 
-// Task to deliver asynchronous location data after a CHRE request.
-std::mutex gLocationEventsMutex;
-std::optional<uint32_t> gLocationEventsTaskId;
-std::optional<uint32_t> gLocationEventsChangeCallbackTaskId;
-uint32_t gLocationEventsMinIntervalMs = 0;
+//! Thread to deliver asynchronous location data after a CHRE request.
+std::thread gLocationEventsThread;
+std::promise<void> gStopLocationEventsThread;
+std::promise<void> gStartLocationEvents;
 bool gDelaySendingLocationEvents = false;
 bool gIsLocationEnabled = false;
 
-// Task to use when delivering a location status update.
-std::optional<uint32_t> gLocationStatusTaskId;
+//! Thead to use when delivering a location status update.
+std::thread gLocationStatusThread;
 
-// Task to deliver asynchronous measurement data after a CHRE request.
-std::optional<uint32_t> gMeasurementEventsChangeCallbackTaskId;
-std::optional<uint32_t> gMeasurementEventsTaskId;
+//! Thread to deliver asynchronous measurement data after a CHRE request.
+std::thread gMeasurementEventsThread;
+std::promise<void> gStopMeasurementEventsThread;
 bool gIsMeasurementEnabled = false;
 
-// Task to use when delivering a measurement status update.
-std::optional<uint32_t> gMeasurementStatusTaskId;
+//! Thead to use when delivering a measurement status update.
+std::thread gMeasurementStatusThread;
 
-// Passive listener flag.
-bool gIsPassiveListenerEnabled = false;
-
-void sendLocationEvents() {
-  if (!gIsLocationEnabled) {
-    return;
+void sendLocationEvents(uint32_t minIntervalMs) {
+  if (gDelaySendingLocationEvents) {
+    gStartLocationEvents.get_future().wait();
   }
+  gCallbacks->locationStatusChangeCallback(true, CHRE_ERROR_NONE);
 
-  auto event = chre::MakeUniqueZeroFill<struct chreGnssLocationEvent>();
-  event->timestamp = gSystemApi->getCurrentTime();
-  gCallbacks->locationEventCallback(event.release());
+  std::future<void> signal = gStopLocationEventsThread.get_future();
+  while (signal.wait_for(std::chrono::milliseconds(minIntervalMs)) ==
+         std::future_status::timeout) {
+    auto event = chre::MakeUniqueZeroFill<struct chreGnssLocationEvent>();
+    event->timestamp = gSystemApi->getCurrentTime();
+    gCallbacks->locationEventCallback(event.release());
+  }
 }
 
-void startSendingLocationEvents(uint32_t minIntervalMs) {
-  std::lock_guard<std::mutex> lock(gLocationEventsMutex);
-  if (gLocationEventsTaskId.has_value()) {
-    TaskManagerSingleton::get()->cancelTask(gLocationEventsTaskId.value());
+void sendMeasurementEvents(uint32_t minIntervalMs) {
+  gCallbacks->measurementStatusChangeCallback(true, CHRE_ERROR_NONE);
+
+  std::future<void> signal = gStopMeasurementEventsThread.get_future();
+  while (signal.wait_for(std::chrono::milliseconds(minIntervalMs)) ==
+         std::future_status::timeout) {
+    auto event = chre::MakeUniqueZeroFill<struct chreGnssDataEvent>();
+    auto measurement = chre::MakeUniqueZeroFill<struct chreGnssMeasurement>();
+    measurement->c_n0_dbhz = 63.0f;
+
+    event->measurements = measurement.release();
+    event->measurement_count = 1;
+    event->clock.time_ns = static_cast<int64_t>(gSystemApi->getCurrentTime());
+    gCallbacks->measurementEventCallback(event.release());
   }
-
-  gLocationEventsChangeCallbackTaskId = TaskManagerSingleton::get()->addTask(
-      []() { gCallbacks->locationStatusChangeCallback(true, CHRE_ERROR_NONE); },
-      std::chrono::milliseconds(0));
-
-  gLocationEventsTaskId = TaskManagerSingleton::get()->addTask(
-      sendLocationEvents, std::chrono::milliseconds(minIntervalMs));
-}
-
-void sendMeasurementEvents() {
-  if (!gIsMeasurementEnabled) {
-    return;
-  }
-
-  auto event = chre::MakeUniqueZeroFill<struct chreGnssDataEvent>();
-  auto measurement = chre::MakeUniqueZeroFill<struct chreGnssMeasurement>();
-  measurement->c_n0_dbhz = 63.0f;
-  event->measurement_count = 1;
-  event->clock.time_ns = static_cast<int64_t>(gSystemApi->getCurrentTime());
-  event->measurements = measurement.release();
-  gCallbacks->measurementEventCallback(event.release());
 }
 
 void stopLocation() {
@@ -105,36 +90,23 @@ void stopMeasurement() {
   gCallbacks->measurementStatusChangeCallback(false, CHRE_ERROR_NONE);
 }
 
-void stopLocationTasks() {
-  {
-    std::lock_guard<std::mutex> lock(gLocationEventsMutex);
-    if (gLocationEventsChangeCallbackTaskId.has_value()) {
-      TaskManagerSingleton::get()->cancelTask(
-          gLocationEventsChangeCallbackTaskId.value());
-    }
-
-    if (gLocationEventsTaskId.has_value()) {
-      TaskManagerSingleton::get()->cancelTask(gLocationEventsTaskId.value());
-    }
+void stopLocationThreads() {
+  if (gLocationEventsThread.joinable()) {
+    gStopLocationEventsThread.set_value();
+    gLocationEventsThread.join();
   }
-
-  if (gLocationStatusTaskId.has_value()) {
-    TaskManagerSingleton::get()->cancelTask(gLocationStatusTaskId.value());
+  if (gLocationStatusThread.joinable()) {
+    gLocationStatusThread.join();
   }
 }
 
-void stopMeasurementTasks() {
-  if (gMeasurementEventsChangeCallbackTaskId.has_value()) {
-    TaskManagerSingleton::get()->cancelTask(
-        gMeasurementEventsChangeCallbackTaskId.value());
+void stopMeasurementThreads() {
+  if (gMeasurementEventsThread.joinable()) {
+    gStopMeasurementEventsThread.set_value();
+    gMeasurementEventsThread.join();
   }
-
-  if (gMeasurementEventsTaskId.has_value()) {
-    TaskManagerSingleton::get()->cancelTask(gMeasurementEventsTaskId.value());
-  }
-
-  if (gMeasurementStatusTaskId.has_value()) {
-    TaskManagerSingleton::get()->cancelTask(gMeasurementStatusTaskId.value());
+  if (gMeasurementStatusThread.joinable()) {
+    gMeasurementStatusThread.join();
   }
 }
 
@@ -145,23 +117,18 @@ uint32_t chrePalGnssGetCapabilities() {
 
 bool chrePalControlLocationSession(bool enable, uint32_t minIntervalMs,
                                    uint32_t /* minTimeToNextFixMs */) {
-  stopLocationTasks();
+  stopLocationThreads();
 
-  gLocationEventsMinIntervalMs = minIntervalMs;
-  if (enable && !gDelaySendingLocationEvents) {
-    startSendingLocationEvents(minIntervalMs);
-    if (!gLocationEventsChangeCallbackTaskId.has_value() ||
-        !gLocationEventsTaskId.has_value()) {
-      return false;
-    }
-  } else if (!enable) {
-    gLocationStatusTaskId = TaskManagerSingleton::get()->addTask(stopLocation);
-    if (!gLocationStatusTaskId.has_value()) {
-      return false;
-    }
+  if (enable) {
+    gStartLocationEvents = std::promise<void>();
+    gStopLocationEventsThread = std::promise<void>();
+    gLocationEventsThread = std::thread(sendLocationEvents, minIntervalMs);
+  } else {
+    gLocationStatusThread = std::thread(stopLocation);
   }
 
   gIsLocationEnabled = enable;
+
   return true;
 }
 
@@ -170,34 +137,18 @@ void chrePalGnssReleaseLocationEvent(struct chreGnssLocationEvent *event) {
 }
 
 bool chrePalControlMeasurementSession(bool enable, uint32_t minIntervalMs) {
-  stopMeasurementTasks();
+  stopMeasurementThreads();
 
   if (enable) {
-    gMeasurementEventsChangeCallbackTaskId =
-        TaskManagerSingleton::get()->addTask(
-            []() {
-              gCallbacks->measurementStatusChangeCallback(true,
-                                                          CHRE_ERROR_NONE);
-            },
-            std::chrono::milliseconds(0));
-    if (!gMeasurementEventsChangeCallbackTaskId.has_value()) {
-      return false;
-    }
-
-    gMeasurementEventsTaskId = TaskManagerSingleton::get()->addTask(
-        sendMeasurementEvents, std::chrono::milliseconds(minIntervalMs));
-    if (!gMeasurementEventsTaskId.has_value()) {
-      return false;
-    }
+    gStopMeasurementEventsThread = std::promise<void>();
+    gMeasurementEventsThread =
+        std::thread(sendMeasurementEvents, minIntervalMs);
   } else {
-    gMeasurementStatusTaskId =
-        TaskManagerSingleton::get()->addTask(stopMeasurement);
-    if (!gMeasurementStatusTaskId.has_value()) {
-      return false;
-    }
+    gMeasurementStatusThread = std::thread(stopMeasurement);
   }
 
   gIsMeasurementEnabled = enable;
+
   return true;
 }
 
@@ -208,8 +159,8 @@ void chrePalGnssReleaseMeasurementDataEvent(struct chreGnssDataEvent *event) {
 }
 
 void chrePalGnssApiClose() {
-  stopLocationTasks();
-  stopMeasurementTasks();
+  stopLocationThreads();
+  stopMeasurementThreads();
 }
 
 bool chrePalGnssApiOpen(const struct chrePalSystemApi *systemApi,
@@ -225,6 +176,8 @@ bool chrePalGnssApiOpen(const struct chrePalSystemApi *systemApi,
 
   return success;
 }
+
+bool gIsPassiveListenerEnabled = false;
 
 bool chrePalGnssconfigurePassiveLocationListener(bool enable) {
   gIsPassiveListenerEnabled = enable;
@@ -251,7 +204,7 @@ void chrePalGnssDelaySendingLocationEvents(bool enabled) {
 
 void chrePalGnssStartSendingLocationEvents() {
   CHRE_ASSERT(gDelaySendingLocationEvents);
-  startSendingLocationEvents(gLocationEventsMinIntervalMs);
+  gStartLocationEvents.set_value();
 }
 
 const struct chrePalGnssApi *chrePalGnssGetApi(uint32_t requestedApiVersion) {

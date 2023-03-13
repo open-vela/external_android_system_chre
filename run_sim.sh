@@ -3,9 +3,6 @@
 # Quit if any command produces an error.
 set -e
 
-# Check required paths
-: ${ANDROID_BUILD_TOP:?"ERROR: Please run build/envsetup.sh and lunch first"}
-
 BUILD_ONLY="false"
 while getopts "b" opt; do
   case ${opt} in
