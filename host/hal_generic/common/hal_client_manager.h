@@ -207,7 +207,7 @@ class HalClientManager {
 
  protected:
   static constexpr char kClientMappingFilePath[] =
-      "/data/vendor/chre_hal_clients.json";
+      "/data/vendor/chre/chre_hal_clients.json";
   static constexpr char kJsonClientId[] = "ClientId";
   static constexpr char kJsonProcessName[] = "ProcessName";
   static constexpr int64_t kTransactionTimeoutThresholdMs = 5000;  // 5 seconds
