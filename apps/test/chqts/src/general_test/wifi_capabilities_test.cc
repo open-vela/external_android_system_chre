@@ -15,8 +15,9 @@
  */
 #include <general_test/wifi_capabilities_test.h>
 
+#include <chre.h>
+
 #include <shared/send_message.h>
-#include "chre_api/chre.h"
 
 namespace general_test {
 
