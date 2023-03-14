@@ -25,9 +25,8 @@
 #include <cstdint>
 #include <cstring>
 
+#include <chre.h>
 #include <shared/send_message.h>
-
-#include "chre_api/chre.h"
 
 using nanoapp_testing::sendFatalFailureToHost;
 
