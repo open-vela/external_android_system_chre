@@ -17,6 +17,8 @@
 #ifndef CHRE_PLATFORM_TINYSYS_LOG_H_
 #define CHRE_PLATFORM_TINYSYS_LOG_H_
 
+#include "chre_api/chre.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -27,11 +29,39 @@ extern "C" {
 }  // extern "C"
 #endif
 
-// TODO(b/254292126): We should also print logs to logcat after hostlink
-// implementation is ready.
-#define LOGE(fmt, arg...) PRINTF_E("[CHRE]: " fmt "\n", ##arg)
-#define LOGW(fmt, arg...) PRINTF_W("[CHRE]: " fmt "\n", ##arg)
-#define LOGI(fmt, arg...) PRINTF_I("[CHRE]: " fmt "\n", ##arg)
-#define LOGD(fmt, arg...) PRINTF_D("[CHRE]: " fmt "\n", ##arg)
+#if defined(CHRE_USE_BUFFERED_LOGGING)
+
+/**
+ * Log via the LogBufferManagerSingleton vaLog method.
+ *
+ * Defined in system/chre/platform/shared/log_buffer_manager.cc
+ *
+ * @param level The log level.
+ * @param format The format string.
+ * @param ... The arguments to print into the final log.
+ */
+void chrePlatformLogToBuffer(enum chreLogLevel level, const char *format, ...);
+
+// Print logs to host logcat
+#define CHRE_BUFFER_LOG(level, fmt, arg...)     \
+  do {                                          \
+    CHRE_LOG_PREAMBLE                           \
+    chrePlatformLogToBuffer(level, fmt, ##arg); \
+    CHRE_LOG_EPILOGUE                           \
+  } while (0)
+
+#define LOGE(fmt, arg...) CHRE_BUFFER_LOG(CHRE_LOG_ERROR, "[CHRE]" fmt, ##arg)
+#define LOGW(fmt, arg...) CHRE_BUFFER_LOG(CHRE_LOG_WARN, "[CHRE]" fmt, ##arg)
+#define LOGI(fmt, arg...) CHRE_BUFFER_LOG(CHRE_LOG_INFO, "[CHRE]" fmt, ##arg)
+#define LOGD(fmt, arg...) CHRE_BUFFER_LOG(CHRE_LOG_DEBUG, "[CHRE]" fmt, ##arg)
+
+#else
+
+#define LOGE(fmt, arg...) PRINTF_E("[CHRE]" fmt "\n", ##arg)
+#define LOGW(fmt, arg...) PRINTF_W("[CHRE]" fmt "\n", ##arg)
+#define LOGI(fmt, arg...) PRINTF_I("[CHRE]" fmt "\n", ##arg)
+#define LOGD(fmt, arg...) PRINTF_D("[CHRE]" fmt "\n", ##arg)
+
+#endif
 
 #endif  // CHRE_PLATFORM_TINYSYS_LOG_H_

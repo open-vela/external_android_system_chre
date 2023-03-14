@@ -17,6 +17,7 @@
 
 #include "chre/core/event_loop_manager.h"
 #include "chre/platform/power_control_manager.h"
+#include "chre/platform/shared/log_buffer_manager.h"
 
 extern "C" {
 #include "sensorhub/comm/host_suspend.h"

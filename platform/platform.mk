@@ -439,6 +439,7 @@ TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/chre_init.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/condition_variable_base.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/host_cpu_update.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/host_link.cc
+TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/log_buffer_manager.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/memory.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/platform_cache_management.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/tinysys/platform_pal.cc
@@ -473,6 +474,7 @@ TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/host_link.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/host_protocol_chre.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/host_protocol_common.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/log_buffer.cc
+TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/log_buffer_manager.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/memory_manager.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/nanoapp_load_manager.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/nanoapp_loader.cc
@@ -541,3 +543,4 @@ TINYSYS_CFLAGS += $(FLATBUFFERS_CFLAGS)
 TINYSYS_CFLAGS += -DCFG_DRAM_HEAP_SUPPORT
 TINYSYS_CFLAGS += -DCHRE_LOADER_ARCH=EM_RISCV
 TINYSYS_CFLAGS += -DCHRE_NANOAPP_LOAD_ALIGNMENT=4096
+TINYSYS_CFLAGS += -DCHRE_USE_BUFFERED_LOGGING
