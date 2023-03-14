@@ -61,68 +61,68 @@ struct ChppTimesyncResult {
 /**
  * Initializes the client.
  *
- * @param appState Application layer state.
+ * @param context Maintains status for each app layer instance.
  */
-void chppTimesyncClientInit(struct ChppAppState *appState);
+void chppTimesyncClientInit(struct ChppAppState *context);
 
 /**
  * Deinitializes the client.
  *
- * @param appState Application layer state.
+ * @param context Maintains status for each app layer instance.
  */
-void chppTimesyncClientDeinit(struct ChppAppState *appState);
+void chppTimesyncClientDeinit(struct ChppAppState *context);
 
 /**
  * Resets the client.
  *
- * @param appState Application layer state.
+ * @param context Maintains status for each app layer instance.
  */
-void chppTimesyncClientReset(struct ChppAppState *appState);
+void chppTimesyncClientReset(struct ChppAppState *context);
 
 /**
  * Dispatches an Rx Datagram from the transport layer that is determined to
  * be for the CHPP Timesync Client.
  *
- * @param appState Application layer state.
+ * @param context Maintains status for each app layer instance.
  * @param buf Input (response) datagram. Cannot be null.
  * @param len Length of input data in bytes.
  *
  * @return Indicates success or failure.
  */
-bool chppDispatchTimesyncServiceResponse(struct ChppAppState *appState,
+bool chppDispatchTimesyncServiceResponse(struct ChppAppState *context,
                                          const uint8_t *buf, size_t len);
 
 /**
  * Initiates a CHPP timesync to measure time offset of the service.
  *
- * @param appState Application layer state.
+ * @param context Maintains status for each app layer instance.
  *
  * @return Indicates success or failure.
  */
-bool chppTimesyncMeasureOffset(struct ChppAppState *appState);
+bool chppTimesyncMeasureOffset(struct ChppAppState *context);
 
 /**
  * Provides the time offset of the service. If the latest measurement is within
  * maxTimesyncAgeNs, this function reuses the last measurement. Otherwise, it
  * will initiate a new measurement.
  *
- * @param appState Application layer state.
+ * @param context Maintains status for each app layer instance.
  * @param maxTimesyncAgeNs Maximum acceptable age of measuement.
  *
  * @return Time offset of service vs client (service - client)
  */
-int64_t chppTimesyncGetOffset(struct ChppAppState *appState,
+int64_t chppTimesyncGetOffset(struct ChppAppState *context,
                               uint64_t maxTimesyncAgeNs);
 
 /**
  * Provides the raw results of the latest timesync measurement.
  *
- * @param appState Application layer state.
+ * @param context Maintains status for each app layer instance.
  *
  * @return Latest result.
  */
 const struct ChppTimesyncResult *chppTimesyncGetResult(
-    struct ChppAppState *appState);
+    struct ChppAppState *context);
 
 #ifdef __cplusplus
 }
