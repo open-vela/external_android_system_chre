@@ -20,6 +20,7 @@ import com.google.android.chre.utils.pigweed.ChreRpcClient;
 import com.google.protobuf.MessageLite;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -39,6 +40,11 @@ public class ChreApiTestUtil {
      * The default timeout for an RPC call in seconds.
      */
     public static final int RPC_TIMEOUT_IN_SECONDS = 5;
+
+    /**
+     * The default timeout for an RPC call in milliseconds.
+     */
+    public static final int RPC_TIMEOUT_IN_MS = RPC_TIMEOUT_IN_SECONDS * 1000;
 
     /**
      * Storage for server streaming messages.
@@ -106,6 +112,40 @@ public class ChreApiTestUtil {
     }
 
     /**
+     * Calls an RPC method with RPC_TIMEOUT_IN_SECONDS seconds of timeout for concurrent
+     * instances of the ChreApiTest nanoapp.
+     *
+     * @param <RequestType>   the type of the request (proto generated type).
+     * @param <ResponseType>  the type of the response (proto generated type).
+     * @param rpcClients      the RPC clients corresponding to the instances of the
+     *                        ChreApiTest nanoapp.
+     * @param method          the fully-qualified method name.
+     * @param request         the request object.
+     *
+     * @return                the proto response.
+     */
+    public static <RequestType extends MessageLite, ResponseType extends MessageLite>
+            List<ResponseType> callConcurrentUnaryRpcMethodSync(List<ChreRpcClient> rpcClients,
+                    String method, RequestType request) throws Exception {
+        List<UnaryFuture<ResponseType>> responseFutures =
+                new ArrayList<UnaryFuture<ResponseType>>();
+        for (ChreRpcClient rpcClient: rpcClients) {
+            MethodClient methodClient = rpcClient.getMethodClient(method);
+            responseFutures.add(methodClient.invokeUnaryFuture(request));
+        }
+
+        List<ResponseType> responses = new ArrayList<ResponseType>();
+        long endTimeInMs = System.currentTimeMillis() + RPC_TIMEOUT_IN_MS;
+        for (UnaryFuture<ResponseType> responseFuture: responseFutures) {
+            UnaryResult<ResponseType> responseResult = responseFuture.get(
+                    Math.max(0, endTimeInMs - System.currentTimeMillis()),
+                    TimeUnit.MILLISECONDS);
+            responses.add(responseResult.response());
+        }
+        return responses;
+    }
+
+    /**
      * Calls an RPC method with RPC_TIMEOUT_IN_SECONDS seconds of timeout.
      *
      * @param <RequestType>   the type of the request (proto generated type).
@@ -119,11 +159,9 @@ public class ChreApiTestUtil {
     public static <RequestType extends MessageLite, ResponseType extends MessageLite> ResponseType
             callUnaryRpcMethodSync(ChreRpcClient rpcClient, String method, RequestType request)
             throws Exception {
-        MethodClient methodClient = rpcClient.getMethodClient(method);
-        UnaryFuture<ResponseType> responseFuture = methodClient.invokeUnaryFuture(request);
-        UnaryResult<ResponseType> responseResult = responseFuture.get(RPC_TIMEOUT_IN_SECONDS,
-                TimeUnit.SECONDS);
-        return responseResult.response();
+        List<ResponseType> responses = callConcurrentUnaryRpcMethodSync(Arrays.asList(rpcClient),
+                method, request);
+        return responses.isEmpty() ? null : responses.get(0);
     }
 
     /**
