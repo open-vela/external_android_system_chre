@@ -24,6 +24,7 @@
 #include "chre/platform/fatal_error.h"
 #include "chre/util/nested_data_ptr.h"
 #include "chre/util/system/debug_dump.h"
+#include "chre/util/system/event_callbacks.h"
 
 namespace chre {
 
@@ -309,10 +310,9 @@ void GnssSession::handleReportEvent(void *event) {
   };
 
   SystemCallbackType type;
-  if (!getCallbackType(kReportEventType, &type)) {
+  if (!getCallbackType(kReportEventType, &type) ||
+      !EventLoopManagerSingleton::get()->deferCallback(type, event, callback)) {
     freeReportEventCallback(kReportEventType, event);
-  } else {
-    EventLoopManagerSingleton::get()->deferCallback(type, event, callback);
   }
 }
 

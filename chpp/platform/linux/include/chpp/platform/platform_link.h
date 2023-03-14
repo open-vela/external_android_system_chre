@@ -28,18 +28,16 @@
 extern "C" {
 #endif
 
-#define CHPP_PLATFORM_LINK_TX_MTU_BYTES 1280
-#define CHPP_PLATFORM_LINK_RX_MTU_BYTES 1280
-
-#define CHPP_PLATFORM_TRANSPORT_TIMEOUT_MS 1000
+#define CHPP_LINUX_LINK_TX_MTU_BYTES 1280
+#define CHPP_LINUX_LINK_RX_MTU_BYTES 1280
 
 // Forward declaration
 struct ChppTransportState;
 
-struct ChppPlatformLinkParameters {
+struct ChppLinuxLinkState {
   //! Indicates that the link to the remote endpoint has been established.
   //! This simulates the establishment of the physical link, so
-  //! chppPlatformLinkSend() will fail if this field is set to false.
+  //! link send() will fail if this field is set to false.
   bool linkEstablished;
 
   //! A pointer to the transport context of the remote endpoint.
@@ -54,8 +52,8 @@ struct ChppPlatformLinkParameters {
   //! The mutex to protect buf/bufLen.
   struct ChppMutex mutex;
 
-  //! The temporary buffer to use to send data to the remote endpoint.
-  uint8_t buf[CHPP_PLATFORM_LINK_TX_MTU_BYTES];
+  //! The buffer to use to send data to the remote endpoint.
+  uint8_t buf[CHPP_LINUX_LINK_TX_MTU_BYTES];
   size_t bufLen;
 
   //! The string name of the linkSendThread.
@@ -67,7 +65,25 @@ struct ChppPlatformLinkParameters {
   //! A flag to indicate if the link is active. Setting this value to false
   //! will cause the CHPP link layer to fail to send/receive messages.
   bool isLinkActive;
+
+  //! Whether to wait for cycleSendThread to be called to unblock the send
+  //! thread loop.
+  bool manualSendCycle;
+
+  //! State of the associated transport layer.
+  struct ChppTransportState *transportContext;
 };
+
+/**
+ * @return a pointer to the link layer API.
+ */
+const struct ChppLinkApi *getLinuxLinkApi(void);
+
+/**
+ * Starts the send thread loop when manualSendCycle is true.
+ * This function is a noop when manualSendCycle is false.
+ */
+void cycleSendThread(void);
 
 #ifdef __cplusplus
 }
