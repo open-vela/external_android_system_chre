@@ -40,8 +40,10 @@ void sendDebugDumpResultToHost(uint16_t hostClientId, const char *debugStr,
 class HostLinkBase {
  public:
   HostLinkBase();
+  ~HostLinkBase();
 
-  static void vChreTask(void * /*pvParameters*/);
+  static void vChreReceiveTask(void * /*pvParameters*/);
+  static void vChreSendTask(void * /*pvParameters*/);
   static void chreIpiHandler(unsigned int /*id*/, void * /*prdata*/,
                              void * /*data*/, unsigned int /*len*/);
   void initializeIpi(void);
