@@ -103,3 +103,33 @@ void operator delete(void * /*ptr*/, std::size_t /*sz*/,
                      std::align_val_t /*al*/) {
   CHRE_ASSERT(false);
 }
+
+void operator delete[](void * /*ptr*/) {
+  CHRE_ASSERT(false);
+}
+
+void operator delete[](void * /*ptr*/, std::size_t /*sz*/) {
+  CHRE_ASSERT(false);
+}
+
+void operator delete[](void * /*ptr*/, std::align_val_t /*al*/) {
+  CHRE_ASSERT(false);
+}
+
+void operator delete[](void * /*ptr*/, std::size_t /*sz*/,
+                       std::align_val_t /*al*/) {
+  CHRE_ASSERT(false);
+}
+
+void *operator new[](std::size_t /* count */) noexcept(false) {
+  // We return a static pointer here since in development build, using new will
+  // lead to crash so the returned pointer is not important.
+  CHRE_ASSERT(false);
+  return reinterpret_cast<void *>(0xDEADBEEF);
+}
+
+void *operator new[](std::size_t /* count */,
+                     std::align_val_t /* al */) noexcept(false) {
+  CHRE_ASSERT(false);
+  return reinterpret_cast<void *>(0xDEADBEEF);
+}
