@@ -361,12 +361,7 @@ void ContextHub::onNanoappMessage(const ::chre::fbs::NanoappMessageT &message) {
 
 void ContextHub::onNanoappListResponse(
     const ::chre::fbs::NanoappListResponseT &response) {
-  std::lock_guard<std::mutex> lock(mCallbackMutex);
-  if (mCallback == nullptr) {
-    return;
-  }
   std::vector<NanoappInfo> appInfoList;
-
   for (const std::unique_ptr<::chre::fbs::NanoappListEntryT> &nanoapp :
        response.nanoapps) {
     // TODO(b/245202050): determine if this is really required, and if so, have
@@ -408,7 +403,10 @@ void ContextHub::onNanoappListResponse(
     }
   }
 
-  mCallback->handleNanoappInfo(appInfoList);
+  std::lock_guard<std::mutex> lock(mCallbackMutex);
+  if (mCallback != nullptr) {
+    mCallback->handleNanoappInfo(appInfoList);
+  }
 }
 
 void ContextHub::onTransactionResult(uint32_t transactionId, bool success) {
