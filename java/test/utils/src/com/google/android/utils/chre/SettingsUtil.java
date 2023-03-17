@@ -133,4 +133,47 @@ public class SettingsUtil {
     public boolean isLocationEnabled() {
         return mLocationManager.isLocationEnabledForUser(UserHandle.CURRENT);
     }
+
+    /**
+     * Sets the bluetooth mode to be on or off
+     *
+     * @param enable        if true, turn bluetooth on; otherwise, turn bluetooth off
+     */
+    public void setBluetooth(boolean enable) {
+        String value = enable ? "enable" : "disable";
+        ChreTestUtil.executeShellCommand(mInstrumentation, "svc bluetooth " + value);
+
+        Assert.assertTrue(isBluetoothEnabled() == enable);
+    }
+
+    /**
+     * @param enable true to enable always bluetooth scanning.
+     */
+    public void setBluetoothScanningSettings(boolean enable) {
+        String value = enable ? "1" : "0";
+        ChreTestUtil.executeShellCommand(
+                mInstrumentation, "settings put global ble_scan_always_enabled " + value);
+
+        Assert.assertTrue(isBluetoothScanningAlwaysEnabled() == enable);
+    }
+
+    /**
+     * @return true if bluetooth is enabled, false otherwise
+     */
+    public boolean isBluetoothEnabled() {
+        String out = ChreTestUtil.executeShellCommand(
+                mInstrumentation, "settings get global bluetooth_on");
+        return ChreTestUtil.convertToIntegerOrFail(out) > 0;
+    }
+
+    /**
+     * @return true if the bluetooth scanning is always enabled.
+     */
+    public boolean isBluetoothScanningAlwaysEnabled() {
+        String out = ChreTestUtil.executeShellCommand(
+                mInstrumentation, "settings get global ble_scan_always_enabled");
+
+        // by default, this setting returns null, which is equivalent to 0 or disabled
+        return ChreTestUtil.convertToIntegerOrReturnZero(out) > 0;
+    }
 }
