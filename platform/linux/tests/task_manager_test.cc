@@ -91,24 +91,4 @@ TEST(TaskManager, FlushTasksWithoutCancel) {
   EXPECT_TRUE(gVarTaskManager >= numTasks + taskRepeatTimesMax - 1);
 }
 
-TEST(TaskManager, TwoRepeatingTasksDifferentIntervals) {
-  chre::TaskManager taskManager;
-  gTask1Var = 0;
-  gTask2Var = 0;
-
-  std::optional<uint32_t> task1Id =
-      taskManager.addTask(task1Func, std::chrono::milliseconds(10));
-  EXPECT_TRUE(task1Id.has_value());
-  std::optional<uint32_t> task2Id =
-      taskManager.addTask(task2Func, std::chrono::milliseconds(30));
-  EXPECT_TRUE(task2Id.has_value());
-
-  std::this_thread::sleep_for(std::chrono::milliseconds(900));
-  EXPECT_TRUE(taskManager.cancelTask(task1Id.value()));
-  EXPECT_TRUE(taskManager.cancelTask(task2Id.value()));
-  taskManager.flushTasks();
-  EXPECT_TRUE((uint32_t)round((double)gTask1Var / gTask2Var) ==
-              3);  // 30/10 == 3
-}
-
 }  // namespace

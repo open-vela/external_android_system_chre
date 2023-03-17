@@ -14,12 +14,8 @@
  * limitations under the License.
  */
 
-#include <cstdio>
-
-#include "chre/core/event_loop_manager.h"
-#include "chre/platform/system_time.h"
-
-#ifdef CHRE_USE_TOKENIZED_LOGGING
+#ifdef CHRE_TOKENIZED_LOGGING_ENABLED
+#include "chre/platform/log.h"
 #include "pw_tokenizer/encode_args.h"
 #include "pw_tokenizer/tokenize.h"
 
@@ -38,4 +34,4 @@ void EncodeTokenizedMessage(uint32_t level, pw_tokenizer_Token token,
                                  encodedMessage.size());
 }
 
-#endif
+#endif  // CHRE_TOKENIZED_LOGGING_ENABLED

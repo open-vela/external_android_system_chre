@@ -64,7 +64,7 @@ endif
 
 # Optional tokenized logging support.
 ifeq ($(CHRE_TOKENIZED_LOGGING_ENABLED), true)
-COMMON_CFLAGS += -DCHRE_USE_TOKENIZED_LOGGING
+COMMON_CFLAGS += -DCHRE_TOKENIZED_LOGGING_ENABLED
 include $(CHRE_PREFIX)/external/pigweed/pw_tokenizer.mk
 endif
 
