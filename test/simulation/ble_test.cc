@@ -46,7 +46,7 @@ TEST_F(TestBase, BleCapabilitiesTest) {
   struct App : public TestNanoapp {
     uint32_t perms = NanoappPermissions::CHRE_PERMS_WIFI;
 
-    decltype(nanoappHandleEvent) *handleEvent =
+    void (*handleEvent)(uint32_t, uint16_t, const void *) =
         [](uint32_t, uint16_t eventType, const void *eventData) {
           switch (eventType) {
             case CHRE_EVENT_TEST_EVENT: {
@@ -87,13 +87,13 @@ TEST_F(TestBase, BleCapabilitiesTest) {
 struct BleTestNanoapp : public TestNanoapp {
   uint32_t perms = NanoappPermissions::CHRE_PERMS_BLE;
 
-  decltype(nanoappStart) *start = []() {
+  bool (*start)() = []() {
     chreUserSettingConfigureEvents(CHRE_USER_SETTING_BLE_AVAILABLE,
                                    true /* enable */);
     return true;
   };
 
-  decltype(nanoappEnd) *end = []() {
+  void (*end)() = []() {
     chreUserSettingConfigureEvents(CHRE_USER_SETTING_BLE_AVAILABLE,
                                    false /* enable */);
   };
@@ -110,8 +110,9 @@ TEST_F(TestBase, BleSimpleScanTest) {
   CREATE_CHRE_TEST_EVENT(SCAN_STOPPED, 3);
 
   struct App : public BleTestNanoapp {
-    decltype(nanoappHandleEvent) *handleEvent = [](uint32_t, uint16_t eventType,
-                                                   const void *eventData) {
+    void (*handleEvent)(uint32_t, uint16_t,
+                        const void *) = [](uint32_t, uint16_t eventType,
+                                           const void *eventData) {
       switch (eventType) {
         case CHRE_EVENT_BLE_ASYNC_RESULT: {
           auto *event = static_cast<const struct chreAsyncResult *>(eventData);
@@ -175,8 +176,9 @@ TEST_F(TestBase, BleStopScanOnUnload) {
   CREATE_CHRE_TEST_EVENT(SCAN_STARTED, 1);
 
   struct App : public BleTestNanoapp {
-    decltype(nanoappHandleEvent) *handleEvent = [](uint32_t, uint16_t eventType,
-                                                   const void *eventData) {
+    void (*handleEvent)(uint32_t, uint16_t,
+                        const void *) = [](uint32_t, uint16_t eventType,
+                                           const void *eventData) {
       switch (eventType) {
         case CHRE_EVENT_BLE_ASYNC_RESULT: {
           auto *event = static_cast<const struct chreAsyncResult *>(eventData);
@@ -227,8 +229,9 @@ TEST_F(TestBase, BleStartTwiceScanTest) {
   CREATE_CHRE_TEST_EVENT(SCAN_STOPPED, 3);
 
   struct App : public BleTestNanoapp {
-    decltype(nanoappHandleEvent) *handleEvent = [](uint32_t, uint16_t eventType,
-                                                   const void *eventData) {
+    void (*handleEvent)(uint32_t, uint16_t,
+                        const void *) = [](uint32_t, uint16_t eventType,
+                                           const void *eventData) {
       switch (eventType) {
         case CHRE_EVENT_BLE_ASYNC_RESULT: {
           auto *event = static_cast<const struct chreAsyncResult *>(eventData);
@@ -300,7 +303,7 @@ TEST_F(TestBase, BleStopTwiceScanTest) {
   CREATE_CHRE_TEST_EVENT(SCAN_STOPPED, 3);
 
   struct App : public BleTestNanoapp {
-    decltype(nanoappHandleEvent) *handleEvent =
+    void (*handleEvent)(uint32_t, uint16_t, const void *) =
         [](uint32_t, uint16_t eventType, const void *eventData) {
           switch (eventType) {
             case CHRE_EVENT_BLE_ASYNC_RESULT: {
@@ -364,8 +367,9 @@ TEST_F(TestBase, BleSettingChangeTest) {
   CREATE_CHRE_TEST_EVENT(SCAN_STOPPED, 3);
 
   struct App : public BleTestNanoapp {
-    decltype(nanoappHandleEvent) *handleEvent = [](uint32_t, uint16_t eventType,
-                                                   const void *eventData) {
+    void (*handleEvent)(uint32_t, uint16_t,
+                        const void *) = [](uint32_t, uint16_t eventType,
+                                           const void *eventData) {
       switch (eventType) {
         case CHRE_EVENT_BLE_ASYNC_RESULT: {
           auto *event = static_cast<const struct chreAsyncResult *>(eventData);
@@ -450,8 +454,9 @@ TEST_F(TestBase, BleSettingDisabledStartScanTest) {
   CREATE_CHRE_TEST_EVENT(START_SCAN, 0);
 
   struct App : public BleTestNanoapp {
-    decltype(nanoappHandleEvent) *handleEvent = [](uint32_t, uint16_t eventType,
-                                                   const void *eventData) {
+    void (*handleEvent)(uint32_t, uint16_t,
+                        const void *) = [](uint32_t, uint16_t eventType,
+                                           const void *eventData) {
       switch (eventType) {
         case CHRE_EVENT_BLE_ASYNC_RESULT: {
           auto *event = static_cast<const struct chreAsyncResult *>(eventData);
@@ -513,7 +518,7 @@ TEST_F(TestBase, BleSettingDisabledStopScanTest) {
   CREATE_CHRE_TEST_EVENT(SCAN_STOPPED, 3);
 
   struct App : public BleTestNanoapp {
-    decltype(nanoappHandleEvent) *handleEvent =
+    void (*handleEvent)(uint32_t, uint16_t, const void *) =
         [](uint32_t, uint16_t eventType, const void *eventData) {
           switch (eventType) {
             case CHRE_EVENT_BLE_ASYNC_RESULT: {
@@ -567,68 +572,6 @@ TEST_F(TestBase, BleSettingDisabledStopScanTest) {
   waitForEvent(STOP_SCAN, &success);
   EXPECT_TRUE(success);
   waitForEvent(SCAN_STOPPED);
-}
-
-/**
- * Test that a nanoapp can read RSSI successfully.
- */
-TEST_F(TestBase, BleReadRssi) {
-  constexpr auto kConnectionHandle = 6;
-  constexpr auto kCookie = 123;
-
-  CREATE_CHRE_TEST_EVENT(RSSI_REQUEST, 1);
-  CREATE_CHRE_TEST_EVENT(RSSI_REQUEST_SENT, 2);
-
-  struct App : public BleTestNanoapp {
-    decltype(nanoappHandleEvent) *handleEvent = [](uint32_t, uint16_t eventType,
-                                                   const void *eventData) {
-      switch (eventType) {
-        case CHRE_EVENT_BLE_RSSI_READ: {
-          auto *event =
-              static_cast<const struct chreBleReadRssiEvent *>(eventData);
-          if (event->result.errorCode == CHRE_ERROR_NONE) {
-            TestEventQueueSingleton::get()->pushEvent(CHRE_EVENT_BLE_RSSI_READ);
-          }
-          break;
-        }
-        case CHRE_EVENT_SETTING_CHANGED_BLE_AVAILABLE: {
-          auto *event =
-              static_cast<const chreUserSettingChangedEvent *>(eventData);
-          bool enabled =
-              (event->settingState == CHRE_USER_SETTING_STATE_ENABLED);
-          TestEventQueueSingleton::get()->pushEvent(
-              CHRE_EVENT_SETTING_CHANGED_BLE_AVAILABLE, enabled);
-          break;
-        }
-        case CHRE_EVENT_TEST_EVENT: {
-          auto event = static_cast<const TestEvent *>(eventData);
-          switch (event->type) {
-            case RSSI_REQUEST: {
-              const bool success =
-                  chreBleReadRssiAsync(kConnectionHandle, (void *)kCookie);
-              TestEventQueueSingleton::get()->pushEvent(RSSI_REQUEST_SENT,
-                                                        success);
-              break;
-            }
-          }
-        }
-      }
-    };
-  };
-
-  auto app = loadNanoapp<App>();
-
-  EventLoopManagerSingleton::get()->getSettingManager().postSettingChange(
-      Setting::BLE_AVAILABLE, true /* enabled */);
-  bool enabled;
-  waitForEvent(CHRE_EVENT_SETTING_CHANGED_BLE_AVAILABLE, &enabled);
-  EXPECT_TRUE(enabled);
-
-  bool success;
-  sendEventToNanoapp(app, RSSI_REQUEST);
-  waitForEvent(RSSI_REQUEST_SENT, &success);
-  EXPECT_TRUE(success);
-  waitForEvent(CHRE_EVENT_BLE_RSSI_READ);
 }
 
 }  // namespace

@@ -24,7 +24,7 @@
 #ifdef CHRE_HAL_SOCKET_METRICS_ENABLED
 #include <aidl/android/frameworks/stats/IStats.h>
 #include <android/binder_manager.h>
-#include <chre_atoms_log.h>
+#include <hardware/google/pixel/pixelstats/pixelatoms.pb.h>
 #include <utils/SystemClock.h>
 #endif  // CHRE_HAL_SOCKET_METRICS_ENABLED
 
@@ -43,6 +43,7 @@ using flatbuffers::FlatBufferBuilder;
 using ::aidl::android::frameworks::stats::IStats;
 using ::aidl::android::frameworks::stats::VendorAtom;
 using ::aidl::android::frameworks::stats::VendorAtomValue;
+namespace PixelAtoms = ::android::hardware::google::pixel::PixelAtoms;
 #endif  // CHRE_HAL_SOCKET_METRICS_ENABLED
 
 HalChreSocketConnection::HalChreSocketConnection(
@@ -92,12 +93,6 @@ bool HalChreSocketConnection::getContextHubs(
   }
 
   return mHubInfoValid;
-}
-
-bool HalChreSocketConnection::sendDebugConfiguration() {
-  FlatBufferBuilder builder;
-  HostProtocolHost::encodeDebugConfiguration(builder);
-  return mClient.sendMessage(builder.GetBufferPointer(), builder.GetSize());
 }
 
 bool HalChreSocketConnection::sendMessageToHub(long nanoappId,
@@ -173,11 +168,6 @@ bool HalChreSocketConnection::onHostEndpointDisconnected(
   return mClient.sendMessage(builder.GetBufferPointer(), builder.GetSize());
 }
 
-bool HalChreSocketConnection::isLoadTransactionPending() {
-  std::lock_guard<std::mutex> lock(mPendingLoadTransactionMutex);
-  return mPendingLoadTransaction.has_value();
-}
-
 HalChreSocketConnection::SocketCallbacks::SocketCallbacks(
     HalChreSocketConnection &parent, IChreSocketCallback *callback)
     : mParent(parent), mCallback(callback) {
@@ -199,7 +189,6 @@ void HalChreSocketConnection::SocketCallbacks::onConnected() {
     ALOGI("Reconnected to CHRE daemon");
     mCallback->onContextHubRestarted();
   }
-  mParent.sendDebugConfiguration();
   mHaveConnected = true;
 }
 
@@ -231,7 +220,8 @@ void HalChreSocketConnection::SocketCallbacks::handleNanoappMessage(
       values[0].set<VendorAtomValue::longValue>(nanoappId);
 
       const VendorAtom atom{
-          .atomId = chre::Atoms::CHRE_AP_WAKE_UP_OCCURRED,
+          .reverseDomainName = "",
+          .atomId = PixelAtoms::Atom::kChreApWakeUpOccurred,
           .values{std::move(values)},
       };
 
@@ -351,12 +341,13 @@ bool HalChreSocketConnection::sendFragmentedLoadNanoAppRequest(
     std::vector<VendorAtomValue> values(3);
     values[0].set<VendorAtomValue::longValue>(request.appId);
     values[1].set<VendorAtomValue::intValue>(
-        chre::Atoms::ChreHalNanoappLoadFailed::TYPE_DYNAMIC);
+        PixelAtoms::ChreHalNanoappLoadFailed::TYPE_DYNAMIC);
     values[2].set<VendorAtomValue::intValue>(
-        chre::Atoms::ChreHalNanoappLoadFailed::REASON_ERROR_GENERIC);
+        PixelAtoms::ChreHalNanoappLoadFailed::REASON_ERROR_GENERIC);
 
     const VendorAtom atom{
-        .atomId = chre::Atoms::CHRE_HAL_NANOAPP_LOAD_FAILED,
+        .reverseDomainName = "",
+        .atomId = PixelAtoms::Atom::kChreHalNanoappLoadFailed,
         .values{std::move(values)},
     };
     reportMetric(atom);
