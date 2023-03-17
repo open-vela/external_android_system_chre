@@ -136,6 +136,7 @@ class PalSensorTest : public testing::Test {
  protected:
   void SetUp() override {
     gCallbacks = MakeUnique<Callbacks>();
+    chre::TaskManagerSingleton::deinit();
     chre::TaskManagerSingleton::init();
     gApi = chrePalSensorGetApi(CHRE_PAL_SENSOR_API_CURRENT_VERSION);
     ASSERT_NE(gApi, nullptr);
