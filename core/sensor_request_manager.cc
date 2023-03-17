@@ -20,7 +20,6 @@
 #include "chre/util/macros.h"
 #include "chre/util/nested_data_ptr.h"
 #include "chre/util/system/debug_dump.h"
-#include "chre/util/system/event_callbacks.h"
 #include "chre/util/time.h"
 #include "chre_api/chre/version.h"
 
@@ -51,19 +50,12 @@ bool isSensorRequestValid(const Sensor &sensor,
   return success;
 }
 
-void sensorDataEventFree(uint16_t eventType, void *eventData) {
-  EventLoopManagerSingleton::get()
-      ->getSensorRequestManager()
-      .releaseSensorDataEvent(eventType, eventData);
-}
-
 /**
  * A helper function that updates the last event of a sensor in the main thread.
  *
  * @param eventData A non-null pointer to the sensor's CHRE event data.
- * @param eventType The event type.
  */
-void updateLastEvent(void *eventData, uint16_t eventType) {
+void updateLastEvent(void *eventData) {
   CHRE_ASSERT(eventData);
 
   auto callback = [](uint16_t /*type*/, void *data, void * /*extraData*/) {
@@ -81,10 +73,14 @@ void updateLastEvent(void *eventData, uint16_t eventType) {
   };
 
   // Schedule a deferred callback.
-  if (!EventLoopManagerSingleton::get()->deferCallback(
-          SystemCallbackType::SensorLastEventUpdate, eventData, callback)) {
-    sensorDataEventFree(eventType, eventData);
-  }
+  EventLoopManagerSingleton::get()->deferCallback(
+      SystemCallbackType::SensorLastEventUpdate, eventData, callback);
+}
+
+void sensorDataEventFree(uint16_t eventType, void *eventData) {
+  EventLoopManagerSingleton::get()
+      ->getSensorRequestManager()
+      .releaseSensorDataEvent(eventType, eventData);
 }
 
 /**
@@ -486,11 +482,12 @@ void SensorRequestManager::handleSensorDataEvent(uint32_t sensorHandle,
     mPlatformSensorManager.releaseSensorDataEvent(event);
   } else {
     Sensor &sensor = mSensors[sensorHandle];
+    if (sensor.isOnChange()) {
+      updateLastEvent(event);
+    }
+
     uint16_t eventType =
         getSampleEventTypeForSensorType(sensor.getSensorType());
-    if (sensor.isOnChange()) {
-      updateLastEvent(event, eventType);
-    }
 
     // Only allow dropping continuous sensor events since losing one-shot or
     // on-change events could result in nanoapps stuck in a bad state.

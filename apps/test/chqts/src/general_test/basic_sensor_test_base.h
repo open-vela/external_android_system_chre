@@ -20,7 +20,8 @@
 #include <general_test/test.h>
 
 #include "chre/util/optional.h"
-#include "chre_api/chre.h"
+
+#include <chre.h>
 
 namespace general_test {
 
