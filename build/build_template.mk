@@ -95,9 +95,6 @@ $(1)_AR = $(OUT)/$(1)/$(OUTPUT_NAME).a
 # Nanoapp Header
 $(1)_HEADER = $$(if $(IS_NANOAPP_BUILD), $(OUT)/$(1)/$(OUTPUT_NAME).napp_header, )
 
-# Optional Binary
-$(1)_BIN = $$(if $(9), $(OUT)/$(1)/$(OUTPUT_NAME), )
-
 # Optional token mapping
 $(1)_TOKEN_MAP = $$(if $(CHRE_TOKENIZED_LOGGING_ENABLED), \
                     $(OUT)/$(1)/$(OUTPUT_NAME)_log_database.bin,)
@@ -114,9 +111,6 @@ $(1)_ar: $$($(1)_AR)
 .PHONY: $(1)_so
 $(1)_so: $$($(1)_SO)
 
-.PHONY: $(1)_bin
-$(1)_bin: $$($(1)_BIN)
-
 .PHONY: $(1)_header
 $(1)_header: $$($(1)_HEADER)
 
@@ -127,7 +121,7 @@ $(1)_token_map: $$($(1)_TOKEN_MAP)
 ifeq ($(IS_ARCHIVE_ONLY_BUILD),true)
 $(1): $(1)_ar $(1)_token_map
 else
-$(1): $(1)_ar $(1)_so $(1)_bin $(1)_header $(1)_token_map
+$(1): $(1)_ar $(1)_so $(1)_header $(1)_token_map
 endif
 
 # If building the runtime, simply add the archive and shared object to the all
@@ -241,12 +235,6 @@ $$($(1)_SO): $$($(1)_CC_DEPS) \
               $$($(1)_CC_OBJS) $$($(1)_CPP_OBJS) $$($(1)_C_OBJS) \
               $$($(1)_S_OBJS) | $$(OUT)/$(1) $$($(1)_DIRS)
 	$(V)$(5) $(4) -o $$@ $(11) $$(filter %.o, $$^) $(12)
-
-$$($(1)_BIN): $$($(1)_CC_DEPS) \
-               $$($(1)_CPP_DEPS) $$($(1)_C_DEPS) $$($(1)_S_DEPS) \
-               $$($(1)_CC_OBJS) $$($(1)_CPP_OBJS) $$($(1)_C_OBJS) \
-               $$($(1)_S_OBJS) | $$(OUT)/$(1) $$($(1)_DIRS)
-	$(V)$(3) -o $$@ $(11) $$(filter %.o, $$^) $(12) $(10)
 
 # Output Directories ###########################################################
 
