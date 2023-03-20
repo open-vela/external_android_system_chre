@@ -63,6 +63,9 @@ ChppResetPacket generateResetPacket(uint8_t ackSeq, uint8_t seq) {
         .minor = 0,
         .patch = 0,
       },
+      .reserved1 = 0,
+      .reserved2 = 0,
+      .reserved3 = 0,
     }
   };
   // clang-format on
