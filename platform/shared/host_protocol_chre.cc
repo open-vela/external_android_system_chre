@@ -132,8 +132,7 @@ bool HostProtocolChre::decodeMessageFromHost(const void *message,
         struct chreHostEndpointInfo info;
         info.hostEndpointId = connectedMessage->host_endpoint();
         info.hostEndpointType = connectedMessage->type();
-        if (strlen(reinterpret_cast<const char *>(
-                connectedMessage->package_name()->data())) > 0) {
+        if (connectedMessage->package_name()->size() > 0) {
           info.isNameValid = true;
           memcpy(&info.packageName[0], connectedMessage->package_name()->data(),
                  MIN(connectedMessage->package_name()->size(),
@@ -142,8 +141,7 @@ bool HostProtocolChre::decodeMessageFromHost(const void *message,
         } else {
           info.isNameValid = false;
         }
-        if (strlen(reinterpret_cast<const char *>(
-                connectedMessage->attribution_tag()->data())) > 0) {
+        if (connectedMessage->attribution_tag()->size() > 0) {
           info.isTagValid = true;
           memcpy(&info.attributionTag[0],
                  connectedMessage->attribution_tag()->data(),
