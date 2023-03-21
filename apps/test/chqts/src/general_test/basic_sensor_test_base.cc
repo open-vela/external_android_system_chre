@@ -23,7 +23,8 @@
 #include <shared/time_util.h>
 
 #include "chre/util/nanoapp/log.h"
-#include "chre_api/chre.h"
+
+#include <chre.h>
 
 #define LOG_TAG "[BasicSensorTest]"
 
@@ -376,11 +377,12 @@ void BasicSensorTestBase::verifyEventHeader(const chreSensorDataHeader *header,
             ? (*minTime - eventDuration - kEventLoopSlack)
             : 0;
     if (header->baseTimestamp < minTimeWithSlack) {
-      LOGE("baseTimestamp %" PRIu64 " < minTimeWithSlack %" PRIu64
-           ": minTime %" PRIu64 " eventDuration %" PRIu64
-           " kEventLoopSlack %" PRIu64,
-           header->baseTimestamp, minTimeWithSlack, *minTime, eventDuration,
-           kEventLoopSlack);
+      chreLog(CHRE_LOG_ERROR,
+              "baseTimestamp %" PRIu64 " < minTimeWithSlack %" PRIu64
+              ": minTime %" PRIu64 " eventDuration %" PRIu64
+              " kEventLoopSlack %" PRIu64,
+              header->baseTimestamp, minTimeWithSlack, *minTime, eventDuration,
+              kEventLoopSlack);
       sendFatalFailureToHost("SensorDataHeader is in the past");
     }
     if ((mState == State::kFinished) &&
