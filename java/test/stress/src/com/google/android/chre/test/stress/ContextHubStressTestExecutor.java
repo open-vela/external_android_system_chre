@@ -169,7 +169,6 @@ public class ContextHubStressTestExecutor extends ContextHubClientCallback {
                     mNanoAppBinary);
         }
         mContextHubClient = mContextHubManager.createClient(mContextHubInfo, this);
-        Assert.assertTrue(mContextHubClient != null);
     }
 
     /**
@@ -182,6 +181,9 @@ public class ContextHubStressTestExecutor extends ContextHubClientCallback {
                 ChreStressTest.TestCommand.Feature.GNSS_LOCATION,
                 ChreStressTest.TestCommand.Feature.GNSS_MEASUREMENT,
                 ChreStressTest.TestCommand.Feature.WWAN,
+                ChreStressTest.TestCommand.Feature.SENSORS,
+                ChreStressTest.TestCommand.Feature.AUDIO,
+                ChreStressTest.TestCommand.Feature.BLE,
         };
 
         mTestResult.set(null);

@@ -33,8 +33,9 @@
 #include <cstdlib>
 #include <new>
 
-#include <chre.h>
 #include "chre/util/nanoapp/assert.h"
+
+#include "chre_api/chre.h"
 
 #if defined(stderr) && !defined(_CSTD)
 // Provides a definition for stderr when the macro has been defined, but the
@@ -71,6 +72,10 @@ void exit(int exitCode) {
   // execute, since abort terminates the program.
   while (42)
     ;
+}
+
+void abort(void) {
+  exit(CHRE_ERROR);
 }
 
 int fprintf(FILE * /*stream*/, const char * /*fmt*/, ...) {
