@@ -235,7 +235,7 @@ of two broad categories:
       invoking the _open()_ function in the Module API provided above. The
       structures returned by this function call must be stored somewhere by the
       PAL, and used as necessary to call into the CHRE core. Typically, one or
-      more of these callbacks need to be invoked in reponse to a request from
+      more of these callbacks need to be invoked in response to a request from
       CHRE using the Module API provided above.
 
       The _close()_ function, when invoked by CHRE, indicates that CHRE is

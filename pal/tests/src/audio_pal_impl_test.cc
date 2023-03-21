@@ -18,6 +18,7 @@
 
 #include "chre/pal/audio.h"
 #include "chre/platform/condition_variable.h"
+#include "chre/platform/linux/task_util/task_manager.h"
 #include "chre/platform/mutex.h"
 #include "chre/platform/shared/pal_system_api.h"
 #include "chre/util/lock_guard.h"
@@ -80,6 +81,7 @@ class PalAudioTest : public testing::Test {
  protected:
   void SetUp() override {
     gCallbacks = MakeUnique<Callbacks>();
+    chre::TaskManagerSingleton::init();
     mApi = chrePalAudioGetApi(CHRE_PAL_AUDIO_API_CURRENT_VERSION);
     ASSERT_NE(mApi, nullptr);
     EXPECT_EQ(mApi->moduleVersion, CHRE_PAL_AUDIO_API_CURRENT_VERSION);
@@ -87,10 +89,11 @@ class PalAudioTest : public testing::Test {
   }
 
   void TearDown() override {
-    gCallbacks = nullptr;
     if (mApi != nullptr) {
       mApi->close();
     }
+    chre::TaskManagerSingleton::deinit();
+    gCallbacks = nullptr;
   }
 
   //! CHRE PAL implementation API.
@@ -123,8 +126,8 @@ TEST_F(PalAudioTest, GetDataEvent) {
 
   LockGuard<Mutex> lock(gCallbacks->mMutex);
   gCallbacks->mCondVarDataEvents.wait_for(
-      gCallbacks->mMutex, Nanoseconds(kOneMillisecondInNanoseconds));
-  EXPECT_TRUE(gCallbacks->mDataEvent.has_value());
+      gCallbacks->mMutex, Nanoseconds(25 * kOneMillisecondInNanoseconds));
+  ASSERT_TRUE(gCallbacks->mDataEvent.has_value());
   struct chreAudioDataEvent *event = gCallbacks->mDataEvent.value();
   EXPECT_EQ(event->handle, 0);
   EXPECT_EQ(event->sampleCount, 1000);
