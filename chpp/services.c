@@ -93,28 +93,26 @@ uint8_t chppRegisterService(struct ChppAppState *appContext,
     CHPP_LOGE("Max services registered: # %" PRIu8,
               appContext->registeredServiceCount);
     return CHPP_HANDLE_NONE;
-
-  } else {
-    appContext->registeredServices[appContext->registeredServiceCount] =
-        newService;
-    appContext->registeredServiceContexts[appContext->registeredServiceCount] =
-        serviceContext;
-
-    char uuidText[CHPP_SERVICE_UUID_STRING_LEN];
-    chppUuidToStr(newService->descriptor.uuid, uuidText);
-    CHPP_LOGD("Registered service # %" PRIu8
-              " on handle %d"
-              " with name=%s, UUID=%s, version=%" PRIu8 ".%" PRIu8 ".%" PRIu16
-              ", min_len=%" PRIuSIZE " ",
-              appContext->registeredServiceCount,
-              CHPP_SERVICE_HANDLE_OF_INDEX(appContext->registeredServiceCount),
-              newService->descriptor.name, uuidText,
-              newService->descriptor.version.major,
-              newService->descriptor.version.minor,
-              newService->descriptor.version.patch, newService->minLength);
-
-    return CHPP_SERVICE_HANDLE_OF_INDEX(appContext->registeredServiceCount++);
   }
+  appContext->registeredServices[appContext->registeredServiceCount] =
+      newService;
+  appContext->registeredServiceContexts[appContext->registeredServiceCount] =
+      serviceContext;
+
+  char uuidText[CHPP_SERVICE_UUID_STRING_LEN];
+  chppUuidToStr(newService->descriptor.uuid, uuidText);
+  CHPP_LOGD("Registered service # %" PRIu8
+            " on handle %d"
+            " with name=%s, UUID=%s, version=%" PRIu8 ".%" PRIu8 ".%" PRIu16
+            ", min_len=%" PRIuSIZE " ",
+            appContext->registeredServiceCount,
+            CHPP_SERVICE_HANDLE_OF_INDEX(appContext->registeredServiceCount),
+            newService->descriptor.name, uuidText,
+            newService->descriptor.version.major,
+            newService->descriptor.version.minor,
+            newService->descriptor.version.patch, newService->minLength);
+
+  return CHPP_SERVICE_HANDLE_OF_INDEX(appContext->registeredServiceCount++);
 }
 
 struct ChppAppHeader *chppAllocServiceNotification(size_t len) {
@@ -167,13 +165,13 @@ void chppServiceTimestampResponse(struct ChppRequestResponseState *rRState) {
   } else if (previousResponseTime != CHPP_TIME_NONE) {
     CHPP_LOGW("TX additional response t=%" PRIu64 " for req t=%" PRIu64,
               rRState->responseTimeNs / CHPP_NSEC_PER_MSEC,
-              rRState->responseTimeNs / CHPP_NSEC_PER_MSEC);
+              rRState->requestTimeNs / CHPP_NSEC_PER_MSEC);
 
   } else {
     CHPP_LOGD("Sending initial response at t=%" PRIu64
               " for request at t=%" PRIu64 " (RTT=%" PRIu64 ")",
               rRState->responseTimeNs / CHPP_NSEC_PER_MSEC,
-              rRState->responseTimeNs / CHPP_NSEC_PER_MSEC,
+              rRState->requestTimeNs / CHPP_NSEC_PER_MSEC,
               (rRState->responseTimeNs - rRState->requestTimeNs) /
                   CHPP_NSEC_PER_MSEC);
   }
