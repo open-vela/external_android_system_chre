@@ -328,7 +328,7 @@ static void chppGnssClientNotifyReset(void *clientContext) {
       !gnssClientContext->client.pseudoOpen) {
     CHPP_LOGW("GNSS client reset but wasn't open");
   } else {
-    CHPP_LOGI("GNSS client reopening from state=%" PRIu8,
+    CHPP_LOGD("GNSS client reopening from state=%" PRIu8,
               gnssClientContext->client.openState);
     gnssClientContext->requestStateResyncPending = true;
     chppClientSendOpenRequest(&gGnssClientContext.client,
@@ -592,29 +592,31 @@ static bool chppGnssClientOpen(const struct chrePalSystemApi *systemApi,
   CHPP_DEBUG_ASSERT(systemApi != NULL);
   CHPP_DEBUG_ASSERT(callbacks != NULL);
 
-  bool result = false;
   gSystemApi = systemApi;
   gCallbacks = callbacks;
 
   CHPP_LOGD("GNSS client opening");
   if (gGnssClientContext.client.appContext == NULL) {
     CHPP_LOGE("GNSS client app is null");
-  } else {
-    if (chppWaitForDiscoveryComplete(gGnssClientContext.client.appContext,
-                                     CHPP_GNSS_DISCOVERY_TIMEOUT_MS)) {
-      result = chppClientSendOpenRequest(
-          &gGnssClientContext.client,
-          &gGnssClientContext.rRState[CHPP_GNSS_OPEN], CHPP_GNSS_OPEN,
-          /*blocking=*/true);
-    }
-
-    // Since CHPP_GNSS_DEFAULT_CAPABILITIES is mandatory, we can always
-    // pseudo-open and return true. Otherwise, these should have been gated.
-    chppClientPseudoOpen(&gGnssClientContext.client);
-    result = true;
+    return false;
   }
 
-  return result;
+  // Since CHPP_GNSS_DEFAULT_CAPABILITIES is mandatory, we can always
+  // pseudo-open and return true. Otherwise, these should have been gated.
+
+  // Consider the client to be PseudoOpen prior to sending open request
+  // This avoids race conditions where responses could come between
+  // the open request timeout and setting the client as PseudoOpen
+  chppClientPseudoOpen(&gGnssClientContext.client);
+  if (chppWaitForDiscoveryComplete(gGnssClientContext.client.appContext,
+                                   CHPP_GNSS_DISCOVERY_TIMEOUT_MS)) {
+    chppClientSendOpenRequest(&gGnssClientContext.client,
+                              &gGnssClientContext.rRState[CHPP_GNSS_OPEN],
+                              CHPP_GNSS_OPEN,
+                              /*blocking=*/true);
+  }
+
+  return true;
 }
 
 /**
@@ -808,6 +810,10 @@ static bool chppGnssClientConfigurePassiveLocationListener(bool enable) {
 /************************************************
  *  Public Functions
  ***********************************************/
+
+void chppClearGnssClientContextTestOnly(void) {
+  memset(&gGnssClientContext, 0, sizeof(gGnssClientContext));
+}
 
 void chppRegisterGnssClient(struct ChppAppState *appContext) {
   chppRegisterClient(appContext, (void *)&gGnssClientContext,
