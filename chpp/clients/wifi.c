@@ -46,11 +46,6 @@
 #define CHPP_WIFI_MAX_TIMESYNC_AGE_NS CHPP_TIMESYNC_DEFAULT_MAX_AGE_NS
 #endif
 
-#ifndef CHPP_WIFI_SCAN_RESULT_TIMEOUT_NS
-#define CHPP_WIFI_SCAN_RESULT_TIMEOUT_NS \
-  (CHRE_WIFI_SCAN_RESULT_TIMEOUT_NS - CHRE_NSEC_PER_SEC)
-#endif
-
 /************************************************
  *  Prototypes
  ***********************************************/
@@ -412,7 +407,7 @@ static void chppWifiClientNotifyMatch(void *clientContext) {
 static void chppWiFiRecoverScanMonitor(
     struct ChppWifiClientState *clientContext) {
   if (clientContext->scanMonitorEnabled) {
-    CHPP_LOGD("Re-enabling WiFi scan monitoring after reset");
+    CHPP_LOGI("Re-enabling WiFi scan monitoring after reset");
     clientContext->scanMonitorEnabled = false;
     clientContext->scanMonitorSilenceCallback = true;
 
@@ -558,6 +553,7 @@ static void chppWifiRequestRangingResult(
   struct ChppAppHeader *rxHeader = (struct ChppAppHeader *)buf;
 
   if (rxHeader->error != CHPP_APP_ERROR_NONE) {
+    CHPP_LOGE("Ranging failed at service" PRIu8);
     gCallbacks->rangingEventCallback(chppAppErrorToChreError(rxHeader->error),
                                      NULL);
 
@@ -835,31 +831,29 @@ static bool chppWifiClientOpen(const struct chrePalSystemApi *systemApi,
   CHPP_DEBUG_ASSERT(systemApi != NULL);
   CHPP_DEBUG_ASSERT(callbacks != NULL);
 
+  bool result = false;
   gSystemApi = systemApi;
   gCallbacks = callbacks;
 
   CHPP_LOGD("WiFi client opening");
   if (gWifiClientContext.client.appContext == NULL) {
     CHPP_LOGE("WiFi client app is null");
-    return false;
+  } else {
+    if (chppWaitForDiscoveryComplete(gWifiClientContext.client.appContext,
+                                     CHPP_WIFI_DISCOVERY_TIMEOUT_MS)) {
+      result = chppClientSendOpenRequest(
+          &gWifiClientContext.client,
+          &gWifiClientContext.rRState[CHPP_WIFI_OPEN], CHPP_WIFI_OPEN,
+          /*blocking=*/true);
+    }
+
+    // Since CHPP_WIFI_DEFAULT_CAPABILITIES is mandatory, we can always
+    // pseudo-open and return true. Otherwise, these should have been gated.
+    chppClientPseudoOpen(&gWifiClientContext.client);
+    result = true;
   }
 
-  // Since CHPP_WIFI_DEFAULT_CAPABILITIES is mandatory, we can always
-  // pseudo-open and return true. Otherwise, these should have been gated.
-
-  // Consider the client to be PseudoOpen prior to sending open request
-  // This avoids race conditions where responses could come between
-  // the open request timeout and setting the client as PseudoOpen
-  chppClientPseudoOpen(&gWifiClientContext.client);
-  if (chppWaitForDiscoveryComplete(gWifiClientContext.client.appContext,
-                                   CHPP_WIFI_DISCOVERY_TIMEOUT_MS)) {
-    chppClientSendOpenRequest(&gWifiClientContext.client,
-                              &gWifiClientContext.rRState[CHPP_WIFI_OPEN],
-                              CHPP_WIFI_OPEN,
-                              /*blocking=*/true);
-  }
-
-  return true;
+  return result;
 }
 
 /**
@@ -974,14 +968,10 @@ static bool chppWifiClientRequestScan(const struct chreWifiScanParams *params) {
     request->header.error = CHPP_APP_ERROR_NONE;
     request->header.command = CHPP_WIFI_REQUEST_SCAN_ASYNC;
 
-    CHPP_STATIC_ASSERT(
-        CHRE_WIFI_SCAN_RESULT_TIMEOUT_NS > CHPP_WIFI_SCAN_RESULT_TIMEOUT_NS,
-        "Chpp wifi scan timeout needs to be smaller than CHRE wifi scan "
-        "timeout");
     result = chppSendTimestampedRequestOrFail(
         &gWifiClientContext.client,
         &gWifiClientContext.rRState[CHPP_WIFI_REQUEST_SCAN_ASYNC], request,
-        requestLen, CHPP_WIFI_SCAN_RESULT_TIMEOUT_NS);
+        requestLen, CHRE_WIFI_SCAN_RESULT_TIMEOUT_NS);
   }
 
   return result;
@@ -1165,10 +1155,6 @@ static bool chppWifiClientNanRequestNanRanging(
 /************************************************
  *  Public Functions
  ***********************************************/
-
-void chppClearWifiClientContextTestOnly(void) {
-  memset(&gWifiClientContext, 0, sizeof(gWifiClientContext));
-}
 
 void chppRegisterWifiClient(struct ChppAppState *appContext) {
   chppRegisterClient(appContext, (void *)&gWifiClientContext,

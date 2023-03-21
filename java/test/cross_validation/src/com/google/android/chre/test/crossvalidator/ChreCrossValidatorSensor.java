@@ -291,8 +291,8 @@ public class ChreCrossValidatorSensor
                     if (valuesLength != mSensorConfig.expectedValuesLength) {
                         setErrorStr(String.format(kParseDataErrorPrefix
                                         + "incorrect sensor datapoints values length %d when "
-                                        + "expecting %d",
-                                valuesLength, mSensorConfig.expectedValuesLength));
+                                        + "expecing %d",
+                                sensorType, valuesLength, mSensorConfig.expectedValuesLength));
                         break;
                     }
                     mChreDatapointsQueue.add(new ChreSensorDatapoint(datapoint));

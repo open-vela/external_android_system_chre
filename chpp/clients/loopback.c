@@ -53,145 +53,163 @@ struct ChppLoopbackClientState {
  *  Public Functions
  ***********************************************/
 
-void chppLoopbackClientInit(struct ChppAppState *appState) {
+void chppLoopbackClientInit(struct ChppAppState *context) {
   CHPP_LOGD("Loopback client init");
-  CHPP_DEBUG_NOT_NULL(appState);
 
-  appState->loopbackClientContext =
+  context->loopbackClientContext =
       chppMalloc(sizeof(struct ChppLoopbackClientState));
-  CHPP_NOT_NULL(appState->loopbackClientContext);
-  struct ChppLoopbackClientState *state = appState->loopbackClientContext;
-  memset(state, 0, sizeof(struct ChppLoopbackClientState));
+  CHPP_NOT_NULL(context->loopbackClientContext);
+  memset(context->loopbackClientContext, 0,
+         sizeof(struct ChppLoopbackClientState));
 
-  state->client.appContext = appState;
-  chppClientInit(&state->client, CHPP_HANDLE_LOOPBACK);
-  state->testResult.error = CHPP_APP_ERROR_NONE;
-  state->client.openState = CHPP_OPEN_STATE_OPENED;
+  context->loopbackClientContext->client.appContext = context;
+  chppClientInit(&context->loopbackClientContext->client, CHPP_HANDLE_LOOPBACK);
+  context->loopbackClientContext->testResult.error = CHPP_APP_ERROR_NONE;
+  context->loopbackClientContext->client.openState = CHPP_OPEN_STATE_OPENED;
 }
 
-void chppLoopbackClientDeinit(struct ChppAppState *appState) {
+void chppLoopbackClientDeinit(struct ChppAppState *context) {
   CHPP_LOGD("Loopback client deinit");
-  CHPP_NOT_NULL(appState);
-  CHPP_NOT_NULL(appState->loopbackClientContext);
 
-  chppClientDeinit(&appState->loopbackClientContext->client);
-  CHPP_FREE_AND_NULLIFY(appState->loopbackClientContext);
+  CHPP_NOT_NULL(context);
+  CHPP_NOT_NULL(context->loopbackClientContext);
+
+  chppClientDeinit(&context->loopbackClientContext->client);
+  CHPP_FREE_AND_NULLIFY(context->loopbackClientContext);
 }
 
-bool chppDispatchLoopbackServiceResponse(struct ChppAppState *appState,
+bool chppDispatchLoopbackServiceResponse(struct ChppAppState *context,
                                          const uint8_t *response, size_t len) {
   CHPP_LOGD("Loopback client dispatch service response");
+
   CHPP_ASSERT(len >= CHPP_LOOPBACK_HEADER_LEN);
   CHPP_NOT_NULL(response);
-  CHPP_DEBUG_NOT_NULL(appState);
-  struct ChppLoopbackClientState *state = appState->loopbackClientContext;
-  CHPP_NOT_NULL(state);
-  CHPP_NOT_NULL(state->loopbackData);
+  CHPP_NOT_NULL(context->loopbackClientContext);
+  CHPP_NOT_NULL(context->loopbackClientContext->loopbackData);
 
-  CHPP_ASSERT(
-      chppClientTimestampResponse(&state->client, &state->runLoopbackTest,
-                                  (const struct ChppAppHeader *)response));
+  CHPP_ASSERT(chppClientTimestampResponse(
+      &context->loopbackClientContext->client,
+      &context->loopbackClientContext->runLoopbackTest,
+      (const struct ChppAppHeader *)response));
 
-  struct ChppLoopbackTestResult *result = &state->testResult;
+  context->loopbackClientContext->testResult.error = CHPP_APP_ERROR_NONE;
+  context->loopbackClientContext->testResult.responseLen = len;
+  context->loopbackClientContext->testResult.firstError = len;
+  context->loopbackClientContext->testResult.byteErrors = 0;
+  context->loopbackClientContext->testResult.rttNs =
+      context->loopbackClientContext->runLoopbackTest.responseTimeNs -
+      context->loopbackClientContext->runLoopbackTest.requestTimeNs;
 
-  result->error = CHPP_APP_ERROR_NONE;
-  result->responseLen = len;
-  result->firstError = len;
-  result->byteErrors = 0;
-  result->rttNs = state->runLoopbackTest.responseTimeNs -
-                  state->runLoopbackTest.requestTimeNs;
-
-  if (result->requestLen != result->responseLen) {
-    result->error = CHPP_APP_ERROR_INVALID_LENGTH;
-    result->firstError = MIN(result->requestLen, result->responseLen);
+  if (context->loopbackClientContext->testResult.requestLen !=
+      context->loopbackClientContext->testResult.responseLen) {
+    context->loopbackClientContext->testResult.error =
+        CHPP_APP_ERROR_INVALID_LENGTH;
+    context->loopbackClientContext->testResult.firstError =
+        MIN(context->loopbackClientContext->testResult.requestLen,
+            context->loopbackClientContext->testResult.responseLen);
   }
 
   for (size_t loc = CHPP_LOOPBACK_HEADER_LEN;
-       loc < MIN(result->requestLen, result->responseLen); loc++) {
-    if (state->loopbackData[loc - CHPP_LOOPBACK_HEADER_LEN] != response[loc]) {
-      result->error = CHPP_APP_ERROR_UNSPECIFIED;
-      result->firstError =
-          MIN(result->firstError, loc - CHPP_LOOPBACK_HEADER_LEN);
-      result->byteErrors++;
+       loc < MIN(context->loopbackClientContext->testResult.requestLen,
+                 context->loopbackClientContext->testResult.responseLen);
+       loc++) {
+    if (context->loopbackClientContext
+            ->loopbackData[loc - CHPP_LOOPBACK_HEADER_LEN] != response[loc]) {
+      context->loopbackClientContext->testResult.error =
+          CHPP_APP_ERROR_UNSPECIFIED;
+      context->loopbackClientContext->testResult.firstError =
+          MIN(context->loopbackClientContext->testResult.firstError,
+              loc - CHPP_LOOPBACK_HEADER_LEN);
+      context->loopbackClientContext->testResult.byteErrors++;
     }
   }
 
-  CHPP_LOGD("Loopback client RX err=0x%" PRIx16 " len=%" PRIuSIZE
+  CHPP_LOGI("Loopback client RX err=0x%" PRIx16 " len=%" PRIuSIZE
             " req len=%" PRIuSIZE " first err=%" PRIuSIZE
             " total err=%" PRIuSIZE,
-            result->error, result->responseLen, result->requestLen,
-            result->firstError, result->byteErrors);
+            context->loopbackClientContext->testResult.error,
+            context->loopbackClientContext->testResult.responseLen,
+            context->loopbackClientContext->testResult.requestLen,
+            context->loopbackClientContext->testResult.firstError,
+            context->loopbackClientContext->testResult.byteErrors);
 
   // Notify waiting (synchronous) client
-  chppMutexLock(&state->client.responseMutex);
-  state->client.responseReady = true;
-  chppConditionVariableSignal(&state->client.responseCondVar);
-  chppMutexUnlock(&state->client.responseMutex);
+  chppMutexLock(&context->loopbackClientContext->client.responseMutex);
+  context->loopbackClientContext->client.responseReady = true;
+  chppConditionVariableSignal(
+      &context->loopbackClientContext->client.responseCondVar);
+  chppMutexUnlock(&context->loopbackClientContext->client.responseMutex);
 
   return true;
 }
 
-struct ChppLoopbackTestResult chppRunLoopbackTest(struct ChppAppState *appState,
+struct ChppLoopbackTestResult chppRunLoopbackTest(struct ChppAppState *context,
                                                   const uint8_t *buf,
                                                   size_t len) {
-  CHPP_LOGD("Loopback client TX len=%" PRIuSIZE,
+  CHPP_LOGI("Loopback client TX len=%" PRIuSIZE,
             len + CHPP_LOOPBACK_HEADER_LEN);
 
-  if (appState == NULL) {
+  struct ChppLoopbackTestResult result;
+  if (context == NULL) {
     CHPP_LOGE("Cannot run loopback test with null app");
-    struct ChppLoopbackTestResult result;
     result.error = CHPP_APP_ERROR_UNSUPPORTED;
-    return result;
-  }
-
-  if (!chppWaitForDiscoveryComplete(appState, 0 /* timeoutMs */)) {
-    struct ChppLoopbackTestResult result;
+  } else if (!chppWaitForDiscoveryComplete(context, 0 /* timeoutMs */)) {
     result.error = CHPP_APP_ERROR_NOT_READY;
-    return result;
+  } else {
+    CHPP_NOT_NULL(context->loopbackClientContext);
+    if (context->loopbackClientContext->testResult.error ==
+        CHPP_APP_ERROR_BLOCKED) {
+      CHPP_DEBUG_ASSERT_LOG(false, "Another loopback in progress");
+
+    } else {
+      context->loopbackClientContext->testResult.error = CHPP_APP_ERROR_BLOCKED;
+      context->loopbackClientContext->testResult.requestLen =
+          len + CHPP_LOOPBACK_HEADER_LEN;
+      context->loopbackClientContext->testResult.responseLen = 0;
+      context->loopbackClientContext->testResult.firstError = 0;
+      context->loopbackClientContext->testResult.byteErrors = 0;
+      context->loopbackClientContext->testResult.rttNs = 0;
+      context->loopbackClientContext->runLoopbackTest.requestTimeNs =
+          CHPP_TIME_NONE;
+      context->loopbackClientContext->runLoopbackTest.responseTimeNs =
+          CHPP_TIME_NONE;
+
+      if (len == 0) {
+        CHPP_LOGE("Loopback payload=0!");
+        context->loopbackClientContext->testResult.error =
+            CHPP_APP_ERROR_INVALID_LENGTH;
+
+      } else {
+        uint8_t *loopbackRequest = (uint8_t *)chppAllocClientRequest(
+            &context->loopbackClientContext->client,
+            context->loopbackClientContext->testResult.requestLen);
+
+        if (loopbackRequest == NULL) {
+          // OOM
+          context->loopbackClientContext->testResult.requestLen = 0;
+          context->loopbackClientContext->testResult.error = CHPP_APP_ERROR_OOM;
+          CHPP_LOG_OOM();
+
+        } else {
+          context->loopbackClientContext->loopbackData = buf;
+          memcpy(&loopbackRequest[CHPP_LOOPBACK_HEADER_LEN], buf, len);
+
+          if (!chppSendTimestampedRequestAndWaitTimeout(
+                  &context->loopbackClientContext->client,
+                  &context->loopbackClientContext->runLoopbackTest,
+                  loopbackRequest,
+                  context->loopbackClientContext->testResult.requestLen,
+                  CHPP_NSEC_PER_SEC /* 1s */)) {
+            context->loopbackClientContext->testResult.error =
+                CHPP_APP_ERROR_UNSPECIFIED;
+          }  // else {context->loopbackClientContext->testResult is now
+             // populated}
+        }
+      }
+    }
+
+    result = context->loopbackClientContext->testResult;
   }
 
-  struct ChppLoopbackClientState *state = appState->loopbackClientContext;
-  CHPP_NOT_NULL(state);
-  struct ChppLoopbackTestResult *result = &state->testResult;
-
-  if (result->error == CHPP_APP_ERROR_BLOCKED) {
-    CHPP_DEBUG_ASSERT_LOG(false, "Another loopback in progress");
-    return *result;
-  }
-
-  result->error = CHPP_APP_ERROR_BLOCKED;
-  result->requestLen = len + CHPP_LOOPBACK_HEADER_LEN;
-  result->responseLen = 0;
-  result->firstError = 0;
-  result->byteErrors = 0;
-  result->rttNs = 0;
-  state->runLoopbackTest.requestTimeNs = CHPP_TIME_NONE;
-  state->runLoopbackTest.responseTimeNs = CHPP_TIME_NONE;
-
-  if (len == 0) {
-    CHPP_LOGE("Loopback payload=0!");
-    result->error = CHPP_APP_ERROR_INVALID_LENGTH;
-    return *result;
-  }
-
-  uint8_t *loopbackRequest =
-      (uint8_t *)chppAllocClientRequest(&state->client, result->requestLen);
-
-  if (loopbackRequest == NULL) {
-    result->requestLen = 0;
-    result->error = CHPP_APP_ERROR_OOM;
-    CHPP_LOG_OOM();
-    return *result;
-  }
-
-  state->loopbackData = buf;
-  memcpy(&loopbackRequest[CHPP_LOOPBACK_HEADER_LEN], buf, len);
-
-  if (!chppSendTimestampedRequestAndWaitTimeout(
-          &state->client, &state->runLoopbackTest, loopbackRequest,
-          result->requestLen, 5 * CHPP_NSEC_PER_SEC)) {
-    result->error = CHPP_APP_ERROR_UNSPECIFIED;
-  }
-
-  return *result;
+  return result;
 }

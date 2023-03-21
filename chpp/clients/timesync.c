@@ -50,124 +50,132 @@ struct ChppTimesyncClientState {
  *  Public Functions
  ***********************************************/
 
-void chppTimesyncClientInit(struct ChppAppState *appState) {
+void chppTimesyncClientInit(struct ChppAppState *context) {
   CHPP_LOGD("Timesync client init");
-  CHPP_DEBUG_NOT_NULL(appState);
 
-  appState->timesyncClientContext =
+  context->timesyncClientContext =
       chppMalloc(sizeof(struct ChppTimesyncClientState));
-  CHPP_NOT_NULL(appState->timesyncClientContext);
-  struct ChppTimesyncClientState *state = appState->timesyncClientContext;
+  CHPP_NOT_NULL(context->timesyncClientContext);
+  memset(context->timesyncClientContext, 0,
+         sizeof(struct ChppTimesyncClientState));
 
-  memset(state, 0, sizeof(struct ChppTimesyncClientState));
-  state->client.appContext = appState;
-  state->timesyncResult.error = CHPP_APP_ERROR_NONE;
+  context->timesyncClientContext->client.appContext = context;
+  context->timesyncClientContext->timesyncResult.error = CHPP_APP_ERROR_NONE;
 
-  chppClientInit(&state->client, CHPP_HANDLE_TIMESYNC);
-  state->timesyncResult.error = CHPP_APP_ERROR_UNSPECIFIED;
-  state->client.openState = CHPP_OPEN_STATE_OPENED;
+  chppClientInit(&context->timesyncClientContext->client, CHPP_HANDLE_TIMESYNC);
+  context->timesyncClientContext->timesyncResult.error =
+      CHPP_APP_ERROR_UNSPECIFIED;
+  context->timesyncClientContext->client.openState = CHPP_OPEN_STATE_OPENED;
 }
 
-void chppTimesyncClientDeinit(struct ChppAppState *appState) {
+void chppTimesyncClientDeinit(struct ChppAppState *context) {
   CHPP_LOGD("Timesync client deinit");
-  CHPP_DEBUG_NOT_NULL(appState);
-  CHPP_NOT_NULL(appState->timesyncClientContext);
-  chppClientDeinit(&appState->timesyncClientContext->client);
-  CHPP_FREE_AND_NULLIFY(appState->timesyncClientContext);
+
+  CHPP_NOT_NULL(context->timesyncClientContext);
+  chppClientDeinit(&context->timesyncClientContext->client);
+  CHPP_FREE_AND_NULLIFY(context->timesyncClientContext);
 }
 
-void chppTimesyncClientReset(struct ChppAppState *appState) {
+void chppTimesyncClientReset(struct ChppAppState *context) {
   CHPP_LOGD("Timesync client reset");
-  CHPP_DEBUG_NOT_NULL(appState);
-  struct ChppTimesyncClientState *state = appState->timesyncClientContext;
-  CHPP_NOT_NULL(state);
 
-  state->timesyncResult.error = CHPP_APP_ERROR_NONE;
-  state->timesyncResult.offsetNs = 0;
-  state->timesyncResult.rttNs = 0;
-  state->timesyncResult.measurementTimeNs = 0;
+  CHPP_NOT_NULL(context->timesyncClientContext);
+
+  context->timesyncClientContext->timesyncResult.error = CHPP_APP_ERROR_NONE;
+  context->timesyncClientContext->timesyncResult.offsetNs = 0;
+  context->timesyncClientContext->timesyncResult.rttNs = 0;
+  context->timesyncClientContext->timesyncResult.measurementTimeNs = 0;
 }
 
-bool chppDispatchTimesyncServiceResponse(struct ChppAppState *appState,
+bool chppDispatchTimesyncServiceResponse(struct ChppAppState *context,
                                          const uint8_t *buf, size_t len) {
   CHPP_LOGD("Timesync client dispatch service response");
-  CHPP_DEBUG_NOT_NULL(appState);
-  struct ChppTimesyncClientState *state = appState->timesyncClientContext;
-  CHPP_NOT_NULL(state);
+
+  CHPP_NOT_NULL(context->timesyncClientContext);
   CHPP_NOT_NULL(buf);
 
   if (len < sizeof(struct ChppTimesyncResponse)) {
     CHPP_LOGE("Timesync resp short len=%" PRIuSIZE, len);
-    state->timesyncResult.error = CHPP_APP_ERROR_INVALID_LENGTH;
+    context->timesyncClientContext->timesyncResult.error =
+        CHPP_APP_ERROR_INVALID_LENGTH;
     return false;
   }
 
   const struct ChppTimesyncResponse *response =
       (const struct ChppTimesyncResponse *)buf;
-  if (chppClientTimestampResponse(&state->client, &state->measureOffset,
-                                  &response->header)) {
-    state->timesyncResult.rttNs = state->measureOffset.responseTimeNs -
-                                  state->measureOffset.requestTimeNs;
+  if (chppClientTimestampResponse(
+          &context->timesyncClientContext->client,
+          &context->timesyncClientContext->measureOffset, &response->header)) {
+    context->timesyncClientContext->timesyncResult.rttNs =
+        context->timesyncClientContext->measureOffset.responseTimeNs -
+        context->timesyncClientContext->measureOffset.requestTimeNs;
     int64_t offsetNs =
-        (int64_t)(response->timeNs - state->measureOffset.responseTimeNs);
-    int64_t offsetChangeNs = offsetNs - state->timesyncResult.offsetNs;
+        (int64_t)(response->timeNs -
+                  context->timesyncClientContext->measureOffset.responseTimeNs);
+    int64_t offsetChangeNs =
+        offsetNs - context->timesyncClientContext->timesyncResult.offsetNs;
 
     int64_t clippedOffsetChangeNs = offsetChangeNs;
-    if (state->timesyncResult.offsetNs != 0) {
+    if (context->timesyncClientContext->timesyncResult.offsetNs != 0) {
       clippedOffsetChangeNs = MIN(clippedOffsetChangeNs,
                                   (int64_t)CHPP_CLIENT_TIMESYNC_MAX_CHANGE_NS);
       clippedOffsetChangeNs = MAX(clippedOffsetChangeNs,
                                   -(int64_t)CHPP_CLIENT_TIMESYNC_MAX_CHANGE_NS);
     }
 
-    state->timesyncResult.offsetNs += clippedOffsetChangeNs;
+    context->timesyncClientContext->timesyncResult.offsetNs +=
+        clippedOffsetChangeNs;
 
     if (offsetChangeNs != clippedOffsetChangeNs) {
       CHPP_LOGW("Drift=%" PRId64 " clipped to %" PRId64 " at t=%" PRIu64,
                 offsetChangeNs / (int64_t)CHPP_NSEC_PER_MSEC,
                 clippedOffsetChangeNs / (int64_t)CHPP_NSEC_PER_MSEC,
-                state->measureOffset.responseTimeNs / CHPP_NSEC_PER_MSEC);
+                context->timesyncClientContext->measureOffset.responseTimeNs /
+                    CHPP_NSEC_PER_MSEC);
     } else {
-      state->timesyncResult.measurementTimeNs =
-          state->measureOffset.responseTimeNs;
+      context->timesyncClientContext->timesyncResult.measurementTimeNs =
+          context->timesyncClientContext->measureOffset.responseTimeNs;
     }
 
-    state->timesyncResult.error = CHPP_APP_ERROR_NONE;
+    context->timesyncClientContext->timesyncResult.error = CHPP_APP_ERROR_NONE;
 
-    CHPP_LOGD("Timesync RTT=%" PRIu64 " correction=%" PRId64 " offset=%" PRId64
+    CHPP_LOGI("Timesync RTT=%" PRIu64 " correction=%" PRId64 " offset=%" PRId64
               " t=%" PRIu64,
-              state->timesyncResult.rttNs / CHPP_NSEC_PER_MSEC,
+              context->timesyncClientContext->timesyncResult.rttNs /
+                  CHPP_NSEC_PER_MSEC,
               clippedOffsetChangeNs / (int64_t)CHPP_NSEC_PER_MSEC,
               offsetNs / (int64_t)CHPP_NSEC_PER_MSEC,
-              state->timesyncResult.measurementTimeNs / CHPP_NSEC_PER_MSEC);
+              context->timesyncClientContext->timesyncResult.measurementTimeNs /
+                  CHPP_NSEC_PER_MSEC);
   }
 
   return true;
 }
 
-bool chppTimesyncMeasureOffset(struct ChppAppState *appState) {
+bool chppTimesyncMeasureOffset(struct ChppAppState *context) {
   bool result = false;
-  CHPP_LOGD("Measuring timesync t=%" PRIu64,
+  CHPP_LOGI("Measuring timesync t=%" PRIu64,
             chppGetCurrentTimeNs() / CHPP_NSEC_PER_MSEC);
-  CHPP_DEBUG_NOT_NULL(appState);
-  struct ChppTimesyncClientState *state = appState->timesyncClientContext;
-  CHPP_NOT_NULL(state);
 
-  state->timesyncResult.error =
+  CHPP_NOT_NULL(context->timesyncClientContext);
+
+  context->timesyncClientContext->timesyncResult.error =
       CHPP_APP_ERROR_BUSY;  // A measurement is in progress
 
   struct ChppAppHeader *request = chppAllocClientRequestCommand(
-      &state->client, CHPP_TIMESYNC_COMMAND_GETTIME);
+      &context->timesyncClientContext->client, CHPP_TIMESYNC_COMMAND_GETTIME);
   size_t requestLen = sizeof(*request);
 
   if (request == NULL) {
-    state->timesyncResult.error = CHPP_APP_ERROR_OOM;
+    context->timesyncClientContext->timesyncResult.error = CHPP_APP_ERROR_OOM;
     CHPP_LOG_OOM();
 
   } else if (!chppSendTimestampedRequestOrFail(
-                 &state->client, &state->measureOffset, request, requestLen,
-                 CHPP_CLIENT_REQUEST_TIMEOUT_INFINITE)) {
-    state->timesyncResult.error = CHPP_APP_ERROR_UNSPECIFIED;
+                 &context->timesyncClientContext->client,
+                 &context->timesyncClientContext->measureOffset, request,
+                 requestLen, CHPP_CLIENT_REQUEST_TIMEOUT_INFINITE)) {
+    context->timesyncClientContext->timesyncResult.error =
+        CHPP_APP_ERROR_UNSPECIFIED;
 
   } else {
     result = true;
@@ -176,31 +184,28 @@ bool chppTimesyncMeasureOffset(struct ChppAppState *appState) {
   return result;
 }
 
-int64_t chppTimesyncGetOffset(struct ChppAppState *appState,
+int64_t chppTimesyncGetOffset(struct ChppAppState *context,
                               uint64_t maxTimesyncAgeNs) {
-  CHPP_DEBUG_NOT_NULL(appState);
-  struct ChppTimesyncClientState *state = appState->timesyncClientContext;
-  CHPP_DEBUG_NOT_NULL(state);
-
-  bool timesyncNeverDone = state->timesyncResult.offsetNs == 0;
+  bool timesyncNeverDone =
+      (context->timesyncClientContext->timesyncResult.offsetNs == 0);
   bool timesyncIsStale =
-      chppGetCurrentTimeNs() - state->timesyncResult.measurementTimeNs >
-      maxTimesyncAgeNs;
+      (chppGetCurrentTimeNs() -
+           context->timesyncClientContext->timesyncResult.measurementTimeNs >
+       maxTimesyncAgeNs);
 
   if (timesyncNeverDone || timesyncIsStale) {
-    chppTimesyncMeasureOffset(appState);
+    chppTimesyncMeasureOffset(context);
   } else {
     CHPP_LOGD("No need to timesync at t~=%" PRIu64 "offset=%" PRId64,
               chppGetCurrentTimeNs() / CHPP_NSEC_PER_MSEC,
-              state->timesyncResult.offsetNs / (int64_t)CHPP_NSEC_PER_MSEC);
+              context->timesyncClientContext->timesyncResult.offsetNs /
+                  (int64_t)CHPP_NSEC_PER_MSEC);
   }
 
-  return state->timesyncResult.offsetNs;
+  return context->timesyncClientContext->timesyncResult.offsetNs;
 }
 
 const struct ChppTimesyncResult *chppTimesyncGetResult(
-    struct ChppAppState *appState) {
-  CHPP_DEBUG_NOT_NULL(appState);
-  CHPP_DEBUG_NOT_NULL(appState->timesyncClientContext);
-  return &appState->timesyncClientContext->timesyncResult;
+    struct ChppAppState *context) {
+  return &context->timesyncClientContext->timesyncResult;
 }

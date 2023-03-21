@@ -30,27 +30,21 @@ namespace chre {
  */
 class MutexBase {
  protected:
-  SemaphoreHandle_t mSemaphoreHandle = NULL;
+  SemaphoreHandle_t mSemaphoreHandle;
 
   /**
    * Initialize the mutex handle using a static semaphore
    * to avoid heap allocations
    */
   void initStaticMutex() {
-#ifdef CHRE_CREATE_MUTEX_ON_HEAP
-    mSemaphoreHandle = xSemaphoreCreateMutex();
-#else
     mSemaphoreHandle = xSemaphoreCreateMutexStatic(&mStaticSemaphore);
-#endif
     if (mSemaphoreHandle == NULL) {
       FATAL_ERROR("Failed to initialize mutex");
     }
   }
 
  private:
-#ifndef CHRE_CREATE_MUTEX_ON_HEAP
   StaticSemaphore_t mStaticSemaphore;
-#endif
 };
 
 }  // namespace chre
