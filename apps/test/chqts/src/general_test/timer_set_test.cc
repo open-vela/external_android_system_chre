@@ -23,11 +23,7 @@
 #include <shared/send_message.h>
 #include <shared/time_util.h>
 
-#include <chre/util/nanoapp/log.h>
-
-#include "chre_api/chre.h"
-
-#define LOG_TAG "[TimerSetTest]"
+#include <chre.h>
 
 using nanoapp_testing::kOneMillisecondInNanoseconds;
 using nanoapp_testing::kOneSecondInNanoseconds;
@@ -183,7 +179,7 @@ void TimerSetTest::handleEvent(uint32_t senderInstanceId, uint16_t eventType,
 }
 
 void TimerSetTest::markSuccess(uint32_t stage) {
-  LOGD("Stage %" PRIu32 " succeeded", stage);
+  chreLog(CHRE_LOG_DEBUG, "Stage %" PRIu32 " succeeded", stage);
   uint32_t finishedBit = (1 << stage);
   if ((kAllFinished & finishedBit) == 0) {
     sendFatalFailureToHost("markSuccess bad stage", &stage);

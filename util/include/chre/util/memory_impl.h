@@ -111,26 +111,12 @@ inline void uninitializedMoveOrCopy(ElementType *source, size_t count,
 
 template <typename T, typename... Args>
 inline T *memoryAlloc(Args &&... args) {
-  T *storage = nullptr;
-  if constexpr (alignof(T) > alignof(std::max_align_t)) {
-    storage = memoryAlignedAlloc<T>();
-  } else {
-    storage = static_cast<T *>(memoryAlloc(sizeof(T)));
-  }
-
+  auto *storage = static_cast<T *>(memoryAlloc(sizeof(T)));
   if (storage != nullptr) {
     new (storage) T(std::forward<Args>(args)...);
   }
 
   return storage;
-}
-
-template <typename T>
-void memoryFreeAndDestroy(T *element) {
-  if (element != nullptr) {
-    element->~T();
-    memoryFree(element);
-  }
 }
 
 }  // namespace chre

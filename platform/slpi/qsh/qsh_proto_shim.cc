@@ -31,7 +31,6 @@ extern "C" {
 #include "chre/platform/slpi/qsh/qsh_proto_shim.h"
 #include "chre/sensor.h"
 #include "chre/util/macros.h"
-#include "chre/util/system/event_callbacks.h"
 
 namespace chre {
 namespace {
