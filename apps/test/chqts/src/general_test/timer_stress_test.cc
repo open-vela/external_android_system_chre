@@ -21,11 +21,7 @@
 
 #include <shared/send_message.h>
 
-#include <chre/util/nanoapp/log.h>
-
-#include "chre_api/chre.h"
-
-#define LOG_TAG "[TimerStressTest]"
+#include <chre.h>
 
 using nanoapp_testing::sendFatalFailureToHost;
 using nanoapp_testing::sendInternalFailureToHost;
@@ -158,7 +154,7 @@ void TimerStressTest::handleEvent(uint32_t senderInstanceId, uint16_t eventType,
 }
 
 void TimerStressTest::markSuccess(uint32_t stage) {
-  LOGD("Stage %" PRIu32 " succeeded", stage);
+  chreLog(CHRE_LOG_DEBUG, "Stage %" PRIu32 " succeeded", stage);
   uint32_t finishedBit = (1 << stage);
   if ((kAllFinished & finishedBit) == 0) {
     sendFatalFailureToHost("markSuccess bad stage:", &stage);

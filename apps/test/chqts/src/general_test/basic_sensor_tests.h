@@ -19,7 +19,7 @@
 
 #include <general_test/basic_sensor_test_base.h>
 
-#include "chre_api/chre.h"
+#include <chre.h>
 
 namespace general_test {
 

@@ -25,7 +25,7 @@
 #include <shared/nano_string.h>
 #include <shared/send_message.h>
 
-#include "chre_api/chre.h"
+#include <chre.h>
 
 using nanoapp_testing::MessageType;
 using nanoapp_testing::sendFatalFailureToHost;
