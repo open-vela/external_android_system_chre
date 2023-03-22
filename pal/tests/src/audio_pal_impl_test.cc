@@ -80,8 +80,8 @@ void audioAvailabilityCallback(uint32_t handle, bool available) {
 class PalAudioTest : public testing::Test {
  protected:
   void SetUp() override {
-    chre::TaskManagerSingleton::init();
     gCallbacks = MakeUnique<Callbacks>();
+    chre::TaskManagerSingleton::init();
     mApi = chrePalAudioGetApi(CHRE_PAL_AUDIO_API_CURRENT_VERSION);
     ASSERT_NE(mApi, nullptr);
     EXPECT_EQ(mApi->moduleVersion, CHRE_PAL_AUDIO_API_CURRENT_VERSION);
@@ -89,11 +89,11 @@ class PalAudioTest : public testing::Test {
   }
 
   void TearDown() override {
-    gCallbacks = nullptr;
     if (mApi != nullptr) {
       mApi->close();
     }
     chre::TaskManagerSingleton::deinit();
+    gCallbacks = nullptr;
   }
 
   //! CHRE PAL implementation API.

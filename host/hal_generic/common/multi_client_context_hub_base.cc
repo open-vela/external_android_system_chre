@@ -140,9 +140,13 @@ ScopedAStatus MultiClientContextHubBase::loadNanoapp(
       clientId, transactionId, std::nullopt);
   if (!request.has_value()) {
     LOGE("Failed to get the first load request.");
+    mHalClientManager->resetPendingLoadTransaction();
     return fromResult(false);
   }
   bool result = sendFragmentedLoadRequest(clientId, request.value());
+  if (!result) {
+    mHalClientManager->resetPendingLoadTransaction();
+  }
   return fromResult(result);
 }
 
@@ -173,6 +177,9 @@ ScopedAStatus MultiClientContextHubBase::unloadNanoapp(int32_t contextHubId,
                                        builder.GetSize(),
                                        mHalClientManager->getClientId());
   bool result = mConnection->sendMessage(builder);
+  if (!result) {
+    mHalClientManager->resetPendingUnloadTransaction();
+  }
   return fromResult(result);
 }
 

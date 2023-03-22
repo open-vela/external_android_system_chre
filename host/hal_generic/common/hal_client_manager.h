@@ -122,6 +122,10 @@ class HalClientManager {
   bool registerPendingLoadTransaction(
       std::unique_ptr<chre::FragmentedLoadTransaction> transaction);
 
+  void resetPendingLoadTransaction() {
+    mPendingLoadTransaction.reset();
+  }
+
   /**
    * Gets the next FragmentedLoadRequest from PendingLoadTransaction if it's
    * available.
@@ -149,6 +153,10 @@ class HalClientManager {
    * @return true if success, otherwise false.
    */
   bool registerPendingUnloadTransaction();
+
+  void resetPendingUnloadTransaction() {
+    mPendingUnloadTransaction.reset();
+  }
 
   /**
    * Clears the PendingUnloadTransaction registered by clientId after the

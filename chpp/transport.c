@@ -1772,6 +1772,10 @@ void chppTransportSendReset(struct ChppTransportState *context,
     config->version.minor = 0;
     config->version.patch = 0;
 
+    config->reserved1 = 0;
+    config->reserved2 = 0;
+    config->reserved3 = 0;
+
     if (resetType == CHPP_TRANSPORT_ATTR_RESET_ACK) {
       CHPP_LOGD("Sending RESET-ACK");
       chppSetResetComplete(context);

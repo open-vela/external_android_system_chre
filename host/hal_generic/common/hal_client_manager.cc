@@ -142,11 +142,11 @@ void HalClientManager::handleClientDeath(pid_t pid) {
   clientInfo.callback.reset();
   if (mPendingLoadTransaction.has_value() &&
       mPendingLoadTransaction->clientId == clientId) {
-    mPendingLoadTransaction.reset();
+    resetPendingLoadTransaction();
   }
   if (mPendingUnloadTransaction.has_value() &&
       mPendingUnloadTransaction->clientId == clientId) {
-    mPendingUnloadTransaction.reset();
+    resetPendingUnloadTransaction();
   }
   mClientIdsToClientInfo.erase(clientId);
   if (mFrameworkServiceClientId == clientId) {
@@ -196,7 +196,7 @@ HalClientManager::getNextFragmentedLoadRequest(
     return std::nullopt;
   }
   if (mPendingLoadTransaction->transaction->isComplete()) {
-    mPendingLoadTransaction.reset();
+    resetPendingLoadTransaction();
     return std::nullopt;
   }
   auto request = mPendingLoadTransaction->transaction->getNextRequest();
@@ -247,7 +247,7 @@ void HalClientManager::finishPendingUnloadTransaction(HalClientId clientId) {
          mPendingUnloadTransaction->clientId, clientId);
     return;
   }
-  mPendingUnloadTransaction.reset();
+  resetPendingUnloadTransaction();
 }
 
 bool HalClientManager::isNewTransactionAllowedLocked(HalClientId clientId) {
@@ -265,7 +265,7 @@ bool HalClientManager::isNewTransactionAllowedLocked(HalClientId clientId) {
          "'s pending load transaction is overridden by client %" PRIu16
          " after holding the slot for %" PRIu64 " ms",
          mPendingLoadTransaction->clientId, clientId, timeElapsedMs);
-    mPendingLoadTransaction.reset();
+    resetPendingLoadTransaction();
     return true;
   }
   if (mPendingUnloadTransaction.has_value()) {
@@ -282,7 +282,7 @@ bool HalClientManager::isNewTransactionAllowedLocked(HalClientId clientId) {
          " is overridden by a new transaction from client %" PRIu16
          " after holding the slot for %" PRIu64 "ms",
          mPendingUnloadTransaction->clientId, clientId, timeElapsedMs);
-    mPendingUnloadTransaction.reset();
+    resetPendingUnloadTransaction();
     return true;
   }
   return true;
