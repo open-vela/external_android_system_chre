@@ -185,39 +185,63 @@ public class ChreApiTestUtil {
      */
     public static Service getChreApiService() {
         Service chreApiService = new Service("chre.rpc.ChreApiTestService",
-                Service.unaryMethod("ChreBleGetCapabilities",
+                Service.unaryMethod(
+                        "ChreBleGetCapabilities",
                         ChreApiTest.Void.class,
                         ChreApiTest.Capabilities.class),
-                Service.unaryMethod("ChreBleGetFilterCapabilities",
+                Service.unaryMethod(
+                        "ChreBleGetFilterCapabilities",
                         ChreApiTest.Void.class,
                         ChreApiTest.Capabilities.class),
-                Service.unaryMethod("ChreBleStartScanAsync",
+                Service.unaryMethod(
+                        "ChreBleStartScanAsync",
                         ChreApiTest.ChreBleStartScanAsyncInput.class,
                         ChreApiTest.Status.class),
-                Service.serverStreamingMethod("ChreBleStartScanSync",
+                Service.serverStreamingMethod(
+                        "ChreBleStartScanSync",
                         ChreApiTest.ChreBleStartScanAsyncInput.class,
                         ChreApiTest.GeneralSyncMessage.class),
-                Service.unaryMethod("ChreBleStopScanAsync",
+                Service.unaryMethod(
+                        "ChreBleStopScanAsync",
                         ChreApiTest.Void.class,
                         ChreApiTest.Status.class),
-                Service.serverStreamingMethod("ChreBleStopScanSync",
+                Service.serverStreamingMethod(
+                        "ChreBleStopScanSync",
                         ChreApiTest.Void.class,
                         ChreApiTest.GeneralSyncMessage.class),
-                Service.unaryMethod("ChreSensorFindDefault",
+                Service.unaryMethod(
+                        "ChreSensorFindDefault",
                         ChreApiTest.ChreSensorFindDefaultInput.class,
                         ChreApiTest.ChreSensorFindDefaultOutput.class),
-                Service.unaryMethod("ChreGetSensorInfo",
+                Service.unaryMethod(
+                        "ChreGetSensorInfo",
                         ChreApiTest.ChreHandleInput.class,
                         ChreApiTest.ChreGetSensorInfoOutput.class),
-                Service.unaryMethod("ChreGetSensorSamplingStatus",
+                Service.unaryMethod(
+                        "ChreGetSensorSamplingStatus",
                         ChreApiTest.ChreHandleInput.class,
                         ChreApiTest.ChreGetSensorSamplingStatusOutput.class),
-                Service.unaryMethod("ChreSensorConfigureModeOnly",
+                Service.unaryMethod(
+                        "ChreSensorConfigureModeOnly",
                         ChreApiTest.ChreSensorConfigureModeOnlyInput.class,
                         ChreApiTest.Status.class),
-                Service.unaryMethod("ChreAudioGetSource",
+                Service.unaryMethod(
+                        "ChreAudioGetSource",
                         ChreApiTest.ChreHandleInput.class,
-                        ChreApiTest.ChreAudioGetSourceOutput.class));
+                        ChreApiTest.ChreAudioGetSourceOutput.class),
+                Service.unaryMethod(
+                        "ChreConfigureHostEndpointNotifications",
+                        ChreApiTest.ChreConfigureHostEndpointNotificationsInput.class,
+                        ChreApiTest.Status.class),
+                Service.unaryMethod(
+                        "RetrieveLatestDisconnectedHostEndpointEvent",
+                        ChreApiTest.Void.class,
+                        ChreApiTest.RetrieveLatestDisconnectedHostEndpointEventOutput
+                                .class),
+                Service.unaryMethod(
+                        "ChreGetHostEndpointInfo",
+                        ChreApiTest.ChreGetHostEndpointInfoInput.class,
+                        ChreApiTest.ChreGetHostEndpointInfoOutput.class));
         return chreApiService;
     }
 }
