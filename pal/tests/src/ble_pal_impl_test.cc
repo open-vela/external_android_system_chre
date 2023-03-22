@@ -106,7 +106,6 @@ class PalBleTest : public testing::Test {
  protected:
   void SetUp() override {
     gCallbacks = MakeUnique<Callbacks>();
-    chre::TaskManagerSingleton::deinit();
     chre::TaskManagerSingleton::init();
     mApi = chrePalBleGetApi(CHRE_PAL_BLE_API_CURRENT_VERSION);
     ASSERT_NE(mApi, nullptr);

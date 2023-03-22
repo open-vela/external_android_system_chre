@@ -81,7 +81,6 @@ class PalAudioTest : public testing::Test {
  protected:
   void SetUp() override {
     gCallbacks = MakeUnique<Callbacks>();
-    chre::TaskManagerSingleton::deinit();
     chre::TaskManagerSingleton::init();
     mApi = chrePalAudioGetApi(CHRE_PAL_AUDIO_API_CURRENT_VERSION);
     ASSERT_NE(mApi, nullptr);

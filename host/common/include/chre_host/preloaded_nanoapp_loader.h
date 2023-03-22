@@ -134,7 +134,7 @@ class PreloadedNanoappLoader {
   /** The mutex used to guard states change for preloading. */
   std::mutex mPreloadedNanoappsMutex;
 
-  bool mIsPreloadingOngoing = false;
+  bool mIsPreloadingOngoing;
 
   ChreConnection *mConnection;
 };
