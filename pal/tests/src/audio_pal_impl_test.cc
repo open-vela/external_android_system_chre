@@ -121,10 +121,9 @@ TEST_F(PalAudioTest, GetAudioSourceInfoForNonExistingSource) {
 }
 
 TEST_F(PalAudioTest, GetDataEvent) {
+  LockGuard<Mutex> lock(gCallbacks->mMutex);
   EXPECT_TRUE(mApi->requestAudioDataEvent(0 /*handle*/, 1000 /*numSamples*/,
                                           100 /*eventDelaysNs*/));
-
-  LockGuard<Mutex> lock(gCallbacks->mMutex);
   gCallbacks->mCondVarDataEvents.wait_for(
       gCallbacks->mMutex, Nanoseconds(25 * kOneMillisecondInNanoseconds));
   ASSERT_TRUE(gCallbacks->mDataEvent.has_value());
