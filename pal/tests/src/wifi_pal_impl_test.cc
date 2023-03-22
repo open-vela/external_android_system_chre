@@ -117,7 +117,6 @@ void chrePalNanSubscriptionCanceledCallback(uint8_t reason,
 }  // anonymous namespace
 
 void PalWifiTest::SetUp() {
-  chre::TaskManagerSingleton::deinit();
   chre::TaskManagerSingleton::init();
   api_ = chrePalWifiGetApi(CHRE_PAL_WIFI_API_CURRENT_VERSION);
   ASSERT_NE(api_, nullptr);

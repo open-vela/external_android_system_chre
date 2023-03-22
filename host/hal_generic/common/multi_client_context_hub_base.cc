@@ -130,8 +130,7 @@ ScopedAStatus MultiClientContextHubBase::loadNanoapp(
                               (appBinary.targetChreApiMinorVersion << 16);
   auto transaction = std::make_unique<FragmentedLoadTransaction>(
       transactionId, appBinary.nanoappId, appBinary.nanoappVersion,
-      appBinary.flags, targetApiVersion, appBinary.customBinary,
-      mConnection->getLoadFragmentSizeBytes());
+      appBinary.flags, targetApiVersion, appBinary.customBinary);
   if (!mHalClientManager->registerPendingLoadTransaction(
           std::move(transaction))) {
     return fromResult(false);
