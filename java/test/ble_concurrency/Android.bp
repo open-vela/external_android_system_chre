@@ -29,6 +29,7 @@ java_library {
     static_libs: [
         "androidx.test.rules",
         "chre-test-utils",
+        "chqts",
     ],
 
     sdk_version: "test_current",
