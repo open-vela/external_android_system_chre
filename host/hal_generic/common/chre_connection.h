@@ -47,6 +47,11 @@ class ChreConnection {
   virtual bool sendMessage(void *data, size_t length) = 0;
 
   /**
+   * @return The nanoapp loading fragment size in bytes.
+   */
+  virtual size_t getLoadFragmentSizeBytes() const;
+
+  /**
    * Sends a message encapsulated in a FlatBufferBuilder to CHRE.
    *
    * @return true if success, otherwise false.

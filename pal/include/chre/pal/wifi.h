@@ -278,9 +278,6 @@ struct chrePalWifiApi {
   //! @see chreWifiGetCapabilities()
   uint32_t (*getCapabilities)(void);
 
-  //! @see chreWifiNanGetCapabilities()
-  bool (*getNanCapabilities)(struct chreWifiNanCapabilities *capabilities);
-
   /**
    * Configures whether the scanEventCallback receives unsolicited scan
    * results, i.e. the results of scans not performed at the request of CHRE.
