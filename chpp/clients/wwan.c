@@ -530,11 +530,8 @@ static void chppWwanClientReleaseCellInfoResult(
  *  Public Functions
  ***********************************************/
 
-void chppClearWwanClientContextTestOnly(void) {
-  memset(&gWwanClientContext, 0, sizeof(gWwanClientContext));
-}
-
 void chppRegisterWwanClient(struct ChppAppState *appContext) {
+  memset(&gWwanClientContext, 0, sizeof(gWwanClientContext));
   chppRegisterClient(appContext, (void *)&gWwanClientContext,
                      &gWwanClientContext.client, gWwanClientContext.rRState,
                      &kWwanClientConfig);
