@@ -146,6 +146,7 @@ void validateMeasurementEvent(const struct chreGnssDataEvent &event) {
 }  // anonymous namespace
 
 void PalGnssTest::SetUp() {
+  chre::TaskManagerSingleton::deinit();
   chre::TaskManagerSingleton::init();
   api_ = chrePalGnssGetApi(CHRE_PAL_GNSS_API_CURRENT_VERSION);
   ASSERT_NE(api_, nullptr);
