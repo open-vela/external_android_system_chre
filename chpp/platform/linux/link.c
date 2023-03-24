@@ -59,16 +59,16 @@ static void *linkSendThread(void *linkContext) {
 
       chppMutexLock(&context->mutex);
 
-      if (context->remoteTransportContext == NULL) {
-        CHPP_LOGW("remoteTransportContext is NULL");
+      if (context->remoteLinkState == NULL) {
+        CHPP_LOGW("remoteLinkState is NULL");
         error = CHPP_LINK_ERROR_NONE_SENT;
 
       } else if (!context->linkEstablished) {
         CHPP_LOGE("No (fake) link");
         error = CHPP_LINK_ERROR_NO_LINK;
 
-      } else if (!chppRxDataCb(context->remoteTransportContext, context->buf,
-                               context->bufLen)) {
+      } else if (!chppRxDataCb(context->remoteLinkState->transportContext,
+                               context->buf, context->bufLen)) {
         CHPP_LOGW("chppRxDataCb return state!=preamble (packet incomplete)");
         error = CHPP_LINK_ERROR_NONE_SENT;
 
