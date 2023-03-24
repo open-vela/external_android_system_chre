@@ -94,6 +94,27 @@ class ChreApiTestService final
                                 chre_rpc_ChreAudioGetSourceOutput &response);
 
   /**
+   * Configures host endpoint notification.
+   */
+  pw::Status ChreConfigureHostEndpointNotifications(
+      const chre_rpc_ChreConfigureHostEndpointNotificationsInput &request,
+      chre_rpc_Status &response);
+
+  /**
+   * Retrieve the last host endpoint notification.
+   */
+  pw::Status RetrieveLatestDisconnectedHostEndpointEvent(
+      const chre_rpc_Void &request,
+      chre_rpc_RetrieveLatestDisconnectedHostEndpointEventOutput &response);
+
+  /**
+   * Gets the host endpoint info for a given host endpoint id.
+   */
+  pw::Status ChreGetHostEndpointInfo(
+      const chre_rpc_ChreGetHostEndpointInfoInput &request,
+      chre_rpc_ChreGetHostEndpointInfoOutput &response);
+
+  /**
    * Starts a BLE scan synchronously. Waits for the CHRE_EVENT_BLE_ASYNC_RESULT
    * event.
    */
@@ -120,6 +141,14 @@ class ChreApiTestService final
    * @param cookie              the cookie from the event.
    */
   void handleTimerEvent(const void *cookie);
+
+  /**
+   * Handles host endpoint notification event from CHRE.
+   *
+   * @param data                the data from event.
+   */
+  void handleHostEndpointNotificationEvent(
+      const chreHostEndpointNotification *data);
 
  private:
   /**
@@ -199,6 +228,18 @@ class ChreApiTestService final
       const chre_rpc_ChreHandleInput &request,
       chre_rpc_ChreAudioGetSourceOutput &response);
 
+  bool validateInputAndCallChreConfigureHostEndpointNotifications(
+      const chre_rpc_ChreConfigureHostEndpointNotificationsInput &request,
+      chre_rpc_Status &response);
+
+  bool validateInputAndRetrieveLatestDisconnectedHostEndpointEvent(
+      const chre_rpc_Void &request,
+      chre_rpc_RetrieveLatestDisconnectedHostEndpointEventOutput &response);
+
+  bool validateInputAndCallChreGetHostEndpointInfo(
+      const chre_rpc_ChreGetHostEndpointInfoInput &request,
+      chre_rpc_ChreGetHostEndpointInfoOutput &response);
+
   /**
    * Variables to control synchronization for sync API calls.
    * Only one sync API call may be made at a time.
@@ -206,6 +247,12 @@ class ChreApiTestService final
   Optional<ServerWriter<chre_rpc_GeneralSyncMessage>> mWriter;
   uint32_t mTimerHandle;
   uint8_t mRequestType;
+
+  /**
+   * Variables to store disconnected host endpoint notification.
+   */
+  uint32_t mReceivedHostEndpointDisconnectedNum = 0;
+  chreHostEndpointNotification mLatestHostEndpointNotification;
 };
 
 /**
