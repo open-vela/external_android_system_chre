@@ -49,6 +49,9 @@ struct ChppLinuxLinkState {
   //! The notifier for linkSendThread.
   struct ChppNotifier notifier;
 
+  //! The notifier to unblock TX thread when RX is complete.
+  struct ChppNotifier rxNotifier;
+
   //! The mutex to protect buf/bufLen.
   struct ChppMutex mutex;
 
