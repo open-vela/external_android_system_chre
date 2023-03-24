@@ -244,3 +244,72 @@ bool ChreApiTestService::validateInputAndCallChreAudioGetSource(
 
   return true;
 }
+
+bool ChreApiTestService::
+    validateInputAndCallChreConfigureHostEndpointNotifications(
+        const chre_rpc_ChreConfigureHostEndpointNotificationsInput &request,
+        chre_rpc_Status &response) {
+  if (request.hostEndpointId > std::numeric_limits<uint16_t>::max()) {
+    LOGE("Host Endpoint Id cannot exceed max of uint16_t");
+    return false;
+  }
+
+  response.status = chreConfigureHostEndpointNotifications(
+      request.hostEndpointId, request.enable);
+  LOGD("ChreConfigureHostEndpointNotifications: status: %s",
+       response.status ? "true" : "false");
+  return true;
+}
+
+bool ChreApiTestService::
+    validateInputAndRetrieveLatestDisconnectedHostEndpointEvent(
+        const chre_rpc_Void & /* request */,
+        chre_rpc_RetrieveLatestDisconnectedHostEndpointEventOutput &response) {
+  response.disconnectedCount = mReceivedHostEndpointDisconnectedNum;
+  response.hostEndpointId = mLatestHostEndpointNotification.hostEndpointId;
+  return true;
+}
+
+bool ChreApiTestService::validateInputAndCallChreGetHostEndpointInfo(
+    const chre_rpc_ChreGetHostEndpointInfoInput &request,
+    chre_rpc_ChreGetHostEndpointInfoOutput &response) {
+  if (request.hostEndpointId > std::numeric_limits<uint16_t>::max()) {
+    LOGE("Host Endpoint Id cannot exceed max of uint16_t");
+    return false;
+  }
+
+  struct chreHostEndpointInfo hostEndpointInfo;
+  memset(&hostEndpointInfo, 0, sizeof(hostEndpointInfo));
+  response.status =
+      chreGetHostEndpointInfo(request.hostEndpointId, &hostEndpointInfo);
+
+  if (response.status) {
+    response.hostEndpointId = hostEndpointInfo.hostEndpointId;
+    response.hostEndpointType = hostEndpointInfo.hostEndpointType;
+    response.isNameValid = hostEndpointInfo.isNameValid;
+    response.isTagValid = hostEndpointInfo.isTagValid;
+    if (hostEndpointInfo.isNameValid) {
+      copyString(response.endpointName, hostEndpointInfo.endpointName,
+                 CHRE_MAX_ENDPOINT_NAME_LEN);
+    } else {
+      memset(response.endpointName, 0, CHRE_MAX_ENDPOINT_NAME_LEN);
+    }
+    if (hostEndpointInfo.isTagValid) {
+      copyString(response.endpointTag, hostEndpointInfo.endpointTag,
+                 CHRE_MAX_ENDPOINT_TAG_LEN);
+    } else {
+      memset(response.endpointTag, 0, CHRE_MAX_ENDPOINT_TAG_LEN);
+    }
+
+    LOGD("ChreGetHostEndpointInfo: status: true, hostEndpointID: %" PRIu32
+         ", hostEndpointType: %" PRIu32
+         ", isNameValid: %s, isTagValid: %s, endpointName: %s, endpointTag: %s",
+         response.hostEndpointId, response.hostEndpointType,
+         response.isNameValid ? "true" : "false",
+         response.isTagValid ? "true" : "false", response.endpointName,
+         response.endpointTag);
+  } else {
+    LOGD("ChreGetHostEndpointInfo: status: false");
+  }
+  return true;
+}
