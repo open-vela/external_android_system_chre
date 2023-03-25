@@ -113,6 +113,38 @@ pw::Status ChreApiTestService::ChreAudioGetSource(
              : pw::Status::InvalidArgument();
 }
 
+pw::Status ChreApiTestService::ChreConfigureHostEndpointNotifications(
+    const chre_rpc_ChreConfigureHostEndpointNotificationsInput &request,
+    chre_rpc_Status &response) {
+  ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
+      CHRE_MESSAGE_PERMISSION_NONE);
+  return validateInputAndCallChreConfigureHostEndpointNotifications(request,
+                                                                    response)
+             ? pw::OkStatus()
+             : pw::Status::InvalidArgument();
+}
+
+pw::Status ChreApiTestService::RetrieveLatestDisconnectedHostEndpointEvent(
+    const chre_rpc_Void &request,
+    chre_rpc_RetrieveLatestDisconnectedHostEndpointEventOutput &response) {
+  ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
+      CHRE_MESSAGE_PERMISSION_NONE);
+  return validateInputAndRetrieveLatestDisconnectedHostEndpointEvent(request,
+                                                                     response)
+             ? pw::OkStatus()
+             : pw::Status::InvalidArgument();
+}
+
+pw::Status ChreApiTestService::ChreGetHostEndpointInfo(
+    const chre_rpc_ChreGetHostEndpointInfoInput &request,
+    chre_rpc_ChreGetHostEndpointInfoOutput &response) {
+  ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
+      CHRE_MESSAGE_PERMISSION_NONE);
+  return validateInputAndCallChreGetHostEndpointInfo(request, response)
+             ? pw::OkStatus()
+             : pw::Status::InvalidArgument();
+}
+
 // End ChreApiTestService RPC generated functions
 
 // Start ChreApiTestService RPC sync functions
@@ -180,6 +212,16 @@ void ChreApiTestService::handleTimerEvent(const void *cookie) {
     sendFailureAndFinishSyncMessage();
     LOGD("Active sync function: status: false (timeout)");
   }
+}
+
+void ChreApiTestService::handleHostEndpointNotificationEvent(
+    const chreHostEndpointNotification *data) {
+  if (data->notificationType != HOST_ENDPOINT_NOTIFICATION_TYPE_DISCONNECT) {
+    LOGW("Received non disconnected event");
+    return;
+  }
+  ++mReceivedHostEndpointDisconnectedNum;
+  mLatestHostEndpointNotification = *data;
 }
 
 void ChreApiTestService::copyString(char *destination, const char *source,
@@ -255,15 +297,17 @@ void ChreApiTestManager::handleEvent(uint32_t senderInstanceId,
   }
 
   switch (eventType) {
-    case CHRE_EVENT_BLE_ASYNC_RESULT: {
+    case CHRE_EVENT_BLE_ASYNC_RESULT:
       mChreApiTestService.handleBleAsyncResult(
           static_cast<const chreAsyncResult *>(eventData));
       break;
-    }
-    case CHRE_EVENT_TIMER: {
+    case CHRE_EVENT_TIMER:
       mChreApiTestService.handleTimerEvent(eventData);
       break;
-    }
+    case CHRE_EVENT_HOST_ENDPOINT_NOTIFICATION:
+      mChreApiTestService.handleHostEndpointNotificationEvent(
+          static_cast<const chreHostEndpointNotification *>(eventData));
+      break;
     default: {
       // ignore
     }

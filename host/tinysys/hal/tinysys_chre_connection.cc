@@ -101,9 +101,9 @@ void TinysysChreConnection::handleMessageFromChre(
 
   switch (messageType) {
     case fbs::ChreMessage::LogMessageV2: {
-      const auto *logMessage =
-          ::chre::fbs::UnPackMessageContainer(messageBuffer)
-              ->message.AsLogMessageV2();
+      std::unique_ptr<fbs::MessageContainerT> container =
+          fbs::UnPackMessageContainer(messageBuffer);
+      const auto *logMessage = container->message.AsLogMessageV2();
       const std::vector<int8_t> &buffer = logMessage->buffer;
       const auto *logData = reinterpret_cast<const uint8_t *>(buffer.data());
       uint32_t numLogsDropped = logMessage->num_logs_dropped;

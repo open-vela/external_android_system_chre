@@ -41,6 +41,21 @@ service ChreApiTestService {
   // Gets the audio source's information.
   rpc ChreAudioGetSource(ChreHandleInput) returns (ChreAudioGetSourceOutput) {}
 
+  // Configures the nanoapp to receive host endpoint information for a host
+  // endpoint id.
+  rpc ChreConfigureHostEndpointNotifications(
+      ChreConfigureHostEndpointNotificationsInput) returns (Status) {}
+
+  // TODO(b/274791978): Deprecate this once we can capture event
+  // Retrieves the latest disconnected host endpoint event and the number of
+  // disconnect event received.
+  rpc RetrieveLatestDisconnectedHostEndpointEvent(Void)
+      returns (RetrieveLatestDisconnectedHostEndpointEventOutput) {}
+
+  // Gets the host endpoint info for a given host endpoint id.
+  rpc ChreGetHostEndpointInfo(ChreGetHostEndpointInfoInput)
+      returns (ChreGetHostEndpointInfoOutput) {}
+
   // Start synchronous functions
 
   /* Starts a BLE scan synchronously. This will wait for the
@@ -89,6 +104,37 @@ message GeneralSyncMessage {
 // Input value for ChreSensorFindDefault
 message ChreSensorFindDefaultInput {
   uint32 sensorType = 1;
+}
+
+// Input value for ChreConfigureHostEndpointNotifications
+message ChreConfigureHostEndpointNotificationsInput {
+  uint32 hostEndpointId = 1;
+  bool enable = 2;
+}
+
+// Retrieving subscribed disconnected host endpoint notification
+message RetrieveLatestDisconnectedHostEndpointEventOutput {
+  // Records how many disconnected event received by this nanoapp.
+  uint32 disconnectedCount = 1;
+  uint32 hostEndpointId = 2;
+}
+
+// Input value for ChreGetHostEndpointInfo
+message ChreGetHostEndpointInfoInput {
+  uint32 hostEndpointId = 1;
+}
+
+// Return value for ChreGetHostEndpointInfo.
+// Bool + chreHostEndpointInfo
+// @see chreHostEndpointInfo for description of each field.
+message ChreGetHostEndpointInfoOutput {
+  bool status = 1;
+  uint32 hostEndpointId = 2;
+  uint32 hostEndpointType = 3;
+  bool isNameValid = 4;
+  bool isTagValid = 5;
+  string endpointName = 6;
+  string endpointTag = 7;
 }
 
 // Return value for ChreSensorFindDefault. sensorHandle is only valid if

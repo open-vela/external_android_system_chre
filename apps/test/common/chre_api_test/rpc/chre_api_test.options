@@ -4,3 +4,5 @@ chre.rpc.ChreBleGenericFilter.data max_size:29 # CHRE_BLE_DATA_LEN_MAX
 chre.rpc.ChreBleGenericFilter.mask max_size:29 # CHRE_BLE_DATA_LEN_MAX
 chre.rpc.ChreBleScanFilter.scanFilters max_count:10
 chre.rpc.ChreBleScanFilter.scanFilters fixed_count:true
+chre.rpc.ChreGetHostEndpointInfoOutput.endpointName max_size:51 # CHRE_MAX_ENDPOINT_NAME_LEN
+chre.rpc.ChreGetHostEndpointInfoOutput.endpointTag max_size:51 # CHRE_MAX_ENDPOINT_TAG_LEN
