@@ -38,6 +38,30 @@ TEST(StatsContainer, UINTMeanOverflowTest) {
   ASSERT_EQ(testContainer.getMean(), 150);
 }
 
+TEST(StatsContainer, AddSmallerValueThanMeanCheck) {
+  chre::StatsContainer<uint16_t> testContainer;
+
+  testContainer.addValue(10);
+  testContainer.addValue(20);
+  testContainer.addValue(30);
+  ASSERT_EQ(testContainer.getMean(), 20);
+
+  testContainer.addValue(4);
+  ASSERT_EQ(testContainer.getMean(), 16);
+}
+
+TEST(StatsContainer, AddBiggerValueThanMeanCheck) {
+  chre::StatsContainer<uint16_t> testContainer;
+
+  testContainer.addValue(10);
+  testContainer.addValue(20);
+  testContainer.addValue(30);
+  ASSERT_EQ(testContainer.getMean(), 20);
+
+  testContainer.addValue(40);
+  ASSERT_EQ(testContainer.getMean(), 25);
+}
+
 TEST(StatsContainer, OverAverageWindowCheck) {
   uint64_t maxCount = 3;
   chre::StatsContainer<uint16_t> testContainer(maxCount);
