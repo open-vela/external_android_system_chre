@@ -34,6 +34,9 @@ service ChreApiTestService {
   rpc ChreGetSensorSamplingStatus(ChreHandleInput)
       returns (ChreGetSensorSamplingStatusOutput) {}
 
+  // Configures a sensor.
+  rpc ChreSensorConfigure(ChreSensorConfigureInput) returns (Status) {}
+
   // Configures a sensor's mode.
   rpc ChreSensorConfigureModeOnly(ChreSensorConfigureModeOnlyInput)
       returns (Status) {}
@@ -164,6 +167,14 @@ message ChreGetSensorSamplingStatusOutput {
   uint64 interval = 2;
   uint64 latency = 3;
   bool enabled = 4;
+}
+
+// Input value for ChreSensorConfigureModeOnly
+message ChreSensorConfigureInput {
+  uint32 sensorHandle = 1;
+  uint32 mode = 2;
+  uint64 interval = 3;
+  uint64 latency = 4;
 }
 
 // Input value for ChreSensorConfigureModeOnly
