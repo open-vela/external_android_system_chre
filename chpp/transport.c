@@ -1572,7 +1572,8 @@ uint64_t chppTransportGetTimeUntilNextDoWorkNs(
   CHPP_LOGD("NextDoWork=%" PRIu64 " currentTime=%" PRIu64 " delta=%" PRId64,
             nextDoWorkTime / CHPP_NSEC_PER_MSEC,
             currentTime / CHPP_NSEC_PER_MSEC,
-            (nextDoWorkTime - currentTime) / (int64_t)CHPP_NSEC_PER_MSEC);
+            (nextDoWorkTime > currentTime ? nextDoWorkTime - currentTime : 0) /
+                (int64_t)CHPP_NSEC_PER_MSEC);
 
   return nextDoWorkTime <= currentTime ? CHPP_TRANSPORT_TIMEOUT_IMMEDIATE
                                        : nextDoWorkTime - currentTime;
