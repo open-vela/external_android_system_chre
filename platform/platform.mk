@@ -516,28 +516,6 @@ TINYSYS_CFLAGS += -I$(CHRE_PREFIX)/platform/shared/include
 TINYSYS_CFLAGS += -I$(CHRE_PREFIX)/platform/freertos/include
 TINYSYS_CFLAGS += -I$(CHRE_PREFIX)/platform/shared/include/chre/platform/shared/libc
 
-# Tinysys include paths
-TINYSYS_CFLAGS += -I$(RISCV_TINYSYS_PREFIX)/kernel/FreeRTOS_v10.1.0.1/FreeRTOS/Source/include
-TINYSYS_CFLAGS += -I$(RISCV_TINYSYS_PREFIX)/kernel/FreeRTOS_v10.1.0.1/FreeRTOS/Source/portable/LLVM/RV55
-TINYSYS_CFLAGS += -I$(RISCV_TINYSYS_PREFIX)/common/drivers/dma/v3/inc
-TINYSYS_CFLAGS += -I$(RISCV_TINYSYS_PREFIX)/common/drivers/irq/v3/inc
-TINYSYS_CFLAGS += -I$(RISCV_TINYSYS_PREFIX)/common/drivers/mbox/v2/inc
-TINYSYS_CFLAGS += -I$(RISCV_TINYSYS_PREFIX)/common/include
-TINYSYS_CFLAGS += -I$(RISCV_TINYSYS_PREFIX)/common/middleware/MemMang/inc
-TINYSYS_CFLAGS += -I$(RISCV_TINYSYS_PREFIX)/scp/drivers/RV55_A/$(TINYSYS_PLATFORM)/dma
-TINYSYS_CFLAGS += -I$(RISCV_TINYSYS_PREFIX)/scp/drivers/RV55_A/$(TINYSYS_PLATFORM)/intc/inc
-TINYSYS_CFLAGS += -I$(RISCV_TINYSYS_PREFIX)/scp/drivers/RV55_A/$(TINYSYS_PLATFORM)/mbox
-TINYSYS_CFLAGS += -I$(RISCV_TINYSYS_PREFIX)/scp/drivers/common/dma/inc
-TINYSYS_CFLAGS += -I$(RISCV_TINYSYS_PREFIX)/scp/drivers/common/dram_region_mgmt
-TINYSYS_CFLAGS += -I$(RISCV_TINYSYS_PREFIX)/scp/drivers/common/xgpt/inc
-TINYSYS_CFLAGS += -I$(RISCV_TINYSYS_PREFIX)/scp/middleware/sensorhub/include
-TINYSYS_CFLAGS += -I$(RISCV_TINYSYS_PREFIX)/scp/project/RV55_A/$(TINYSYS_PLATFORM)/platform/inc
-TINYSYS_CFLAGS += -I$(RISCV_TINYSYS_PREFIX)/scp/project/RV55_A/common/platform/inc
-
-# Clang include paths
-TINYSYS_CFLAGS += -I$(RISCV_TOOLCHAIN_PATH)/lib/clang/9.0.1/include
-TINYSYS_CFLAGS += -I$(RISCV_TOOLCHAIN_PATH)/dkwlib/MRV55E03v/include
-
 TINYSYS_CFLAGS += $(FLATBUFFERS_CFLAGS)
 
 TINYSYS_CFLAGS += -DCFG_DRAM_HEAP_SUPPORT
