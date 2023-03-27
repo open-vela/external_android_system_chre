@@ -81,6 +81,13 @@ class ChreApiTestService final
       chre_rpc_ChreGetSensorSamplingStatusOutput &response);
 
   /**
+   * Configures a given sensor.
+   */
+  pw::Status ChreSensorConfigure(
+      const chre_rpc_ChreSensorConfigureInput &request,
+      chre_rpc_Status &response);
+
+  /**
    * Configures the mode for a sensor.
    */
   pw::Status ChreSensorConfigureModeOnly(
@@ -219,6 +226,10 @@ class ChreApiTestService final
   bool validateInputAndCallChreGetSensorSamplingStatus(
       const chre_rpc_ChreHandleInput &request,
       chre_rpc_ChreGetSensorSamplingStatusOutput &response);
+
+  bool validateInputAndCallChreSensorConfigure(
+      const chre_rpc_ChreSensorConfigureInput &request,
+      chre_rpc_Status &response);
 
   bool validateInputAndCallChreSensorConfigureModeOnly(
       const chre_rpc_ChreSensorConfigureModeOnlyInput &request,

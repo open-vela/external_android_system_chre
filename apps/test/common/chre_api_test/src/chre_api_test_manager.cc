@@ -93,6 +93,16 @@ pw::Status ChreApiTestService::ChreGetSensorSamplingStatus(
              : pw::Status::InvalidArgument();
 }
 
+pw::Status ChreApiTestService::ChreSensorConfigure(
+    const chre_rpc_ChreSensorConfigureInput &request,
+    chre_rpc_Status &response) {
+  ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
+      CHRE_MESSAGE_PERMISSION_NONE);
+  return validateInputAndCallChreSensorConfigure(request, response)
+             ? pw::OkStatus()
+             : pw::Status::InvalidArgument();
+}
+
 pw::Status ChreApiTestService::ChreSensorConfigureModeOnly(
     const chre_rpc_ChreSensorConfigureModeOnlyInput &request,
     chre_rpc_Status &response) {
