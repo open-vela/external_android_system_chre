@@ -141,7 +141,7 @@ void chppDeregisterCommonServices(struct ChppAppState *context);
  * @param serviceContext Maintains status for each service instance.
  * @param newService The service to be registered on this platform.
  *
- * @return Handle number of the registered service.
+ * @return Handle of the registered service.
  */
 uint8_t chppRegisterService(struct ChppAppState *appContext,
                             void *serviceContext,
@@ -205,16 +205,13 @@ void chppServiceTimestampRequest(struct ChppRequestResponseState *rRState,
  * B) Mark them as fulfilled
  * part of the request/response's ChppRequestResponseState struct.
  *
- * This function prints an error message if a response is attempted without an
- * outstanding request.
- *
  * For most responses, it is expected that chppSendTimestampedResponseOrFail()
  * shall be used to both timestamp and send the response in one shot.
  *
- * @param rRState Maintains the basic state for each request/response
- * functionality of a service.
+ * @param rRState State of each request/response of a service.
+ * @return The last response time (CHPP_TIME_NONE for the first response).
  */
-void chppServiceTimestampResponse(struct ChppRequestResponseState *rRState);
+uint64_t chppServiceTimestampResponse(struct ChppRequestResponseState *rRState);
 
 /**
  * Timestamps a service response using chppServiceTimestampResponse() and
@@ -222,9 +219,11 @@ void chppServiceTimestampResponse(struct ChppRequestResponseState *rRState);
  *
  * Refer to their respective documentation for details.
  *
+ * This function prints an error message if a response is attempted without an
+ * outstanding request.
+ *
  * @param serviceState State of the service sending the response service.
- * @param rRState Maintains the basic state for each request/response
- * functionality of a service.
+ * @param rRState State of each request/response of a service.
  * @param buf Datagram payload allocated through chppMalloc. Cannot be null.
  * @param len Datagram length in bytes.
  *

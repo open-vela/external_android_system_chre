@@ -154,9 +154,17 @@ void chppServiceTimestampRequest(struct ChppRequestResponseState *rRState,
   rRState->transaction = requestHeader->transaction;
 }
 
-void chppServiceTimestampResponse(struct ChppRequestResponseState *rRState) {
+uint64_t chppServiceTimestampResponse(
+    struct ChppRequestResponseState *rRState) {
   uint64_t previousResponseTime = rRState->responseTimeNs;
   rRState->responseTimeNs = chppGetCurrentTimeNs();
+  return previousResponseTime;
+}
+
+bool chppSendTimestampedResponseOrFail(struct ChppServiceState *serviceState,
+                                       struct ChppRequestResponseState *rRState,
+                                       void *buf, size_t len) {
+  uint64_t previousResponseTime = chppServiceTimestampResponse(rRState);
 
   if (rRState->requestTimeNs == CHPP_TIME_NONE) {
     CHPP_LOGE("TX response w/ no req t=%" PRIu64,
@@ -175,12 +183,7 @@ void chppServiceTimestampResponse(struct ChppRequestResponseState *rRState) {
               (rRState->responseTimeNs - rRState->requestTimeNs) /
                   CHPP_NSEC_PER_MSEC);
   }
-}
 
-bool chppSendTimestampedResponseOrFail(struct ChppServiceState *serviceState,
-                                       struct ChppRequestResponseState *rRState,
-                                       void *buf, size_t len) {
-  chppServiceTimestampResponse(rRState);
   return chppEnqueueTxDatagramOrFail(serviceState->appContext->transportContext,
                                      buf, len);
 }
