@@ -24,9 +24,13 @@ import com.google.protobuf.MessageLite;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import dev.chre.rpc.proto.ChreApiTest;
@@ -51,6 +55,20 @@ public class ChreApiTestUtil {
     public static final int RPC_TIMEOUT_IN_MS = RPC_TIMEOUT_IN_SECONDS * 1000;
 
     /**
+     * The number of threads for the executor that executes the futures.
+     * We need at least 2 here. One to process the RPCs for server streaming
+     * and one to process events (which has server streaming as a dependent).
+     * 2 is the minimum needed to run smoothly without timeout issues.
+     */
+    private static final int NUM_THREADS_FOR_EXECUTOR = 2;
+
+    /**
+     * Executor for use with server streaming RPCs.
+     */
+    private final ExecutorService mExecutor =
+            Executors.newFixedThreadPool(NUM_THREADS_FOR_EXECUTOR);
+
+    /**
      * Storage for nanoapp streaming messages. This is a map from each RPC client to the
      * list of messages received.
      */
@@ -71,7 +89,7 @@ public class ChreApiTestUtil {
      * @param <ResponseType>  the type of the response (proto generated type).
      * @param rpcClients      the RPC clients.
      * @param method          the fully-qualified method name.
-     * @param request         the request object.
+     * @param request         the request.
      *
      * @return                the proto responses or null if there was an error.
      */
@@ -84,61 +102,12 @@ public class ChreApiTestUtil {
         Objects.requireNonNull(method);
         Objects.requireNonNull(request);
 
-        List<ServerStreamingFuture> responseFutures = new ArrayList<ServerStreamingFuture>();
-        synchronized (mNanoappStreamingMessages) {
-            if (mActiveServerStreamingRpc) {
-                return null;
-            }
-
-            for (ChreRpcClient rpcClient: rpcClients) {
-                MethodClient methodClient = rpcClient.getMethodClient(method);
-                ServerStreamingFuture responseFuture = methodClient.invokeServerStreamingFuture(
-                        request,
-                        (ResponseType response) -> {
-                            synchronized (mNanoappStreamingMessages) {
-                                mNanoappStreamingMessages.putIfAbsent(rpcClient,
-                                        new ArrayList<MessageLite>());
-                                mNanoappStreamingMessages.get(rpcClient).add(response);
-                            }
-                        });
-                responseFutures.add(responseFuture);
-            }
-            mActiveServerStreamingRpc = true;
-        }
-
-        boolean success = true;
-        long endTimeInMs = System.currentTimeMillis() + RPC_TIMEOUT_IN_MS;
-        for (ServerStreamingFuture responseFuture: responseFutures) {
-            try {
-                responseFuture.get(Math.max(0, endTimeInMs - System.currentTimeMillis()),
-                        TimeUnit.MILLISECONDS);
-            } catch (Exception exception) {
-                success = false;
-            }
-        }
-
-        synchronized (mNanoappStreamingMessages) {
-            List<List<ResponseType>> responses = null;
-            if (success) {
-                responses = new ArrayList<List<ResponseType>>();
-                for (ChreRpcClient rpcClient: rpcClients) {
-                    List<MessageLite> messages = mNanoappStreamingMessages.get(rpcClient);
-                    List<ResponseType> responseList = new ArrayList<ResponseType>();
-                    if (messages != null) {
-                        // Only needed to cast the type.
-                        for (MessageLite message: messages) {
-                            responseList.add((ResponseType) message);
-                        }
-                    }
-
-                    responses.add(responseList);
-                }
-            }
-
-            mNanoappStreamingMessages.clear();
-            mActiveServerStreamingRpc = false;
-            return responses;
-        }
+        Future<List<List<ResponseType>>> responseFuture =
+                callConcurrentServerStreamingRpcMethodAsync(rpcClients, method, request,
+                        RPC_TIMEOUT_IN_MS);
+        return responseFuture == null
+                ? null
+                : responseFuture.get(RPC_TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
     }
 
     /**
@@ -148,7 +117,7 @@ public class ChreApiTestUtil {
      * @param <ResponseType>  the type of the response (proto generated type).
      * @param rpcClient       the RPC client.
      * @param method          the fully-qualified method name.
-     * @param request         the request object.
+     * @param request         the request.
      *
      * @return                the proto response or null if there was an error.
      */
@@ -198,7 +167,7 @@ public class ChreApiTestUtil {
      * @param rpcClients      the RPC clients corresponding to the instances of the
      *                        ChreApiTest nanoapp.
      * @param method          the fully-qualified method name.
-     * @param request         the request object.
+     * @param requests        the list of requests.
      *
      * @return                the proto response or null if there was an error.
      */
@@ -206,14 +175,21 @@ public class ChreApiTestUtil {
             List<ResponseType> callConcurrentUnaryRpcMethodSync(
                     @NonNull List<ChreRpcClient> rpcClients,
                     @NonNull String method,
-                    @NonNull RequestType request) throws Exception {
+                    @NonNull List<RequestType> requests) throws Exception {
         Objects.requireNonNull(rpcClients);
         Objects.requireNonNull(method);
-        Objects.requireNonNull(request);
+        Objects.requireNonNull(requests);
+        if (rpcClients.size() != requests.size()) {
+            return null;
+        }
 
         List<UnaryFuture<ResponseType>> responseFutures =
                 new ArrayList<UnaryFuture<ResponseType>>();
-        for (ChreRpcClient rpcClient: rpcClients) {
+        Iterator<ChreRpcClient> rpcClientsIter = rpcClients.iterator();
+        Iterator<RequestType> requestsIter = requests.iterator();
+        while (rpcClientsIter.hasNext() && requestsIter.hasNext()) {
+            ChreRpcClient rpcClient = rpcClientsIter.next();
+            RequestType request = requestsIter.next();
             MethodClient methodClient = rpcClient.getMethodClient(method);
             responseFutures.add(methodClient.invokeUnaryFuture(request));
         }
@@ -235,13 +211,42 @@ public class ChreApiTestUtil {
     }
 
     /**
+     * Calls an RPC method with RPC_TIMEOUT_IN_SECONDS seconds of timeout for concurrent
+     * instances of the ChreApiTest nanoapp.
+     *
+     * @param <RequestType>   the type of the request (proto generated type).
+     * @param <ResponseType>  the type of the response (proto generated type).
+     * @param rpcClients      the RPC clients corresponding to the instances of the
+     *                        ChreApiTest nanoapp.
+     * @param method          the fully-qualified method name.
+     * @param request         the request.
+     *
+     * @return                the proto response or null if there was an error.
+     */
+    public static <RequestType extends MessageLite, ResponseType extends MessageLite>
+            List<ResponseType> callConcurrentUnaryRpcMethodSync(
+                    @NonNull List<ChreRpcClient> rpcClients,
+                    @NonNull String method,
+                    @NonNull RequestType request) throws Exception {
+        Objects.requireNonNull(rpcClients);
+        Objects.requireNonNull(method);
+        Objects.requireNonNull(request);
+
+        List<RequestType> requests = new ArrayList<RequestType>();
+        for (int i = 0; i < rpcClients.size(); ++i) {
+            requests.add(request);
+        }
+        return callConcurrentUnaryRpcMethodSync(rpcClients, method, requests);
+    }
+
+    /**
      * Calls an RPC method with RPC_TIMEOUT_IN_SECONDS seconds of timeout.
      *
      * @param <RequestType>   the type of the request (proto generated type).
      * @param <ResponseType>  the type of the response (proto generated type).
      * @param rpcClient       the RPC client.
      * @param method          the fully-qualified method name.
-     * @param request         the request object.
+     * @param request         the request.
      *
      * @return                the proto response or null if there was an error.
      */
@@ -279,10 +284,62 @@ public class ChreApiTestUtil {
     }
 
     /**
+     * Gathers events that match the eventType for each RPC client. This gathers
+     * events until eventCount events are gathered or timeoutInNs nanoseconds has passed.
+     * The host will wait until 2 * timeoutInNs to timeout receiving the response.
+     *
+     * @param rpcClients      the RPC clients.
+     * @param eventType       the type of event to gather.
+     * @param eventCount      the number of events to gather.
+     *
+     * @return                the events future.
+     */
+    public Future<List<List<ChreApiTest.GeneralEventsMessage>>> gatherEventsConcurrent(
+            @NonNull List<ChreRpcClient> rpcClients, int eventType, int eventCount,
+            long timeoutInNs) throws Exception {
+        Objects.requireNonNull(rpcClients);
+
+        ChreApiTest.GatherEventsInput input = ChreApiTest.GatherEventsInput.newBuilder()
+                .setEventType(eventType)
+                .setEventCount(eventCount)
+                .setTimeoutInNs(timeoutInNs)
+                .build();
+        return callConcurrentServerStreamingRpcMethodAsync(rpcClients,
+                "chre.rpc.ChreApiTestService.GatherEvents", input,
+                TimeUnit.NANOSECONDS.toMillis(2 * timeoutInNs));
+    }
+
+    /**
+     * Gathers events that match the eventType for the RPC client. This gathers
+     * events until eventCount events are gathered or timeoutInNs nanoseconds has passed.
+     * The host will wait until 2 * timeoutInNs to timeout receiving the response.
+     *
+     * @param rpcClient       the RPC client.
+     * @param eventType       the type of event to gather.
+     * @param eventCount      the number of events to gather.
+     *
+     * @return                the events future.
+     */
+    public Future<List<ChreApiTest.GeneralEventsMessage>> gatherEvents(
+            @NonNull ChreRpcClient rpcClient, int eventType, int eventCount, long timeoutInNs)
+                    throws Exception {
+        Objects.requireNonNull(rpcClient);
+
+        Future<List<List<ChreApiTest.GeneralEventsMessage>>> eventsConcurrentFuture =
+                gatherEventsConcurrent(Arrays.asList(rpcClient), eventType, eventCount,
+                        timeoutInNs);
+        return eventsConcurrentFuture == null ? null : mExecutor.submit(() -> {
+            List<List<ChreApiTest.GeneralEventsMessage>> events =
+                    eventsConcurrentFuture.get(2 * timeoutInNs, TimeUnit.NANOSECONDS);
+            return events == null || events.size() == 0 ? null : events.get(0);
+        });
+    }
+
+    /**
      * Gets the RPC service for the CHRE API Test nanoapp.
      */
     public static Service getChreApiService() {
-        Service chreApiService = new Service("chre.rpc.ChreApiTestService",
+        return new Service("chre.rpc.ChreApiTestService",
                 Service.unaryMethod(
                         "ChreBleGetCapabilities",
                         ChreApiTest.Void.class,
@@ -320,6 +377,10 @@ public class ChreApiTestUtil {
                         ChreApiTest.ChreHandleInput.class,
                         ChreApiTest.ChreGetSensorSamplingStatusOutput.class),
                 Service.unaryMethod(
+                        "ChreSensorConfigure",
+                        ChreApiTest.ChreSensorConfigureInput.class,
+                        ChreApiTest.Status.class),
+                Service.unaryMethod(
                         "ChreSensorConfigureModeOnly",
                         ChreApiTest.ChreSensorConfigureModeOnlyInput.class,
                         ChreApiTest.Status.class),
@@ -339,7 +400,132 @@ public class ChreApiTestUtil {
                 Service.unaryMethod(
                         "ChreGetHostEndpointInfo",
                         ChreApiTest.ChreGetHostEndpointInfoInput.class,
-                        ChreApiTest.ChreGetHostEndpointInfoOutput.class));
-        return chreApiService;
+                        ChreApiTest.ChreGetHostEndpointInfoOutput.class),
+                Service.serverStreamingMethod(
+                        "GatherEvents",
+                        ChreApiTest.GatherEventsInput.class,
+                        ChreApiTest.GeneralEventsMessage.class));
+    }
+
+    /**
+     * Calls a server streaming RPC method with timeoutInMs milliseconds of timeout on
+     * multiple RPC clients. This returns a Future for the result.
+     *
+     * @param <RequestType>   the type of the request (proto generated type).
+     * @param <ResponseType>  the type of the response (proto generated type).
+     * @param rpcClients      the RPC clients.
+     * @param method          the fully-qualified method name.
+     * @param requests        the list of requests.
+     * @param timeoutInMs     the timeout in milliseconds.
+     *
+     * @return                the Future for the response for null if there was an error.
+     */
+    private <RequestType extends MessageLite, ResponseType extends MessageLite>
+            Future<List<List<ResponseType>>> callConcurrentServerStreamingRpcMethodAsync(
+                    @NonNull List<ChreRpcClient> rpcClients,
+                    @NonNull String method,
+                    @NonNull List<RequestType> requests,
+                    long timeoutInMs) throws Exception {
+        Objects.requireNonNull(rpcClients);
+        Objects.requireNonNull(method);
+        Objects.requireNonNull(requests);
+        if (rpcClients.size() != requests.size()) {
+            return null;
+        }
+
+        List<ServerStreamingFuture> responseFutures = new ArrayList<ServerStreamingFuture>();
+        synchronized (mNanoappStreamingMessages) {
+            if (mActiveServerStreamingRpc) {
+                return null;
+            }
+
+            Iterator<ChreRpcClient> rpcClientsIter = rpcClients.iterator();
+            Iterator<RequestType> requestsIter = requests.iterator();
+            while (rpcClientsIter.hasNext() && requestsIter.hasNext()) {
+                ChreRpcClient rpcClient = rpcClientsIter.next();
+                RequestType request = requestsIter.next();
+                MethodClient methodClient = rpcClient.getMethodClient(method);
+                ServerStreamingFuture responseFuture = methodClient.invokeServerStreamingFuture(
+                        request,
+                        (ResponseType response) -> {
+                            synchronized (mNanoappStreamingMessages) {
+                                mNanoappStreamingMessages.putIfAbsent(rpcClient,
+                                        new ArrayList<MessageLite>());
+                                mNanoappStreamingMessages.get(rpcClient).add(response);
+                            }
+                        });
+                responseFutures.add(responseFuture);
+            }
+            mActiveServerStreamingRpc = true;
+        }
+
+        final List<ChreRpcClient> rpcClientsFinal = rpcClients;
+        Future<List<List<ResponseType>>> responseFuture = mExecutor.submit(() -> {
+            boolean success = true;
+            long endTimeInMs = System.currentTimeMillis() + timeoutInMs;
+            for (ServerStreamingFuture future: responseFutures) {
+                try {
+                    future.get(Math.max(0, endTimeInMs - System.currentTimeMillis()),
+                            TimeUnit.MILLISECONDS);
+                } catch (Exception exception) {
+                    success = false;
+                }
+            }
+
+            synchronized (mNanoappStreamingMessages) {
+                List<List<ResponseType>> responses = null;
+                if (success) {
+                    responses = new ArrayList<List<ResponseType>>();
+                    for (ChreRpcClient rpcClient: rpcClientsFinal) {
+                        List<MessageLite> messages = mNanoappStreamingMessages.get(rpcClient);
+                        List<ResponseType> responseList = new ArrayList<ResponseType>();
+                        if (messages != null) {
+                            // Only needed to cast the type.
+                            for (MessageLite message: messages) {
+                                responseList.add((ResponseType) message);
+                            }
+                        }
+
+                        responses.add(responseList);
+                    }
+                }
+
+                mNanoappStreamingMessages.clear();
+                mActiveServerStreamingRpc = false;
+                return responses;
+            }
+        });
+        return responseFuture;
+    }
+
+    /**
+     * Calls a server streaming RPC method with timeoutInMs milliseconds of timeout on
+     * multiple RPC clients. This returns a Future for the result.
+     *
+     * @param <RequestType>   the type of the request (proto generated type).
+     * @param <ResponseType>  the type of the response (proto generated type).
+     * @param rpcClients      the RPC clients.
+     * @param method          the fully-qualified method name.
+     * @param request         the request.
+     * @param timeoutInMs     the timeout in milliseconds.
+     *
+     * @return                the Future for the response for null if there was an error.
+     */
+    private <RequestType extends MessageLite, ResponseType extends MessageLite>
+            Future<List<List<ResponseType>>> callConcurrentServerStreamingRpcMethodAsync(
+                    @NonNull List<ChreRpcClient> rpcClients,
+                    @NonNull String method,
+                    @NonNull RequestType request,
+                    long timeoutInMs) throws Exception {
+        Objects.requireNonNull(rpcClients);
+        Objects.requireNonNull(method);
+        Objects.requireNonNull(request);
+
+        ArrayList<RequestType> requests = new ArrayList<RequestType>();
+        for (int i = 0; i < rpcClients.size(); ++i) {
+            requests.add(request);
+        }
+        return callConcurrentServerStreamingRpcMethodAsync(rpcClients, method,
+                requests, timeoutInMs);
     }
 }
