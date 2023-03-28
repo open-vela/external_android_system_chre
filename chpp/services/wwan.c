@@ -414,10 +414,8 @@ void chppRegisterWwanService(struct ChppAppState *appContext) {
                           "WWAN PAL API incompatible. Cannot register service");
 
   } else {
-    gWwanServiceContext.service.appContext = appContext;
-    gWwanServiceContext.service.openState = CHPP_OPEN_STATE_CLOSED;
-    gWwanServiceContext.service.handle = chppRegisterService(
-        appContext, (void *)&gWwanServiceContext, &kWwanServiceConfig);
+    chppRegisterService(appContext, (void *)&gWwanServiceContext,
+                        &gWwanServiceContext.service, &kWwanServiceConfig);
     CHPP_DEBUG_ASSERT(gWwanServiceContext.service.handle);
   }
 }
