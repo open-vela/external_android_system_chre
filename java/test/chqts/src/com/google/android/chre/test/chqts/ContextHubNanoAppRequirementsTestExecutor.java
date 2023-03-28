@@ -142,7 +142,7 @@ public class ContextHubNanoAppRequirementsTestExecutor extends ContextHubChreApi
         ChreApiTest.ChreSensorFindDefaultInput input = ChreApiTest.ChreSensorFindDefaultInput
                 .newBuilder().setSensorType(sensorType).build();
         ChreApiTest.ChreSensorFindDefaultOutput response =
-                ChreApiTestUtil.callUnaryRpcMethodSync(mRpcClient,
+                ChreApiTestUtil.callUnaryRpcMethodSync(getRpcClient(),
                         "chre.rpc.ChreApiTestService.ChreSensorFindDefault", input);
         Assert.assertTrue("Did not find sensor with type: " + sensorType,
                 response.getFoundSensor());
@@ -163,7 +163,7 @@ public class ContextHubNanoAppRequirementsTestExecutor extends ContextHubChreApi
                 ChreApiTest.ChreHandleInput.newBuilder()
                 .setHandle(sensorHandle).build();
         ChreApiTest.ChreGetSensorInfoOutput response =
-                ChreApiTestUtil.callUnaryRpcMethodSync(mRpcClient,
+                ChreApiTestUtil.callUnaryRpcMethodSync(getRpcClient(),
                         "chre.rpc.ChreApiTestService.ChreGetSensorInfo", input);
         Assert.assertTrue("Failed to get sensor info for sensor with handle: " + sensorHandle,
                 response.getStatus());
@@ -187,7 +187,7 @@ public class ContextHubNanoAppRequirementsTestExecutor extends ContextHubChreApi
                     ChreApiTest.ChreHandleInput.newBuilder()
                     .setHandle(i).build();
             ChreApiTest.ChreAudioGetSourceOutput response =
-                    ChreApiTestUtil.callUnaryRpcMethodSync(mRpcClient,
+                    ChreApiTestUtil.callUnaryRpcMethodSync(getRpcClient(),
                             "chre.rpc.ChreApiTestService.ChreAudioGetSource", input);
             if (response.getStatus()
                     && response.getMinBufferDuration() >= expectedMinBufferSizeNs
@@ -242,7 +242,7 @@ public class ContextHubNanoAppRequirementsTestExecutor extends ContextHubChreApi
     private void getCapabilitiesAndAssertCapabilityExists(String function,
             int capability, String errorMessage) throws Exception {
         ChreApiTest.Capabilities capabilitiesResponse =
-                ChreApiTestUtil.callUnaryRpcMethodSync(mRpcClient, function);
+                ChreApiTestUtil.callUnaryRpcMethodSync(getRpcClient(), function);
         int capabilities = capabilitiesResponse.getCapabilities();
         Assert.assertTrue(errorMessage + ": " + capability,
                 (capabilities & capability) != 0);

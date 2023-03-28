@@ -45,7 +45,8 @@ public class ContextHubHostEndpointInfoTestExecutor extends ContextHubChreApiTes
                 ChreApiTest.ChreGetHostEndpointInfoInput.newBuilder().setHostEndpointId(id).build();
         ChreApiTest.ChreGetHostEndpointInfoOutput response =
                 ChreApiTestUtil.callUnaryRpcMethodSync(
-                        mRpcClient, "chre.rpc.ChreApiTestService.ChreGetHostEndpointInfo", input);
+                        getRpcClient(), "chre.rpc.ChreApiTestService.ChreGetHostEndpointInfo",
+                        input);
         if (!success) {
             Assert.assertFalse(
                     "Received host endpoint info for not connected id", response.getStatus());
@@ -88,7 +89,7 @@ public class ContextHubHostEndpointInfoTestExecutor extends ContextHubChreApiTes
         // TODO(b/274791978): Deprecate this once we can capture event in test mode.
         ChreApiTest.RetrieveLatestDisconnectedHostEndpointEventOutput response =
                 ChreApiTestUtil.callUnaryRpcMethodSync(
-                        mRpcClient,
+                        getRpcClient(),
                         "chre.rpc.ChreApiTestService.RetrieveLatestDisconnectedHostEndpointEvent");
         Assert.assertEquals(
                 "Should have exactly receive 1 host endpoint notification",
@@ -112,7 +113,7 @@ public class ContextHubHostEndpointInfoTestExecutor extends ContextHubChreApiTes
                         .build();
         ChreApiTest.Status response =
                 ChreApiTestUtil.callUnaryRpcMethodSync(
-                        mRpcClient,
+                        getRpcClient(),
                         "chre.rpc.ChreApiTestService.ChreConfigureHostEndpointNotifications",
                         request);
         Assert.assertTrue("Failed to configure host endpoint notification", response.getStatus());

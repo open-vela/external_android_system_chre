@@ -179,7 +179,7 @@ public class ContextHubBleConcurrencyTestExecutor extends ContextHubChreApiTestE
 
         ChreApiTestUtil util = new ChreApiTestUtil();
         List<ChreApiTest.GeneralSyncMessage> response =
-                util.callServerStreamingRpcMethodSync(mRpcClient,
+                util.callServerStreamingRpcMethodSync(getRpcClient(),
                         "chre.rpc.ChreApiTestService.ChreBleStartScanSync",
                         inputBuilder.build());
         assertThat(response).isNotEmpty();
@@ -195,7 +195,7 @@ public class ContextHubBleConcurrencyTestExecutor extends ContextHubChreApiTestE
     private void chreBleStopScanSync() throws Exception {
         ChreApiTestUtil util = new ChreApiTestUtil();
         List<ChreApiTest.GeneralSyncMessage> response =
-                util.callServerStreamingRpcMethodSync(mRpcClient,
+                util.callServerStreamingRpcMethodSync(getRpcClient(),
                         "chre.rpc.ChreApiTestService.ChreBleStopScanSync");
         assertThat(response).isNotEmpty();
         for (ChreApiTest.GeneralSyncMessage status: response) {
@@ -209,12 +209,12 @@ public class ContextHubBleConcurrencyTestExecutor extends ContextHubChreApiTestE
      */
     private boolean doesNecessaryBleCapabilitiesExist() throws Exception {
         ChreApiTest.Capabilities capabilitiesResponse =
-                ChreApiTestUtil.callUnaryRpcMethodSync(mRpcClient,
+                ChreApiTestUtil.callUnaryRpcMethodSync(getRpcClient(),
                         "chre.rpc.ChreApiTestService.ChreBleGetCapabilities");
         int capabilities = capabilitiesResponse.getCapabilities();
         if ((capabilities & CHRE_BLE_CAPABILITIES_SCAN) != 0) {
             ChreApiTest.Capabilities filterCapabilitiesResponse =
-                    ChreApiTestUtil.callUnaryRpcMethodSync(mRpcClient,
+                    ChreApiTestUtil.callUnaryRpcMethodSync(getRpcClient(),
                             "chre.rpc.ChreApiTestService.ChreBleGetFilterCapabilities");
             int filterCapabilities = filterCapabilitiesResponse.getCapabilities();
             return (filterCapabilities & CHRE_BLE_FILTER_CAPABILITIES_SERVICE_DATA) != 0;
