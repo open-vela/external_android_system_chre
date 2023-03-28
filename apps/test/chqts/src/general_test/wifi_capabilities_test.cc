@@ -38,6 +38,9 @@ void WifiCapabilitiesTest::setUp(uint32_t messageSize,
       allCapabilities |= CHRE_WIFI_CAPABILITIES_RADIO_CHAIN_PREF |
                          CHRE_WIFI_CAPABILITIES_RTT_RANGING;
     }
+    if (mApiVersion >= CHRE_API_VERSION_1_6) {
+      allCapabilities |= CHRE_WIFI_CAPABILITIES_NAN_SUB;
+    }
 
     // Call the new API
     uint32_t capabilities = chreWifiGetCapabilities();
