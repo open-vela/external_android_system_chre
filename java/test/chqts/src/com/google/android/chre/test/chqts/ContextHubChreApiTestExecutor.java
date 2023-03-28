@@ -31,6 +31,7 @@ import com.google.android.utils.chre.ChreTestUtil;
 
 import org.junit.Assert;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -40,18 +41,21 @@ import dev.pigweed.pw_rpc.Service;
  * A base class for test executors that uses RPC-Based nanoapp.
  */
 public class ContextHubChreApiTestExecutor extends ContextHubClientCallback {
-    private final NanoAppBinary mNanoAppBinary;
-    private final long mNanoAppId;
+    private final List<NanoAppBinary> mNanoAppBinaries;
+    private final List<Long> mNanoAppIds = new ArrayList<Long>();
     private final ContextHubClient mContextHubClient;
     private final AtomicBoolean mChreReset = new AtomicBoolean(false);
     protected final Context mContext = InstrumentationRegistry.getTargetContext();
     protected final ContextHubManager mContextHubManager;
     protected final ContextHubInfo mContextHub;
-    protected final ChreRpcClient mRpcClient;
+    protected final List<ChreRpcClient> mRpcClients = new ArrayList<ChreRpcClient>();
 
     public ContextHubChreApiTestExecutor(NanoAppBinary nanoapp) {
-        mNanoAppBinary = nanoapp;
-        mNanoAppId = nanoapp.getNanoAppId();
+        this(List.of(nanoapp));
+    }
+
+    public ContextHubChreApiTestExecutor(List<NanoAppBinary> nanoapps) {
+        mNanoAppBinaries = nanoapps;
         mContextHubManager = mContext.getSystemService(ContextHubManager.class);
         Assert.assertTrue(mContextHubManager != null);
         List<ContextHubInfo> contextHubs = mContextHubManager.getContextHubs();
@@ -59,9 +63,13 @@ public class ContextHubChreApiTestExecutor extends ContextHubClientCallback {
         mContextHub = contextHubs.get(0);
         mContextHubClient = mContextHubManager.createClient(mContextHub, this);
 
-        Service chreApiService = ChreApiTestUtil.getChreApiService();
-        mRpcClient = new ChreRpcClient(
-                mContextHubManager, mContextHub, mNanoAppId, List.of(chreApiService), this);
+        for (NanoAppBinary nanoapp: nanoapps) {
+            mNanoAppIds.add(nanoapp.getNanoAppId());
+            Service chreApiService = ChreApiTestUtil.getChreApiService();
+            mRpcClients.add(new ChreRpcClient(
+                    mContextHubManager, mContextHub, nanoapp.getNanoAppId(),
+                    List.of(chreApiService), this));
+        }
     }
 
     @Override
@@ -72,7 +80,9 @@ public class ContextHubChreApiTestExecutor extends ContextHubClientCallback {
     /** Should be invoked before run() is invoked to set up the test, e.g. in a @Before method. */
     public void init() {
         mContextHubManager.enableTestMode();
-        ChreTestUtil.loadNanoAppAssertSuccess(mContextHubManager, mContextHub, mNanoAppBinary);
+        for (NanoAppBinary nanoapp: mNanoAppBinaries) {
+            ChreTestUtil.loadNanoAppAssertSuccess(mContextHubManager, mContextHub, nanoapp);
+        }
     }
 
     /** Cleans up the test, should be invoked in e.g. @After method. */
@@ -81,8 +91,18 @@ public class ContextHubChreApiTestExecutor extends ContextHubClientCallback {
             Assert.fail("CHRE reset during the test");
         }
 
-        ChreTestUtil.unloadNanoAppAssertSuccess(mContextHubManager, mContextHub, mNanoAppId);
+        for (Long nanoappId: mNanoAppIds) {
+            ChreTestUtil.unloadNanoAppAssertSuccess(mContextHubManager, mContextHub, nanoappId);
+        }
         mContextHubManager.disableTestMode();
         mContextHubClient.close();
+    }
+
+    /**
+     * Gets the first RPC client in the list or returns null if the list is null or empty.
+     * This is useful for tests with only one nanoapp/client.
+     */
+    public ChreRpcClient getRpcClient() {
+        return mRpcClients != null && !mRpcClients.isEmpty() ? mRpcClients.get(0) : null;
     }
 }
