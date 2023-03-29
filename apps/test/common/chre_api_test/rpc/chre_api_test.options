@@ -8,3 +8,5 @@ chre.rpc.ChreGetHostEndpointInfoOutput.endpointName max_size:51 # CHRE_MAX_ENDPO
 chre.rpc.ChreGetHostEndpointInfoOutput.endpointTag max_size:51 # CHRE_MAX_ENDPOINT_TAG_LEN
 chre.rpc.ChreSensorThreeAxisData.readings max_count:10
 chre.rpc.ChreSensorThreeAxisData.readings fixed_count:true
+chre.rpc.GatherEventsInput.eventTypes max_count:10
+chre.rpc.GatherEventsInput.eventTypes fixed_count:true
