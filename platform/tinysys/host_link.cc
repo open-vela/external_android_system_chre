@@ -22,6 +22,7 @@
 #include "chre/platform/host_link.h"
 #include "chre/platform/log.h"
 #include "chre/platform/shared/host_protocol_chre.h"
+#include "chre/platform/shared/log_buffer_manager.h"
 #include "chre/platform/shared/nanoapp_load_manager.h"
 #include "chre/platform/system_time.h"
 #include "chre/platform/system_timer.h"
@@ -34,6 +35,21 @@
 #include "ipi.h"
 #include "ipi_id.h"
 #include "scp_dram_region.h"
+
+// Because the LOGx macros are being redirected to logcat through
+// HostLink::sendLogMessageV2 and HostLink::send, calling them from
+// inside HostLink impl could result in endless recursion.
+// So redefine them to just printf function to SCP console.
+#undef LOGE
+#define LOGE(fmt, arg...) PRINTF_E("[CHRE]" fmt "\n", ##arg)
+#undef LOGW
+#define LOGW(fmt, arg...) PRINTF_W("[CHRE]" fmt "\n", ##arg)
+#undef LOGI
+#define LOGI(fmt, arg...) PRINTF_I("[CHRE]" fmt "\n", ##arg)
+#undef LOGD
+#define LOGD(fmt, arg...) PRINTF_D("[CHRE]" fmt "\n", ##arg)
+#undef LOGV
+#define LOGV(fmt, arg...) PRINTF_D("[CHRE]" fmt "\n", ##arg)
 
 namespace chre {
 namespace {
@@ -122,11 +138,7 @@ struct PendingMessage {
 };
 
 constexpr size_t kOutboundQueueSize = 32;
-// TODO(b/272061818): static class constructor not initialzed properly.
-// Use a dynamically allocated singleton for now as a work around.
-// FixedSizeBlockingQueue<PendingMessage, kOutboundQueueSize> gOutboundQueue;
-typedef Singleton<FixedSizeBlockingQueue<PendingMessage, kOutboundQueueSize>>
-    gOutboundQueue;
+FixedSizeBlockingQueue<PendingMessage, kOutboundQueueSize> gOutboundQueue;
 
 typedef void(MessageBuilderFunction)(ChreFlatBufferBuilder &builder,
                                      void *cookie);
@@ -135,20 +147,11 @@ inline HostCommsManager &getHostCommsManager() {
   return EventLoopManagerSingleton::get()->getHostCommsManager();
 }
 
-bool generateMessageFromBuilder(ChreFlatBufferBuilder *builder,
-                                bool isEncodedLogMessage) {
+bool generateMessageFromBuilder(ChreFlatBufferBuilder *builder) {
   CHRE_ASSERT(builder != nullptr);
   LOGV("%s: message size %d", __func__, builder->GetSize());
   bool result =
       HostLinkBase::send(builder->GetBufferPointer(), builder->GetSize());
-
-#ifdef CHRE_USE_BUFFERED_LOGGING
-  if (isEncodedLogMessage && LogBufferManagerSingleton::isInitialized()) {
-    LogBufferManagerSingleton::get()->onLogsSentToHost();
-  }
-#else
-  UNUSED_VAR(isEncodedLogMessage);
-#endif
 
   // clean up
   builder->~ChreFlatBufferBuilder();
@@ -227,9 +230,7 @@ bool dequeueMessage(PendingMessage pendingMsg) {
     case PendingMessageType::SelfTestResponse:
     case PendingMessageType::MetricLog:
     case PendingMessageType::NanConfigurationRequest:
-      result = generateMessageFromBuilder(
-          pendingMsg.data.builder,
-          pendingMsg.type == PendingMessageType::EncodedLogMessage);
+      result = generateMessageFromBuilder(pendingMsg.data.builder);
       break;
 
     default:
@@ -247,7 +248,7 @@ bool dequeueMessage(PendingMessage pendingMsg) {
  * @return true if the message was successfully added to the queue.
  */
 bool enqueueMessage(PendingMessage pendingMsg) {
-  return gOutboundQueue::get()->push(pendingMsg);
+  return gOutboundQueue.push(pendingMsg);
 }
 
 /**
@@ -356,7 +357,6 @@ HostLinkBase::HostLinkBase() {
 
 HostLinkBase::~HostLinkBase() {
   LOGV("HostLinkBase::%s", __func__);
-  gOutboundQueue::deinit();
 }
 
 void HostLinkBase::vChreReceiveTask(void *pvParameters) {
@@ -376,7 +376,7 @@ void HostLinkBase::vChreReceiveTask(void *pvParameters) {
 
 void HostLinkBase::vChreSendTask(void *pvParameters) {
   while (true) {
-    auto msg = gOutboundQueue::get()->pop();
+    auto msg = gOutboundQueue.pop();
     dequeueMessage(msg);
   }
 }
@@ -444,6 +444,10 @@ void HostLinkBase::initializeIpi(void) {
                                    kBackgroundTaskStackSize, (void *)0,
                                    kBackgroundTaskPriority, NULL)) {
     LOGE("%s failed to create ipi receiver task", __func__);
+  } else if (pdPASS != xTaskCreate(vChreSendTask, "CHRE_SEND",
+                                   kBackgroundTaskStackSize, (void *)0,
+                                   kBackgroundTaskPriority, NULL)) {
+    LOGE("%s failed to create ipi outbound message queue task", __func__);
   } else if (IPI_ACTION_DONE !=
              (ret = ipi_register(IPI_IN_C_HOST_SCP_CHRE, (void *)chreIpiHandler,
                                  (void *)this, (void *)&gChreIpiRecvData[0]))) {
@@ -454,13 +458,6 @@ void HostLinkBase::initializeIpi(void) {
     LOGE("ipi_register IPI_OUT_C_SCP_HOST_CHRE failed, %d", ret);
   } else {
     success = true;
-  }
-
-  if (success) {
-    gOutboundQueue::init();
-    success = (pdPASS == xTaskCreate(vChreSendTask, "CHRE_SEND",
-                                     kBackgroundTaskStackSize, (void *)0,
-                                     kBackgroundTaskPriority, NULL));
   }
 
   if (!success) {
@@ -532,11 +529,35 @@ void HostLinkBase::sendTimeSyncRequest() {
   // TODO(b/263958729): Implement this.
 }
 
-void HostLinkBase::sendLogMessageV2(const uint8_t * /*logMessage*/,
+void HostLinkBase::sendLogMessageV2(const uint8_t *logMessage,
                                     size_t logMessageSize,
-                                    uint32_t /*num_logs_dropped*/) {
+                                    uint32_t numLogsDropped) {
   LOGV("%s: size %zu", __func__, logMessageSize);
-  // TODO(b/263958729): Implement this.
+  struct LogMessageData {
+    const uint8_t *logMsg;
+    size_t logMsgSize;
+    uint32_t numLogsDropped;
+  };
+
+  LogMessageData logMessageData{logMessage, logMessageSize, numLogsDropped};
+
+  auto msgBuilder = [](ChreFlatBufferBuilder &builder, void *cookie) {
+    const auto *data = static_cast<const LogMessageData *>(cookie);
+    HostProtocolChre::encodeLogMessagesV2(
+        builder, data->logMsg, data->logMsgSize, data->numLogsDropped);
+  };
+
+  constexpr size_t kInitialSize = 128;
+  bool result = buildAndEnqueueMessage(
+      PendingMessageType::EncodedLogMessage,
+      kInitialSize + logMessageSize + sizeof(numLogsDropped), msgBuilder,
+      &logMessageData);
+
+#ifdef CHRE_USE_BUFFERED_LOGGING
+  if (LogBufferManagerSingleton::isInitialized()) {
+    LogBufferManagerSingleton::get()->onLogsSentToHost(result);
+  }
+#endif
 }
 
 bool HostLink::sendMessage(HostMessage const *message) {

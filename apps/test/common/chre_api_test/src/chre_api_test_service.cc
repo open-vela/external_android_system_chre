@@ -207,6 +207,18 @@ bool ChreApiTestService::validateInputAndCallChreGetSensorSamplingStatus(
   return true;
 }
 
+bool ChreApiTestService::validateInputAndCallChreSensorConfigure(
+    const chre_rpc_ChreSensorConfigureInput &request,
+    chre_rpc_Status &response) {
+  chreSensorConfigureMode mode =
+      static_cast<chreSensorConfigureMode>(request.mode);
+  response.status = chreSensorConfigure(request.sensorHandle, mode,
+                                        request.interval, request.latency);
+
+  LOGD("ChreSensorConfigure: status: %s", response.status ? "true" : "false");
+  return true;
+}
+
 bool ChreApiTestService::validateInputAndCallChreSensorConfigureModeOnly(
     const chre_rpc_ChreSensorConfigureModeOnlyInput &request,
     chre_rpc_Status &response) {

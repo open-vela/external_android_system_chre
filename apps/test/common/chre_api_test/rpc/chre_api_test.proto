@@ -34,6 +34,9 @@ service ChreApiTestService {
   rpc ChreGetSensorSamplingStatus(ChreHandleInput)
       returns (ChreGetSensorSamplingStatusOutput) {}
 
+  // Configures a sensor.
+  rpc ChreSensorConfigure(ChreSensorConfigureInput) returns (Status) {}
+
   // Configures a sensor's mode.
   rpc ChreSensorConfigureModeOnly(ChreSensorConfigureModeOnlyInput)
       returns (Status) {}
@@ -72,6 +75,9 @@ service ChreApiTestService {
    * return the event's success field.
    */
   rpc ChreBleStopScanSync(Void) returns (stream GeneralSyncMessage) {}
+
+  // Returns events that match the eventType filter
+  rpc GatherEvents(GatherEventsInput) returns (stream GeneralEventsMessage) {}
 }
 
 // General messages
@@ -97,6 +103,43 @@ message ChreHandleInput {
 // Message for sync function output
 message GeneralSyncMessage {
   bool status = 1;
+}
+
+// Event capturing messages
+
+// Contains event filters for gathering events
+message GatherEventsInput {
+  uint32 eventType = 1;
+  uint32 eventCount = 2;
+  uint64 timeoutInNs = 3;
+}
+
+// Contains events that were gathered
+// To gather a new type of event, add its message here
+message GeneralEventsMessage {
+  bool status = 1;
+  ChreSensorThreeAxisData chreSensorThreeAxisData = 2;
+}
+
+// Contains three axis data for use with the accelerometer and other sensors
+message ChreSensorThreeAxisData {
+  ChreSensorDataHeader header = 1;
+  repeated ChreSensorThreeAxisSampleData readings = 2;
+}
+
+message ChreSensorDataHeader {
+  uint64 baseTimestamp = 1;
+  uint32 sensorHandle = 2;
+  uint32 readingCount = 3;
+  uint32 accuracy = 4;
+  uint32 reserved = 5;
+}
+
+message ChreSensorThreeAxisSampleData {
+  uint32 timestampDelta = 1;
+  float x = 2;
+  float y = 3;
+  float z = 4;
 }
 
 // Function specific messages
@@ -164,6 +207,14 @@ message ChreGetSensorSamplingStatusOutput {
   uint64 interval = 2;
   uint64 latency = 3;
   bool enabled = 4;
+}
+
+// Input value for ChreSensorConfigureModeOnly
+message ChreSensorConfigureInput {
+  uint32 sensorHandle = 1;
+  uint32 mode = 2;
+  uint64 interval = 3;
+  uint64 latency = 4;
 }
 
 // Input value for ChreSensorConfigureModeOnly
