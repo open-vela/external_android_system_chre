@@ -49,7 +49,10 @@ class ChreConnection {
   /**
    * @return The nanoapp loading fragment size in bytes.
    */
-  virtual size_t getLoadFragmentSizeBytes() const;
+  virtual size_t getLoadFragmentSizeBytes() const {
+    static_assert(CHRE_HOST_DEFAULT_FRAGMENT_SIZE > 0);
+    return CHRE_HOST_DEFAULT_FRAGMENT_SIZE;
+  }
 
   /**
    * Sends a message encapsulated in a FlatBufferBuilder to CHRE.
