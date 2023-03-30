@@ -1019,10 +1019,8 @@ void chppRegisterWifiService(struct ChppAppState *appContext) {
                           "WiFi PAL API incompatible. Cannot register service");
 
   } else {
-    gWifiServiceContext.service.appContext = appContext;
-    gWifiServiceContext.service.openState = CHPP_OPEN_STATE_CLOSED;
-    gWifiServiceContext.service.handle = chppRegisterService(
-        appContext, (void *)&gWifiServiceContext, &kWifiServiceConfig);
+    chppRegisterService(appContext, (void *)&gWifiServiceContext,
+                        &gWifiServiceContext.service, &kWifiServiceConfig);
     CHPP_DEBUG_ASSERT(gWifiServiceContext.service.handle);
   }
 }

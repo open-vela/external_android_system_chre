@@ -57,10 +57,6 @@ class TinysysChreConnection : public ChreConnection {
 
   bool sendMessage(void *data, size_t length) override;
 
-  size_t getLoadFragmentSizeBytes() const override {
-    return CHRE_HOST_DEFAULT_FRAGMENT_SIZE;
-  }
-
   inline ChreConnectionCallback *getCallback() {
     return mCallback;
   }

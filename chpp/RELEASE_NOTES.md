@@ -241,3 +241,26 @@ Other changes:
 
 - You need to pass the link state and the link `ChppLinkApi` struct when initializing the transport layer with `chppTransportInit`.
 - When calling the `chppLinkSendDoneCb` and `chppWorkThreadSignalFromLink` from the link layer the first parameter should now be a pointer to the transport layer. You would typically retrieve that pointer from the link state where you should have stored it in the `init` function.
+
+### 2023-03
+
+The `chppRegisterService` signature changes from
+
+```
+uint8_t chppRegisterService(struct ChppAppState *appContext,
+                            void *serviceContext,
+                            const struct ChppService *newService);
+```
+
+to
+
+```
+void chppRegisterService(struct ChppAppState *appContext, void *serviceContext,
+                         struct ChppServiceState *serviceState,
+                         const struct ChppService *newService);
+```
+
+The handle which used to be returned is now populated in `serviceState`.
+`service->appContext` is also initialized to the passed `appContext`.
+
+This change makes the signature and behavior consistent with `chreRegisterClient`.

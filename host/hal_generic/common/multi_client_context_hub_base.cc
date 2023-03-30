@@ -321,7 +321,7 @@ ScopedAStatus MultiClientContextHubBase::onHostEndpointConnected(
       type = CHRE_HOST_ENDPOINT_TYPE_FRAMEWORK;
       break;
     default:
-      LOGE("Unsupported host endpoint type %" PRIu32, type);
+      LOGE("Unsupported host endpoint type %" PRIu32, info.type);
       return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
   }
 

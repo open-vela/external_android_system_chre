@@ -669,10 +669,8 @@ void chppRegisterGnssService(struct ChppAppState *appContext) {
                           "GNSS PAL API incompatible. Cannot register service");
 
   } else {
-    gGnssServiceContext.service.appContext = appContext;
-    gGnssServiceContext.service.openState = CHPP_OPEN_STATE_CLOSED;
-    gGnssServiceContext.service.handle = chppRegisterService(
-        appContext, (void *)&gGnssServiceContext, &kGnssServiceConfig);
+    chppRegisterService(appContext, (void *)&gGnssServiceContext,
+                        &gGnssServiceContext.service, &kGnssServiceConfig);
     CHPP_DEBUG_ASSERT(gGnssServiceContext.service.handle);
   }
 }
