@@ -33,7 +33,7 @@ void forceDramAccess() {
 }
 
 void nanoappBinaryFree(void *pointer) {
-  memoryFree(pointer);
+  aligned_free(pointer);
 }
 
 void nanoappBinaryDramFree(void *pointer) {
@@ -56,8 +56,8 @@ void palSystemApiMemoryFree(void *pointer) {
   memoryFree(pointer);
 }
 
-void *nanoappBinaryAlloc(size_t size, size_t /*alignment*/) {
-  return memoryAlloc(size);
+void *nanoappBinaryAlloc(size_t size, size_t alignment) {
+  return aligned_malloc(size, alignment);
 }
 
 void *nanoappBinaryDramAlloc(size_t size, size_t alignment) {
