@@ -40,16 +40,30 @@
 // HostLink::sendLogMessageV2 and HostLink::send, calling them from
 // inside HostLink impl could result in endless recursion.
 // So redefine them to just printf function to SCP console.
+#if CHRE_MINIMUM_LOG_LEVEL >= CHRE_LOG_LEVEL_ERROR
 #undef LOGE
 #define LOGE(fmt, arg...) PRINTF_E("[CHRE]" fmt "\n", ##arg)
+#endif
+
+#if CHRE_MINIMUM_LOG_LEVEL >= CHRE_LOG_LEVEL_WARN
 #undef LOGW
 #define LOGW(fmt, arg...) PRINTF_W("[CHRE]" fmt "\n", ##arg)
+#endif
+
+#if CHRE_MINIMUM_LOG_LEVEL >= CHRE_LOG_LEVEL_INFO
 #undef LOGI
 #define LOGI(fmt, arg...) PRINTF_I("[CHRE]" fmt "\n", ##arg)
+#endif
+
+#if CHRE_MINIMUM_LOG_LEVEL >= CHRE_LOG_LEVEL_DEBUG
 #undef LOGD
 #define LOGD(fmt, arg...) PRINTF_D("[CHRE]" fmt "\n", ##arg)
+#endif
+
+#if CHRE_MINIMUM_LOG_LEVEL >= CHRE_LOG_LEVEL_VERBOSE
 #undef LOGV
 #define LOGV(fmt, arg...) PRINTF_D("[CHRE]" fmt "\n", ##arg)
+#endif
 
 namespace chre {
 namespace {
@@ -137,7 +151,7 @@ struct PendingMessage {
   } data;
 };
 
-constexpr size_t kOutboundQueueSize = 32;
+constexpr size_t kOutboundQueueSize = 100;
 FixedSizeBlockingQueue<PendingMessage, kOutboundQueueSize> gOutboundQueue;
 
 typedef void(MessageBuilderFunction)(ChreFlatBufferBuilder &builder,
@@ -461,7 +475,7 @@ void HostLinkBase::initializeIpi(void) {
   }
 
   if (!success) {
-    FATAL_ERROR();
+    FATAL_ERROR("HostLinkBase::initializeIpi() failed");
   }
 }
 
@@ -481,7 +495,7 @@ void HostLinkBase::receive(HostLinkBase *instance, void *message,
 
 bool HostLinkBase::send(uint8_t *data, size_t dataLen) {
   LOGV("HostLinkBase::%s: %zu, %p", __func__, dataLen, data);
-  const int kIpiSendTimeoutMs = 5;
+  const int kIpiSendTimeoutMs = 100;
   struct ScpChreIpiMsg msg;
   msg.magic = SCP_CHRE_MAGIC;
   msg.size = dataLen;
@@ -548,15 +562,22 @@ void HostLinkBase::sendLogMessageV2(const uint8_t *logMessage,
   };
 
   constexpr size_t kInitialSize = 128;
-  bool result = buildAndEnqueueMessage(
-      PendingMessageType::EncodedLogMessage,
-      kInitialSize + logMessageSize + sizeof(numLogsDropped), msgBuilder,
-      &logMessageData);
+  bool result = true;
+  if (isInitialized()) {
+    result = buildAndEnqueueMessage(
+        PendingMessageType::EncodedLogMessage,
+        kInitialSize + logMessageSize + sizeof(numLogsDropped), msgBuilder,
+        &logMessageData);
+  } else {
+    LOGW("Dropping outbound message: host link not initialized yet");
+  }
 
 #ifdef CHRE_USE_BUFFERED_LOGGING
   if (LogBufferManagerSingleton::isInitialized()) {
     LogBufferManagerSingleton::get()->onLogsSentToHost(result);
   }
+#else
+  UNUSED_VAR(result);
 #endif
 }
 
