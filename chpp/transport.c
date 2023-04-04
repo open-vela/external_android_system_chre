@@ -548,11 +548,7 @@ static void chppProcessResetAck(struct ChppTransportState *context) {
   chppClearRxDatagram(context);
 
 #ifdef CHPP_CLIENT_ENABLED_DISCOVERY
-  if (!context->appContext->isDiscoveryComplete) {
-    chppMutexUnlock(&context->mutex);
-    chppInitiateDiscovery(context->appContext);
-    chppMutexLock(&context->mutex);
-  } else {
+  if (context->appContext->isDiscoveryComplete) {
     chppEnqueueTxPacket(context, CHPP_TRANSPORT_ERROR_NONE);
   }
 #else
