@@ -342,16 +342,14 @@ void handleUnloadNanoappCallback(uint16_t /*type*/, void *data,
   }
 
   constexpr size_t kInitialBufferSize = 52;
-  auto builder = MakeUnique<ChreFlatBufferBuilder>(kInitialBufferSize);
-  HostProtocolChre::encodeUnloadNanoappResponse(*builder, cbData->hostClientId,
+  ChreFlatBufferBuilder builder(kInitialBufferSize);
+  HostProtocolChre::encodeUnloadNanoappResponse(builder, cbData->hostClientId,
                                                 cbData->transactionId, success);
 
-  if (!enqueueMessage(PendingMessage(PendingMessageType::UnloadNanoappResponse,
-                                     builder.get()))) {
+  if (!getHostCommsManager().send(builder.GetBufferPointer(),
+                                  builder.GetSize())) {
     LOGE("Failed to send unload response to host: %x transactionID: 0x%x",
          cbData->hostClientId, cbData->transactionId);
-  } else {
-    builder.release();
   }
 
   memoryFree(data);
