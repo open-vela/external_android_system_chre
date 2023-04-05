@@ -60,7 +60,8 @@ void sendFinishAndCloseWriter(
 
   ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
       CHRE_MESSAGE_PERMISSION_NONE);
-  writer->Write(message);
+  pw::Status status = writer->Write(message);
+  CHRE_ASSERT(status.ok());
   finishAndCloseWriter(writer);
 }
 
@@ -273,32 +274,59 @@ void ChreApiTestService::GatherEvents(
     const chre_rpc_GatherEventsInput &request,
     ServerWriter<chre_rpc_GeneralEventsMessage> &writer) {
   if (mEventWriter.has_value()) {
+    LOGE("GatherEvents: an event gathering call already exists");
     ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
         CHRE_MESSAGE_PERMISSION_NONE);
     writer.Finish();
-    LOGE("GatherEvents: an event gathering call already exists");
     return;
+  }
+
+  if (request.eventTypeCount > kMaxNumEventTypes) {
+    LOGE("GatherEvents: request.eventTypeCount is out of bounds");
+    ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
+        CHRE_MESSAGE_PERMISSION_NONE);
+    writer.Finish();
+    return;
+  }
+
+  if (request.eventTypeCount == 0) {
+    LOGE("GatherEvents: request.eventTypeCount == 0");
+    ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
+        CHRE_MESSAGE_PERMISSION_NONE);
+    writer.Finish();
+    return;
+  }
+
+  for (uint32_t i = 0; i < request.eventTypeCount; ++i) {
+    if (request.eventTypes[i] < std::numeric_limits<uint16_t>::min() ||
+        request.eventTypes[i] > std::numeric_limits<uint16_t>::max()) {
+      LOGE("GatherEvents: invalid request.eventTypes: i: %" PRIu32, i);
+      ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
+          CHRE_MESSAGE_PERMISSION_NONE);
+      writer.Finish();
+      return;
+    }
+
+    mEventTypes[i] = static_cast<uint16_t>(request.eventTypes[i]);
+    LOGD("GatherEvents: Watching for events with type: %" PRIu16,
+         mEventTypes[i]);
   }
 
   mEventWriter = std::move(writer);
-  if (request.eventType < std::numeric_limits<uint16_t>::min() ||
-      request.eventType > std::numeric_limits<uint16_t>::max()) {
-    LOGE("GatherEvents: invalid request.eventType");
-    sendFailureAndFinishCloseWriter(mEventWriter);
-    mEventTimerHandle = CHRE_TIMER_INVALID;
-    return;
-  }
-
   CHRE_ASSERT(mEventTimerHandle == CHRE_TIMER_INVALID);
   mEventTimerHandle = chreTimerSet(
       request.timeoutInNs, &mEventTimerHandle /* cookie */, true /* oneShot */);
   if (mEventTimerHandle == CHRE_TIMER_INVALID) {
+    LOGE("GatherEvents: Cannot set the event timer");
     sendFailureAndFinishCloseWriter(mEventWriter);
     mEventTimerHandle = CHRE_TIMER_INVALID;
   } else {
-    mEventType = static_cast<uint16_t>(request.eventType);
+    mEventTypeCount = request.eventTypeCount;
     mEventExpectedCount = request.eventCount;
     mEventSentCount = 0;
+    LOGD("GatherEvents: mEventTypeCount: %" PRIu32
+         " mEventExpectedCount: %" PRIu32,
+         mEventTypeCount, mEventExpectedCount);
   }
 }
 
@@ -323,36 +351,77 @@ void ChreApiTestService::handleBleAsyncResult(const chreAsyncResult *result) {
 
 void ChreApiTestService::handleGatheringEvent(uint16_t eventType,
                                               const void *eventData) {
-  if (!mEventWriter.has_value() || mEventType != eventType) {
+  if (!mEventWriter.has_value()) {
     return;
   }
+
+  bool matchedEvent = false;
+  for (uint32_t i = 0; i < mEventTypeCount; ++i) {
+    if (mEventTypes[i] == eventType) {
+      matchedEvent = true;
+      break;
+    }
+  }
+  if (!matchedEvent) {
+    LOGD("GatherEvents: Received event with type: %" PRIu16
+         " that did not match any gathered events",
+         eventType);
+    return;
+  }
+
+  LOGD("Gather events Received matching event with type: %" PRIu16, eventType);
 
   chre_rpc_GeneralEventsMessage message;
   message.status = false;
   switch (eventType) {
     case CHRE_EVENT_SENSOR_ACCELEROMETER_DATA: {
       message.status = true;
+      message.which_data =
+          chre_rpc_GeneralEventsMessage_chreSensorThreeAxisData_tag;
 
       const struct chreSensorThreeAxisData *data =
           static_cast<const struct chreSensorThreeAxisData *>(eventData);
-      message.chreSensorThreeAxisData.header.baseTimestamp =
+      message.data.chreSensorThreeAxisData.header.baseTimestamp =
           data->header.baseTimestamp;
-      message.chreSensorThreeAxisData.header.sensorHandle =
+      message.data.chreSensorThreeAxisData.header.sensorHandle =
           data->header.sensorHandle;
-      message.chreSensorThreeAxisData.header.readingCount =
+      message.data.chreSensorThreeAxisData.header.readingCount =
           data->header.readingCount;
-      message.chreSensorThreeAxisData.header.accuracy = data->header.accuracy;
-      message.chreSensorThreeAxisData.header.reserved = data->header.reserved;
+      message.data.chreSensorThreeAxisData.header.accuracy =
+          data->header.accuracy;
+      message.data.chreSensorThreeAxisData.header.reserved =
+          data->header.reserved;
 
-      uint32_t numIter =
+      uint32_t numReadings =
           MIN(data->header.readingCount, kThreeAxisDataReadingsMaxCount);
-      for (uint32_t i = 0; i < numIter; ++i) {
-        message.chreSensorThreeAxisData.readings[i].timestampDelta =
+      message.data.chreSensorThreeAxisData.readings_count = numReadings;
+      for (uint32_t i = 0; i < numReadings; ++i) {
+        message.data.chreSensorThreeAxisData.readings[i].timestampDelta =
             data->readings[i].timestampDelta;
-        message.chreSensorThreeAxisData.readings[i].x = data->readings[i].x;
-        message.chreSensorThreeAxisData.readings[i].y = data->readings[i].y;
-        message.chreSensorThreeAxisData.readings[i].z = data->readings[i].z;
+        message.data.chreSensorThreeAxisData.readings[i].x =
+            data->readings[i].x;
+        message.data.chreSensorThreeAxisData.readings[i].y =
+            data->readings[i].y;
+        message.data.chreSensorThreeAxisData.readings[i].z =
+            data->readings[i].z;
       }
+      break;
+    }
+    case CHRE_EVENT_SENSOR_SAMPLING_CHANGE: {
+      const struct chreSensorSamplingStatusEvent *data =
+          static_cast<const struct chreSensorSamplingStatusEvent *>(eventData);
+      message.data.chreSensorSamplingStatusEvent.sensorHandle =
+          data->sensorHandle;
+      message.data.chreSensorSamplingStatusEvent.status.interval =
+          data->status.interval;
+      message.data.chreSensorSamplingStatusEvent.status.latency =
+          data->status.latency;
+      message.data.chreSensorSamplingStatusEvent.status.enabled =
+          data->status.enabled;
+
+      message.status = true;
+      message.which_data =
+          chre_rpc_GeneralEventsMessage_chreSensorSamplingStatusEvent_tag;
       break;
     }
     default: {
@@ -360,21 +429,23 @@ void ChreApiTestService::handleGatheringEvent(uint16_t eventType,
     }
   }
 
-  ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
-      CHRE_MESSAGE_PERMISSION_NONE);
-  mEventWriter->Write(message);
-
-  // Only increment the sent event count if we are sending a good event.
-  // If we are sending only a failure (not implemented), then that is not
-  // a good event.
-  if (message.status) {
-    ++mEventSentCount;
+  if (!message.status) {
+    LOGE("GatherEvents: unable to create message for event with type: %" PRIu16,
+         eventType);
+    return;
   }
 
-  if (mEventSentCount == mEventExpectedCount || !message.status) {
+  ChreApiTestManagerSingleton::get()->setPermissionForNextMessage(
+      CHRE_MESSAGE_PERMISSION_NONE);
+  pw::Status status = mEventWriter->Write(message);
+  CHRE_ASSERT(status.ok());
+  ++mEventSentCount;
+
+  if (mEventSentCount == mEventExpectedCount) {
     chreTimerCancel(mEventTimerHandle);
     mEventTimerHandle = CHRE_TIMER_INVALID;
     finishAndCloseWriter(mEventWriter);
+    LOGD("GatherEvents: Finish");
   }
 }
 
@@ -386,7 +457,7 @@ void ChreApiTestService::handleTimerEvent(const void *cookie) {
   } else if (mEventWriter.has_value() && cookie == &mEventTimerHandle) {
     finishAndCloseWriter(mEventWriter);
     mEventTimerHandle = CHRE_TIMER_INVALID;
-    LOGD("Timeout for event collection with event type: %" PRIu16, mEventType);
+    LOGD("Timeout for event collection");
   }
 }
 
@@ -396,6 +467,7 @@ void ChreApiTestService::handleHostEndpointNotificationEvent(
     LOGW("Received non disconnected event");
     return;
   }
+
   ++mReceivedHostEndpointDisconnectedNum;
   mLatestHostEndpointNotification = *data;
 }

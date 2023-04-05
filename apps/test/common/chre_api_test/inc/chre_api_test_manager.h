@@ -248,6 +248,9 @@ class ChreApiTestService final
       const chre_rpc_ChreGetHostEndpointInfoInput &request,
       chre_rpc_ChreGetHostEndpointInfoOutput &response);
 
+  constexpr static uint32_t kMaxNumEventTypes =
+      10;  // declared in chre_api_test.options
+
   /**
    * Variables to control synchronization for sync API calls.
    * Only one sync API call may be made at a time.
@@ -268,7 +271,8 @@ class ChreApiTestService final
    */
   Optional<ServerWriter<chre_rpc_GeneralEventsMessage>> mEventWriter;
   uint32_t mEventTimerHandle = CHRE_TIMER_INVALID;
-  uint16_t mEventType;
+  uint16_t mEventTypes[kMaxNumEventTypes];
+  uint32_t mEventTypeCount;
   uint32_t mEventExpectedCount;
   uint32_t mEventSentCount;
 };

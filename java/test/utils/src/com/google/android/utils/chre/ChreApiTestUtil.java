@@ -83,7 +83,8 @@ public class ChreApiTestUtil {
     /**
      * Calls a server streaming RPC method on multiple RPC clients. The RPC will be initiated for
      * each client, then we will give each client a maximum of RPC_TIMEOUT_IN_SECONDS seconds of
-     * timeout, getting the futures in sequential order.
+     * timeout, getting the futures in sequential order. The responses will have the same size
+     * as the input rpcClients size.
      *
      * @param <RequestType>   the type of the request (proto generated type).
      * @param <ResponseType>  the type of the response (proto generated type).
@@ -284,9 +285,38 @@ public class ChreApiTestUtil {
     }
 
     /**
+     * Gathers events that match the eventTypes for each RPC client. This gathers
+     * events until eventCount events are gathered or timeoutInNs nanoseconds has passed.
+     * The host will wait until 2 * timeoutInNs to timeout receiving the response.
+     * The responses will have the same size as the input rpcClients size.
+     *
+     * @param rpcClients      the RPC clients.
+     * @param eventTypes      the types of event to gather.
+     * @param eventCount      the number of events to gather.
+     *
+     * @return                the events future.
+     */
+    public Future<List<List<ChreApiTest.GeneralEventsMessage>>> gatherEventsConcurrent(
+            @NonNull List<ChreRpcClient> rpcClients, List<Integer> eventTypes, int eventCount,
+            long timeoutInNs) throws Exception {
+        Objects.requireNonNull(rpcClients);
+
+        ChreApiTest.GatherEventsInput input = ChreApiTest.GatherEventsInput.newBuilder()
+                .addAllEventTypes(eventTypes)
+                .setEventTypeCount(eventTypes.size())
+                .setEventCount(eventCount)
+                .setTimeoutInNs(timeoutInNs)
+                .build();
+        return callConcurrentServerStreamingRpcMethodAsync(rpcClients,
+                "chre.rpc.ChreApiTestService.GatherEvents", input,
+                TimeUnit.NANOSECONDS.toMillis(2 * timeoutInNs));
+    }
+
+    /**
      * Gathers events that match the eventType for each RPC client. This gathers
      * events until eventCount events are gathered or timeoutInNs nanoseconds has passed.
      * The host will wait until 2 * timeoutInNs to timeout receiving the response.
+     * The responses will have the same size as the input rpcClients size.
      *
      * @param rpcClients      the RPC clients.
      * @param eventType       the type of event to gather.
@@ -299,14 +329,34 @@ public class ChreApiTestUtil {
             long timeoutInNs) throws Exception {
         Objects.requireNonNull(rpcClients);
 
-        ChreApiTest.GatherEventsInput input = ChreApiTest.GatherEventsInput.newBuilder()
-                .setEventType(eventType)
-                .setEventCount(eventCount)
-                .setTimeoutInNs(timeoutInNs)
-                .build();
-        return callConcurrentServerStreamingRpcMethodAsync(rpcClients,
-                "chre.rpc.ChreApiTestService.GatherEvents", input,
-                TimeUnit.NANOSECONDS.toMillis(2 * timeoutInNs));
+        return gatherEventsConcurrent(rpcClients, Arrays.asList(eventType),
+                eventCount, timeoutInNs);
+    }
+
+    /**
+     * Gathers events that match the eventTypes for the RPC client. This gathers
+     * events until eventCount events are gathered or timeoutInNs nanoseconds has passed.
+     * The host will wait until 2 * timeoutInNs to timeout receiving the response.
+     *
+     * @param rpcClient       the RPC client.
+     * @param eventTypes      the types of event to gather.
+     * @param eventCount      the number of events to gather.
+     *
+     * @return                the events future.
+     */
+    public Future<List<ChreApiTest.GeneralEventsMessage>> gatherEvents(
+            @NonNull ChreRpcClient rpcClient, List<Integer> eventTypes, int eventCount,
+                    long timeoutInNs) throws Exception {
+        Objects.requireNonNull(rpcClient);
+
+        Future<List<List<ChreApiTest.GeneralEventsMessage>>> eventsConcurrentFuture =
+                gatherEventsConcurrent(Arrays.asList(rpcClient), eventTypes, eventCount,
+                        timeoutInNs);
+        return eventsConcurrentFuture == null ? null : mExecutor.submit(() -> {
+            List<List<ChreApiTest.GeneralEventsMessage>> events =
+                    eventsConcurrentFuture.get(2 * timeoutInNs, TimeUnit.NANOSECONDS);
+            return events == null || events.size() == 0 ? null : events.get(0);
+        });
     }
 
     /**
@@ -321,18 +371,11 @@ public class ChreApiTestUtil {
      * @return                the events future.
      */
     public Future<List<ChreApiTest.GeneralEventsMessage>> gatherEvents(
-            @NonNull ChreRpcClient rpcClient, int eventType, int eventCount, long timeoutInNs)
-                    throws Exception {
+            @NonNull ChreRpcClient rpcClient, int eventType, int eventCount,
+                    long timeoutInNs) throws Exception {
         Objects.requireNonNull(rpcClient);
 
-        Future<List<List<ChreApiTest.GeneralEventsMessage>>> eventsConcurrentFuture =
-                gatherEventsConcurrent(Arrays.asList(rpcClient), eventType, eventCount,
-                        timeoutInNs);
-        return eventsConcurrentFuture == null ? null : mExecutor.submit(() -> {
-            List<List<ChreApiTest.GeneralEventsMessage>> events =
-                    eventsConcurrentFuture.get(2 * timeoutInNs, TimeUnit.NANOSECONDS);
-            return events == null || events.size() == 0 ? null : events.get(0);
-        });
+        return gatherEvents(rpcClient, Arrays.asList(eventType), eventCount, timeoutInNs);
     }
 
     /**
@@ -409,7 +452,8 @@ public class ChreApiTestUtil {
 
     /**
      * Calls a server streaming RPC method with timeoutInMs milliseconds of timeout on
-     * multiple RPC clients. This returns a Future for the result.
+     * multiple RPC clients. This returns a Future for the result. The responses will have the same
+     * size as the input rpcClients size.
      *
      * @param <RequestType>   the type of the request (proto generated type).
      * @param <ResponseType>  the type of the response (proto generated type).
@@ -500,7 +544,8 @@ public class ChreApiTestUtil {
 
     /**
      * Calls a server streaming RPC method with timeoutInMs milliseconds of timeout on
-     * multiple RPC clients. This returns a Future for the result.
+     * multiple RPC clients. This returns a Future for the result. The responses will have the same
+     * size as the input rpcClients size.
      *
      * @param <RequestType>   the type of the request (proto generated type).
      * @param <ResponseType>  the type of the response (proto generated type).

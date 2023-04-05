@@ -109,16 +109,33 @@ message GeneralSyncMessage {
 
 // Contains event filters for gathering events
 message GatherEventsInput {
-  uint32 eventType = 1;
-  uint32 eventCount = 2;
-  uint64 timeoutInNs = 3;
+  repeated uint32 eventTypes = 1;
+  uint32 eventTypeCount = 2;
+  uint32 eventCount = 3;
+  uint64 timeoutInNs = 4;
 }
 
 // Contains events that were gathered
-// To gather a new type of event, add its message here
+// To gather a new type of event, add its message to the oneof data
 message GeneralEventsMessage {
   bool status = 1;
-  ChreSensorThreeAxisData chreSensorThreeAxisData = 2;
+  oneof data {
+    ChreSensorThreeAxisData chreSensorThreeAxisData = 2;
+    ChreSensorSamplingStatusEvent chreSensorSamplingStatusEvent = 3;
+  }
+}
+
+// A sensor sampling status update event
+message ChreSensorSamplingStatusEvent {
+  uint32 sensorHandle = 1;
+  ChreSensorSamplingStatus status = 2;
+}
+
+// The sampling status of a sensor
+message ChreSensorSamplingStatus {
+  uint64 interval = 1;
+  uint64 latency = 2;
+  bool enabled = 3;
 }
 
 // Contains three axis data for use with the accelerometer and other sensors
@@ -127,6 +144,7 @@ message ChreSensorThreeAxisData {
   repeated ChreSensorThreeAxisSampleData readings = 2;
 }
 
+// Header for sensor data
 message ChreSensorDataHeader {
   uint64 baseTimestamp = 1;
   uint32 sensorHandle = 2;
@@ -135,6 +153,7 @@ message ChreSensorDataHeader {
   uint32 reserved = 5;
 }
 
+// Individual sample data for a three-axis sensor.
 message ChreSensorThreeAxisSampleData {
   uint32 timestampDelta = 1;
   float x = 2;
