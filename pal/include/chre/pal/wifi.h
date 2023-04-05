@@ -61,9 +61,15 @@ extern "C" {
 #define CHRE_PAL_WIFI_API_V1_6 CHRE_PAL_CREATE_API_VERSION(1, 6)
 
 /**
+ * Introduced alongside CHRE API v1.8, adding support for getting WiFi NAN
+ * capabilities.
+ */
+#define CHRE_PAL_WIFI_API_V1_8 CHRE_PAL_CREATE_API_VERSION(1, 8)
+
+/**
  * The version of the WiFi PAL defined in this header file.
  */
-#define CHRE_PAL_WIFI_API_CURRENT_VERSION CHRE_PAL_WIFI_API_V1_6
+#define CHRE_PAL_WIFI_API_CURRENT_VERSION CHRE_PAL_WIFI_API_V1_8
 
 struct chrePalWifiCallbacks {
   /**
@@ -498,7 +504,11 @@ struct chrePalWifiApi {
    */
   bool (*requestNanRanging)(const struct chreWifiNanRangingParams *params);
 
-  //! @see chreWifiNanGetCapabilities()
+  /**
+   * @see chreWifiNanGetCapabilities()
+   *
+   * @since v1.8
+   */
   bool (*getNanCapabilities)(struct chreWifiNanCapabilities *capabilities);
 };
 
