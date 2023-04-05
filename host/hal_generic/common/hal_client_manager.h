@@ -219,7 +219,6 @@ class HalClientManager {
   static constexpr char kJsonClientId[] = "ClientId";
   static constexpr char kJsonProcessName[] = "ProcessName";
   static constexpr int64_t kTransactionTimeoutThresholdMs = 5000;  // 5 seconds
-  static constexpr char kSystemServerName[] = "system_server";
   static constexpr uint8_t kNumOfBitsForEndpointId = 6;
   static constexpr HostEndpointId kMaxVendorEndpointId =
       (1 << kNumOfBitsForEndpointId) - 1;
