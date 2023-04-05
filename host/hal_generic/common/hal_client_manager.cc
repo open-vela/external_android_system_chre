@@ -424,6 +424,10 @@ HalClientManager::HalClientManager() {
     std::string processName = mapping[kJsonProcessName].asString();
     auto clientId = static_cast<HalClientId>(mapping[kJsonClientId].asUInt());
     mProcessNamesToClientIds[processName] = clientId;
+    // mNextClientId should always hold the next available client id
+    if (mNextClientId <= clientId) {
+      mNextClientId = clientId + 1;
+    }
   }
 }
 }  // namespace android::hardware::contexthub::common::implementation
