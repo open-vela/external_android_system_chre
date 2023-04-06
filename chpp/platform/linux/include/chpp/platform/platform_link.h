@@ -75,6 +75,12 @@ struct ChppLinuxLinkState {
 
   //! State of the associated transport layer.
   struct ChppTransportState *transportContext;
+
+  //! Run the RX callback (chppRxDataCb) in the context of the remote worker.
+  //! Setting this to true will attribute the logs to the expected worker.
+  //! However this might lead to deadlock situation and is better used for
+  //! debugging only.
+  bool rxInRemoteEndpointWorker;
 };
 
 /**
