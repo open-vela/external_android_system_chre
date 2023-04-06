@@ -67,7 +67,11 @@ class TinysysChreConnection : public ChreConnection {
   static constexpr char kWakeLock[] = "tinysys_chre_hal_wakelock";
 
   // Max payload size that can be sent to CHRE
-  static constexpr uint32_t kMaxPayloadBytes = 4096;
+  // TODO(b/277235389): Adjust max payload size (AP -> SCP and SCP -> AP)
+  // as appropriate. This is a temp/quick fix for b/272311907 and b/270758946
+  // setting max payload allowed to CHRE_MESSAGE_TO_HOST_MAX_SIZE + 128 byte
+  // to account for transport overhead.
+  static constexpr uint32_t kMaxPayloadBytes = 4224;  // 4096 + 128
 
   // Max overhead of the nanoapp binary payload caused by the fbs encapsulation
   static constexpr uint32_t kMaxPayloadOverheadBytes = 1024;
