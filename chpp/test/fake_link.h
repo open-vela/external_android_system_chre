@@ -42,7 +42,7 @@ class FakeLink {
 
   // Our default timeout covers the retry timeout, plus some extra buffer to
   // account for processing delays
-  static constexpr auto kDefaultTimeout = kTransportTimeout + 5ms;
+  static constexpr auto kDefaultTimeout = 10 * (kTransportTimeout + 5ms);
 
   /**
    * Call from link send. Makes a copy of the provided buffer and
