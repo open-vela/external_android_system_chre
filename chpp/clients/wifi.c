@@ -1162,6 +1162,13 @@ static bool chppWifiClientNanRequestNanRanging(
   return result;
 }
 
+static bool chppWifiGetNanCapabilites(
+    struct chreWifiNanCapabilities *capabilities) {
+  // Not implemented yet.
+  UNUSED_VAR(capabilities);
+  return false;
+}
+
 /************************************************
  *  Public Functions
  ***********************************************/
@@ -1205,6 +1212,7 @@ const struct chrePalWifiApi *chppPalWifiGetApi(uint32_t requestedApiVersion) {
       .nanSubscribeCancel = chppWifiClientNanSubscribeCancel,
       .releaseNanDiscoveryEvent = chppWifiClientNanReleaseDiscoveryEvent,
       .requestNanRanging = chppWifiClientNanRequestNanRanging,
+      .getNanCapabilities = chppWifiGetNanCapabilites,
   };
 
   CHPP_STATIC_ASSERT(
