@@ -18,6 +18,7 @@
 
 #include <cstring>
 
+#include "chpp/log.h"
 #include "packet_util.h"
 
 namespace chpp::test {
@@ -42,6 +43,7 @@ int FakeLink::getTxPacketCount() {
 bool FakeLink::waitForTxPacket(std::chrono::milliseconds timeout) {
   std::unique_lock<std::mutex> lock(mMutex);
   auto now = std::chrono::system_clock::now();
+  CHPP_LOGD("FakeLink::WaitForTxPacket waiting...");
   while (mTxPackets.empty()) {
     std::cv_status status = mCondVar.wait_until(lock, now + timeout);
     if (status == std::cv_status::timeout) {
