@@ -26,16 +26,16 @@ using aidl::android::hardware::contexthub::HostEndpointInfo;
 using aidl::android::hardware::contexthub::IContextHubCallback;
 
 namespace {
-std::string getProcessName(pid_t pid) {
-  std::ifstream processNameFile("/proc/" + internal::ToString(pid) +
-                                "/cmdline");
-  std::string processName;
-  processNameFile >> processName;
-  std::replace(processName.begin(), processName.end(), /* old_value= */ '\0',
-               /* new_value= */ ' ');
-  std::vector<std::string> tokens =
-      base::Tokenize(processName, /* delimiters= */ " ");
-  return tokens.front();
+constexpr char kSystemServerName[] = "system_server";
+std::string getProcessName(pid_t /*pid*/) {
+  // TODO(b/274597758): this is a temporary solution that should be updated
+  //   after b/274597758 is resolved.
+  static bool sIsFirstClient = true;
+  if (sIsFirstClient) {
+    sIsFirstClient = false;
+    return kSystemServerName;
+  }
+  return "the_vendor_client";
 }
 
 bool getClientMappingsFromFile(const char *filePath, Json::Value &mappings) {
@@ -424,6 +424,10 @@ HalClientManager::HalClientManager() {
     std::string processName = mapping[kJsonProcessName].asString();
     auto clientId = static_cast<HalClientId>(mapping[kJsonClientId].asUInt());
     mProcessNamesToClientIds[processName] = clientId;
+    // mNextClientId should always hold the next available client id
+    if (mNextClientId <= clientId) {
+      mNextClientId = clientId + 1;
+    }
   }
 }
 }  // namespace android::hardware::contexthub::common::implementation
