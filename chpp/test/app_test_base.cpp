@@ -55,11 +55,13 @@ void AppTestBase::SetUp() {
   mServiceLinkContext.workThreadName = "Service work";
   mServiceLinkContext.isLinkActive = true;
   mServiceLinkContext.remoteLinkState = &mClientLinkContext;
+  mServiceLinkContext.rxInRemoteEndpointWorker = false;
 
   mClientLinkContext.linkThreadName = "Link to service";
   mClientLinkContext.workThreadName = "Client work";
   mClientLinkContext.isLinkActive = true;
   mClientLinkContext.remoteLinkState = &mServiceLinkContext;
+  mClientLinkContext.rxInRemoteEndpointWorker = false;
 
   struct ChppClientServiceSet set;
   memset(&set, 0, sizeof(set));

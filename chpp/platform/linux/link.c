@@ -72,7 +72,8 @@ static void *linkSendThread(void *linkContext) {
       } else {
         // Use notifiers only when there are 2 different link layers (i.e. no
         // loopback). Otherwise call chppRxDataCb directly.
-        if (context->remoteLinkState != context) {
+        if (context->rxInRemoteEndpointWorker &&
+            context->remoteLinkState != context) {
           chppNotifierSignal(&context->remoteLinkState->notifier,
                              SIGNAL_DATA_RX);
 
