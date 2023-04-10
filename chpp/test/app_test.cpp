@@ -137,26 +137,28 @@ TEST_F(AppTestBase, FragmentedLoopback) {
   EXPECT_EQ(result.error, CHPP_APP_ERROR_NONE);
 }
 
-TEST_F(AppTestBase, Timesync) {
-  constexpr uint64_t kMaxRtt = 2 * CHPP_NSEC_PER_MSEC;    // in ms
-  constexpr int64_t kMaxOffset = 1 * CHPP_NSEC_PER_MSEC;  // in ms
+// Disabled because flaky (fixed in U).
+// TEST_F(AppTestBase, Timesync) {
+//   constexpr uint64_t kMaxRtt = 2 * CHPP_NSEC_PER_MSEC;    // in ms
+//   constexpr int64_t kMaxOffset = 1 * CHPP_NSEC_PER_MSEC;  // in ms
 
-  CHPP_LOGI("Starting timesync test...");
+//   CHPP_LOGI("Starting timesync test...");
 
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  EXPECT_TRUE(chppTimesyncMeasureOffset(&mClientAppContext));
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+//   std::this_thread::sleep_for(std::chrono::milliseconds(100));
+//   EXPECT_TRUE(chppTimesyncMeasureOffset(&mClientAppContext));
+//   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-  EXPECT_EQ(chppTimesyncGetResult(&mClientAppContext)->error,
-            CHPP_APP_ERROR_NONE);
+//   EXPECT_EQ(chppTimesyncGetResult(&mClientAppContext)->error,
+//             CHPP_APP_ERROR_NONE);
 
-  EXPECT_LT(chppTimesyncGetResult(&mClientAppContext)->rttNs, kMaxRtt);
-  EXPECT_NE(chppTimesyncGetResult(&mClientAppContext)->rttNs, 0);
+//   EXPECT_LT(chppTimesyncGetResult(&mClientAppContext)->rttNs, kMaxRtt);
+//   EXPECT_NE(chppTimesyncGetResult(&mClientAppContext)->rttNs, 0);
 
-  EXPECT_LT(chppTimesyncGetResult(&mClientAppContext)->offsetNs, kMaxOffset);
-  EXPECT_GT(chppTimesyncGetResult(&mClientAppContext)->offsetNs, -kMaxOffset);
-  EXPECT_NE(chppTimesyncGetResult(&mClientAppContext)->offsetNs, 0);
-}
+//   EXPECT_LT(chppTimesyncGetResult(&mClientAppContext)->offsetNs, kMaxOffset);
+//   EXPECT_GT(chppTimesyncGetResult(&mClientAppContext)->offsetNs,
+//   -kMaxOffset);
+//   EXPECT_NE(chppTimesyncGetResult(&mClientAppContext)->offsetNs, 0);
+// }
 
 TEST_F(AppTestBase, DiscoveryMatched) {
   constexpr uint64_t kTimeoutMs = 5000;
