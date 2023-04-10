@@ -125,7 +125,7 @@ struct ChppClientState {
  * by CHPP_CLIENT_ENABLED_xxxx definitions. This function is automatically
  * called by chppAppInit().
  *
- * @param context State of the app layer.
+ * @param context Maintains status for each app layer instance.
  */
 void chppRegisterCommonClients(struct ChppAppState *context);
 
@@ -134,16 +134,15 @@ void chppRegisterCommonClients(struct ChppAppState *context);
  * by CHPP_CLIENT_ENABLED_xxxx definitions. This function is automatically
  * called by chppAppDeinit().
  *
- * @param context State of the app layer.
+ * @param context Maintains status for each app layer instance.
  */
 void chppDeregisterCommonClients(struct ChppAppState *context);
 
 /**
- * Registers a new client on CHPP.
- *
- * This function is to be called by the platform initialization code for every
- * non-common client available on a server (if any), i.e. except those that are
- * registered through chppRegisterCommonClients().
+ * Registers a new client on CHPP. This function is to be called by the
+ * platform initialization code for every non-common client available on a
+ * server (if any), i.e. except those that are registered through
+ * chppRegisterCommonClients().
  *
  * Registered clients are matched with discovered services during discovery.
  * When a match succeeds, the client's initialization function (pointer) is
@@ -153,8 +152,8 @@ void chppDeregisterCommonClients(struct ChppAppState *context);
  * can specified as CHPP_MAX_REGISTERED_CLIENTS by the initialization code.
  * Otherwise, a default value will be used.
  *
- * @param appContext State of the app layer.
- * @param clientContext State of the client instance.
+ * @param appContext Maintains status for each app layer instance.
+ * @param clientContext Maintains status for each client instance.
  * @param clientState State variable of the client.
  * @param rRStates Pointer to array of request-response states, if any.
  * @param newClient The client to be registered on this platform.
@@ -167,7 +166,7 @@ void chppRegisterClient(struct ChppAppState *appContext, void *clientContext,
 /**
  * Initializes basic CHPP clients.
  *
- * @param context State of the app layer.
+ * @param context Maintains status for each app layer instance.
  */
 void chppInitBasicClients(struct ChppAppState *context);
 
@@ -190,14 +189,14 @@ void chppClientDeinit(struct ChppClientState *clientState);
 /**
  * Deinitializes basic clients.
  *
- * @param context State of the app layer.
+ * @param context Maintains status for each app layer instance.
  */
 void chppDeinitBasicClients(struct ChppAppState *context);
 
 /**
  * Deinitializes all matched clients.
  *
- * @param context State of the app layer.
+ * @param context Maintains status for each app layer instance.
  */
 void chppDeinitMatchedClients(struct ChppAppState *context);
 
@@ -330,7 +329,7 @@ bool chppSendTimestampedRequestAndWaitTimeout(
     uint64_t timeoutNs);
 
 /**
- * Marks a closed client as pseudo-open, so that it would be opened upon a
+ * Markes a closed client as pseudo-open, so that it would be opened upon a
  * reset.
  *
  * @param clientState State variable of the client.
@@ -365,7 +364,7 @@ void chppClientProcessOpenResponse(struct ChppClientState *clientState,
 /**
  * Recalculates the next upcoming client request timeout time.
  *
- * @param context State of the app layer.
+ * @param context Maintains status for each app layer instance.
  */
 void chppClientRecalculateNextTimeout(struct ChppAppState *context);
 

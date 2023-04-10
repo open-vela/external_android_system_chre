@@ -55,35 +55,35 @@ struct ChppLoopbackTestResult {
 /**
  * Initializes the client.
  *
- * @param appState Application layer state.
+ * @param context Maintains status for each app layer instance.
  */
-void chppLoopbackClientInit(struct ChppAppState *appState);
+void chppLoopbackClientInit(struct ChppAppState *context);
 
 /**
  * Deinitializes the client.
  *
- * @param appState Application layer state.
+ * @param context Maintains status for each app layer instance.
  */
-void chppLoopbackClientDeinit(struct ChppAppState *appState);
+void chppLoopbackClientDeinit(struct ChppAppState *context);
 
 /**
  * Dispatches an Rx Datagram from the transport layer that is determined to
  * be for the CHPP Loopback Client.
  *
- * @param appState Application layer state.
+ * @param context Maintains status for each app layer instance.
  * @param response Input (response) datagram. Cannot be null.
  * @param len Length of input data in bytes.
  */
-bool chppDispatchLoopbackServiceResponse(struct ChppAppState *appState,
+bool chppDispatchLoopbackServiceResponse(struct ChppAppState *context,
                                          const uint8_t *response, size_t len);
 
 /**
  * Initiates a CHPP service loopback from the client side.
  * Note that only one loopback test may be run at any time on each client.
  *
- * @param appState Application layer state.
+ * @param context Maintains status for each app layer instance.
  */
-struct ChppLoopbackTestResult chppRunLoopbackTest(struct ChppAppState *appState,
+struct ChppLoopbackTestResult chppRunLoopbackTest(struct ChppAppState *context,
                                                   const uint8_t *buf,
                                                   size_t len);
 

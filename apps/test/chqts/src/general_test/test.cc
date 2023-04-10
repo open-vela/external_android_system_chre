@@ -20,11 +20,7 @@
 #include <shared/send_message.h>
 #include <shared/time_util.h>
 
-#include <chre/util/nanoapp/log.h>
-
-#include "chre_api/chre.h"
-
-#define LOG_TAG "[Test]"
+#include <chre.h>
 
 using nanoapp_testing::sendFatalFailureToHost;
 using nanoapp_testing::sendFatalFailureToHostUint8;
@@ -71,12 +67,13 @@ void Test::validateChreAsyncResult(const chreAsyncResult *result,
                                 result->reserved);
   }
   if (result->cookie != request.cookie) {
-    LOGE("Request cookie is %p, got %p", request.cookie, result->cookie);
+    chreLog(CHRE_LOG_ERROR, "Request cookie is %p, got %p", request.cookie,
+            result->cookie);
     sendFatalFailureToHost("Request cookie mismatch");
   }
   if (result->requestType != request.requestType) {
-    LOGE("Request requestType is %d, got %d", request.requestType,
-         result->requestType);
+    chreLog(CHRE_LOG_ERROR, "Request requestType is %d, got %d",
+            request.requestType, result->requestType);
     sendFatalFailureToHost("Request requestType mismatch");
   }
   if (chreGetTime() - request.requestTimeNs > request.timeoutNs) {

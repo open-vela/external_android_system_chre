@@ -142,11 +142,6 @@ static bool chppProcessPredefinedClientRequest(struct ChppAppState *context,
  */
 static bool chppProcessPredefinedServiceResponse(struct ChppAppState *context,
                                                  uint8_t *buf, size_t len) {
-  // Possibly unused if compiling without the clients below enabled
-  UNUSED_VAR(context);
-  UNUSED_VAR(buf);
-  UNUSED_VAR(len);
-
   struct ChppAppHeader *rxHeader = (struct ChppAppHeader *)buf;
   bool handleValid = true;
   bool dispatchResult = true;
@@ -199,11 +194,19 @@ static bool chppProcessPredefinedServiceResponse(struct ChppAppState *context,
  */
 static bool chppProcessPredefinedClientNotification(
     struct ChppAppState *context, uint8_t *buf, size_t len) {
+  struct ChppAppHeader *rxHeader = (struct ChppAppHeader *)buf;
+  bool handleValid = true;
+  bool dispatchResult = true;
+
+  // No predefined services support these yet
+  handleValid = false;
+
   UNUSED_VAR(context);
   UNUSED_VAR(len);
-  UNUSED_VAR(buf);
-  // No predefined services support these.
-  return false;
+  UNUSED_VAR(rxHeader);
+  UNUSED_VAR(dispatchResult);
+
+  return handleValid;
 }
 
 /**
@@ -218,11 +221,19 @@ static bool chppProcessPredefinedClientNotification(
  */
 static bool chppProcessPredefinedServiceNotification(
     struct ChppAppState *context, uint8_t *buf, size_t len) {
+  struct ChppAppHeader *rxHeader = (struct ChppAppHeader *)buf;
+  bool handleValid = true;
+  bool dispatchResult = true;
+
+  // No predefined clients support these yet
+  handleValid = false;
+
   UNUSED_VAR(context);
   UNUSED_VAR(len);
-  UNUSED_VAR(buf);
-  // No predefined clients support these.
-  return false;
+  UNUSED_VAR(rxHeader);
+  UNUSED_VAR(dispatchResult);
+
+  return handleValid;
 }
 
 /**
@@ -322,6 +333,7 @@ ChppDispatchFunction *chppGetDispatchFunction(struct ChppAppState *context,
   switch (CHPP_APP_GET_MESSAGE_TYPE(type)) {
     case CHPP_MESSAGE_TYPE_CLIENT_REQUEST: {
       return chppServiceOfHandle(context, handle)->requestDispatchFunctionPtr;
+      break;
     }
     case CHPP_MESSAGE_TYPE_SERVICE_RESPONSE: {
       struct ChppClientState *clientState =
@@ -329,13 +341,15 @@ ChppDispatchFunction *chppGetDispatchFunction(struct ChppAppState *context,
               context, handle, type);
       if (clientState->openState == CHPP_OPEN_STATE_CLOSED) {
         CHPP_LOGE("RX service response but client closed");
-        break;
+      } else {
+        return chppClientOfHandle(context, handle)->responseDispatchFunctionPtr;
       }
-      return chppClientOfHandle(context, handle)->responseDispatchFunctionPtr;
+      break;
     }
     case CHPP_MESSAGE_TYPE_CLIENT_NOTIFICATION: {
       return chppServiceOfHandle(context, handle)
           ->notificationDispatchFunctionPtr;
+      break;
     }
     case CHPP_MESSAGE_TYPE_SERVICE_NOTIFICATION: {
       struct ChppClientState *clientState =
@@ -343,10 +357,11 @@ ChppDispatchFunction *chppGetDispatchFunction(struct ChppAppState *context,
               context, handle, type);
       if (clientState->openState == CHPP_OPEN_STATE_CLOSED) {
         CHPP_LOGE("RX service notification but client closed");
-        break;
+      } else {
+        return chppClientOfHandle(context, handle)
+            ->notificationDispatchFunctionPtr;
       }
-      return chppClientOfHandle(context, handle)
-          ->notificationDispatchFunctionPtr;
+      break;
     }
   }
 
@@ -559,57 +574,55 @@ static void chppProcessNegotiatedHandleDatagram(struct ChppAppState *context,
     chppEnqueueTxErrorDatagram(context->transportContext,
                                CHPP_TRANSPORT_ERROR_APPLAYER);
     CHPP_DEBUG_ASSERT(false);
-    return;
-  }
 
-  ChppDispatchFunction *dispatchFunc =
-      chppGetDispatchFunction(context, rxHeader->handle, messageType);
-  if (dispatchFunc == NULL) {
-    CHPP_LOGE("H#%" PRIu8 " unsupported msg=0x%" PRIx8 " (len=%" PRIuSIZE
-              ", ID=%" PRIu8 ")",
-              rxHeader->handle, rxHeader->type, len, rxHeader->transaction);
-    chppEnqueueTxErrorDatagram(context->transportContext,
-                               CHPP_TRANSPORT_ERROR_APPLAYER);
-    return;
-  }
+  } else {
+    ChppDispatchFunction *dispatchFunc =
+        chppGetDispatchFunction(context, rxHeader->handle, messageType);
+    if (dispatchFunc == NULL) {
+      CHPP_LOGE("H#%" PRIu8 " unsupported msg=0x%" PRIx8 " (len=%" PRIuSIZE
+                ", ID=%" PRIu8 ")",
+                rxHeader->handle, rxHeader->type, len, rxHeader->transaction);
+      chppEnqueueTxErrorDatagram(context->transportContext,
+                                 CHPP_TRANSPORT_ERROR_APPLAYER);
 
-  // All good. Dispatch datagram and possibly notify a waiting client
-  enum ChppAppErrorCode error = dispatchFunc(clientServiceContext, buf, len);
+    } else {
+      // All good. Dispatch datagram and possibly notify a waiting client
 
-  if (error != CHPP_APP_ERROR_NONE) {
-    CHPP_LOGE("RX dispatch err=0x%" PRIx16 " H#%" PRIu8 " type=0x%" PRIx8
-              " ID=%" PRIu8 " cmd=0x%" PRIx16 " len=%" PRIuSIZE,
-              error, rxHeader->handle, rxHeader->type, rxHeader->transaction,
-              rxHeader->command, len);
+      enum ChppAppErrorCode error =
+          dispatchFunc(clientServiceContext, buf, len);
+      if (error != CHPP_APP_ERROR_NONE) {
+        CHPP_LOGE("RX dispatch err=0x%" PRIx16 " H#%" PRIu8 " type=0x%" PRIx8
+                  " ID=%" PRIu8 " cmd=0x%" PRIx16 " len=%" PRIuSIZE,
+                  error, rxHeader->handle, rxHeader->type,
+                  rxHeader->transaction, rxHeader->command, len);
 
-    // Only client requests require a dispatch failure response.
-    if (messageType == CHPP_MESSAGE_TYPE_CLIENT_REQUEST) {
-      struct ChppAppHeader *response =
-          chppAllocServiceResponseFixed(rxHeader, struct ChppAppHeader);
-      if (response == NULL) {
-        CHPP_LOG_OOM();
-      } else {
-        response->error = (uint8_t)error;
-        chppEnqueueTxDatagramOrFail(context->transportContext, response,
-                                    sizeof(*response));
+        // Only client requests require a dispatch failure response.
+        if (messageType == CHPP_MESSAGE_TYPE_CLIENT_REQUEST) {
+          struct ChppAppHeader *response =
+              chppAllocServiceResponseFixed(rxHeader, struct ChppAppHeader);
+          if (response == NULL) {
+            CHPP_LOG_OOM();
+          } else {
+            response->error = (uint8_t)error;
+            chppEnqueueTxDatagramOrFail(context->transportContext, response,
+                                        sizeof(*response));
+          }
+        }
+      } else if (messageType == CHPP_MESSAGE_TYPE_SERVICE_RESPONSE) {
+        // Datagram is a service response. Check for synchronous operation and
+        // notify waiting client if needed.
+
+        struct ChppClientState *clientState =
+            (struct ChppClientState *)clientServiceContext;
+        chppMutexLock(&clientState->responseMutex);
+        clientState->responseReady = true;
+        CHPP_LOGD(
+            "Finished dispatching a service response. Notifying a potential "
+            "synchronous client");
+        chppConditionVariableSignal(&clientState->responseCondVar);
+        chppMutexUnlock(&clientState->responseMutex);
       }
     }
-    return;
-  }
-
-  if (messageType == CHPP_MESSAGE_TYPE_SERVICE_RESPONSE) {
-    // Datagram is a service response. Check for synchronous operation and
-    // notify waiting client if needed.
-
-    struct ChppClientState *clientState =
-        (struct ChppClientState *)clientServiceContext;
-    chppMutexLock(&clientState->responseMutex);
-    clientState->responseReady = true;
-    CHPP_LOGD(
-        "Finished dispatching a service response. Notifying a potential "
-        "synchronous client");
-    chppConditionVariableSignal(&clientState->responseCondVar);
-    chppMutexUnlock(&clientState->responseMutex);
   }
 }
 
@@ -787,13 +800,15 @@ uint8_t chppAppErrorToChreError(uint8_t chppError) {
 uint8_t chppAppShortResponseErrorHandler(uint8_t *buf, size_t len,
                                          const char *responseName) {
   CHPP_ASSERT(len >= sizeof(struct ChppAppHeader));
+  uint8_t result = CHRE_ERROR;
   struct ChppAppHeader *rxHeader = (struct ChppAppHeader *)buf;
 
   if (rxHeader->error == CHPP_APP_ERROR_NONE) {
     CHPP_LOGE("%s resp short len=%" PRIuSIZE, responseName, len);
-    return CHRE_ERROR;
+  } else {
+    CHPP_LOGI("%s resp short len=%" PRIuSIZE, responseName, len);
+    result = chppAppErrorToChreError(rxHeader->error);
   }
 
-  CHPP_LOGD("%s resp short len=%" PRIuSIZE, responseName, len);
-  return chppAppErrorToChreError(rxHeader->error);
+  return result;
 }
