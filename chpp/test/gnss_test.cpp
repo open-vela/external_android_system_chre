@@ -21,9 +21,11 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 #include <thread>
 
 #include "app_test_base.h"
+#include "chpp/app.h"
 #include "chpp/clients/gnss.h"
 #include "chpp/log.h"
 #include "chpp/platform/platform_gnss.h"
@@ -34,10 +36,7 @@
 namespace chpp {
 namespace {
 
-class ChppGnssTest : public AppTestBase {};
-
 const struct chrePalGnssApi *gApi;
-
 void chrePalRequestStateResync() {}
 
 void chrePalLocationStatusChangeCallback(bool /* enabled */,
@@ -56,7 +55,7 @@ void chrePalMeasurementEventCallback(struct chreGnssDataEvent *event) {
   gApi->releaseMeasurementDataEvent(event);
 }
 
-TEST_F(ChppGnssTest, SimpleGnss) {
+TEST_F(AppTestBase, SimpleGnss) {
   gApi = chppPalGnssGetApi(CHRE_PAL_GNSS_API_CURRENT_VERSION);
   ASSERT_NE(gApi, nullptr);
 
@@ -78,7 +77,7 @@ TEST_F(ChppGnssTest, SimpleGnss) {
   gApi->close();
 }
 
-TEST_F(ChppGnssTest, GnssCapabilitiesTest) {
+TEST_F(AppTestBase, GnssCapabilitiesTest) {
   gApi = chppPalGnssGetApi(CHRE_PAL_GNSS_API_CURRENT_VERSION);
   ASSERT_NE(gApi, nullptr);
 
@@ -95,10 +94,10 @@ TEST_F(ChppGnssTest, GnssCapabilitiesTest) {
   // Set the linkActive flag to false so that CHPP link layer does not
   // receive/send message, which causes the capabilities to be set to the
   // default CHPP_GNSS_DEFAULT_CAPABILITIES
-  mClientLinkContext.isLinkActive = false;
+  mClientTransportContext.linkParams.isLinkActive = false;
   uint32_t capabilities = gApi->getCapabilities();
   ASSERT_EQ(capabilities, CHPP_GNSS_DEFAULT_CAPABILITIES);
-  mClientLinkContext.isLinkActive = true;
+  mClientTransportContext.linkParams.isLinkActive = true;
 
   gApi->close();
 }

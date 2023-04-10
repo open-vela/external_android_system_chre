@@ -254,7 +254,7 @@ static enum ChppAppErrorCode chppGnssServiceOpen(
     error = CHPP_APP_ERROR_BEYOND_CHPP;
 
   } else {
-    CHPP_LOGD("GNSS service opened");
+    CHPP_LOGI("GNSS service opened");
     gnssServiceContext->service.openState = CHPP_OPEN_STATE_OPENED;
 
     struct ChppAppHeader *response =
@@ -290,7 +290,7 @@ static enum ChppAppErrorCode chppGnssServiceClose(
   gnssServiceContext->api->close();
   gnssServiceContext->service.openState = CHPP_OPEN_STATE_CLOSED;
 
-  CHPP_LOGD("GNSS service closed");
+  CHPP_LOGI("GNSS service closed");
 
   struct ChppAppHeader *response =
       chppAllocServiceResponseFixed(requestHeader, struct ChppAppHeader);
@@ -320,7 +320,7 @@ static void chppGnssServiceNotifyReset(void *serviceContext) {
   if (gnssServiceContext->service.openState != CHPP_OPEN_STATE_OPENED) {
     CHPP_LOGW("GNSS service reset but wasn't open");
   } else {
-    CHPP_LOGD("GNSS service reset. Closing");
+    CHPP_LOGI("GNSS service reset. Closing");
     gnssServiceContext->service.openState = CHPP_OPEN_STATE_CLOSED;
     gnssServiceContext->api->close();
   }
@@ -669,8 +669,10 @@ void chppRegisterGnssService(struct ChppAppState *appContext) {
                           "GNSS PAL API incompatible. Cannot register service");
 
   } else {
-    chppRegisterService(appContext, (void *)&gGnssServiceContext,
-                        &gGnssServiceContext.service, &kGnssServiceConfig);
+    gGnssServiceContext.service.appContext = appContext;
+    gGnssServiceContext.service.openState = CHPP_OPEN_STATE_CLOSED;
+    gGnssServiceContext.service.handle = chppRegisterService(
+        appContext, (void *)&gGnssServiceContext, &kGnssServiceConfig);
     CHPP_DEBUG_ASSERT(gGnssServiceContext.service.handle);
   }
 }

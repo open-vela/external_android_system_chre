@@ -35,62 +35,35 @@ class StatsContainer {
 
  public:
   /**
-   * @brief Construct a new Stats Container object
-   *
-   * @param averageWindow_ how many data stored before prioritizing new data,
-   * it should not be bigger than the default value to prevent rounding to 0
-   */
-  StatsContainer(uint32_t averageWindow_ = 512)
-      : mAverageWindow(averageWindow_){};
-
-  /**
    * Add a new value to the metric collection and update mean/max value
-   * Mean calculated in rolling bases to prevent overflow by accumulating too
-   * much data.
-   *
-   * Before mCount reaches mAverageWindow, it calculates the normal average
-   * After mCount reaches mAverageWindow, weighted average is used to prioritize
-   * recent data where the new value always contributes 1/mAverageWindow amount
-   * to the average
+
    * @param value a T instance
    */
   void addValue(T value) {
-    if (mCount < mAverageWindow) {
-      ++mCount;
-    }
-    mMean = (mCount - 1) * (mMean / mCount) + value / mCount;
+    mTotal += value;
+    ++mCount;
     mMax = MAX(value, mMax);
   }
 
   /**
-   * @return the average value calculated by the description of the
-   * addValue method
+   * return the average value
    */
   T getMean() const {
-    return mMean;
+    return (mCount == 0) ? 0 : (mTotal / mCount);
   };
 
   /**
-   * @return the max value
+   * return the max value
    */
   T getMax() const {
     return mMax;
   };
 
-  /**
-   * @return the average window
-   */
-  uint32_t getAverageWindow() const {
-    return mAverageWindow;
-  }
-
  private:
-  //! Mean of the collections of this stats
-  T mMean = 0;
-  //! Number of collections of this stats
-  uint32_t mCount = 0;
-  //! The Window that the container will not do weighted average
-  uint32_t mAverageWindow;
+  //! Total sum of stats
+  T mTotal = 0;
+  //! Number of collections of this stat
+  uint64_t mCount = 0;
   //! Max of stats
   T mMax = 0;
 };

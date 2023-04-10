@@ -84,9 +84,6 @@ extern "C" {
 #define CHPP_TRANSPORT_TIMEOUT_INFINITE UINT64_MAX
 #define CHPP_TRANSPORT_TIMEOUT_IMMEDIATE 0
 
-// This lint rule is meant to ensure we make appropriate test updates whenever
-// there are changes to the transport protocol.
-// LINT.IfChange
 /**
  * CHPP Transport header flags bitmap
  *
@@ -133,10 +130,30 @@ extern "C" {
 #define CHPP_TX_DATAGRAM_QUEUE_LEN ((uint8_t)16)
 
 /**
- * Encoding overhead of the transport layer in bytes.
+ * Maximum payload of packets at the link layer.
+ * TODO: Negotiate or advertise MTU. In the mean time, set default as to achieve
+ * transport TX MTU of 1024.
  */
-#define CHPP_TRANSPORT_ENCODING_OVERHEAD_BYTES                               \
-  ((uint16_t)(CHPP_PREAMBLE_LEN_BYTES + sizeof(struct ChppTransportHeader) + \
+#define CHPP_LINK_TX_MTU_BYTES                                               \
+  ((uint16_t)MIN(                                                            \
+      CHPP_PLATFORM_LINK_TX_MTU_BYTES,                                       \
+      (1024 + CHPP_PREAMBLE_LEN_BYTES + sizeof(struct ChppTransportHeader) + \
+       sizeof(struct ChppTransportFooter))))
+
+/**
+ * Maximum payload of packets at the transport layer.
+ */
+#define CHPP_TRANSPORT_TX_MTU_BYTES                              \
+  ((uint16_t)(CHPP_LINK_TX_MTU_BYTES - CHPP_PREAMBLE_LEN_BYTES - \
+              sizeof(struct ChppTransportHeader) -               \
+              sizeof(struct ChppTransportFooter)))
+
+/**
+ * Maximum payload of packets at the transport layer.
+ */
+#define CHPP_TRANSPORT_RX_MTU_BYTES                                       \
+  ((uint16_t)(CHPP_PLATFORM_LINK_RX_MTU_BYTES - CHPP_PREAMBLE_LEN_BYTES - \
+              sizeof(struct ChppTransportHeader) -                        \
               sizeof(struct ChppTransportFooter)))
 
 /************************************************
@@ -278,24 +295,25 @@ struct ChppVersion {
 CHPP_PACKED_END
 
 /**
- * Payload that is sent along reset and reset-ack packets.
+ * Payload that is sent along reset and reset-ack packets. This may be used to
+ * advertise the configuration parameters of this CHPP instance, and/or set the
+ * configuration parameters of the remote side (TODO).
  */
 CHPP_PACKED_START
 struct ChppTransportConfiguration {
   //! CHPP transport version.
   struct ChppVersion version;
 
-  //! CHPP 1.0.0 unused "Receive MTU size".
-  uint16_t reserved1;
+  //! Receive MTU size.
+  uint16_t rxMtu;
 
-  //! CHPP 1.0.0 unused "window size".
-  uint16_t reserved2;
+  //! Max outstanding packet window size (1 for current implementation).
+  uint16_t windowSize;
 
-  //! CHPP 1.0.0 unused "Transport layer timeout in milliseconds".
-  uint16_t reserved3;
+  //! Transport layer timeout in milliseconds (i.e. to receive ACK).
+  uint16_t timeoutInMs;
 } CHPP_PACKED_ATTR;
 CHPP_PACKED_END
-// LINT.ThenChange(chpp/test/packet_util.cpp)
 
 struct ChppRxStatus {
   //! Current receiving state, as described in ChppRxState.
@@ -364,8 +382,16 @@ struct ChppTxStatus {
   //! How many bytes of the front-of-queue datagram has been acked
   size_t ackedLocInDatagram;
 
-  //! Whether the link layer is still processing the pending packet
+  //! Whether the link layer is still processing pendingTxPacket
   bool linkBusy;
+};
+
+struct PendingTxPacket {
+  //! Length of outgoing packet to the Link Layer
+  size_t length;
+
+  //! Payload of outgoing packet to the Link Layer
+  uint8_t payload[CHPP_LINK_TX_MTU_BYTES];
 };
 
 struct ChppDatagram {
@@ -405,11 +431,7 @@ struct ChppTransportState {
 
   struct ChppTxStatus txStatus;                // Tx state
   struct ChppTxDatagramQueue txDatagramQueue;  // Queue of datagrams to be Tx
-
-  size_t linkBufferSize;  // Number of bytes currently in the Tx Buffer
-  void *linkContext;      // Pointer to the link layer state
-  const struct ChppLinkApi *linkApi;  // Link API
-
+  struct PendingTxPacket pendingTxPacket;      // Outgoing packet to Link Layer
   struct ChppDatagram transportLoopbackData;   // Transport-layer loopback
                                                // request data, if any
 
@@ -426,6 +448,12 @@ struct ChppTransportState {
 #ifdef CHPP_ENABLE_WORK_MONITOR
   struct ChppWorkMonitor workMonitor;  // Monitor used for the transport thread
 #endif
+
+  //! This MUST be the last field in the ChppTransportState structure, otherwise
+  //! chppResetTransportContext() will not work properly.
+  struct ChppPlatformLinkParameters linkParams;  // For corresponding link layer
+
+  // !!! DO NOT ADD ANY NEW FIELDS HERE - ADD THEM BEFORE linkParams !!!
 };
 
 /************************************************
@@ -441,18 +469,16 @@ struct ChppTransportState {
  * instance. appContext points to the application layer status struct associated
  * with this transport layer instance.
  *
- * Calling this method will in turn call the init method of the linkApi with the
- * linkContext as the first parameter.
+ * Note: It is necessary to initialize the platform-specific values of
+ * transportContext.linkParams (prior to the call, if needed in the link layer
+ * APIs, such as chppPlatformLinkInit()).
  *
- * @param transportContext Maintains state for each transport layer instance.
- * @param appContext The app layer state associated with this transport
- *                   layer instance.
- * @param linkContext The associated link layer state.
- * @param linkApi The API of the link layer
+ * @param transportContext Maintains status for each transport layer instance.
+ * @param appContext The app layer status struct associated with this transport
+ * layer instance.
  */
 void chppTransportInit(struct ChppTransportState *transportContext,
-                       struct ChppAppState *appContext, void *linkContext,
-                       const struct ChppLinkApi *linkApi);
+                       struct ChppAppState *appContext);
 
 /**
  * Deinitializes the CHPP transport layer and does necessary clean-ups for
@@ -485,7 +511,7 @@ bool chppTransportWaitForResetComplete(
  *
  * TODO: Add sufficient outward facing documentation
  *
- * @param context Maintains state for each transport layer instance.
+ * @param context Maintains status for each transport layer instance.
  * @param buf Input data. Cannot be null.
  * @param len Length of input data in bytes.
  *
@@ -501,7 +527,7 @@ bool chppRxDataCb(struct ChppTransportState *context, const uint8_t *buf,
  * packet. The availability of this information depends on the link layer
  * implementation.
  *
- * @param context Maintains state for each transport layer instance.
+ * @param context Maintains status for each transport layer instance.
  */
 void chppRxPacketCompleteCb(struct ChppTransportState *context);
 
@@ -516,7 +542,7 @@ void chppRxPacketCompleteCb(struct ChppTransportState *context);
  * Note that the ownership of buf is taken from the caller when this method is
  * invoked.
  *
- * @param context Maintains state for each transport layer instance.
+ * @param context Maintains status for each transport layer instance.
  * @param buf Datagram payload allocated through chppMalloc. Cannot be null.
  * @param len Datagram length in bytes.
  *
@@ -530,7 +556,7 @@ bool chppEnqueueTxDatagramOrFail(struct ChppTransportState *context, void *buf,
  * Enables the App Layer to enqueue an outgoing error datagram, for example for
  * an OOM situation over the wire.
  *
- * @param context Maintains state for each transport layer instance.
+ * @param context Maintains status for each transport layer instance.
  * @param errorCode Error code to be sent.
  */
 void chppEnqueueTxErrorDatagram(struct ChppTransportState *context,
@@ -551,7 +577,7 @@ void chppEnqueueTxErrorDatagram(struct ChppTransportState *context,
  * A return value of CHPP_TRANSPORT_TIMEOUT_IMMEDIATE indicates that
  * chppTransportDoWork() should be run immediately.
  *
- * @param context Maintains state for each transport layer instance.
+ * @param context Maintains status for each transport layer instance.
  *
  * @return Time until chppTransportDoWork() must be called in nanoseconds.
  */
@@ -573,7 +599,7 @@ uint64_t chppTransportGetTimeUntilNextDoWorkNs(
  * chppTransportGetTimeUntilNextDoWorkNs() can be used to replicate the
  * functionality of chppNotifierTimedWait().
  *
- * @param context Maintains state for each transport layer instance.
+ * @param context Maintains status for each transport layer instance.
  */
 void chppWorkThreadStart(struct ChppTransportState *context);
 
@@ -589,7 +615,7 @@ void chppWorkThreadStart(struct ChppTransportState *context);
  * pending signals MUST be handled prior to the suspension of the outer control
  * loop, and any initialization sequence MUST be replicated.
  *
- * @param context Maintains state for each transport layer instance.
+ * @param context Maintains status for each transport layer instance.
  * @param signals The signals to process. Should be obtained via
  * chppNotifierTimedWait() for the given transport context's notifier.
  *
@@ -611,7 +637,10 @@ bool chppWorkThreadHandleSignal(struct ChppTransportState *context,
  * specified by CHPP_TRANSPORT_SIGNAL_PLATFORM_MASK can be set.
  */
 static inline void chppWorkThreadSignalFromLink(
-    struct ChppTransportState *context, uint32_t signal) {
+    struct ChppPlatformLinkParameters *params, uint32_t signal) {
+  struct ChppTransportState *context =
+      container_of(params, struct ChppTransportState, linkParams);
+
   CHPP_ASSERT((signal & ~(CHPP_TRANSPORT_SIGNAL_PLATFORM_MASK)) == 0);
   chppNotifierSignal(&context->notifier,
                      signal & CHPP_TRANSPORT_SIGNAL_PLATFORM_MASK);
@@ -622,7 +651,7 @@ static inline void chppWorkThreadSignalFromLink(
  * calling chppWorkThreadStart(). Stopping this thread may be necessary for
  * testing and debugging purposes.
  *
- * @param context Maintains state for each transport layer instance.
+ * @param context Maintains status for each transport layer instance.
  */
 void chppWorkThreadStop(struct ChppTransportState *context);
 
@@ -636,10 +665,10 @@ void chppWorkThreadStop(struct ChppTransportState *context);
  * (i.e. buf and len), the platform implementation must call this function after
  * platformLinkSend() is done with the payload (i.e. buf and len).
  *
- * @param context Maintains state for each transport layer instance.
+ * @param params Platform-specific struct with link details / parameters.
  * @param error Indicates success or failure type.
  */
-void chppLinkSendDoneCb(struct ChppTransportState *context,
+void chppLinkSendDoneCb(struct ChppPlatformLinkParameters *params,
                         enum ChppLinkErrorCode error);
 
 /**
@@ -650,7 +679,7 @@ void chppLinkSendDoneCb(struct ChppTransportState *context,
  * TODO: Look into automatically doing this when a response is sent back by a
  * service.
  *
- * @param context Maintains state for each transport layer instance.
+ * @param context Maintains status for each transport layer instance.
  * @param buf Pointer to the buf given to chppAppProcessRxDatagram. Cannot be
  * null.
  */
@@ -665,7 +694,7 @@ void chppDatagramProcessDoneCb(struct ChppTransportState *context,
  * The result will be available later, asynchronously, as a ChppAppErrorCode
  * enum in context->loopbackResult.
  *
- * @param context Maintains state for each transport layer instance.
+ * @param context Maintains status for each transport layer instance.
  * @param buf Pointer to the loopback data to be sent. Cannot be null.
  * @param len Length of the loopback data.
  *
@@ -687,7 +716,7 @@ uint8_t chppRunTransportLoopback(struct ChppTransportState *context,
  * chppWorkThreadStart() would require to call this function after initializing
  * CHPP.
  *
- * @param context Maintains state for each transport layer instance.
+ * @param transportContext Maintains status for each transport layer instance.
  * @param resetType Distinguishes a reset from a reset-ack, as defined in the
  * ChppTransportPacketAttributes struct.
  * @param error Provides the error that led to the reset.
@@ -695,24 +724,6 @@ uint8_t chppRunTransportLoopback(struct ChppTransportState *context,
 void chppTransportSendReset(struct ChppTransportState *context,
                             enum ChppTransportPacketAttributes resetType,
                             enum ChppTransportErrorCode error);
-
-/**
- * Returns the Tx MTU size at the transport layer in bytes.
- *
- * This the link MTU minus the transport overhead.
- *
- * @param context Maintains state for each transport layer instance.
- */
-size_t chppTransportTxMtuSize(const struct ChppTransportState *context);
-
-/**
- * Returns the Rx MTU size at the transport layer in bytes.
- *
- * This the link MTU minus the transport overhead.
- *
- * @param context Maintains state for each transport layer instance.
- */
-size_t chppTransportRxMtuSize(const struct ChppTransportState *context);
 
 #ifdef __cplusplus
 }

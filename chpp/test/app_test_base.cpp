@@ -34,12 +34,10 @@ namespace chpp {
 namespace {
 
 void *workThread(void *arg) {
-  ChppTransportState *transportContext = static_cast<ChppTransportState *>(arg);
-  struct ChppLinuxLinkState *linkContext =
-      (struct ChppLinuxLinkState *)(transportContext->linkContext);
-  pthread_setname_np(pthread_self(), linkContext->workThreadName);
+  ChppTransportState *context = static_cast<ChppTransportState *>(arg);
+  pthread_setname_np(pthread_self(), context->linkParams.workThreadName);
 
-  chppWorkThreadStart(transportContext);
+  chppWorkThreadStart(context);
 
   return nullptr;
 }
@@ -48,20 +46,22 @@ void *workThread(void *arg) {
 
 void AppTestBase::SetUp() {
   chppClearTotalAllocBytes();
-  memset(&mClientLinkContext, 0, sizeof(mClientLinkContext));
-  memset(&mServiceLinkContext, 0, sizeof(mServiceLinkContext));
+  memset(&mClientTransportContext.linkParams, 0,
+         sizeof(mClientTransportContext.linkParams));
+  memset(&mServiceTransportContext.linkParams, 0,
+         sizeof(mServiceTransportContext.linkParams));
   // The linkSendThread in the link layer is a link "to" the remote end.
-  mServiceLinkContext.linkThreadName = "Link to client";
-  mServiceLinkContext.workThreadName = "Service work";
-  mServiceLinkContext.isLinkActive = true;
-  mServiceLinkContext.remoteLinkState = &mClientLinkContext;
-  mServiceLinkContext.rxInRemoteEndpointWorker = false;
+  mServiceTransportContext.linkParams.linkThreadName = "Link to client";
+  mServiceTransportContext.linkParams.workThreadName = "Service work";
+  mClientTransportContext.linkParams.linkThreadName = "Link to service";
+  mClientTransportContext.linkParams.workThreadName = "Client work";
+  mClientTransportContext.linkParams.isLinkActive = true;
+  mServiceTransportContext.linkParams.isLinkActive = true;
 
-  mClientLinkContext.linkThreadName = "Link to service";
-  mClientLinkContext.workThreadName = "Client work";
-  mClientLinkContext.isLinkActive = true;
-  mClientLinkContext.remoteLinkState = &mServiceLinkContext;
-  mClientLinkContext.rxInRemoteEndpointWorker = false;
+  mClientTransportContext.linkParams.remoteTransportContext =
+      &mServiceTransportContext;
+  mServiceTransportContext.linkParams.remoteTransportContext =
+      &mClientTransportContext;
 
   struct ChppClientServiceSet set;
   memset(&set, 0, sizeof(set));
@@ -70,10 +70,7 @@ void AppTestBase::SetUp() {
   set.wwanClient = 1;
   set.loopbackClient = 1;
 
-  const struct ChppLinkApi *linkApi = getLinuxLinkApi();
-
-  chppTransportInit(&mClientTransportContext, &mClientAppContext,
-                    &mClientLinkContext, linkApi);
+  chppTransportInit(&mClientTransportContext, &mClientAppContext);
   chppAppInitWithClientServiceSet(&mClientAppContext, &mClientTransportContext,
                                   set);
   pthread_create(&mClientWorkThread, NULL, workThread,
@@ -87,15 +84,14 @@ void AppTestBase::SetUp() {
   set.gnssService = 1;
   set.wwanService = 1;
 
-  chppTransportInit(&mServiceTransportContext, &mServiceAppContext,
-                    &mServiceLinkContext, linkApi);
+  chppTransportInit(&mServiceTransportContext, &mServiceAppContext);
   chppAppInitWithClientServiceSet(&mServiceAppContext,
                                   &mServiceTransportContext, set);
   pthread_create(&mServiceWorkThread, NULL, workThread,
                  &mServiceTransportContext);
 
-  mClientLinkContext.linkEstablished = true;
-  mServiceLinkContext.linkEstablished = true;
+  mClientTransportContext.linkParams.linkEstablished = true;
+  mServiceTransportContext.linkParams.linkEstablished = true;
 
   constexpr uint64_t kResetWaitTimeMs = 1500;
   chppTransportWaitForResetComplete(&mClientTransportContext, kResetWaitTimeMs);
