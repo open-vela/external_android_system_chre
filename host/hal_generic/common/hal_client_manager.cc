@@ -142,11 +142,11 @@ void HalClientManager::handleClientDeath(pid_t pid) {
   clientInfo.callback.reset();
   if (mPendingLoadTransaction.has_value() &&
       mPendingLoadTransaction->clientId == clientId) {
-    resetPendingLoadTransaction();
+    mPendingLoadTransaction.reset();
   }
   if (mPendingUnloadTransaction.has_value() &&
       mPendingUnloadTransaction->clientId == clientId) {
-    resetPendingUnloadTransaction();
+    mPendingLoadTransaction.reset();
   }
   mClientIdsToClientInfo.erase(clientId);
   if (mFrameworkServiceClientId == clientId) {
@@ -196,7 +196,7 @@ HalClientManager::getNextFragmentedLoadRequest(
     return std::nullopt;
   }
   if (mPendingLoadTransaction->transaction->isComplete()) {
-    resetPendingLoadTransaction();
+    mPendingLoadTransaction.reset();
     return std::nullopt;
   }
   auto request = mPendingLoadTransaction->transaction->getNextRequest();
@@ -247,7 +247,7 @@ void HalClientManager::finishPendingUnloadTransaction(HalClientId clientId) {
          mPendingUnloadTransaction->clientId, clientId);
     return;
   }
-  resetPendingUnloadTransaction();
+  mPendingUnloadTransaction.reset();
 }
 
 bool HalClientManager::isNewTransactionAllowedLocked(HalClientId clientId) {
@@ -265,7 +265,7 @@ bool HalClientManager::isNewTransactionAllowedLocked(HalClientId clientId) {
          "'s pending load transaction is overridden by client %" PRIu16
          " after holding the slot for %" PRIu64 " ms",
          mPendingLoadTransaction->clientId, clientId, timeElapsedMs);
-    resetPendingLoadTransaction();
+    mPendingLoadTransaction.reset();
     return true;
   }
   if (mPendingUnloadTransaction.has_value()) {
@@ -282,7 +282,7 @@ bool HalClientManager::isNewTransactionAllowedLocked(HalClientId clientId) {
          " is overridden by a new transaction from client %" PRIu16
          " after holding the slot for %" PRIu64 "ms",
          mPendingUnloadTransaction->clientId, clientId, timeElapsedMs);
-    resetPendingUnloadTransaction();
+    mPendingUnloadTransaction.reset();
     return true;
   }
   return true;
@@ -429,5 +429,15 @@ HalClientManager::HalClientManager() {
       mNextClientId = clientId + 1;
     }
   }
+}
+
+void HalClientManager::resetPendingLoadTransaction() {
+  const std::lock_guard<std::mutex> lock(mLock);
+  mPendingLoadTransaction.reset();
+}
+
+void HalClientManager::resetPendingUnloadTransaction() {
+  const std::lock_guard<std::mutex> lock(mLock);
+  mPendingUnloadTransaction.reset();
 }
 }  // namespace android::hardware::contexthub::common::implementation
