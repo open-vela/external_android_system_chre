@@ -22,6 +22,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
+#include <chrono>
 #include <thread>
 
 #include "chpp/app.h"
@@ -35,6 +36,7 @@
 #include "chpp/crc.h"
 #include "chpp/macros.h"
 #include "chpp/memory.h"
+#include "chpp/platform/platform_link.h"
 #include "chpp/platform/utils.h"
 #include "chpp/services/discovery.h"
 #include "chpp/services/loopback.h"
@@ -50,15 +52,17 @@ constexpr uint8_t kChppPreamble1 = 0x43;
 // Max size of payload sent to chppRxDataCb (bytes)
 constexpr size_t kMaxChunkSize = 20000;
 
-constexpr size_t kMaxPacketSize = kMaxChunkSize + CHPP_PREAMBLE_LEN_BYTES +
-                                  sizeof(ChppTransportHeader) +
-                                  sizeof(ChppTransportFooter);
+constexpr size_t kMaxPacketSize =
+    kMaxChunkSize + CHPP_TRANSPORT_ENCODING_OVERHEAD_BYTES;
 
 // Input sizes to test the entire range of sizes with a few tests
 constexpr int kChunkSizes[] = {0, 1, 2, 3, 4, 21, 100, 1000, 10001, 20000};
 
 // Number of services
 constexpr int kServiceCount = 3;
+
+// State of the link layer.
+struct ChppLinuxLinkState gChppLinuxLinkContext;
 
 /*
  * Test suite for the CHPP Transport Layer
@@ -67,11 +71,13 @@ class TransportTests : public testing::TestWithParam<int> {
  protected:
   void SetUp() override {
     chppClearTotalAllocBytes();
-    memset(&mTransportContext.linkParams, 0,
-           sizeof(mTransportContext.linkParams));
-    mTransportContext.linkParams.linkEstablished = true;
-    mTransportContext.linkParams.isLinkActive = true;
-    chppTransportInit(&mTransportContext, &mAppContext);
+    memset(&gChppLinuxLinkContext, 0, sizeof(struct ChppLinuxLinkState));
+    gChppLinuxLinkContext.manualSendCycle = true;
+    gChppLinuxLinkContext.linkEstablished = true;
+    gChppLinuxLinkContext.isLinkActive = true;
+    const struct ChppLinkApi *linkApi = getLinuxLinkApi();
+    chppTransportInit(&mTransportContext, &mAppContext, &gChppLinuxLinkContext,
+                      linkApi);
     chppAppInit(&mAppContext, &mTransportContext);
 
     mTransportContext.resetState = CHPP_RESET_STATE_NONE;
@@ -97,26 +103,12 @@ class TransportTests : public testing::TestWithParam<int> {
 /**
  * Wait for chppTransportDoWork() to finish after it is notified by
  * chppEnqueueTxPacket to run.
- *
- * TODO: (b/177616847) Improve test robustness / synchronization without adding
- * overhead to CHPP
  */
 void WaitForTransport(struct ChppTransportState *transportContext) {
-  // Wait for linkParams.notifier.signal to be triggered and processed
-  volatile uint32_t k = 1;
-  while (transportContext->linkParams.notifier.signal == 0 && k > 0) {
-    k++;
-  }
-  while (transportContext->linkParams.notifier.signal != 0 && k > 0) {
-    k++;
-  }
-  ASSERT_FALSE(k == 0);
-  while (k < UINT16_MAX) {
-    k++;
-  }
-  while (k > 0) {
-    k--;
-  }
+  // Start sending data out.
+  cycleSendThread();
+  // Wait for data to be received and processed.
+  std::this_thread::sleep_for(std::chrono::milliseconds(20));
 
   // Should have reset loc and length for next packet / datagram
   EXPECT_EQ(transportContext->rxStatus.locInDatagram, 0);
@@ -299,15 +291,15 @@ void openService(ChppTransportState *transportContext, uint8_t *buf,
   WaitForTransport(transportContext);
 
   // Validate common response fields
-  EXPECT_EQ(validateChppTestResponse(transportContext->pendingTxPacket.payload,
-                                     nextSeq, handle, transactionID),
+  EXPECT_EQ(validateChppTestResponse(gChppLinuxLinkContext.buf, nextSeq, handle,
+                                     transactionID),
             CHPP_APP_ERROR_NONE);
 
   // Check response length
   EXPECT_EQ(sizeof(ChppTestResponse), CHPP_PREAMBLE_LEN_BYTES +
                                           sizeof(ChppTransportHeader) +
                                           sizeof(ChppAppHeader));
-  EXPECT_EQ(transportContext->pendingTxPacket.length,
+  EXPECT_EQ(transportContext->linkBufferSize,
             sizeof(ChppTestResponse) + sizeof(ChppTransportFooter));
 }
 
@@ -352,8 +344,8 @@ void sendCommandToService(ChppTransportState *transportContext, uint8_t *buf,
   WaitForTransport(transportContext);
 
   // Validate common response fields
-  EXPECT_EQ(validateChppTestResponse(transportContext->pendingTxPacket.payload,
-                                     nextSeq, handle, transactionID),
+  EXPECT_EQ(validateChppTestResponse(gChppLinuxLinkContext.buf, nextSeq, handle,
+                                     transactionID),
             CHPP_APP_ERROR_NONE);
 }
 
@@ -392,119 +384,111 @@ TEST_P(TransportTests, ZeroThenPreambleInput) {
   }
 }
 
-// Disabled because flaky (fixed in U).
-// /**
-//  * Rx Testing with various length payloads of zeros
-//  */
-// TEST_P(TransportTests, RxPayloadOfZeros) {
-//   mTransportContext.rxStatus.state = CHPP_STATE_PREAMBLE;
-//   size_t len = static_cast<size_t>(GetParam());
-//   bool validLen = (len <= CHPP_TRANSPORT_RX_MTU_BYTES);
+/**
+ * Rx Testing with various length payloads of zeros
+ */
+TEST_P(TransportTests, RxPayloadOfZeros) {
+  mTransportContext.rxStatus.state = CHPP_STATE_PREAMBLE;
+  size_t len = static_cast<size_t>(GetParam());
+  bool isLenValid = (len <= chppTransportRxMtuSize(&mTransportContext));
 
-//   mTransportContext.txStatus.hasPacketsToSend = true;
-//   std::thread t1(chppWorkThreadStart, &mTransportContext);
-//   WaitForTransport(&mTransportContext);
+  mTransportContext.txStatus.hasPacketsToSend = true;
+  std::thread t1(chppWorkThreadStart, &mTransportContext);
+  WaitForTransport(&mTransportContext);
 
-//   if (len <= kMaxChunkSize) {
-//     size_t loc = 0;
-//     addPreambleToBuf(mBuf, &loc);
-//     ChppTransportHeader *transHeader = addTransportHeaderToBuf(mBuf, &loc);
+  if (len <= kMaxChunkSize) {
+    size_t loc = 0;
+    addPreambleToBuf(mBuf, &loc);
+    ChppTransportHeader *transHeader = addTransportHeaderToBuf(mBuf, &loc);
 
-//     transHeader->length = static_cast<uint16_t>(len);
-//     loc += len;
+    transHeader->length = static_cast<uint16_t>(len);
+    loc += len;
 
-//     addTransportFooterToBuf(mBuf, &loc);
+    addTransportFooterToBuf(mBuf, &loc);
 
-//     // Send header and check for correct state
-//     EXPECT_EQ(
-//         chppRxDataCb(&mTransportContext, mBuf,
-//                      CHPP_PREAMBLE_LEN_BYTES + sizeof(ChppTransportHeader)),
-//         !validLen);
+    // Send header and check for correct state
+    EXPECT_EQ(
+        chppRxDataCb(&mTransportContext, mBuf,
+                     CHPP_PREAMBLE_LEN_BYTES + sizeof(ChppTransportHeader)),
+        !isLenValid);
 
-//     if (!validLen) {
-//       EXPECT_EQ(mTransportContext.rxStatus.state, CHPP_STATE_PREAMBLE);
-//     } else if (len > 0) {
-//       EXPECT_EQ(mTransportContext.rxStatus.state, CHPP_STATE_PAYLOAD);
-//     } else {
-//       EXPECT_EQ(mTransportContext.rxStatus.state, CHPP_STATE_FOOTER);
-//     }
+    if (!isLenValid) {
+      EXPECT_EQ(mTransportContext.rxStatus.state, CHPP_STATE_PREAMBLE);
+    } else if (len > 0) {
+      EXPECT_EQ(mTransportContext.rxStatus.state, CHPP_STATE_PAYLOAD);
+    } else {
+      EXPECT_EQ(mTransportContext.rxStatus.state, CHPP_STATE_FOOTER);
+    }
 
-//     // Correct decoding of packet length
-//     EXPECT_EQ(mTransportContext.rxHeader.length, len);
-//     EXPECT_EQ(mTransportContext.rxStatus.locInDatagram, 0);
-//     EXPECT_EQ(mTransportContext.rxDatagram.length, validLen ? len : 0);
+    // Correct decoding of packet length
+    EXPECT_EQ(mTransportContext.rxHeader.length, len);
+    EXPECT_EQ(mTransportContext.rxStatus.locInDatagram, 0);
+    EXPECT_EQ(mTransportContext.rxDatagram.length, isLenValid ? len : 0);
 
-//     // Send payload if any and check for correct state
-//     if (len > 0) {
-//       EXPECT_EQ(
-//           chppRxDataCb(
-//               &mTransportContext,
-//               &mBuf[CHPP_PREAMBLE_LEN_BYTES + sizeof(ChppTransportHeader)],
-//               len),
-//           !validLen);
-//       EXPECT_EQ(mTransportContext.rxStatus.state,
-//                 validLen ? CHPP_STATE_FOOTER : CHPP_STATE_PREAMBLE);
-//     }
+    // Send payload if any and check for correct state
+    if (len > 0) {
+      EXPECT_EQ(
+          chppRxDataCb(
+              &mTransportContext,
+              &mBuf[CHPP_PREAMBLE_LEN_BYTES + sizeof(ChppTransportHeader)],
+              len),
+          !isLenValid);
+      EXPECT_EQ(mTransportContext.rxStatus.state,
+                isLenValid ? CHPP_STATE_FOOTER : CHPP_STATE_PREAMBLE);
+    }
 
-//     // Should have complete packet payload by now
-//     EXPECT_EQ(mTransportContext.rxStatus.locInDatagram, validLen ? len : 0);
+    // Should have complete packet payload by now
+    EXPECT_EQ(mTransportContext.rxStatus.locInDatagram, isLenValid ? len : 0);
 
-//     // But no ACK yet
-//     EXPECT_EQ(mTransportContext.rxStatus.expectedSeq, transHeader->seq);
+    // But no ACK yet
+    EXPECT_EQ(mTransportContext.rxStatus.expectedSeq, transHeader->seq);
 
-//     // Send footer
-//     EXPECT_TRUE(chppRxDataCb(
-//         &mTransportContext,
-//         &mBuf[CHPP_PREAMBLE_LEN_BYTES + sizeof(ChppTransportHeader) + len],
-//         sizeof(ChppTransportFooter)));
+    // Send footer
+    EXPECT_TRUE(chppRxDataCb(
+        &mTransportContext,
+        &mBuf[CHPP_PREAMBLE_LEN_BYTES + sizeof(ChppTransportHeader) + len],
+        sizeof(ChppTransportFooter)));
 
-//     // The next expected packet sequence # should incremented only if the
-//     // received packet is payload-bearing.
-//     uint8_t nextSeq = transHeader->seq + ((validLen && len > 0) ? 1 : 0);
-//     EXPECT_EQ(mTransportContext.rxStatus.expectedSeq, nextSeq);
+    // The next expected packet sequence # should incremented only if the
+    // received packet is payload-bearing.
+    uint8_t nextSeq = transHeader->seq + ((isLenValid && len > 0) ? 1 : 0);
+    EXPECT_EQ(mTransportContext.rxStatus.expectedSeq, nextSeq);
 
-//     // Check for correct ACK crafting if applicable (i.e. if the received
-//     packet
-//     // is payload-bearing).
-//     if (validLen && len > 0) {
-//       // TODO: Remove later as can cause flaky tests
-//       // These are expected to change shortly afterwards, as
-//       chppTransportDoWork
-//       // is run
-//       // EXPECT_TRUE(mTransportContext.txStatus.hasPacketsToSend);
-//       EXPECT_EQ(mTransportContext.txStatus.packetCodeToSend,
-//                 CHPP_TRANSPORT_ERROR_NONE);
-//       EXPECT_EQ(mTransportContext.txDatagramQueue.pending, 0);
+    // Check for correct ACK crafting if applicable (i.e. if the received packet
+    // is payload-bearing).
+    if (isLenValid && len > 0) {
+      EXPECT_EQ(mTransportContext.txStatus.packetCodeToSend,
+                CHPP_TRANSPORT_ERROR_NONE);
+      EXPECT_EQ(mTransportContext.txDatagramQueue.pending, 0);
 
-//       WaitForTransport(&mTransportContext);
+      WaitForTransport(&mTransportContext);
 
-//       // Check response packet fields
-//       struct ChppTransportHeader *txHeader =
-//           (struct ChppTransportHeader *)&mTransportContext.pendingTxPacket
-//               .payload[CHPP_PREAMBLE_LEN_BYTES];
-//       EXPECT_EQ(txHeader->flags, CHPP_TRANSPORT_FLAG_FINISHED_DATAGRAM);
-//       EXPECT_EQ(txHeader->packetCode, CHPP_TRANSPORT_ERROR_NONE);
-//       EXPECT_EQ(txHeader->ackSeq, nextSeq);
-//       EXPECT_EQ(txHeader->length, 0);
+      // Check response packet fields
+      struct ChppTransportHeader *txHeader =
+          (struct ChppTransportHeader *)&gChppLinuxLinkContext
+              .buf[CHPP_PREAMBLE_LEN_BYTES];
+      EXPECT_EQ(txHeader->flags, CHPP_TRANSPORT_FLAG_FINISHED_DATAGRAM);
+      EXPECT_EQ(txHeader->packetCode, CHPP_TRANSPORT_ERROR_NONE);
+      EXPECT_EQ(txHeader->ackSeq, nextSeq);
+      EXPECT_EQ(txHeader->length, 0);
 
-//       // Check outgoing packet length
-//       EXPECT_EQ(mTransportContext.pendingTxPacket.length,
-//                 CHPP_PREAMBLE_LEN_BYTES + sizeof(struct ChppTransportHeader)
-//                 +
-//                     sizeof(struct ChppTransportFooter));
-//     }
+      // Check outgoing packet length
+      EXPECT_EQ(mTransportContext.linkBufferSize,
+                CHPP_PREAMBLE_LEN_BYTES + sizeof(struct ChppTransportHeader) +
+                    sizeof(struct ChppTransportFooter));
+    }
 
-//     // Check for correct state
-//     EXPECT_EQ(mTransportContext.rxStatus.state, CHPP_STATE_PREAMBLE);
+    // Check for correct state
+    EXPECT_EQ(mTransportContext.rxStatus.state, CHPP_STATE_PREAMBLE);
 
-//     // Should have reset loc and length for next packet / datagram
-//     EXPECT_EQ(mTransportContext.rxStatus.locInDatagram, 0);
-//     EXPECT_EQ(mTransportContext.rxDatagram.length, 0);
-//   }
+    // Should have reset loc and length for next packet / datagram
+    EXPECT_EQ(mTransportContext.rxStatus.locInDatagram, 0);
+    EXPECT_EQ(mTransportContext.rxDatagram.length, 0);
+  }
 
-//   chppWorkThreadStop(&mTransportContext);
-//   t1.join();
-// }
+  chppWorkThreadStop(&mTransportContext);
+  t1.join();
+}
 
 /**
  * End of Packet Link Notification during preamble
@@ -866,8 +850,7 @@ TEST_F(TransportTests, WwanOpen) {
   size_t responseLoc = sizeof(ChppTestResponse);
 
   // Validate capabilities
-  uint32_t *capabilities =
-      (uint32_t *)&mTransportContext.pendingTxPacket.payload[responseLoc];
+  uint32_t *capabilities = (uint32_t *)&gChppLinuxLinkContext.buf[responseLoc];
   responseLoc += sizeof(uint32_t);
 
   // Cleanup
@@ -909,8 +892,7 @@ TEST_F(TransportTests, WifiOpen) {
   t1.join();
 
   // Validate capabilities
-  uint32_t *capabilities =
-      (uint32_t *)&mTransportContext.pendingTxPacket.payload[responseLoc];
+  uint32_t *capabilities = (uint32_t *)&gChppLinuxLinkContext.buf[responseLoc];
   responseLoc += sizeof(uint32_t);
 
   uint32_t capabilitySet = CHRE_WIFI_CAPABILITIES_SCAN_MONITORING |
@@ -925,51 +907,48 @@ TEST_F(TransportTests, WifiOpen) {
                              sizeof(ChppWwanGetCapabilitiesResponse));
 }
 
-// Disabled because flaky (fixed in U).
-// /**
-//  * GNSS service Open and GetCapabilities.
-//  */
-// TEST_F(TransportTests, GnssOpen) {
-//   mTransportContext.txStatus.hasPacketsToSend = true;
-//   std::thread t1(chppWorkThreadStart, &mTransportContext);
-//   WaitForTransport(&mTransportContext);
+/**
+ * GNSS service Open and GetCapabilities.
+ */
+TEST_F(TransportTests, GnssOpen) {
+  mTransportContext.txStatus.hasPacketsToSend = true;
+  std::thread t1(chppWorkThreadStart, &mTransportContext);
+  WaitForTransport(&mTransportContext);
 
-//   uint8_t ackSeq = 1;
-//   uint8_t seq = 0;
-//   uint8_t handle = CHPP_HANDLE_NEGOTIATED_RANGE_START + 2;
-//   uint8_t transactionID = 0;
-//   size_t len = 0;
+  uint8_t ackSeq = 1;
+  uint8_t seq = 0;
+  uint8_t handle = CHPP_HANDLE_NEGOTIATED_RANGE_START + 2;
+  uint8_t transactionID = 0;
+  size_t len = 0;
 
-//   openService(&mTransportContext, mBuf, ackSeq++, seq++, handle,
-//               transactionID++, CHPP_GNSS_OPEN);
+  openService(&mTransportContext, mBuf, ackSeq++, seq++, handle,
+              transactionID++, CHPP_GNSS_OPEN);
 
-//   addPreambleToBuf(mBuf, &len);
+  addPreambleToBuf(mBuf, &len);
 
-//   uint16_t command = CHPP_GNSS_GET_CAPABILITIES;
-//   sendCommandToService(&mTransportContext, mBuf, ackSeq++, seq++, handle,
-//                        transactionID++, command);
+  uint16_t command = CHPP_GNSS_GET_CAPABILITIES;
+  sendCommandToService(&mTransportContext, mBuf, ackSeq++, seq++, handle,
+                       transactionID++, command);
 
-//   size_t responseLoc = sizeof(ChppTestResponse);
+  size_t responseLoc = sizeof(ChppTestResponse);
 
-//   // Cleanup
-//   chppWorkThreadStop(&mTransportContext);
-//   t1.join();
+  // Cleanup
+  chppWorkThreadStop(&mTransportContext);
+  t1.join();
 
-//   // Validate capabilities
-//   uint32_t *capabilities =
-//       (uint32_t *)&mTransportContext.pendingTxPacket.payload[responseLoc];
-//   responseLoc += sizeof(uint32_t);
+  // Validate capabilities
+  uint32_t *capabilities = (uint32_t *)&gChppLinuxLinkContext.buf[responseLoc];
+  responseLoc += sizeof(uint32_t);
 
-//   uint32_t capabilitySet =
-//       CHRE_GNSS_CAPABILITIES_LOCATION | CHRE_GNSS_CAPABILITIES_MEASUREMENTS |
-//       CHRE_GNSS_CAPABILITIES_GNSS_ENGINE_BASED_PASSIVE_LISTENER;
-//   EXPECT_EQ((*capabilities) & ~(capabilitySet), 0);
+  uint32_t capabilitySet =
+      CHRE_GNSS_CAPABILITIES_LOCATION | CHRE_GNSS_CAPABILITIES_MEASUREMENTS |
+      CHRE_GNSS_CAPABILITIES_GNSS_ENGINE_BASED_PASSIVE_LISTENER;
+  EXPECT_EQ((*capabilities) & ~(capabilitySet), 0);
 
-//   // Check total length
-//   EXPECT_EQ(responseLoc, CHPP_PREAMBLE_LEN_BYTES +
-//   sizeof(ChppTransportHeader) +
-//                              sizeof(ChppGnssGetCapabilitiesResponse));
-// }
+  // Check total length
+  EXPECT_EQ(responseLoc, CHPP_PREAMBLE_LEN_BYTES + sizeof(ChppTransportHeader) +
+                             sizeof(ChppGnssGetCapabilitiesResponse));
+}
 
 /**
  * Discovery client.
@@ -1146,16 +1125,15 @@ TEST_F(TransportTests, NotificationToInvalidClient) {
                          CHPP_MESSAGE_TYPE_SERVICE_NOTIFICATION);
 }
 
-// Disabled because flaky (fixed in U).
-// TEST_F(TransportTests, WorkMonitorInvoked) {
-//   // Send message to spin work thread so it interacts with the work monitor
-//   messageToInvalidHandle(&mTransportContext,
-//                          CHPP_MESSAGE_TYPE_SERVICE_NOTIFICATION);
+TEST_F(TransportTests, WorkMonitorInvoked) {
+  // Send message to spin work thread so it interacts with the work monitor
+  messageToInvalidHandle(&mTransportContext,
+                         CHPP_MESSAGE_TYPE_SERVICE_NOTIFICATION);
 
-//   // 1 pre/post call for executing the work and 1 for shutting down the
-//   thread. EXPECT_EQ(mTransportContext.workMonitor.numPreProcessCalls, 2);
-//   EXPECT_EQ(mTransportContext.workMonitor.numPostProcessCalls, 2);
-// }
+  // 1 pre/post call for executing the work and 1 for shutting down the thread.
+  EXPECT_EQ(mTransportContext.workMonitor.numPreProcessCalls, 2);
+  EXPECT_EQ(mTransportContext.workMonitor.numPostProcessCalls, 2);
+}
 
 INSTANTIATE_TEST_SUITE_P(TransportTestRange, TransportTests,
                          testing::ValuesIn(kChunkSizes));
