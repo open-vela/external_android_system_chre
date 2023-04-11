@@ -147,15 +147,16 @@ void SocketClient::receiveThread() {
     requestedEvent.data.fd = mSockFd;
     requestedEvent.events = EPOLLIN | EPOLLWAKEUP;
 
-    int epollFd = epoll_create1(0);
+    int epollFd = TEMP_FAILURE_RETRY(epoll_create1(0));
     if (epollFd < 0) {
-      LOG_ERROR("Error creating epoll fd. Errno = %d.", errno);
+      LOG_ERROR("Error creating epoll fd", errno);
       break;
     }
 
-    if (epoll_ctl(epollFd, EPOLL_CTL_ADD, requestedEvent.data.fd,
-                  &requestedEvent) < 0) {
-      LOG_ERROR("Error adding socket fd to epoll. Errno = %d.", errno);
+    if (TEMP_FAILURE_RETRY(epoll_ctl(epollFd, EPOLL_CTL_ADD,
+                                     requestedEvent.data.fd, &requestedEvent)) <
+        0) {
+      LOG_ERROR("Error adding socket fd to epoll", errno);
       close(epollFd);
       break;
     }
@@ -165,10 +166,11 @@ void SocketClient::receiveThread() {
       // Blockingly wait for the next epoll event. The implicit wakelock will be
       // held until the next call to epoll_wait on the same epoll file
       // descriptor
-      int eventsReady = epoll_wait(epollFd, &returnedEvent,
-                                   /* event_count= */ 1, /* timeout_ms= */ -1);
+      int eventsReady = TEMP_FAILURE_RETRY(epoll_wait(epollFd, &returnedEvent,
+                                                      /* event_count= */ 1,
+                                                      /* timeout_ms= */ -1));
       if (eventsReady < 0) {
-        LOG_ERROR("Poll error. Errno = %d.", errno);
+        LOG_ERROR("Poll error", errno);
         break;
       }
 
