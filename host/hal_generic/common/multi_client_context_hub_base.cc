@@ -535,4 +535,9 @@ void MultiClientContextHubBase::handleClientDeath(pid_t clientPid) {
   }
   mHalClientManager->handleClientDeath(clientPid);
 }
+
+void MultiClientContextHubBase::onChreRestarted() {
+  mIsWifiAvailable.reset();
+  mHalClientManager->handleChreRestart();
+}
 }  // namespace android::hardware::contexthub::common::implementation

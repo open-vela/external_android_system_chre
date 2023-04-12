@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 #include "hal_client_manager.h"
+#include <aidl/android/hardware/contexthub/AsyncEventType.h>
 #include <android-base/strings.h>
 #include <json/json.h>
 #include <utils/SystemClock.h>
@@ -21,6 +22,7 @@
 
 namespace android::hardware::contexthub::common::implementation {
 
+using aidl::android::hardware::contexthub::AsyncEventType;
 using aidl::android::hardware::contexthub::ContextHubMessage;
 using aidl::android::hardware::contexthub::HostEndpointInfo;
 using aidl::android::hardware::contexthub::IContextHubCallback;
@@ -439,5 +441,20 @@ void HalClientManager::resetPendingLoadTransaction() {
 void HalClientManager::resetPendingUnloadTransaction() {
   const std::lock_guard<std::mutex> lock(mLock);
   mPendingUnloadTransaction.reset();
+}
+
+void HalClientManager::handleChreRestart() {
+  {
+    const std::lock_guard<std::mutex> lock(mLock);
+    mPendingLoadTransaction.reset();
+    mPendingUnloadTransaction.reset();
+    for (auto &[_, clientInfo] : mClientIdsToClientInfo) {
+      clientInfo.endpointIds.clear();
+    }
+  }
+  // Incurs callbacks without holding the lock to avoid deadlocks.
+  for (auto &[_, clientInfo] : mClientIdsToClientInfo) {
+    clientInfo.callback->handleContextHubAsyncEvent(AsyncEventType::RESTARTED);
+  }
 }
 }  // namespace android::hardware::contexthub::common::implementation
