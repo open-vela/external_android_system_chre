@@ -100,7 +100,7 @@ bool HalChreSocketConnection::sendDebugConfiguration() {
   return mClient.sendMessage(builder.GetBufferPointer(), builder.GetSize());
 }
 
-bool HalChreSocketConnection::sendMessageToHub(long nanoappId,
+bool HalChreSocketConnection::sendMessageToHub(uint64_t nanoappId,
                                                uint32_t messageType,
                                                uint16_t hostEndpointId,
                                                const unsigned char *payload,
