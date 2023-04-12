@@ -85,6 +85,7 @@ class MultiClientContextHubBase
   // The callback function implementing ChreConnectionCallback
   void handleMessageFromChre(const unsigned char *messageBuffer,
                              size_t messageLen) override;
+  void onChreRestarted() override;
 
  protected:
   // The data needed by the death client to clear states of a client.

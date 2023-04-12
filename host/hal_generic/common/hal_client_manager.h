@@ -211,6 +211,9 @@ class HalClientManager {
    */
   void handleClientDeath(pid_t pid);
 
+  /** Handles CHRE restart event. */
+  void handleChreRestart();
+
  protected:
   static constexpr char kClientMappingFilePath[] =
       "/data/vendor/chre/chre_hal_clients.json";
