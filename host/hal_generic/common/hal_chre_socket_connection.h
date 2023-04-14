@@ -98,7 +98,7 @@ class HalChreSocketConnection {
 
   bool getContextHubs(::chre::fbs::HubInfoResponseT *response);
 
-  bool sendMessageToHub(long nanoappId, uint32_t messageType,
+  bool sendMessageToHub(uint64_t nanoappId, uint32_t messageType,
                         uint16_t hostEndpointId, const unsigned char *payload,
                         size_t payloadLength);
 

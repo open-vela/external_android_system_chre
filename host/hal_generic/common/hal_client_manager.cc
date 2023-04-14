@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 #include "hal_client_manager.h"
+#include <aidl/android/hardware/contexthub/AsyncEventType.h>
 #include <android-base/strings.h>
 #include <json/json.h>
 #include <utils/SystemClock.h>
@@ -21,6 +22,7 @@
 
 namespace android::hardware::contexthub::common::implementation {
 
+using aidl::android::hardware::contexthub::AsyncEventType;
 using aidl::android::hardware::contexthub::ContextHubMessage;
 using aidl::android::hardware::contexthub::HostEndpointInfo;
 using aidl::android::hardware::contexthub::IContextHubCallback;
@@ -142,11 +144,11 @@ void HalClientManager::handleClientDeath(pid_t pid) {
   clientInfo.callback.reset();
   if (mPendingLoadTransaction.has_value() &&
       mPendingLoadTransaction->clientId == clientId) {
-    resetPendingLoadTransaction();
+    mPendingLoadTransaction.reset();
   }
   if (mPendingUnloadTransaction.has_value() &&
       mPendingUnloadTransaction->clientId == clientId) {
-    resetPendingUnloadTransaction();
+    mPendingLoadTransaction.reset();
   }
   mClientIdsToClientInfo.erase(clientId);
   if (mFrameworkServiceClientId == clientId) {
@@ -196,7 +198,7 @@ HalClientManager::getNextFragmentedLoadRequest(
     return std::nullopt;
   }
   if (mPendingLoadTransaction->transaction->isComplete()) {
-    resetPendingLoadTransaction();
+    mPendingLoadTransaction.reset();
     return std::nullopt;
   }
   auto request = mPendingLoadTransaction->transaction->getNextRequest();
@@ -247,7 +249,7 @@ void HalClientManager::finishPendingUnloadTransaction(HalClientId clientId) {
          mPendingUnloadTransaction->clientId, clientId);
     return;
   }
-  resetPendingUnloadTransaction();
+  mPendingUnloadTransaction.reset();
 }
 
 bool HalClientManager::isNewTransactionAllowedLocked(HalClientId clientId) {
@@ -265,7 +267,7 @@ bool HalClientManager::isNewTransactionAllowedLocked(HalClientId clientId) {
          "'s pending load transaction is overridden by client %" PRIu16
          " after holding the slot for %" PRIu64 " ms",
          mPendingLoadTransaction->clientId, clientId, timeElapsedMs);
-    resetPendingLoadTransaction();
+    mPendingLoadTransaction.reset();
     return true;
   }
   if (mPendingUnloadTransaction.has_value()) {
@@ -282,7 +284,7 @@ bool HalClientManager::isNewTransactionAllowedLocked(HalClientId clientId) {
          " is overridden by a new transaction from client %" PRIu16
          " after holding the slot for %" PRIu64 "ms",
          mPendingUnloadTransaction->clientId, clientId, timeElapsedMs);
-    resetPendingUnloadTransaction();
+    mPendingUnloadTransaction.reset();
     return true;
   }
   return true;
@@ -428,6 +430,31 @@ HalClientManager::HalClientManager() {
     if (mNextClientId <= clientId) {
       mNextClientId = clientId + 1;
     }
+  }
+}
+
+void HalClientManager::resetPendingLoadTransaction() {
+  const std::lock_guard<std::mutex> lock(mLock);
+  mPendingLoadTransaction.reset();
+}
+
+void HalClientManager::resetPendingUnloadTransaction() {
+  const std::lock_guard<std::mutex> lock(mLock);
+  mPendingUnloadTransaction.reset();
+}
+
+void HalClientManager::handleChreRestart() {
+  {
+    const std::lock_guard<std::mutex> lock(mLock);
+    mPendingLoadTransaction.reset();
+    mPendingUnloadTransaction.reset();
+    for (auto &[_, clientInfo] : mClientIdsToClientInfo) {
+      clientInfo.endpointIds.clear();
+    }
+  }
+  // Incurs callbacks without holding the lock to avoid deadlocks.
+  for (auto &[_, clientInfo] : mClientIdsToClientInfo) {
+    clientInfo.callback->handleContextHubAsyncEvent(AsyncEventType::RESTARTED);
   }
 }
 }  // namespace android::hardware::contexthub::common::implementation
