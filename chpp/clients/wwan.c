@@ -403,32 +403,30 @@ static bool chppWwanClientOpen(const struct chrePalSystemApi *systemApi,
   CHPP_DEBUG_ASSERT(systemApi != NULL);
   CHPP_DEBUG_ASSERT(callbacks != NULL);
 
+  bool result = false;
   gSystemApi = systemApi;
   gCallbacks = callbacks;
 
   CHPP_LOGD("WWAN client opening");
   if (gWwanClientContext.client.appContext == NULL) {
     CHPP_LOGE("WWAN client app is null");
-    return false;
+  } else {
+    // Wait for discovery to complete for "open" call to succeed
+    if (chppWaitForDiscoveryComplete(gWwanClientContext.client.appContext,
+                                     CHPP_WWAN_DISCOVERY_TIMEOUT_MS)) {
+      result = chppClientSendOpenRequest(
+          &gWwanClientContext.client,
+          &gWwanClientContext.rRState[CHPP_WWAN_OPEN], CHPP_WWAN_OPEN,
+          /*blocking=*/true);
+    }
+
+    // Since CHPP_WWAN_DEFAULT_CAPABILITIES is mandatory, we can always
+    // pseudo-open and return true. Otherwise, these should have been gated.
+    chppClientPseudoOpen(&gWwanClientContext.client);
+    result = true;
   }
 
-  // Since CHPP_WWAN_DEFAULT_CAPABILITIES is mandatory, we can always
-  // pseudo-open and return true. Otherwise, these should have been gated.
-
-  // Consider the client to be PseudoOpen prior to sending open request
-  // This avoids race conditions where responses could come between
-  // the open request timeout and setting the client as PseudoOpen
-  chppClientPseudoOpen(&gWwanClientContext.client);
-  // Wait for discovery to complete for "open" call to succeed
-  if (chppWaitForDiscoveryComplete(gWwanClientContext.client.appContext,
-                                   CHPP_WWAN_DISCOVERY_TIMEOUT_MS)) {
-    chppClientSendOpenRequest(&gWwanClientContext.client,
-                              &gWwanClientContext.rRState[CHPP_WWAN_OPEN],
-                              CHPP_WWAN_OPEN,
-                              /*blocking=*/true);
-  }
-
-  return true;
+  return result;
 }
 
 /**
