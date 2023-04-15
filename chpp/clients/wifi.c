@@ -835,31 +835,29 @@ static bool chppWifiClientOpen(const struct chrePalSystemApi *systemApi,
   CHPP_DEBUG_ASSERT(systemApi != NULL);
   CHPP_DEBUG_ASSERT(callbacks != NULL);
 
+  bool result = false;
   gSystemApi = systemApi;
   gCallbacks = callbacks;
 
   CHPP_LOGD("WiFi client opening");
   if (gWifiClientContext.client.appContext == NULL) {
     CHPP_LOGE("WiFi client app is null");
-    return false;
+  } else {
+    if (chppWaitForDiscoveryComplete(gWifiClientContext.client.appContext,
+                                     CHPP_WIFI_DISCOVERY_TIMEOUT_MS)) {
+      result = chppClientSendOpenRequest(
+          &gWifiClientContext.client,
+          &gWifiClientContext.rRState[CHPP_WIFI_OPEN], CHPP_WIFI_OPEN,
+          /*blocking=*/true);
+    }
+
+    // Since CHPP_WIFI_DEFAULT_CAPABILITIES is mandatory, we can always
+    // pseudo-open and return true. Otherwise, these should have been gated.
+    chppClientPseudoOpen(&gWifiClientContext.client);
+    result = true;
   }
 
-  // Since CHPP_WIFI_DEFAULT_CAPABILITIES is mandatory, we can always
-  // pseudo-open and return true. Otherwise, these should have been gated.
-
-  // Consider the client to be PseudoOpen prior to sending open request
-  // This avoids race conditions where responses could come between
-  // the open request timeout and setting the client as PseudoOpen
-  chppClientPseudoOpen(&gWifiClientContext.client);
-  if (chppWaitForDiscoveryComplete(gWifiClientContext.client.appContext,
-                                   CHPP_WIFI_DISCOVERY_TIMEOUT_MS)) {
-    chppClientSendOpenRequest(&gWifiClientContext.client,
-                              &gWifiClientContext.rRState[CHPP_WIFI_OPEN],
-                              CHPP_WIFI_OPEN,
-                              /*blocking=*/true);
-  }
-
-  return true;
+  return result;
 }
 
 /**
