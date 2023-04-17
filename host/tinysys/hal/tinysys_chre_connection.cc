@@ -19,14 +19,53 @@
 #include "chre_host/generated/host_messages_generated.h"
 #include "chre_host/host_protocol_host.h"
 
-#include <errno.h>
 #include <hardware_legacy/power.h>
+#include <sys/ioctl.h>
+#include <cerrno>
 #include <thread>
+
+/* The definitions below must be the same as the ones defined in kernel. */
+#define SCP_CHRE_MANAGER_STAT_UNINIT _IOW('a', 0, unsigned int)
+#define SCP_CHRE_MANAGER_STAT_STOP _IOW('a', 1, unsigned int)
+#define SCP_CHRE_MANAGER_STAT_START _IOW('a', 2, unsigned int)
 
 namespace aidl::android::hardware::contexthub {
 
 using namespace ::android::chre;
 namespace fbs = ::chre::fbs;
+
+namespace {
+
+// The ChreStateMessage defines the message written by kernel indicating the
+// current state of SCP. It must be consistent with the definition in the
+// kernel.
+struct ChreStateMessage {
+  long nextStateAddress;
+};
+
+// Possible states of SCP.
+enum ChreState {
+  SCP_CHRE_UNINIT = 0,
+  SCP_CHRE_STOP = 1,
+  SCP_CHRE_START = 2,
+};
+
+ChreState chreCurrentState = SCP_CHRE_UNINIT;
+
+unsigned getRequestCode(ChreState chreState) {
+  switch (chreState) {
+    case SCP_CHRE_UNINIT:
+      return SCP_CHRE_MANAGER_STAT_UNINIT;
+    case SCP_CHRE_STOP:
+      return SCP_CHRE_MANAGER_STAT_STOP;
+    case SCP_CHRE_START:
+      return SCP_CHRE_MANAGER_STAT_START;
+    default:
+      LOGE("Unexpected CHRE state: %" PRIu32, chreState);
+      assert(false);
+  }
+}
+}  // namespace
 
 bool TinysysChreConnection::init() {
   // Make sure the payload size is large enough for nanoapp binary fragment
@@ -41,12 +80,13 @@ bool TinysysChreConnection::init() {
     return false;
   }
   mLogger.init();
-  // launch the listener task
+  // launch the listener tasks
   mMessageListener = std::thread(messageListenerTask, this);
+  mStateListener = std::thread(chreStateMonitorTask, this);
   return true;
 }
 
-void TinysysChreConnection::messageListenerTask(
+[[noreturn]] void TinysysChreConnection::messageListenerTask(
     TinysysChreConnection *chreConnection) {
   auto chreFd = chreConnection->getChreFileDescriptor();
   while (true) {
@@ -60,6 +100,29 @@ void TinysysChreConnection::messageListenerTask(
       handleMessageFromChre(chreConnection, chreConnection->mPayload.get(),
                             payloadSize);
     }
+  }
+}
+
+[[noreturn]] void TinysysChreConnection::chreStateMonitorTask(
+    TinysysChreConnection *chreConnection) {
+  int chreFd = chreConnection->getChreFileDescriptor();
+  uint32_t nextState = 0;
+  ChreStateMessage chreMessage{.nextStateAddress =
+                                   reinterpret_cast<long>(&nextState)};
+  while (true) {
+    LOGI("The current CHRE state is %" PRIu32, chreCurrentState);
+    if (TEMP_FAILURE_RETRY(ioctl(chreFd, getRequestCode(chreCurrentState),
+                                 (unsigned long)&chreMessage)) < 0) {
+      LOGE("Unable to get an update for the CHRE state: errno=%d", errno);
+      continue;
+    }
+    LOGI("Retrieved the next state: %" PRIu32, nextState);
+    auto chreNextState = static_cast<ChreState>(nextState);
+    if (chreCurrentState == SCP_CHRE_STOP && chreNextState == SCP_CHRE_START) {
+      LOGW("SCP restarted.");
+      chreConnection->getCallback()->onChreRestarted();
+    }
+    chreCurrentState = chreNextState;
   }
 }
 
