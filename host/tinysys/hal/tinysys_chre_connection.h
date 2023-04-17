@@ -41,11 +41,14 @@ class TinysysChreConnection : public ChreConnection {
     mChreMessage = std::make_unique<ChreConnectionMessage>();
   };
 
-  ~TinysysChreConnection() {
+  ~TinysysChreConnection() override {
     // TODO(b/264308286): Need a decent way to terminate the listener thread.
     close(mChreFileDescriptor);
     if (mMessageListener.joinable()) {
       mMessageListener.join();
+    }
+    if (mStateListener.joinable()) {
+      mStateListener.join();
     }
   }
 
@@ -100,9 +103,14 @@ class TinysysChreConnection : public ChreConnection {
   };
 
   // The task receiving message from CHRE
-  static void messageListenerTask(TinysysChreConnection *chreConnection);
+  [[noreturn]] static void messageListenerTask(
+      TinysysChreConnection *chreConnection);
 
-  inline int getChreFileDescriptor() {
+  // The task receiving CHRE state update
+  [[noreturn]] static void chreStateMonitorTask(
+      TinysysChreConnection *chreConnection);
+
+  [[nodiscard]] inline int getChreFileDescriptor() const {
     return mChreFileDescriptor;
   }
 
@@ -117,6 +125,8 @@ class TinysysChreConnection : public ChreConnection {
 
   // the message listener thread that hosts messageListenerTask
   std::thread mMessageListener;
+  // the status listener thread that hosts chreStateMonitorTask
+  std::thread mStateListener;
 
   // Payload received from CHRE
   std::unique_ptr<uint8_t[]> mPayload;
