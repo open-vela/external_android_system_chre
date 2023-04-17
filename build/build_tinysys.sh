@@ -20,23 +20,10 @@ if [[ -z "$RISCV_TOOLCHAIN_PATH" ]] || [[ -z "$RISCV_TINYSYS_PREFIX" ]]; then
     exit 1
 fi
 
-_LIB_PATH="$ANDROID_BUILD_TOP/system/chre/out/aosp_riscv_tinysys/libchre.a"
-_VENDOR_PATH="$ANDROID_BUILD_TOP/vendor/mediatek/proprietary/tinysys/scp/middleware/chre/libchre.a"
-
 pushd $ANDROID_BUILD_TOP/system/chre > /dev/null
 
 CHRE_VARIANT_MK_INCLUDES=variant/tinysys/variant.mk \
  IS_ARCHIVE_ONLY_BUILD=true \
  make aosp_riscv_tinysys
 
-if test -f "$_LIB_PATH"; then
-    if [[ "$_LIB_PATH" -nt "$_VENDOR_PATH" ]]; then
-        echo "cp $_LIB_PATH $_VENDOR_PATH"
-        cp -f $_LIB_PATH $_VENDOR_PATH
-    fi
-fi
-
 popd > /dev/null
-
-unset _LIB_PATH
-unset _VENDOR_PATH
