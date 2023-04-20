@@ -29,7 +29,7 @@ extern "C" {
 }  // extern "C"
 #endif
 
-#if defined(CHRE_USE_BUFFERED_LOGGING)
+#ifdef CHRE_USE_BUFFERED_LOGGING
 
 /**
  * Log via the LogBufferManagerSingleton vaLog method.
@@ -50,10 +50,29 @@ void chrePlatformLogToBuffer(enum chreLogLevel level, const char *format, ...);
     CHRE_LOG_EPILOGUE                           \
   } while (0)
 
-#define LOGE(fmt, arg...) CHRE_BUFFER_LOG(CHRE_LOG_ERROR, "[CHRE]" fmt, ##arg)
-#define LOGW(fmt, arg...) CHRE_BUFFER_LOG(CHRE_LOG_WARN, "[CHRE]" fmt, ##arg)
-#define LOGI(fmt, arg...) CHRE_BUFFER_LOG(CHRE_LOG_INFO, "[CHRE]" fmt, ##arg)
-#define LOGD(fmt, arg...) CHRE_BUFFER_LOG(CHRE_LOG_DEBUG, "[CHRE]" fmt, ##arg)
+#define LOGE(fmt, arg...)                                 \
+  do {                                                    \
+    PRINTF_E("[CHRE]" fmt "\n", ##arg);                   \
+    CHRE_BUFFER_LOG(CHRE_LOG_ERROR, "[CHRE]" fmt, ##arg); \
+  } while (0)
+
+#define LOGW(fmt, arg...)                                \
+  do {                                                   \
+    PRINTF_W("[CHRE]" fmt "\n", ##arg);                  \
+    CHRE_BUFFER_LOG(CHRE_LOG_WARN, "[CHRE]" fmt, ##arg); \
+  } while (0)
+
+#define LOGI(fmt, arg...)                                \
+  do {                                                   \
+    PRINTF_I("[CHRE]" fmt "\n", ##arg);                  \
+    CHRE_BUFFER_LOG(CHRE_LOG_INFO, "[CHRE]" fmt, ##arg); \
+  } while (0)
+
+#define LOGD(fmt, arg...)                                 \
+  do {                                                    \
+    PRINTF_D("[CHRE]" fmt "\n", ##arg);                   \
+    CHRE_BUFFER_LOG(CHRE_LOG_DEBUG, "[CHRE]" fmt, ##arg); \
+  } while (0)
 
 #else
 
