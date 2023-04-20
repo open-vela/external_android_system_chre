@@ -564,12 +564,14 @@ void HostLinkBase::sendLogMessageV2(const uint8_t *logMessage,
   };
 
   constexpr size_t kInitialSize = 128;
-  bool result = false;
+  bool result = true;
   if (isInitialized()) {
     result = buildAndEnqueueMessage(
         PendingMessageType::EncodedLogMessage,
         kInitialSize + logMessageSize + sizeof(numLogsDropped), msgBuilder,
         &logMessageData);
+  } else {
+    LOGW("Dropping outbound message: host link not initialized yet");
   }
 
 #ifdef CHRE_USE_BUFFERED_LOGGING
