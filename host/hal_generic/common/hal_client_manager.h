@@ -107,9 +107,15 @@ class HalClientManager {
    * Registers a IContextHubCallback function mapped to the current client's
    * client id.
    *
+   * @param deathRecipient and @param deathRecipientCookie are used to unlink
+   * the previous registered callback for the same client, if any.
+   *
    * @return true if success, otherwise false.
    */
-  bool registerCallback(const std::shared_ptr<IContextHubCallback> &callback);
+  bool registerCallback(
+      const std::shared_ptr<IContextHubCallback> &callback,
+      const ndk::ScopedAIBinder_DeathRecipient &deathRecipient,
+      void *deathRecipientCookie);
 
   /**
    * Registers a FragmentedLoadTransaction for the current HAL client.
@@ -208,8 +214,10 @@ class HalClientManager {
    * Handles the client death event.
    *
    * @param pid of the client that loses the binder connection to the HAL.
+   * @param deathRecipient to be unlinked with the client's callback
    */
-  void handleClientDeath(pid_t pid);
+  void handleClientDeath(
+      pid_t pid, const ndk::ScopedAIBinder_DeathRecipient &deathRecipient);
 
   /** Handles CHRE restart event. */
   void handleChreRestart();
@@ -227,12 +235,15 @@ class HalClientManager {
   static constexpr HostEndpointId kVendorEndpointIdBitMask = 0x8000;
 
   struct HalClientInfo {
-    explicit HalClientInfo(
-        const std::shared_ptr<IContextHubCallback> &callback) {
+    explicit HalClientInfo(const std::shared_ptr<IContextHubCallback> &callback,
+                           void *cookie) {
       this->callback = callback;
+      this->deathRecipientCookie = cookie;
     }
     HalClientInfo() = default;
     std::shared_ptr<IContextHubCallback> callback;
+    // cookie is used by the death recipient's linked callback
+    void *deathRecipientCookie{};
     std::unordered_set<HostEndpointId> endpointIds{};
   };
 
@@ -337,6 +348,16 @@ class HalClientManager {
     }
     return true;
   }
+
+  /**
+   * Overrides the old callback registered with the client.
+   *
+   * @return true if success, otherwise false
+   */
+  bool overrideCallbackLocked(
+      pid_t pid, const std::shared_ptr<IContextHubCallback> &callback,
+      const ndk::ScopedAIBinder_DeathRecipient &deathRecipient,
+      void *deathRecipientCookie);
 
   /**
    * Extracts the client id from the endpoint id.
