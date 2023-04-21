@@ -340,18 +340,14 @@ ScopedAStatus MultiClientContextHubBase::onHostEndpointConnected(
 ScopedAStatus MultiClientContextHubBase::onHostEndpointDisconnected(
     char16_t in_hostEndpointId) {
   HostEndpointId hostEndpointId = in_hostEndpointId;
-  bool isSuccessful = false;
-  if (mHalClientManager->removeEndpointId(hostEndpointId) &&
-      mHalClientManager->mutateEndpointIdFromHostIfNeeded(
+  if (!mHalClientManager->removeEndpointId(hostEndpointId) ||
+      !mHalClientManager->mutateEndpointIdFromHostIfNeeded(
           AIBinder_getCallingPid(), hostEndpointId)) {
-    flatbuffers::FlatBufferBuilder builder(64);
-    HostProtocolHost::encodeHostEndpointDisconnected(builder, hostEndpointId);
-    isSuccessful = mConnection->sendMessage(builder);
+    return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
   }
-  if (!isSuccessful) {
-    LOGW("Unable to remove host endpoint id %" PRIu16, in_hostEndpointId);
-  }
-  return ScopedAStatus::ok();
+  flatbuffers::FlatBufferBuilder builder(64);
+  HostProtocolHost::encodeHostEndpointDisconnected(builder, hostEndpointId);
+  return fromResult(mConnection->sendMessage(builder));
 }
 
 ScopedAStatus MultiClientContextHubBase::onNanSessionStateChanged(
