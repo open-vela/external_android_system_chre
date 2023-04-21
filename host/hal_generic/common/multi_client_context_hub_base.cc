@@ -272,19 +272,16 @@ ScopedAStatus MultiClientContextHubBase::registerCallback(
     return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
   }
   if (callback == nullptr) {
-    LOGE("Callback of context hub HAL must not be null.");
+    LOGE("Callback of context hub HAL must not be null");
     return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
   }
-  if (!mHalClientManager->registerCallback(callback)) {
-    return fromResult(false);
-  }
-  // once the call to AIBinder_linkToDeath() is successful, the cookie is
-  // supposed to be release by the death recipient later.
+  // If everything is successful cookie will be released by the callback of
+  // binder unlinking (callback overridden).
   auto *cookie = new HalDeathRecipientCookie(this, AIBinder_getCallingPid());
-  if (AIBinder_linkToDeath(callback->asBinder().get(), mDeathRecipient.get(),
-                           cookie) != STATUS_OK) {
-    LOGE("Failed to link client binder to death recipient");
+  if (!mHalClientManager->registerCallback(callback, mDeathRecipient, cookie)) {
+    LOGE("Unable to register the callback");
     delete cookie;
+    return fromResult(false);
   }
   return ScopedAStatus::ok();
 }
@@ -516,7 +513,6 @@ void MultiClientContextHubBase::onNanoappMessage(
 void MultiClientContextHubBase::onClientDied(void *cookie) {
   auto *info = static_cast<HalDeathRecipientCookie *>(cookie);
   info->hal->handleClientDeath(info->clientPid);
-  delete info;
 }
 
 void MultiClientContextHubBase::handleClientDeath(pid_t clientPid) {
@@ -533,7 +529,7 @@ void MultiClientContextHubBase::handleClientDeath(pid_t clientPid) {
       mConnection->sendMessage(builder);
     }
   }
-  mHalClientManager->handleClientDeath(clientPid);
+  mHalClientManager->handleClientDeath(clientPid, mDeathRecipient);
 }
 
 void MultiClientContextHubBase::onChreRestarted() {
