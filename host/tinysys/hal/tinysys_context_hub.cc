@@ -27,12 +27,11 @@ TinysysContextHub::TinysysContextHub() {
       });
   mConnection = std::make_unique<TinysysChreConnection>(this);
   mHalClientManager = std::make_unique<HalClientManager>();
-  mPreloadedNanoappLoader =
-      std::make_unique<PreloadedNanoappLoader>(mConnection.get());
+  mPreloadedNanoappLoader = std::make_unique<PreloadedNanoappLoader>(
+      mConnection.get(), kPreloadedNanoappsConfigPath);
   if (mConnection->init()) {
     if (!kPreloadedNanoappsConfigPath.empty()) {
-      mPreloadedNanoappLoader->loadPreloadedNanoapps(
-          kPreloadedNanoappsConfigPath);
+      mPreloadedNanoappLoader->loadPreloadedNanoapps();
     }
   }
 }
