@@ -19,6 +19,8 @@
 #include <chre_host/generated/host_messages_generated.h>
 #include <chre_host/log.h>
 #include "chre/event.h"
+#include "chre_host/config_util.h"
+#include "chre_host/file_stream.h"
 #include "chre_host/fragmented_load_transaction.h"
 #include "chre_host/host_protocol_host.h"
 #include "permissions_util.h"
@@ -260,8 +262,22 @@ ScopedAStatus MultiClientContextHubBase::queryNanoapps(int32_t contextHubId) {
 }
 
 ScopedAStatus MultiClientContextHubBase::getPreloadedNanoappIds(
-    int32_t /* contextHubId */, std::vector<int64_t> * /*result*/) {
-  // To be implemented.
+    int32_t contextHubId, std::vector<int64_t> *out_preloadedNanoappIds) {
+  if (contextHubId != kDefaultHubId) {
+    LOGE("Invalid ID %" PRId32, contextHubId);
+    return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
+  }
+  if (out_preloadedNanoappIds == nullptr) {
+    return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
+  }
+  std::unique_lock<std::mutex> lock(mPreloadedNanoappIdsMutex);
+  if (!mPreloadedNanoappIds.has_value()) {
+    mPreloadedNanoappIds = std::vector<uint64_t>{};
+    mPreloadedNanoappLoader->getPreloadedNanoappIds(*mPreloadedNanoappIds);
+  }
+  for (const auto &nanoappId : mPreloadedNanoappIds.value()) {
+    out_preloadedNanoappIds->emplace_back(static_cast<uint64_t>(nanoappId));
+  }
   return ScopedAStatus::ok();
 }
 
