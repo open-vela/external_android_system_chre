@@ -98,20 +98,12 @@ std::shared_ptr<IContextHubCallback> HalClientManager::getCallback(
 }
 
 bool HalClientManager::registerCallback(
-    const std::shared_ptr<IContextHubCallback> &callback,
-    const ndk::ScopedAIBinder_DeathRecipient &deathRecipient,
-    void *deathRecipientCookie) {
+    const std::shared_ptr<IContextHubCallback> &callback) {
   pid_t pid = AIBinder_getCallingPid();
   const std::lock_guard<std::mutex> lock(mLock);
-  if (AIBinder_linkToDeath(callback->asBinder().get(), deathRecipient.get(),
-                           deathRecipientCookie) != STATUS_OK) {
-    LOGE("Failed to link client binder to death recipient.");
-    return false;
-  }
   if (isKnownPIdLocked(pid)) {
-    LOGW("The pid %d has already registered. Overriding its callback.", pid);
-    return overrideCallbackLocked(pid, callback, deathRecipient,
-                                  deathRecipientCookie);
+    LOGE("The pid %d has already registered its callback.", pid);
+    return false;
   }
   std::string processName = getProcessName(pid);
   std::optional<HalClientId> clientIdOptional =
@@ -127,8 +119,7 @@ bool HalClientManager::registerCallback(
     return false;
   }
   mPIdsToClientIds[pid] = clientId;
-  mClientIdsToClientInfo.emplace(clientId,
-                                 HalClientInfo(callback, deathRecipientCookie));
+  mClientIdsToClientInfo.emplace(clientId, HalClientInfo(callback));
   if (mFrameworkServiceClientId == kDefaultHalClientId &&
       processName == kSystemServerName) {
     mFrameworkServiceClientId = clientId;
@@ -136,27 +127,7 @@ bool HalClientManager::registerCallback(
   return true;
 }
 
-bool HalClientManager::overrideCallbackLocked(
-    pid_t pid, const std::shared_ptr<IContextHubCallback> &callback,
-    const ndk::ScopedAIBinder_DeathRecipient &deathRecipient,
-    void *deathRecipientCookie) {
-  LOGI("Overriding the callback for pid %d", pid);
-  HalClientInfo &clientInfo =
-      mClientIdsToClientInfo.at(mPIdsToClientIds.at(pid));
-  if (AIBinder_unlinkToDeath(clientInfo.callback->asBinder().get(),
-                             deathRecipient.get(),
-                             clientInfo.deathRecipientCookie) != STATUS_OK) {
-    LOGE("Unable to unlink the old callback for pid %d", pid);
-    return false;
-  }
-  clientInfo.callback.reset();
-  clientInfo.callback = callback;
-  clientInfo.deathRecipientCookie = deathRecipientCookie;
-  return true;
-}
-
-void HalClientManager::handleClientDeath(
-    pid_t pid, const ndk::ScopedAIBinder_DeathRecipient &deathRecipient) {
+void HalClientManager::handleClientDeath(pid_t pid) {
   const std::lock_guard<std::mutex> lock(mLock);
   if (!isKnownPIdLocked(pid)) {
     LOGE("Failed to locate the dead pid %d", pid);
@@ -169,12 +140,7 @@ void HalClientManager::handleClientDeath(
     return;
   }
 
-  HalClientInfo &clientInfo = mClientIdsToClientInfo.at(clientId);
-  if (AIBinder_unlinkToDeath(clientInfo.callback->asBinder().get(),
-                             deathRecipient.get(),
-                             clientInfo.deathRecipientCookie) != STATUS_OK) {
-    LOGE("Unable to unlink the old callback for pid %d in death handler", pid);
-  }
+  auto clientInfo = mClientIdsToClientInfo.at(clientId);
   clientInfo.callback.reset();
   if (mPendingLoadTransaction.has_value() &&
       mPendingLoadTransaction->clientId == clientId) {
