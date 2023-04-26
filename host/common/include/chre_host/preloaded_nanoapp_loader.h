@@ -18,7 +18,6 @@
 #define CHRE_HOST_PRELOADED_NANOAPP_LOADER_H_
 
 #include <android/binder_to_string.h>
-#include <chre_host/generated/host_messages_generated.h>
 #include <cstdint>
 #include <mutex>
 #include <optional>
@@ -26,6 +25,8 @@
 #include <utility>
 
 #include "chre_connection.h"
+#include "chre_host/generated/host_messages_generated.h"
+#include "chre_host/napp_header.h"
 #include "fragmented_load_transaction.h"
 #include "hal_client_id.h"
 
@@ -43,8 +44,9 @@ using namespace ::android::hardware::contexthub::common::implementation;
  */
 class PreloadedNanoappLoader {
  public:
-  explicit PreloadedNanoappLoader(ChreConnection *connection)
-      : mConnection(connection){};
+  explicit PreloadedNanoappLoader(ChreConnection *connection,
+                                  std::string configPath)
+      : mConnection(connection), mConfigPath(std::move(configPath)){};
 
   ~PreloadedNanoappLoader() = default;
   /**
@@ -58,14 +60,14 @@ class PreloadedNanoappLoader {
    * ]}
    *
    * The napp_header and so files will both be used.
-   *
-   * @param nanoappsConfigPath the path of the config file
    */
-  void loadPreloadedNanoapps(const std::string &nanoappsConfigPath);
+  void loadPreloadedNanoapps();
 
   /** Callback function to handle the response from CHRE. */
   bool onLoadNanoappResponse(const ::chre::fbs::LoadNanoappResponseT &response,
                              HalClientId clientId);
+
+  void getPreloadedNanoappIds(std::vector<uint64_t> &out_preloadedNanoappIds);
 
   /** Returns true if the loading is ongoing. */
   [[nodiscard]] bool isPreloadOngoing() const {
@@ -137,6 +139,7 @@ class PreloadedNanoappLoader {
   bool mIsPreloadingOngoing = false;
 
   ChreConnection *mConnection;
+  std::string mConfigPath;
 };
 
 }  // namespace android::chre
