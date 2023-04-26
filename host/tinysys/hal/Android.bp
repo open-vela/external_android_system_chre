@@ -31,6 +31,7 @@ cc_binary {
         "service.cc",
         "tinysys_chre_connection.cc",
         "tinysys_context_hub.cc",
+        ":st_hal_lpma_handler",
     ],
     include_dirs: [
         "system/chre/util/include/",
@@ -46,15 +47,18 @@ cc_binary {
         "-DCHRE_MESSAGE_TO_HOST_MAX_SIZE=4000",
         "-DCHRE_IS_HOST_BUILD",
         "-DCHRE_HOST_DEFAULT_FRAGMENT_SIZE=2048",
+        "-DCHRE_ST_LPMA_HANDLER_AIDL",
     ],
     shared_libs: [
+        "android.media.soundtrigger.types-V1-ndk",
+        "android.hardware.contexthub-V2-ndk",
+        "android.hardware.soundtrigger3-V1-ndk",
         "libcutils",
         "liblog",
         "libutils",
         "libbase",
         "libbinder_ndk",
         "libpower",
-        "android.hardware.contexthub-V2-ndk",
         "libjsoncpp",
     ],
     header_libs: [
