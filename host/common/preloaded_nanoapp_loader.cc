@@ -21,7 +21,6 @@
 #include "chre_host/file_stream.h"
 #include "chre_host/fragmented_load_transaction.h"
 #include "chre_host/log.h"
-#include "chre_host/napp_header.h"
 #include "hal_client_id.h"
 
 namespace android::chre {
@@ -29,13 +28,39 @@ namespace android::chre {
 using android::chre::readFileContents;
 using android::hardware::contexthub::common::implementation::kHalId;
 
-void PreloadedNanoappLoader::loadPreloadedNanoapps(
-    const std::string &nanoappsConfigPath) {
+void PreloadedNanoappLoader::getPreloadedNanoappIds(
+    std::vector<uint64_t> &out_preloadedNanoappIds) {
+  std::vector<std::string> nanoappNames;
+  std::string directory;
+  out_preloadedNanoappIds.clear();
+  bool success =
+      getPreloadedNanoappsFromConfigFile(mConfigPath, directory, nanoappNames);
+  if (!success) {
+    LOGE("Failed to parse preloaded nanoapps config file");
+  }
+  for (const std::string &nanoappName : nanoappNames) {
+    std::string headerFile = directory + "/" + nanoappName + ".napp_header";
+    std::vector<uint8_t> headerBuffer;
+    if (!readFileContents(headerFile.c_str(), headerBuffer)) {
+      LOGE("Cannot read header file: %s", headerFile.c_str());
+      continue;
+    }
+    if (headerBuffer.size() != sizeof(NanoAppBinaryHeader)) {
+      LOGE("Header size mismatch");
+      continue;
+    }
+    const auto *appHeader =
+        reinterpret_cast<const NanoAppBinaryHeader *>(headerBuffer.data());
+    out_preloadedNanoappIds.emplace_back(appHeader->appId);
+  }
+}
+
+void PreloadedNanoappLoader::loadPreloadedNanoapps() {
   std::string directory;
   std::vector<std::string> nanoapps;
 
-  bool success = getPreloadedNanoappsFromConfigFile(nanoappsConfigPath,
-                                                    directory, nanoapps);
+  bool success =
+      getPreloadedNanoappsFromConfigFile(mConfigPath, directory, nanoapps);
   if (!success) {
     LOGE("Failed to load any preloaded nanoapp");
   } else {
