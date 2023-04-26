@@ -19,6 +19,8 @@
 #include <chre_host/generated/host_messages_generated.h>
 #include <chre_host/log.h>
 #include "chre/event.h"
+#include "chre_host/config_util.h"
+#include "chre_host/file_stream.h"
 #include "chre_host/fragmented_load_transaction.h"
 #include "chre_host/host_protocol_host.h"
 #include "permissions_util.h"
@@ -260,8 +262,22 @@ ScopedAStatus MultiClientContextHubBase::queryNanoapps(int32_t contextHubId) {
 }
 
 ScopedAStatus MultiClientContextHubBase::getPreloadedNanoappIds(
-    int32_t /* contextHubId */, std::vector<int64_t> * /*result*/) {
-  // To be implemented.
+    int32_t contextHubId, std::vector<int64_t> *out_preloadedNanoappIds) {
+  if (contextHubId != kDefaultHubId) {
+    LOGE("Invalid ID %" PRId32, contextHubId);
+    return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
+  }
+  if (out_preloadedNanoappIds == nullptr) {
+    return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
+  }
+  std::unique_lock<std::mutex> lock(mPreloadedNanoappIdsMutex);
+  if (!mPreloadedNanoappIds.has_value()) {
+    mPreloadedNanoappIds = std::vector<uint64_t>{};
+    mPreloadedNanoappLoader->getPreloadedNanoappIds(*mPreloadedNanoappIds);
+  }
+  for (const auto &nanoappId : mPreloadedNanoappIds.value()) {
+    out_preloadedNanoappIds->emplace_back(static_cast<uint64_t>(nanoappId));
+  }
   return ScopedAStatus::ok();
 }
 
@@ -272,19 +288,16 @@ ScopedAStatus MultiClientContextHubBase::registerCallback(
     return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
   }
   if (callback == nullptr) {
-    LOGE("Callback of context hub HAL must not be null.");
+    LOGE("Callback of context hub HAL must not be null");
     return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
   }
-  if (!mHalClientManager->registerCallback(callback)) {
-    return fromResult(false);
-  }
-  // once the call to AIBinder_linkToDeath() is successful, the cookie is
-  // supposed to be release by the death recipient later.
+  // If everything is successful cookie will be released by the callback of
+  // binder unlinking (callback overridden).
   auto *cookie = new HalDeathRecipientCookie(this, AIBinder_getCallingPid());
-  if (AIBinder_linkToDeath(callback->asBinder().get(), mDeathRecipient.get(),
-                           cookie) != STATUS_OK) {
-    LOGE("Failed to link client binder to death recipient");
+  if (!mHalClientManager->registerCallback(callback, mDeathRecipient, cookie)) {
+    LOGE("Unable to register the callback");
     delete cookie;
+    return fromResult(false);
   }
   return ScopedAStatus::ok();
 }
@@ -520,7 +533,6 @@ void MultiClientContextHubBase::onNanoappMessage(
 void MultiClientContextHubBase::onClientDied(void *cookie) {
   auto *info = static_cast<HalDeathRecipientCookie *>(cookie);
   info->hal->handleClientDeath(info->clientPid);
-  delete info;
 }
 
 void MultiClientContextHubBase::handleClientDeath(pid_t clientPid) {
@@ -537,7 +549,7 @@ void MultiClientContextHubBase::handleClientDeath(pid_t clientPid) {
       mConnection->sendMessage(builder);
     }
   }
-  mHalClientManager->handleClientDeath(clientPid);
+  mHalClientManager->handleClientDeath(clientPid, mDeathRecipient);
 }
 
 void MultiClientContextHubBase::onChreRestarted() {
