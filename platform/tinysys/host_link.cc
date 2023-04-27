@@ -743,4 +743,23 @@ void HostMessageHandlers::handleSelfTestRequest(uint16_t hostClientId) {
 void HostMessageHandlers::handleNanConfigurationUpdate(bool /* enabled */) {
   LOGE("%s NAN unsupported.", __func__);
 }
+
+void sendAudioRequest() {
+  auto msgBuilder = [](ChreFlatBufferBuilder &builder, void * /*cookie*/) {
+    HostProtocolChre::encodeLowPowerMicAccessRequest(builder);
+  };
+  constexpr size_t kInitialSize = 32;
+  buildAndEnqueueMessage(PendingMessageType::LowPowerMicAccessRequest,
+                         kInitialSize, msgBuilder, /* cookie= */ nullptr);
+}
+
+void sendAudioRelease() {
+  auto msgBuilder = [](ChreFlatBufferBuilder &builder, void * /*cookie*/) {
+    HostProtocolChre::encodeLowPowerMicAccessRelease(builder);
+  };
+  constexpr size_t kInitialSize = 32;
+  buildAndEnqueueMessage(PendingMessageType::LowPowerMicAccessRelease,
+                         kInitialSize, msgBuilder, /* cookie= */ nullptr);
+}
+
 }  // namespace chre
