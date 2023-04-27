@@ -22,13 +22,10 @@
 #include "chre_host/fragmented_load_transaction.h"
 #include "chre_host/log.h"
 #include "chre_host/log_message_parser.h"
-#include "chre_host/st_hal_lpma_handler.h"
 
 #include <unistd.h>
 #include <cassert>
 #include <thread>
-
-using ::android::chre::StHalLpmaHandler;
 
 namespace aidl::android::hardware::contexthub {
 
@@ -39,7 +36,7 @@ using namespace ::android::hardware::contexthub::common::implementation;
 class TinysysChreConnection : public ChreConnection {
  public:
   TinysysChreConnection(ChreConnectionCallback *callback)
-      : mCallback(callback), mLpmaHandler(/* allowed= */ true) {
+      : mCallback(callback) {
     mPayload = std::make_unique<uint8_t[]>(kMaxPayloadBytes);
     mChreMessage = std::make_unique<ChreConnectionMessage>();
   };
@@ -65,10 +62,6 @@ class TinysysChreConnection : public ChreConnection {
 
   inline ChreConnectionCallback *getCallback() {
     return mCallback;
-  }
-
-  inline StHalLpmaHandler *getLpmaHandler() {
-    return &mLpmaHandler;
   }
 
  private:
@@ -140,9 +133,6 @@ class TinysysChreConnection : public ChreConnection {
 
   // message to be sent to CHRE
   std::unique_ptr<ChreConnectionMessage> mChreMessage;
-
-  //! The LPMA handler to talk to the ST HAL
-  StHalLpmaHandler mLpmaHandler;
 };
 }  // namespace aidl::android::hardware::contexthub
 
