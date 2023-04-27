@@ -91,9 +91,9 @@ std::shared_ptr<IContextHubCallback> HalClientManager::getCallback(
     HalClientId clientId) {
   const std::lock_guard<std::mutex> lock(mLock);
   if (isAllocatedClientIdLocked(clientId)) {
-    return mClientIdsToClientInfo[clientId].callback;
+    return mClientIdsToClientInfo.at(clientId).callback;
   }
-  LOGE("Failed to find the client id %" PRIu16, clientId);
+  LOGE("Failed to find the callback for the client id %" PRIu16, clientId);
   return nullptr;
 }
 
@@ -233,10 +233,13 @@ HalClientManager::getNextFragmentedLoadRequest(
   }
   if (mPendingLoadTransaction->transaction->isComplete()) {
     mPendingLoadTransaction.reset();
+    LOGI("Pending load transaction is finished with client %" PRIu16, clientId);
     return std::nullopt;
   }
   auto request = mPendingLoadTransaction->transaction->getNextRequest();
   mPendingLoadTransaction->currentFragmentId = request.fragmentId;
+  LOGD("Client %" PRIu16 " has fragment #%zu ready", clientId,
+       request.fragmentId);
   return request;
 }
 
