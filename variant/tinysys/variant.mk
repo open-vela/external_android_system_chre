@@ -18,16 +18,9 @@ COMMON_CFLAGS += -DCHRE_VERSION_STRING="\"chre=tinysys@$(COMMIT_HASH)\""
 
 # Platform-specific Settings ###################################################
 
-TINYSYS_CFLAGS += -D__riscv
 TINYSYS_CFLAGS += -DP_MODE_0
-TINYSYS_CFLAGS += -DMRV55
-TINYSYS_CFLAGS += -D_LIBCPP_HAS_NO_LONG_LONG
 TINYSYS_CFLAGS += -DCFG_AMP_CORE1_EN
 TINYSYS_CFLAGS += -DCFG_DMA_SUPPORT
-
-TINYSYS_CFLAGS += --target=riscv32-unknown-elf
-TINYSYS_CFLAGS += -march=rv32imafcv
-TINYSYS_CFLAGS += -mcpu=MRV55E03
 
 TINYSYS_CFLAGS += -DCHRE_FREERTOS_TASK_PRIORITY=2
 

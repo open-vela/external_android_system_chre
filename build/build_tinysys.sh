@@ -24,6 +24,6 @@ pushd $ANDROID_BUILD_TOP/system/chre > /dev/null
 
 CHRE_VARIANT_MK_INCLUDES=variant/tinysys/variant.mk \
  IS_ARCHIVE_ONLY_BUILD=true \
- make aosp_riscv_tinysys
+ make aosp_riscv55e03_tinysys
 
 popd > /dev/null
