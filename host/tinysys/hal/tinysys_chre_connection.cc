@@ -83,6 +83,7 @@ bool TinysysChreConnection::init() {
   // launch the listener tasks
   mMessageListener = std::thread(messageListenerTask, this);
   mStateListener = std::thread(chreStateMonitorTask, this);
+  mLpmaHandler.init();
   return true;
 }
 
@@ -174,11 +175,11 @@ void TinysysChreConnection::handleMessageFromChre(
       break;
     }
     case fbs::ChreMessage::LowPowerMicAccessRequest: {
-      // to be implemented
+      chreConnection->getLpmaHandler()->enable(/* enabled= */ true);
       break;
     }
     case fbs::ChreMessage::LowPowerMicAccessRelease: {
-      // to be implemented
+      chreConnection->getLpmaHandler()->enable(/* enabled= */ false);
       break;
     }
     case fbs::ChreMessage::MetricLog:

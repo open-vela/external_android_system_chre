@@ -468,6 +468,9 @@ void MultiClientContextHubBase::onNanoappListResponse(
 
 void MultiClientContextHubBase::onLoadNanoappResponse(
     const fbs::LoadNanoappResponseT &response, HalClientId clientId) {
+  LOGD("Received nanoapp load response for client %" PRIu16
+       " fragment %" PRIu32,
+       clientId, response.fragment_id);
   if (mPreloadedNanoappLoader->isPreloadOngoing()) {
     mPreloadedNanoappLoader->onLoadNanoappResponse(response, clientId);
     return;
