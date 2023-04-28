@@ -37,6 +37,7 @@ NANOPB_INCLUDES = $(NANOAPP_PATH)/../proto
 COMMON_SRCS += $(NANOAPP_PATH)/src/chre_settings_test.cc
 COMMON_SRCS += $(NANOAPP_PATH)/src/chre_settings_test_manager.cc
 COMMON_SRCS += $(TEST_SHARED_PATH)/src/send_message.cc
+COMMON_SRCS += $(CHRE_PREFIX)/util/nanoapp/ble.cc
 COMMON_SRCS += $(CHRE_PREFIX)/util/nanoapp/callbacks.cc
 
 # Compiler Flags ###############################################################

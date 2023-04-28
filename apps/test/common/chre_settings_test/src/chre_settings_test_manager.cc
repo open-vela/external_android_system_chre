@@ -20,6 +20,7 @@
 #include <pb_encode.h>
 
 #include "chre/util/macros.h"
+#include "chre/util/nanoapp/ble.h"
 #include "chre/util/nanoapp/callbacks.h"
 #include "chre/util/nanoapp/log.h"
 #include "chre/util/time.h"
@@ -27,6 +28,9 @@
 #include "send_message.h"
 
 #define LOG_TAG "[ChreSettingsTest]"
+
+using chre::createBleScanFilterForKnownBeacons;
+using chre::ble_constants::kNumScanFilters;
 
 namespace chre {
 
@@ -353,9 +357,11 @@ bool Manager::startTestForFeature(Feature feature) {
     }
 
     case Feature::BLE_SCANNING: {
-      success =
-          chreBleStartScanAsync(CHRE_BLE_SCAN_MODE_FOREGROUND /* mode */,
-                                0 /* reportDelayMs */, nullptr /* filter */);
+      struct chreBleScanFilter filter;
+      chreBleGenericFilter uuidFilters[kNumScanFilters];
+      createBleScanFilterForKnownBeacons(filter, uuidFilters, kNumScanFilters);
+      success = chreBleStartScanAsync(CHRE_BLE_SCAN_MODE_FOREGROUND /* mode */,
+                                      0 /* reportDelayMs */, &filter);
       break;
     }
 
