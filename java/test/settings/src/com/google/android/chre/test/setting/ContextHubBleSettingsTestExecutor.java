@@ -16,8 +16,11 @@
 
 package com.google.android.chre.test.setting;
 
+import static android.Manifest.permission.BLUETOOTH_CONNECT;
+
 import android.app.Instrumentation;
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -52,22 +55,22 @@ public class ContextHubBleSettingsTestExecutor {
     private boolean mInitialBluetoothScanningEnabled;
 
     public static class BluetoothUpdateListener {
-        public BluetoothUpdateListener(boolean enable) {
-            mEnable = enable;
+        public BluetoothUpdateListener(int state) {
+            mExpectedState = state;
         }
 
-        // True if Bluetooth is expected to become available
-        private final boolean mEnable;
+        // Expected state of the BT Adapter
+        private final int mExpectedState;
 
         public CountDownLatch mBluetoothLatch = new CountDownLatch(1);
 
         public BroadcastReceiver mBluetoothUpdateReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                if (BluetoothAdapter.ACTION_STATE_CHANGED.equals(intent.getAction())) {
-                    int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1);
-                    if ((mEnable && state == BluetoothAdapter.STATE_ON)
-                            || (!mEnable && state == BluetoothAdapter.STATE_OFF)) {
+                if (BluetoothAdapter.ACTION_STATE_CHANGED.equals(intent.getAction())
+                        || BluetoothAdapter.ACTION_BLE_STATE_CHANGED.equals(
+                                intent.getAction())) {
+                    if (mExpectedState == intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1)) {
                         mBluetoothLatch.countDown();
                     }
                 }
@@ -93,11 +96,9 @@ public class ContextHubBleSettingsTestExecutor {
 
     public void runBleScanningTest() {
         runBleScanningTest(false /* enableBluetooth */, false /* enableBluetoothScanning */);
+        runBleScanningTest(true /* enableBluetooth */, false /* enableBluetoothScanning */);
+        runBleScanningTest(false /* enableBluetooth */, true /* enableBluetoothScanning */);
         runBleScanningTest(true /* enableBluetooth */, true /* enableBluetoothScanning */);
-
-        // TODO(b/258203997): Enable these tests at a later date
-        // runBleScanningTest(true /* enableBluetooth */, false /* enableBluetoothScanning */);
-        // runBleScanningTest(false /* enableBluetooth */, true /* enableBluetoothScanning */);
     }
 
     /**
@@ -115,20 +116,34 @@ public class ContextHubBleSettingsTestExecutor {
      * @param enableBluetoothScanning   if true, enable BLE scanning; false, otherwise
      */
     private void setBluetoothSettings(boolean enable, boolean enableBluetoothScanning) {
-        BluetoothUpdateListener bluetoothUpdateListener = new BluetoothUpdateListener(enable);
-        mContext.registerReceiver(
-                bluetoothUpdateListener.mBluetoothUpdateReceiver,
-                new IntentFilter(BluetoothAdapter.EXTRA_STATE),
-                Context.RECEIVER_EXPORTED);
+        int state = BluetoothAdapter.STATE_OFF;
+        if (enable) {
+            state = BluetoothAdapter.STATE_ON;
+        } else if (enableBluetoothScanning) {
+            state = BluetoothAdapter.STATE_BLE_ON;
+        }
+
+        BluetoothUpdateListener bluetoothUpdateListener = new BluetoothUpdateListener(state);
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
+        filter.addAction(BluetoothAdapter.ACTION_BLE_STATE_CHANGED);
+        mContext.registerReceiver(bluetoothUpdateListener.mBluetoothUpdateReceiver, filter);
 
         mSettingsUtil.setBluetooth(enable);
         mSettingsUtil.setBluetoothScanningSettings(enableBluetoothScanning);
-
+        if (!enable && enableBluetoothScanning) {
+            BluetoothManager bluetoothManager = mContext.getSystemService(BluetoothManager.class);
+            Assert.assertTrue(bluetoothManager != null);
+            BluetoothAdapter bluetoothAdapter = bluetoothManager.getAdapter();
+            Assert.assertTrue(bluetoothAdapter != null);
+            mInstrumentation.getUiAutomation().adoptShellPermissionIdentity(BLUETOOTH_CONNECT);
+            Assert.assertTrue(bluetoothAdapter.enableBLE());
+        }
         try {
             bluetoothUpdateListener.mBluetoothLatch.await(30, TimeUnit.SECONDS);
 
             // Wait a few seconds to ensure setting is propagated to CHRE path
-            Thread.sleep(10000);
+            Thread.sleep(2000);
         } catch (InterruptedException e) {
             Assert.fail(e.getMessage());
         }
@@ -139,8 +154,8 @@ public class ContextHubBleSettingsTestExecutor {
     /**
      * Helper function to run the test
      *
-     * @param enableBluetooth               if bluetooth is enabled
-     * @param enableBluetoothScanning       if bluetooth scanning is always enabled
+     * @param enableBluetooth         if bluetooth is enabled
+     * @param enableBluetoothScanning if bluetooth scanning is always enabled
      */
     private void runBleScanningTest(boolean enableBluetooth,
             boolean enableBluetoothScanning) {
