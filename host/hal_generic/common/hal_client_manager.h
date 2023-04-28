@@ -327,8 +327,7 @@ class HalClientManager {
    */
   inline bool isAllocatedClientIdLocked(HalClientId clientId) {
     return mClientIdsToClientInfo.find(clientId) !=
-               mClientIdsToClientInfo.end() ||
-           clientId == kDefaultHalClientId || clientId == kHalId;
+           mClientIdsToClientInfo.end();
   }
 
   /**
