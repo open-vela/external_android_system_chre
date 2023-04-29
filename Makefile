@@ -112,7 +112,7 @@ ifneq ($(CHRE_TARGET_EXTENSION),)
 include $(CHRE_TARGET_EXTENSION)
 endif
 include $(CHRE_PREFIX)/build/variant/aosp_cm4_exynos-embos.mk
-include $(CHRE_PREFIX)/build/variant/aosp_riscv_tinysys.mk
+include $(CHRE_PREFIX)/build/variant/aosp_riscv55e03_tinysys.mk
 include $(CHRE_PREFIX)/build/variant/google_arm64_android.mk
 include $(CHRE_PREFIX)/build/variant/google_hexagonv62_slpi.mk
 include $(CHRE_PREFIX)/build/variant/google_hexagonv62_slpi-uimg.mk
