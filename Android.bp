@@ -149,6 +149,11 @@ cc_binary {
     static_libs: ["chre_client"],
 }
 
+filegroup {
+    name: "st_hal_lpma_handler",
+    srcs: ["host/common/st_hal_lpma_handler.cc"],
+}
+
 cc_binary {
     name: "chre_aidl_hal_client",
     vendor: true,
