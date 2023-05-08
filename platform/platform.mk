@@ -484,6 +484,7 @@ TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/system_time.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/tracing.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/version.cc
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/nanoapp/nanoapp_dso_util.cc
+TINYSYS_SRCS += $(MBEDTLS_SRCS)
 
 ifeq ($(CHRE_BLE_SUPPORT_ENABLED), true)
 TINYSYS_SRCS += $(CHRE_PREFIX)/platform/shared/platform_ble.cc
@@ -513,6 +514,7 @@ TINYSYS_CFLAGS += -I$(CHRE_PREFIX)/platform/freertos/include
 TINYSYS_CFLAGS += -I$(CHRE_PREFIX)/platform/shared/include/chre/platform/shared/libc
 
 TINYSYS_CFLAGS += $(FLATBUFFERS_CFLAGS)
+TINYSYS_CFLAGS += $(MBEDTLS_CFLAGS)
 
 TINYSYS_CFLAGS += -DCFG_DRAM_HEAP_SUPPORT
 TINYSYS_CFLAGS += -DCHRE_LOADER_ARCH=EM_RISCV
