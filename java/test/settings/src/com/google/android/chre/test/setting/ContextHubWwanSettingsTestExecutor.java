@@ -25,7 +25,7 @@ import android.hardware.location.NanoAppBinary;
 import androidx.test.InstrumentationRegistry;
 
 import com.google.android.chre.nanoapp.proto.ChreSettingsTest;
-import com.google.android.utils.chre.ChreTestUtil;
+import com.google.android.utils.chre.SettingsUtil;
 
 import org.junit.Assert;
 
@@ -42,6 +42,10 @@ public class ContextHubWwanSettingsTestExecutor {
 
     private final Instrumentation mInstrumentation = InstrumentationRegistry.getInstrumentation();
 
+    private final Context mContext = mInstrumentation.getTargetContext();
+
+    private final SettingsUtil mSettingsUtil;
+
     private class AirplaneModeListener {
         protected CountDownLatch mAirplaneModeLatch = new CountDownLatch(1);
 
@@ -57,13 +61,14 @@ public class ContextHubWwanSettingsTestExecutor {
 
     public ContextHubWwanSettingsTestExecutor(NanoAppBinary binary) {
         mExecutor = new ContextHubSettingsTestExecutor(binary);
+        mSettingsUtil = new SettingsUtil(mContext);
     }
 
     /**
      * Should be called in a @Before method.
      */
     public void setUp() {
-        mInitialAirplaneMode = isAirplaneModeOn();
+        mInitialAirplaneMode = mSettingsUtil.isAirplaneModeOn();
         mExecutor.init();
     }
 
@@ -77,21 +82,7 @@ public class ContextHubWwanSettingsTestExecutor {
      */
     public void tearDown() {
         mExecutor.deinit();
-        setAirplaneMode(mInitialAirplaneMode);
-    }
-
-    /**
-     * Sets the airplane mode on the device.
-     * @param enable True to enable airplane mode, false to disable it.
-     */
-    private void setAirplaneMode(boolean enable) {
-        if (enable) {
-            ChreTestUtil.executeShellCommand(
-                    mInstrumentation, "cmd connectivity airplane-mode enable");
-        } else {
-            ChreTestUtil.executeShellCommand(
-                    mInstrumentation, "cmd connectivity airplane-mode disable");
-        }
+        mSettingsUtil.setAirplaneMode(mInitialAirplaneMode);
     }
 
     /**
@@ -106,9 +97,9 @@ public class ContextHubWwanSettingsTestExecutor {
                 new IntentFilter(Intent.ACTION_AIRPLANE_MODE_CHANGED));
 
         boolean airplaneModeExpected = !enableFeature;
-        setAirplaneMode(airplaneModeExpected);
+        mSettingsUtil.setAirplaneMode(airplaneModeExpected);
 
-        if (isAirplaneModeOn() != airplaneModeExpected) {
+        if (mSettingsUtil.isAirplaneModeOn() != airplaneModeExpected) {
             try {
                 listener.mAirplaneModeLatch.await(10, TimeUnit.SECONDS);
             } catch (InterruptedException e) {
@@ -116,7 +107,7 @@ public class ContextHubWwanSettingsTestExecutor {
             }
         }
         context.unregisterReceiver(listener.mAirplaneModeReceiver);
-        Assert.assertTrue(isAirplaneModeOn() == airplaneModeExpected);
+        Assert.assertTrue(mSettingsUtil.isAirplaneModeOn() == airplaneModeExpected);
 
         try {
             Thread.sleep(10000 /*millis*/);  // wait for setting to propagate
@@ -129,14 +120,5 @@ public class ContextHubWwanSettingsTestExecutor {
                 : ChreSettingsTest.TestCommand.State.DISABLED;
         mExecutor.startTestAssertSuccess(
                 ChreSettingsTest.TestCommand.Feature.WWAN_CELL_INFO, state);
-    }
-
-    /**
-     * @return true if the airplane mode is currently enabled.
-     */
-    private boolean isAirplaneModeOn() {
-        String out = ChreTestUtil.executeShellCommand(
-                mInstrumentation, "settings get global airplane_mode_on");
-        return ChreTestUtil.convertToIntegerOrFail(out) > 0;
     }
 }
