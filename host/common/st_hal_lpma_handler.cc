@@ -196,7 +196,7 @@ bool StHalLpmaHandler::load() {
 
   aidl::android::media::soundtrigger::SoundModel soundModel;
   soundModel.type = aidl::android::media::soundtrigger::SoundModelType::GENERIC;
-  soundModel.vendorUuid = "57caddb1-acbd-4dce-8cb0-2e95a2313aee";
+  soundModel.vendorUuid = "57caddb1-acdb-4dce-8cb0-2e95a2313aee";
   soundModel.dataSize = 0;
   auto status =
       mStHalService->loadSoundModel(soundModel, nullptr, &mLpmaHandle);
