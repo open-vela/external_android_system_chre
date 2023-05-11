@@ -26,11 +26,8 @@ extern "C" {
 
 namespace chre {
 
-void forceDramAccess() {
-#ifdef CFG_DMA_SUPPORT
-  dvfs_enable_DRAM_resource(DMA_MEM_ID);
-#endif
-}
+// no-op since the dma access is controlled by the kernel automatically
+void forceDramAccess() {}
 
 void nanoappBinaryFree(void *pointer) {
   aligned_free(pointer);
