@@ -28,18 +28,6 @@ using aidl::android::hardware::contexthub::HostEndpointInfo;
 using aidl::android::hardware::contexthub::IContextHubCallback;
 
 namespace {
-constexpr char kSystemServerName[] = "system_server";
-std::string getProcessName(pid_t /*pid*/) {
-  // TODO(b/274597758): this is a temporary solution that should be updated
-  //   after b/274597758 is resolved.
-  static bool sIsFirstClient = true;
-  if (sIsFirstClient) {
-    sIsFirstClient = false;
-    return kSystemServerName;
-  }
-  return "the_vendor_client";
-}
-
 bool getClientMappingsFromFile(const char *filePath, Json::Value &mappings) {
   std::fstream file(filePath);
   Json::CharReaderBuilder builder;
@@ -167,6 +155,12 @@ void HalClientManager::handleClientDeath(
   if (!isAllocatedClientIdLocked(clientId)) {
     LOGE("Failed to locate the dead client id %" PRIu16, clientId);
     return;
+  }
+
+  for (const auto &[procName, id] : mProcessNamesToClientIds) {
+    if (id == clientId && procName == kSystemServerName) {
+      mIsFirstClient = false;
+    }
   }
 
   HalClientInfo &clientInfo = mClientIdsToClientInfo.at(clientId);

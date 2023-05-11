@@ -223,6 +223,7 @@ class HalClientManager {
   void handleChreRestart();
 
  protected:
+  static constexpr char kSystemServerName[] = "system_server";
   static constexpr char kClientMappingFilePath[] =
       "/data/vendor/chre/chre_hal_clients.json";
   static constexpr char kJsonClientId[] = "ClientId";
@@ -370,6 +371,18 @@ class HalClientManager {
     }
     return mFrameworkServiceClientId;
   }
+
+  std::string getProcessName(pid_t /*pid*/) {
+    // TODO(b/274597758): this is a temporary solution that should be updated
+    //   after b/274597758 is resolved.
+    if (mIsFirstClient) {
+      mIsFirstClient = false;
+      return kSystemServerName;
+    }
+    return "the_vendor_client";
+  }
+
+  bool mIsFirstClient = true;
 
   // next available client id
   HalClientId mNextClientId = kDefaultHalClientId + 1;
