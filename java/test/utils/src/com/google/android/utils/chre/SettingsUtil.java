@@ -53,6 +53,19 @@ public class SettingsUtil {
         };
     }
 
+    private class AirplaneModeListener {
+        protected CountDownLatch mAirplaneModeLatch = new CountDownLatch(1);
+
+        protected BroadcastReceiver mAirplaneModeReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (Intent.ACTION_AIRPLANE_MODE_CHANGED.equals(intent.getAction())) {
+                    mAirplaneModeLatch.countDown();
+                }
+            }
+        };
+    }
+
     public SettingsUtil(Context context) {
         mContext = context;
         mLocationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
@@ -182,10 +195,26 @@ public class SettingsUtil {
      * @param enable True to enable airplane mode, false to disable it.
      */
     public void setAirplaneMode(boolean enable) {
-        String value = enable ? "enable" : "disable";
-        ChreTestUtil.executeShellCommand(
-                mInstrumentation, "cmd connectivity airplane-mode " + value);
-        Assert.assertTrue(isAirplaneModeOn() == enable);
+        if (isAirplaneModeOn() != enable) {
+            AirplaneModeListener listener = new AirplaneModeListener();
+            mContext.registerReceiver(
+                    listener.mAirplaneModeReceiver,
+                    new IntentFilter(Intent.ACTION_AIRPLANE_MODE_CHANGED));
+
+            String value = enable ? "enable" : "disable";
+            ChreTestUtil.executeShellCommand(
+                    mInstrumentation, "cmd connectivity airplane-mode " + value);
+
+            try {
+                listener.mAirplaneModeLatch.await(10, TimeUnit.SECONDS);
+                // Wait 1 additional second to make sure setting gets propagated to CHRE
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                Assert.fail(e.getMessage());
+            }
+            Assert.assertTrue(isAirplaneModeOn() == enable);
+            mContext.unregisterReceiver(listener.mAirplaneModeReceiver);
+        }
     }
 
     /**
