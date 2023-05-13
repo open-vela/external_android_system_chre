@@ -16,21 +16,13 @@
 package com.google.android.chre.test.setting;
 
 import android.app.Instrumentation;
-import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
 import android.hardware.location.NanoAppBinary;
 
 import androidx.test.InstrumentationRegistry;
 
 import com.google.android.chre.nanoapp.proto.ChreSettingsTest;
 import com.google.android.utils.chre.SettingsUtil;
-
-import org.junit.Assert;
-
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 /**
  * A test to check for behavior when WWAN settings are changed.
@@ -45,19 +37,6 @@ public class ContextHubWwanSettingsTestExecutor {
     private final Context mContext = mInstrumentation.getTargetContext();
 
     private final SettingsUtil mSettingsUtil;
-
-    private class AirplaneModeListener {
-        protected CountDownLatch mAirplaneModeLatch = new CountDownLatch(1);
-
-        protected BroadcastReceiver mAirplaneModeReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                if (Intent.ACTION_AIRPLANE_MODE_CHANGED.equals(intent.getAction())) {
-                    mAirplaneModeLatch.countDown();
-                }
-            }
-        };
-    }
 
     public ContextHubWwanSettingsTestExecutor(NanoAppBinary binary) {
         mExecutor = new ContextHubSettingsTestExecutor(binary);
@@ -90,30 +69,8 @@ public class ContextHubWwanSettingsTestExecutor {
      * @param enableFeature True for enable.
      */
     private void runTest(boolean enableFeature) {
-        Context context = InstrumentationRegistry.getTargetContext();
-        AirplaneModeListener listener = new AirplaneModeListener();
-        context.registerReceiver(
-                listener.mAirplaneModeReceiver,
-                new IntentFilter(Intent.ACTION_AIRPLANE_MODE_CHANGED));
-
         boolean airplaneModeExpected = !enableFeature;
         mSettingsUtil.setAirplaneMode(airplaneModeExpected);
-
-        if (mSettingsUtil.isAirplaneModeOn() != airplaneModeExpected) {
-            try {
-                listener.mAirplaneModeLatch.await(10, TimeUnit.SECONDS);
-            } catch (InterruptedException e) {
-                Assert.fail(e.getMessage());
-            }
-        }
-        context.unregisterReceiver(listener.mAirplaneModeReceiver);
-        Assert.assertTrue(mSettingsUtil.isAirplaneModeOn() == airplaneModeExpected);
-
-        try {
-            Thread.sleep(10000 /*millis*/);  // wait for setting to propagate
-        } catch (InterruptedException e) {
-            Assert.fail(e.getMessage());
-        }
 
         ChreSettingsTest.TestCommand.State state = enableFeature
                 ? ChreSettingsTest.TestCommand.State.ENABLED
