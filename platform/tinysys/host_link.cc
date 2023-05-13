@@ -198,8 +198,8 @@ int generateHubInfoResponse(uint16_t hostClientId) {
   constexpr char kHubName[] = "CHRE on Tinysys";
   constexpr char kVendor[] = "Google";
   constexpr char kToolchain[] =
-      "Hexagon Tools 8.x (clang " STRINGIFY(__clang_major__) "." STRINGIFY(
-          __clang_minor__) "." STRINGIFY(__clang_patchlevel__) ")";
+      "Clang " STRINGIFY(__clang_major__) "." STRINGIFY(
+          __clang_minor__) "." STRINGIFY(__clang_patchlevel__);
   constexpr uint32_t kLegacyPlatformVersion = 0;
   constexpr uint32_t kLegacyToolchainVersion =
       ((__clang_major__ & 0xFF) << 24) | ((__clang_minor__ & 0xFF) << 16) |
