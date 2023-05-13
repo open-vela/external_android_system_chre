@@ -139,8 +139,7 @@ ScopedAStatus MultiClientContextHubBase::loadNanoapp(
     return fromResult(false);
   }
   auto clientId = mHalClientManager->getClientId();
-  auto request = mHalClientManager->getNextFragmentedLoadRequest(
-      clientId, transactionId, std::nullopt);
+  auto request = mHalClientManager->getNextFragmentedLoadRequest();
 
   if (request.has_value() &&
       sendFragmentedLoadRequest(clientId, request.value())) {
@@ -168,19 +167,19 @@ ScopedAStatus MultiClientContextHubBase::unloadNanoapp(int32_t contextHubId,
   if (!isValidContextHubId(contextHubId)) {
     return ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
   }
-  if (!mHalClientManager->registerPendingUnloadTransaction()) {
+  if (!mHalClientManager->registerPendingUnloadTransaction(transactionId)) {
     return fromResult(false);
   }
-
+  HalClientId clientId = mHalClientManager->getClientId();
   flatbuffers::FlatBufferBuilder builder(64);
   HostProtocolHost::encodeUnloadNanoappRequest(
       builder, transactionId, appId, /* allowSystemNanoappUnload= */ false);
   HostProtocolHost::mutateHostClientId(builder.GetBufferPointer(),
-                                       builder.GetSize(),
-                                       mHalClientManager->getClientId());
+                                       builder.GetSize(), clientId);
+
   bool result = mConnection->sendMessage(builder);
   if (!result) {
-    mHalClientManager->resetPendingUnloadTransaction();
+    mHalClientManager->resetPendingUnloadTransaction(clientId, transactionId);
   }
   return fromResult(result);
 }
@@ -399,11 +398,11 @@ void MultiClientContextHubBase::handleMessageFromChre(
       break;
     }
     case fbs::ChreMessage::LoadNanoappResponse: {
-      onLoadNanoappResponse(*message.AsLoadNanoappResponse(), clientId);
+      onNanoappLoadResponse(*message.AsLoadNanoappResponse(), clientId);
       break;
     }
     case fbs::ChreMessage::UnloadNanoappResponse: {
-      onUnloadNanoappResponse(*message.AsUnloadNanoappResponse(), clientId);
+      onNanoappUnloadResponse(*message.AsUnloadNanoappResponse(), clientId);
       break;
     }
     case fbs::ChreMessage::NanoappMessage: {
@@ -466,34 +465,46 @@ void MultiClientContextHubBase::onNanoappListResponse(
   callback->handleNanoappInfo(appInfoList);
 }
 
-void MultiClientContextHubBase::onLoadNanoappResponse(
+void MultiClientContextHubBase::onNanoappLoadResponse(
     const fbs::LoadNanoappResponseT &response, HalClientId clientId) {
   LOGD("Received nanoapp load response for client %" PRIu16
-       " fragment %" PRIu32,
-       clientId, response.fragment_id);
+       " transaction %" PRIu32 " fragment %" PRIu32,
+       clientId, response.transaction_id, response.fragment_id);
   if (mPreloadedNanoappLoader->isPreloadOngoing()) {
     mPreloadedNanoappLoader->onLoadNanoappResponse(response, clientId);
     return;
   }
-  auto nextFragmentedRequest = mHalClientManager->getNextFragmentedLoadRequest(
-      clientId, response.transaction_id, response.fragment_id);
-  // continue to send the next fragment if there is any.
-  if (response.success && nextFragmentedRequest.has_value()) {
-    LOGD("Sending next FragmentedLoadRequest for client %" PRIu16
-         ": (transaction: %" PRIu32 ", fragment %zu)",
-         clientId, nextFragmentedRequest->transactionId,
-         nextFragmentedRequest->fragmentId);
-    sendFragmentedLoadRequest(clientId, nextFragmentedRequest.value());
+  if (!mHalClientManager->isPendingLoadTransactionExpected(
+          clientId, response.transaction_id, response.fragment_id)) {
+    LOGW("Received a response for client %" PRIu16 " transaction %" PRIu32
+         " fragment %" PRIu32
+         " that doesn't match the existing transaction. Skipped.",
+         clientId, response.transaction_id, response.fragment_id);
     return;
   }
-  // Clears out the pending load transaction if the previous fragment fails to
-  // load.
-  if (!response.success) {
-    LOGE("Sending FragmentedLoadRequest for client %" PRIu16
-         " failed: (transaction: %" PRIu32 ", fragment %" PRIu32 ")",
+  if (response.success) {
+    auto nextFragmentedRequest =
+        mHalClientManager->getNextFragmentedLoadRequest();
+    if (nextFragmentedRequest.has_value()) {
+      // nextFragmentedRequest will only have a value if the pending transaction
+      // matches the response and there are more fragments to send. Hold off on
+      // calling the callback in this case.
+      LOGD("Sending next FragmentedLoadRequest for client %" PRIu16
+           ": (transaction: %" PRIu32 ", fragment %zu)",
+           clientId, nextFragmentedRequest->transactionId,
+           nextFragmentedRequest->fragmentId);
+      sendFragmentedLoadRequest(clientId, nextFragmentedRequest.value());
+      return;
+    }
+  } else {
+    LOGE("Loading nanoapp fragment for client %" PRIu16 " transaction %" PRIu32
+         " fragment %" PRIu32 " failed",
          clientId, response.transaction_id, response.fragment_id);
     mHalClientManager->resetPendingLoadTransaction();
   }
+  // At this moment the current pending transaction should either have no more
+  // fragment to send or the response indicates its last nanoapp fragment fails
+  // to get loaded.
   if (auto callback = mHalClientManager->getCallback(clientId);
       callback != nullptr) {
     callback->handleTransactionResult(response.transaction_id,
@@ -501,15 +512,18 @@ void MultiClientContextHubBase::onLoadNanoappResponse(
   }
 }
 
-void MultiClientContextHubBase::onUnloadNanoappResponse(
+void MultiClientContextHubBase::onNanoappUnloadResponse(
     const fbs::UnloadNanoappResponseT &response, HalClientId clientId) {
-  mHalClientManager->finishPendingUnloadTransaction(clientId);
-  if (auto callback = mHalClientManager->getCallback(clientId);
-      callback != nullptr) {
-    callback->handleTransactionResult(response.transaction_id,
-                                      /* in_success= */ response.success);
+  if (mHalClientManager->resetPendingUnloadTransaction(
+          clientId, response.transaction_id)) {
+    if (auto callback = mHalClientManager->getCallback(clientId);
+        callback != nullptr) {
+      callback->handleTransactionResult(response.transaction_id,
+                                        /* in_success= */ response.success);
+    }
   }
 }
+
 void MultiClientContextHubBase::onNanoappMessage(
     const ::chre::fbs::NanoappMessageT &message) {
   ContextHubMessage outMessage;

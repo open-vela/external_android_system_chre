@@ -28,18 +28,6 @@ using aidl::android::hardware::contexthub::HostEndpointInfo;
 using aidl::android::hardware::contexthub::IContextHubCallback;
 
 namespace {
-constexpr char kSystemServerName[] = "system_server";
-std::string getProcessName(pid_t /*pid*/) {
-  // TODO(b/274597758): this is a temporary solution that should be updated
-  //   after b/274597758 is resolved.
-  static bool sIsFirstClient = true;
-  if (sIsFirstClient) {
-    sIsFirstClient = false;
-    return kSystemServerName;
-  }
-  return "the_vendor_client";
-}
-
 bool getClientMappingsFromFile(const char *filePath, Json::Value &mappings) {
   std::fstream file(filePath);
   Json::CharReaderBuilder builder;
@@ -169,6 +157,12 @@ void HalClientManager::handleClientDeath(
     return;
   }
 
+  for (const auto &[procName, id] : mProcessNamesToClientIds) {
+    if (id == clientId && procName == kSystemServerName) {
+      mIsFirstClient = false;
+    }
+  }
+
   HalClientInfo &clientInfo = mClientIdsToClientInfo.at(clientId);
   if (AIBinder_unlinkToDeath(clientInfo.callback->asBinder().get(),
                              deathRecipient.get(),
@@ -210,52 +204,30 @@ bool HalClientManager::registerPendingLoadTransaction(
   }
   mPendingLoadTransaction.emplace(
       clientId, /* registeredTimeMs= */ android::elapsedRealtime(),
-      /* currentFragmentId= */ std::nullopt, std::move(transaction));
+      /* currentFragmentId= */ 0, std::move(transaction));
   return true;
 }
 
 std::optional<chre::FragmentedLoadRequest>
-HalClientManager::getNextFragmentedLoadRequest(
-    HalClientId clientId, uint32_t transactionId,
-    std::optional<size_t> currentFragmentId) {
+HalClientManager::getNextFragmentedLoadRequest() {
   const std::lock_guard<std::mutex> lock(mLock);
-  if (!isAllocatedClientIdLocked(clientId)) {
-    LOGE("Unknown client id %" PRIu16
-         " while getting the next fragmented request.",
-         clientId);
-    return std::nullopt;
-  }
-  if (!isPendingLoadTransactionExpectedLocked(clientId, transactionId,
-                                              currentFragmentId)) {
-    LOGE("The transaction %" PRIu32 " for client %" PRIu16 " is unexpected",
-         transactionId, clientId);
-    return std::nullopt;
-  }
   if (mPendingLoadTransaction->transaction->isComplete()) {
+    LOGI("Pending load transaction %" PRIu32
+         " is finished with client %" PRIu16,
+         mPendingLoadTransaction->transaction->getTransactionId(),
+         mPendingLoadTransaction->clientId);
     mPendingLoadTransaction.reset();
-    LOGI("Pending load transaction is finished with client %" PRIu16, clientId);
     return std::nullopt;
   }
   auto request = mPendingLoadTransaction->transaction->getNextRequest();
   mPendingLoadTransaction->currentFragmentId = request.fragmentId;
-  LOGD("Client %" PRIu16 " has fragment #%zu ready", clientId,
-       request.fragmentId);
+  LOGD("Client %" PRIu16 " has fragment #%zu ready",
+       mPendingLoadTransaction->clientId, request.fragmentId);
   return request;
 }
 
-bool HalClientManager::isPendingLoadTransactionExpectedLocked(
-    HalClientId clientId, uint32_t transactionId,
-    std::optional<size_t> currentFragmentId) {
-  if (!mPendingLoadTransaction.has_value()) {
-    return false;
-  }
-  return mPendingLoadTransaction->clientId == clientId &&
-         mPendingLoadTransaction->currentFragmentId == currentFragmentId &&
-         mPendingLoadTransaction->transaction->getTransactionId() ==
-             transactionId;
-}
-
-bool HalClientManager::registerPendingUnloadTransaction() {
+bool HalClientManager::registerPendingUnloadTransaction(
+    uint32_t transactionId) {
   pid_t pid = AIBinder_getCallingPid();
   const std::lock_guard<std::mutex> lock(mLock);
   if (!isKnownPIdLocked(pid)) {
@@ -267,26 +239,9 @@ bool HalClientManager::registerPendingUnloadTransaction() {
     return false;
   }
   mPendingUnloadTransaction.emplace(
-      clientId,
+      clientId, transactionId,
       /* registeredTimeMs= */ android::elapsedRealtime());
   return true;
-}
-
-void HalClientManager::finishPendingUnloadTransaction(HalClientId clientId) {
-  const std::lock_guard<std::mutex> lock(mLock);
-  if (!mPendingUnloadTransaction.has_value()) {
-    // This should never happen
-    LOGE("No pending unload transaction to finish.");
-    return;
-  }
-  if (mPendingUnloadTransaction->clientId != clientId) {
-    // This should never happen
-    LOGE("Mismatched pending unload transaction. Registered by client %" PRIu16
-         " but client %" PRIu16 " requests to clear it.",
-         mPendingUnloadTransaction->clientId, clientId);
-    return;
-  }
-  mPendingUnloadTransaction.reset();
 }
 
 bool HalClientManager::isNewTransactionAllowedLocked(HalClientId clientId) {
@@ -296,14 +251,20 @@ bool HalClientManager::isNewTransactionAllowedLocked(HalClientId clientId) {
     if (timeElapsedMs < kTransactionTimeoutThresholdMs) {
       LOGE("Rejects client %" PRIu16
            "'s transaction because an active load "
-           "transaction from client %" PRIu16 " exists. Try again later.",
-           clientId, mPendingLoadTransaction->clientId);
+           "transaction %" PRIu32 " with current fragment id %" PRIu32
+           " from client %" PRIu16 " exists. Try again later.",
+           clientId, mPendingLoadTransaction->transaction->getTransactionId(),
+           mPendingLoadTransaction->currentFragmentId,
+           mPendingLoadTransaction->clientId);
       return false;
     }
-    LOGE("Client %" PRIu16
-         "'s pending load transaction is overridden by client %" PRIu16
+    LOGE("Client %" PRIu16 "'s pending load transaction %" PRIu32
+         " with current fragment id %" PRIu32
+         " is overridden by client %" PRIu16
          " after holding the slot for %" PRIu64 " ms",
-         mPendingLoadTransaction->clientId, clientId, timeElapsedMs);
+         mPendingLoadTransaction->clientId,
+         mPendingLoadTransaction->transaction->getTransactionId(),
+         mPendingLoadTransaction->currentFragmentId, clientId, timeElapsedMs);
     mPendingLoadTransaction.reset();
     return true;
   }
@@ -313,13 +274,17 @@ bool HalClientManager::isNewTransactionAllowedLocked(HalClientId clientId) {
     if (timeElapsedMs < kTransactionTimeoutThresholdMs) {
       LOGE("Rejects client %" PRIu16
            "'s transaction because an active unload "
-           "transaction from client %" PRIu16 " exists. Try again later.",
-           clientId, mPendingUnloadTransaction->clientId);
+           "transaction %" PRIu32 " from client %" PRIu16
+           " exists. Try again later.",
+           clientId, mPendingUnloadTransaction->transactionId,
+           mPendingUnloadTransaction->clientId);
       return false;
     }
-    LOGE("A pending unload transaction registered by client %" PRIu16
+    LOGE("A pending unload transaction %" PRIu32
+         " registered by client %" PRIu16
          " is overridden by a new transaction from client %" PRIu16
          " after holding the slot for %" PRIu64 "ms",
+         mPendingUnloadTransaction->transactionId,
          mPendingUnloadTransaction->clientId, clientId, timeElapsedMs);
     mPendingUnloadTransaction.reset();
     return true;
@@ -470,14 +435,53 @@ HalClientManager::HalClientManager() {
   }
 }
 
+bool HalClientManager::isPendingLoadTransactionMatchedLocked(
+    HalClientId clientId, uint32_t transactionId, uint32_t currentFragmentId) {
+  bool success =
+      isPendingTransactionMatchedLocked(clientId, transactionId,
+                                        mPendingLoadTransaction) &&
+      mPendingLoadTransaction->currentFragmentId == currentFragmentId;
+  if (!success) {
+    if (mPendingLoadTransaction.has_value()) {
+      LOGE("Transaction of client %" PRIu16 " transaction %" PRIu32
+           " fragment %" PRIu32
+           " doesn't match the current pending transaction (client %" PRIu16
+           " transaction %" PRIu32 " fragment %" PRIu32 ").",
+           clientId, transactionId, currentFragmentId,
+           mPendingLoadTransaction->clientId,
+           mPendingLoadTransaction->transactionId,
+           mPendingLoadTransaction->currentFragmentId);
+    } else {
+      LOGE("Transaction of client %" PRIu16 " transaction %" PRIu32
+           " fragment %" PRIu32 " doesn't match any pending transaction.",
+           clientId, transactionId, currentFragmentId);
+    }
+  }
+  return success;
+}
+
 void HalClientManager::resetPendingLoadTransaction() {
   const std::lock_guard<std::mutex> lock(mLock);
   mPendingLoadTransaction.reset();
 }
 
-void HalClientManager::resetPendingUnloadTransaction() {
+bool HalClientManager::resetPendingUnloadTransaction(HalClientId clientId,
+                                                     uint32_t transactionId) {
   const std::lock_guard<std::mutex> lock(mLock);
-  mPendingUnloadTransaction.reset();
+  // Only clear a pending transaction when the client id and the transaction id
+  // are both matched
+  if (isPendingTransactionMatchedLocked(clientId, transactionId,
+                                        mPendingUnloadTransaction)) {
+    LOGI("Clears out the pending unload transaction: client id %" PRIu16
+         ", transaction id %" PRIu32,
+         clientId, transactionId);
+    mPendingUnloadTransaction.reset();
+    return true;
+  }
+  LOGW("Client %" PRIu16 " doesn't have a pending unload transaction %" PRIu32
+       ". Skip resetting",
+       clientId, transactionId);
+  return false;
 }
 
 void HalClientManager::handleChreRestart() {

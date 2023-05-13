@@ -176,4 +176,24 @@ public class SettingsUtil {
         // by default, this setting returns null, which is equivalent to 0 or disabled
         return ChreTestUtil.convertToIntegerOrReturnZero(out) > 0;
     }
+
+    /**
+     * Sets the airplane mode on the device.
+     * @param enable True to enable airplane mode, false to disable it.
+     */
+    public void setAirplaneMode(boolean enable) {
+        String value = enable ? "enable" : "disable";
+        ChreTestUtil.executeShellCommand(
+                mInstrumentation, "cmd connectivity airplane-mode " + value);
+        Assert.assertTrue(isAirplaneModeOn() == enable);
+    }
+
+    /**
+     * @return true if the airplane mode is currently enabled.
+     */
+    public boolean isAirplaneModeOn() {
+        String out = ChreTestUtil.executeShellCommand(
+                mInstrumentation, "settings get global airplane_mode_on");
+        return ChreTestUtil.convertToIntegerOrFail(out) > 0;
+    }
 }
