@@ -146,7 +146,10 @@ public class ContextHubBleSettingsTestExecutor {
             Assert.assertTrue(bluetoothAdapter.enableBLE());
         }
         try {
-            bluetoothUpdateListener.mBluetoothLatch.await(30, TimeUnit.SECONDS);
+            bluetoothUpdateListener.mBluetoothLatch.await(10, TimeUnit.SECONDS);
+            Assert.assertTrue(enable == mSettingsUtil.isBluetoothEnabled());
+            Assert.assertTrue(enableBluetoothScanning
+                    == mSettingsUtil.isBluetoothScanningAlwaysEnabled());
 
             // Wait a few seconds to ensure setting is propagated to CHRE path
             Thread.sleep(2000);

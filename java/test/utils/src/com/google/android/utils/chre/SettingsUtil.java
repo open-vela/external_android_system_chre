@@ -155,8 +155,6 @@ public class SettingsUtil {
     public void setBluetooth(boolean enable) {
         String value = enable ? "enable" : "disable";
         ChreTestUtil.executeShellCommand(mInstrumentation, "svc bluetooth " + value);
-
-        Assert.assertTrue(isBluetoothEnabled() == enable);
     }
 
     /**
@@ -166,8 +164,6 @@ public class SettingsUtil {
         String value = enable ? "1" : "0";
         ChreTestUtil.executeShellCommand(
                 mInstrumentation, "settings put global ble_scan_always_enabled " + value);
-
-        Assert.assertTrue(isBluetoothScanningAlwaysEnabled() == enable);
     }
 
     /**
