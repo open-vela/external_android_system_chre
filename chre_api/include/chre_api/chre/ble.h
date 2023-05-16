@@ -506,11 +506,13 @@ struct chreBleAdvertisingReport {
   //! device).
   uint8_t directAddress[CHRE_BLE_ADDRESS_LEN];
 
-  //! Length of data field. Acceptable range is [0, 31] for legacy and
-  //! [0, 229] for extended advertisements.
+  //! Length of data field. Acceptable range is [0, 62] for legacy and
+  //! [0, 255] for extended advertisements.
   uint16_t dataLength;
 
-  //! dataLength bytes of data, or null if dataLength is 0
+  //! dataLength bytes of data, or null if dataLength is 0. This represents
+  //! the ADV_IND payload, optionally concatenated with SCAN_RSP, as indicated
+  //! by eventTypeAndDataStatus.
   const uint8_t *data;
 
   //! Reserved for future use; set to 0

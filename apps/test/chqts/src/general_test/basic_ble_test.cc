@@ -35,7 +35,6 @@ namespace {
 const uint32_t gFlushCookie = 0;
 constexpr uint32_t kGoodReservedValue = 0;
 constexpr uint8_t kMaxReportAdvertisingSid = 0x0f;
-constexpr uint16_t kMaxReportDataLength = 229;
 }  // namespace
 
 void testScanSessionAsync(bool supportsBatching, bool supportsFiltering) {
@@ -125,9 +124,6 @@ void BasicBleTest::handleAdvertisementEvent(
           report.advertisingSid > kMaxReportAdvertisingSid) {
         sendFatalFailureToHost(
             "chreBleAdvertisingReport: advertisingSid is invalid");
-      } else if (report.dataLength > kMaxReportDataLength) {
-        sendFatalFailureToHost(
-            "chreBleAdvertisingReport: dataLength is invalid");
       } else if (report.reserved != kGoodReservedValue) {
         sendFatalFailureToHost("chreBleAdvertisingReport: reserved is invalid");
       }
