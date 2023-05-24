@@ -344,7 +344,7 @@ enum chreBleAdType {
  * the following settings would be used:
  *   type = CHRE_BLE_AD_TYPE_MANUFACTURER_DATA
  *   len = 4
- *   data = {0xE0, 0x00, 0x12, 0x34}
+ *   data = {0x00, 0xE0, 0x12, 0x34}
  *   dataMask = {0xFF, 0xFF, 0xFF, 0xFF}
  *
  * Refer to "Supplement to the Bluetooth Core Specification for details (v9,
