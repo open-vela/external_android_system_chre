@@ -120,7 +120,10 @@ bool TinysysChreConnection::init() {
     LOGI("Retrieved the next state: %" PRIu32, nextState);
     auto chreNextState = static_cast<ChreState>(nextState);
     if (chreCurrentState == SCP_CHRE_STOP && chreNextState == SCP_CHRE_START) {
-      LOGW("SCP restarted.");
+      // TODO(b/277128368): We should have an explicit indication from CHRE for
+      // restart recovery.
+      LOGW("SCP restarted. Give it 5s for recovery before notifying clients");
+      std::this_thread::sleep_for(std::chrono::milliseconds(5000));
       chreConnection->getCallback()->onChreRestarted();
     }
     chreCurrentState = chreNextState;
