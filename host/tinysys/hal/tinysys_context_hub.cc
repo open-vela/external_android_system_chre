@@ -35,11 +35,4 @@ TinysysContextHub::TinysysContextHub() {
     }
   }
 }
-
-void TinysysContextHub::onChreRestarted() {
-  if (!kPreloadedNanoappsConfigPath.empty()) {
-    mPreloadedNanoappLoader->loadPreloadedNanoapps();
-  }
-  MultiClientContextHubBase::onChreRestarted();
-}
 }  // namespace aidl::android::hardware::contexthub
