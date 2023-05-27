@@ -33,7 +33,6 @@ class TinysysContextHub : public MultiClientContextHubBase {
   TinysysContextHub();
 
  protected:
-  void onChreRestarted() override;
   const std::string kPreloadedNanoappsConfigPath =
       "/vendor/etc/chre/preloaded_nanoapps.json";
 };
