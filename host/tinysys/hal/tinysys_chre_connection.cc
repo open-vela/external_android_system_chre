@@ -94,8 +94,16 @@ bool TinysysChreConnection::init() {
     {
       ssize_t payloadSize = TEMP_FAILURE_RETRY(
           read(chreFd, chreConnection->mPayload.get(), kMaxPayloadBytes));
+      if (payloadSize == 0) {
+        // Payload size 0 is a fake signal from kernel which is normal if the
+        // device is in sleep.
+        LOGW("%s: Received a payload size 0. Ignored. errno=%d", __func__,
+             errno);
+        continue;
+      }
       if (payloadSize < 0) {
-        LOGE("%s: read failed. errno=%d\n", __func__, errno);
+        LOGE("%s: read failed. payload size: %zu. errno=%d", __func__,
+             payloadSize, errno);
         continue;
       }
       handleMessageFromChre(chreConnection, chreConnection->mPayload.get(),
