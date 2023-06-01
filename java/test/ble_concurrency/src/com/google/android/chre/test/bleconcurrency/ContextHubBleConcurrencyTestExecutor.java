@@ -117,14 +117,14 @@ public class ContextHubBleConcurrencyTestExecutor extends ContextHubChreApiTestE
                 ChreApiTest.ChreBleGenericFilter.newBuilder()
                         .setType(CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16)
                         .setLength(2)
-                        .setData(ByteString.copyFrom(HexFormat.of().parseHex("FEAA")))
+                        .setData(ByteString.copyFrom(HexFormat.of().parseHex("AAFE")))
                         .setMask(ByteString.copyFrom(HexFormat.of().parseHex("FFFF")))
                         .build();
         ChreApiTest.ChreBleGenericFilter nearbyFastpairFilter =
                 ChreApiTest.ChreBleGenericFilter.newBuilder()
                         .setType(CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16)
                         .setLength(2)
-                        .setData(ByteString.copyFrom(HexFormat.of().parseHex("FE2C")))
+                        .setData(ByteString.copyFrom(HexFormat.of().parseHex("2CFE")))
                         .setMask(ByteString.copyFrom(HexFormat.of().parseHex("FFFF")))
                         .build();
 

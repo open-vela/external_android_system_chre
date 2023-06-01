@@ -33,6 +33,7 @@
 
 using chre::kOneMicrosecondInNanoseconds;
 using chre::kOneMillisecondInNanoseconds;
+using chre::ble_constants::kNumScanFilters;
 
 namespace chre {
 
@@ -67,18 +68,9 @@ bool isRequestTypeForMeasurement(uint8_t requestType) {
 }
 
 bool enableBleScans() {
-  chreBleGenericFilter scanFilters[2];
-  uint8_t mask[2] = {0xFF, 0xFF};
-  // Google eddystone UUID.
-  uint8_t uuid1[2] = {0xFE, 0xAA};
-  scanFilters[0] = createBleGenericFilter(
-      CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16, 2, uuid1, mask);
-  // Google nearby fastpair UUID.
-  uint8_t uuid2[2] = {0xFE, 0x2C};
-  scanFilters[1] = createBleGenericFilter(
-      CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16, 2, uuid2, mask);
-  const struct chreBleScanFilter filter = {
-      .rssiThreshold = -128, .scanFilterCount = 2, .scanFilters = scanFilters};
+  struct chreBleScanFilter filter;
+  chreBleGenericFilter uuidFilters[kNumScanFilters];
+  createBleScanFilterForKnownBeacons(filter, uuidFilters, kNumScanFilters);
   return chreBleStartScanAsync(CHRE_BLE_SCAN_MODE_BACKGROUND,
                                gBleBatchDurationMs, &filter);
 }

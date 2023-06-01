@@ -43,13 +43,13 @@ constexpr uint8_t kGoogleUuidMask[kGoogleUuidDataLength] = {0xFF, 0xFF};
 /**
  * The Google Eddystone BLE beacon UUID.
  */
-constexpr uint8_t kGoogleEddystoneUuid[kGoogleUuidDataLength] = {0xFE, 0xAA};
+constexpr uint8_t kGoogleEddystoneUuid[kGoogleUuidDataLength] = {0xAA, 0xFE};
 
 /**
  * The Google Nearby Fastpair BLE beacon UUID.
  */
-constexpr uint8_t kGoogleNearbyFastpairUuid[kGoogleUuidDataLength] = {0xFE,
-                                                                      0x2C};
+constexpr uint8_t kGoogleNearbyFastpairUuid[kGoogleUuidDataLength] = {0x2C,
+                                                                      0xFE};
 
 /**
  * The number of generic filters (equal to the number of known beacons).

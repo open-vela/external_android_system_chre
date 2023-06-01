@@ -25,6 +25,7 @@
 #include "chre/util/fixed_size_vector.h"
 #include "chre/util/lock_guard.h"
 #include "chre/util/macros.h"
+#include "chre/util/nanoapp/ble.h"
 #include "chre/util/optional.h"
 #include "chre/util/unique_ptr.h"
 #include "gmock/gmock.h"
@@ -33,6 +34,7 @@
 namespace {
 
 using ::chre::ConditionVariable;
+using ::chre::createBleScanFilterForKnownBeacons;
 using ::chre::FixedSizeVector;
 using ::chre::gChrePalSystemApi;
 using ::chre::LockGuard;
@@ -43,6 +45,7 @@ using ::chre::Nanoseconds;
 using ::chre::Optional;
 using ::chre::Seconds;
 using ::chre::UniquePtr;
+using ::chre::ble_constants::kNumScanFilters;
 
 const Nanoseconds kBleStatusTimeoutNs = Milliseconds(200);
 const Nanoseconds kBleEventTimeoutNs = Seconds(10);
@@ -165,18 +168,9 @@ TEST_F(PalBleTest, Capabilities) {
 // advertising BLE beacons with service data for either the Google eddystone
 // or fastpair UUIDs.
 TEST_F(PalBleTest, FilteredScan) {
-  chreBleGenericFilter scanFilters[2];
-  uint8_t mask[2] = {0xFF, 0xFF};
-  // Google eddystone UUID.
-  uint8_t uuid1[2] = {0xFE, 0xAA};
-  scanFilters[0] = createBleGenericFilter(
-      CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16, 2, uuid1, mask);
-  // Google nearby fastpair UUID.
-  uint8_t uuid2[2] = {0xFE, 0x2C};
-  scanFilters[1] = createBleGenericFilter(
-      CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16, 2, uuid2, mask);
-  const struct chreBleScanFilter filter = {
-      .rssiThreshold = -128, .scanFilterCount = 2, .scanFilters = scanFilters};
+  struct chreBleScanFilter filter;
+  chreBleGenericFilter uuidFilters[kNumScanFilters];
+  createBleScanFilterForKnownBeacons(filter, uuidFilters, kNumScanFilters);
 
   EXPECT_TRUE(mApi->startScan(CHRE_BLE_SCAN_MODE_BACKGROUND,
                               kBleBatchDurationMs, &filter));
