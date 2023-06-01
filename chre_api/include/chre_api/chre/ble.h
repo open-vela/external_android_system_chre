@@ -306,6 +306,7 @@ enum chreBleScanMode {
  */
 enum chreBleAdType {
   //! Service Data with 16-bit UUID
+  //! @deprecated as of v1.8
   //! TODO(b/285207430): Remove this enum once CHRE has been updated.
   CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16 = 0x16,
 
