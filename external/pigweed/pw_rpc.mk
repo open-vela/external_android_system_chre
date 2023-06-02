@@ -157,6 +157,8 @@ COMMON_SRCS += $(NANOPB_PREFIX)/pb_common.c
 COMMON_SRCS += $(NANOPB_PREFIX)/pb_decode.c
 COMMON_SRCS += $(NANOPB_PREFIX)/pb_encode.c
 
+COMMON_CFLAGS += -DPB_NO_PACKED_STRUCTS=1
+
 # Add CHRE Pigweed util sources since nanoapps should always use these
 COMMON_SRCS += $(PIGWEED_CHRE_UTIL_DIR)/chre_channel_output.cc
 COMMON_SRCS += $(PIGWEED_CHRE_UTIL_DIR)/rpc_client.cc

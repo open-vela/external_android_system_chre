@@ -17,10 +17,6 @@
 #ifndef ANDROID_HARDWARE_CONTEXTHUB_COMMON_MULTICLIENTS_HAL_BASE_H_
 #define ANDROID_HARDWARE_CONTEXTHUB_COMMON_MULTICLIENTS_HAL_BASE_H_
 
-#ifndef LOG_TAG
-#define LOG_TAG "CHRE.HAL"
-#endif
-
 #include <aidl/android/hardware/contexthub/BnContextHub.h>
 #include <chre_host/generated/host_messages_generated.h>
 
