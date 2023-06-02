@@ -199,36 +199,103 @@ TEST_F(WifiScanRequestQueueTestBase, WifiScanRejectRequestFromSameNanoapp) {
 }
 
 TEST_F(WifiScanRequestQueueTestBase, WifiScanActiveScanFromDistinctNanoapps) {
-  struct WifiScanTestNanoappTwo : public WifiScanTestNanoapp {
-    uint64_t id = 0x1123456789abcdef;
+  CREATE_CHRE_TEST_EVENT(CONCURRENT_NANOAPP_RECEIVED_EXPECTED_ASYNC_EVENT_COUNT,
+                         1);
+  CREATE_CHRE_TEST_EVENT(CONCURRENT_NANOAPP_READ_COOKIE, 2);
+
+  struct AppCookies {
+    uint32_t sent = 0;
+    uint32_t received = 0;
   };
 
-  auto firstApp = loadNanoapp<WifiScanTestNanoapp>();
-  auto secondApp = loadNanoapp<WifiScanTestNanoappTwo>();
+  constexpr uint64_t kAppOneId = 0x0123456789000001;
+  constexpr uint64_t kAppTwoId = 0x0123456789000002;
 
-  constexpr uint32_t firstRequestCookie = 0x1010;
-  constexpr uint32_t secondRequestCookie = 0x2020;
+  struct WifiScanTestConcurrentNanoappOne : public TestNanoapp {
+    uint32_t perms = NanoappPermissions::CHRE_PERMS_WIFI;
+    uint64_t id = kAppOneId;
+
+    decltype(nanoappHandleEvent) *handleEvent = [](uint32_t, uint16_t eventType,
+                                                   const void *eventData) {
+      constexpr uint8_t kExpectedReceiveAsyncResultCount = 2;
+      static uint8_t receivedCookieCount = 0;
+      static AppCookies appOneCookies;
+      static AppCookies appTwoCookies;
+
+      // Retrieve cookies from different apps that have the same access to
+      // static storage due to inheritance.
+      AppCookies *appCookies =
+          chreGetAppId() == kAppTwoId ? &appTwoCookies : &appOneCookies;
+
+      switch (eventType) {
+        case CHRE_EVENT_WIFI_ASYNC_RESULT: {
+          auto *event = static_cast<const chreAsyncResult *>(eventData);
+          if (event->errorCode == CHRE_ERROR_NONE) {
+            appCookies->received =
+                *static_cast<const uint32_t *>(event->cookie);
+            ++receivedCookieCount;
+          } else {
+            LOGE("Received failed async result");
+          }
+
+          if (receivedCookieCount == kExpectedReceiveAsyncResultCount) {
+            TestEventQueueSingleton::get()->pushEvent(
+                CONCURRENT_NANOAPP_RECEIVED_EXPECTED_ASYNC_EVENT_COUNT);
+          }
+          break;
+        }
+
+        case CHRE_EVENT_TEST_EVENT: {
+          auto event = static_cast<const TestEvent *>(eventData);
+          bool success = false;
+          uint32_t expectedCookie;
+          switch (event->type) {
+            case SCAN_REQUEST:
+              appCookies->sent = *static_cast<uint32_t *>(event->data);
+              success = chreWifiRequestScanAsyncDefault(&(appCookies->sent));
+              TestEventQueueSingleton::get()->pushEvent(SCAN_REQUEST, success);
+              break;
+            case CONCURRENT_NANOAPP_READ_COOKIE:
+              TestEventQueueSingleton::get()->pushEvent(
+                  CONCURRENT_NANOAPP_READ_COOKIE, appCookies->received);
+              break;
+          }
+        }
+      };
+    };
+  };
+
+  struct WifiScanTestConcurrentNanoappTwo
+      : public WifiScanTestConcurrentNanoappOne {
+    uint64_t id = kAppTwoId;
+  };
+
+  auto appOne = loadNanoapp<WifiScanTestConcurrentNanoappOne>();
+  auto appTwo = loadNanoapp<WifiScanTestConcurrentNanoappTwo>();
+
+  constexpr uint32_t kAppOneRequestCookie = 0x1010;
+  constexpr uint32_t kAppTwoRequestCookie = 0x2020;
   bool success;
-  sendEventToNanoapp(firstApp, SCAN_REQUEST, firstRequestCookie);
+  sendEventToNanoapp(appOne, SCAN_REQUEST, kAppOneRequestCookie);
   waitForEvent(SCAN_REQUEST, &success);
   EXPECT_TRUE(success);
-  sendEventToNanoapp(secondApp, SCAN_REQUEST, secondRequestCookie);
+  sendEventToNanoapp(appTwo, SCAN_REQUEST, kAppTwoRequestCookie);
   waitForEvent(SCAN_REQUEST, &success);
   EXPECT_TRUE(success);
 
-  WifiAsyncData wifiAsyncData;
-  waitForEvent(CHRE_EVENT_WIFI_ASYNC_RESULT, &wifiAsyncData);
-  EXPECT_EQ(wifiAsyncData.errorCode, CHRE_ERROR_NONE);
-  EXPECT_EQ(*wifiAsyncData.cookie, firstRequestCookie);
-  waitForEvent(CHRE_EVENT_WIFI_SCAN_RESULT);
+  waitForEvent(CONCURRENT_NANOAPP_RECEIVED_EXPECTED_ASYNC_EVENT_COUNT);
 
-  waitForEvent(CHRE_EVENT_WIFI_ASYNC_RESULT, &wifiAsyncData);
-  EXPECT_EQ(wifiAsyncData.errorCode, CHRE_ERROR_NONE);
-  EXPECT_EQ(*wifiAsyncData.cookie, secondRequestCookie);
-  waitForEvent(CHRE_EVENT_WIFI_SCAN_RESULT);
+  uint32_t receivedCookie;
+  sendEventToNanoapp(appOne, CONCURRENT_NANOAPP_READ_COOKIE);
+  waitForEvent(CONCURRENT_NANOAPP_READ_COOKIE, &receivedCookie);
+  EXPECT_EQ(kAppOneRequestCookie, receivedCookie);
 
-  unloadNanoapp(firstApp);
-  unloadNanoapp(secondApp);
+  sendEventToNanoapp(appTwo, CONCURRENT_NANOAPP_READ_COOKIE);
+  waitForEvent(CONCURRENT_NANOAPP_READ_COOKIE, &receivedCookie);
+  EXPECT_EQ(kAppTwoRequestCookie, receivedCookie);
+
+  unloadNanoapp(appOne);
+  unloadNanoapp(appTwo);
 }
 
 }  // namespace
