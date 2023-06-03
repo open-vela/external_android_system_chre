@@ -71,6 +71,7 @@ endif
 
 # Other makefiles ##############################################################
 
+include $(CHRE_PREFIX)/platform/shared/mbedtls/mbedtls.mk
 include $(CHRE_PREFIX)/build/arch/riscv.mk
 include $(CHRE_PREFIX)/build/build_template.mk
 endif
