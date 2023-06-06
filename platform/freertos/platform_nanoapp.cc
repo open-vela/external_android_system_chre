@@ -274,7 +274,7 @@ bool PlatformNanoappBase::openNanoapp() {
     //! Use the returned value from authenticateBinary to ensure dlopenbuf has
     //! the starting address to a valid ELF.
     void *binaryStart = mAppBinary;
-    if (!authenticateBinary(mAppBinary, &binaryStart)) {
+    if (!authenticateBinary(mAppBinary, mAppBinaryLen, &binaryStart)) {
       LOGE("Unable to authenticate 0x%" PRIx64 " not loading", mExpectedAppId);
     } else if (mDsoHandle != nullptr) {
       LOGE("Trying to reopen an existing buffer");
