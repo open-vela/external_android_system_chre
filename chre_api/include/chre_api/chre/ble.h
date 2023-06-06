@@ -306,7 +306,14 @@ enum chreBleScanMode {
  */
 enum chreBleAdType {
   //! Service Data with 16-bit UUID
+  //! TODO(b/285207430): Remove this enum once CHRE has been updated.
   CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16 = 0x16,
+
+  //! Service Data with 16-bit UUID
+  //! @since v1.8 CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16 was renamed
+  //! CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16_LE to reflect that nanoapps
+  //! compiled against v1.8+ should use OTA format for service data filters.
+  CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16_LE = 0x16,
 
   //! Manufacturer Specific Data
   //! @since v1.8
@@ -333,11 +340,25 @@ enum chreBleAdType {
  * can be represented by this structure. Use chreBleGetFilterCapabilities() to
  * discover supported filtering capabilities at runtime.
  *
+ * @since v1.8 The data and dataMask must be in OTA format. The nanoapp support
+ * library will handle converting the data and dataMask values to the correct
+ * format if a pre v1.8 version of CHRE is running.
+ *
+ * NOTE: CHRE versions 1.6 and 1.7 expect the 2-byte UUID prefix in
+ * CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16 to be given as big-endian. This
+ * was corrected in v1.8 to match the OTA format and Bluetooth specification,
+ * which uses little-endian. This enum has been removed and replaced with
+ * CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16_LE to ensure that nanoapps
+ * compiled against v1.8 and later specify their UUID filter using
+ * little-endian. Nanoapps compiled against v1.7 or earlier should continue to
+ * use big-endian, as CHRE must provide cross-version compatibility for all
+ * possible version combinations.
+ *
  * Example 1: To filter on a 16 bit service data UUID of 0xFE2C, the following
  * settings would be used:
  *   type = CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16
  *   len = 2
- *   data = {0xFE, 0x2C}
+ *   data = {0x2C, 0xFE}
  *   dataMask = {0xFF, 0xFF}
  *
  * Example 2: To filter for manufacturer data of 0x12, 0x34 from Google (0x00E0),
