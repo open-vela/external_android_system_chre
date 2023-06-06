@@ -44,12 +44,8 @@ license {
     ],
 }
 
-cc_library_static {
-    name: "contexthub_generic_aidl_hal_core_lib",
-    vendor_available: true,
-    export_include_dirs: [
-        "host/common/include",
-    ],
+filegroup {
+    name: "contexthub_generic_aidl_hal_core",
     srcs: [
         "host/common/preloaded_nanoapp_loader.cc",
         "host/common/time_syncer.cc",
@@ -59,30 +55,6 @@ cc_library_static {
         "host/hal_generic/common/hal_client_manager.cc",
         "host/hal_generic/common/multi_client_context_hub_base.cc",
     ],
-    local_include_dirs: [
-        "chre_api/include/chre_api",
-        "external/flatbuffers/include",
-        "host/hal_generic/common",
-        "platform/shared/include",
-        "util/include",
-    ],
-    shared_libs: [
-        "android.hardware.contexthub-V2-ndk",
-        "libbinder_ndk",
-        "libcutils",
-        "liblog",
-        "libutils",
-        "libjsoncpp",
-    ],
-    static_libs: [
-        "pw_varint",
-        "pw_detokenizer",
-    ],
-    header_libs: [
-        "pw_span_headers",
-        "pw_polyfill_headers",
-    ],
-    cflags: ["-Wall", "-Werror", "-DCHRE_MESSAGE_TO_HOST_MAX_SIZE=4096",]
 }
 
 cc_library_static {
