@@ -18,6 +18,8 @@
 
 #include <chre.h>
 
+#include <utility>
+
 #include "third_party/contexthub/chre/util/include/chre/util/macros.h"
 #include "third_party/contexthub/chre/util/include/chre/util/nanoapp/log.h"
 
@@ -32,7 +34,6 @@ uint32_t mock_ble_flush_complete_timer_id = CHRE_TIMER_INVALID;
 #define LOG_TAG "[NEARBY][BLE_SCANNER]"
 
 namespace nearby {
-
 #ifdef MOCK_BLE
 BleScanner::BleScanner() {
   is_ble_scan_supported_ = true;
@@ -142,27 +143,21 @@ void BleScanner::HandleEvent(uint16_t event_type, const void *event_data) {
   }
 }
 #else
-constexpr chreBleGenericFilter kGenericFilters[] = {
+constexpr chreBleGenericFilter kDefaultGenericFilters[] = {
     {
         .type = CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16,
         .len = 2,
-        // Fast Pair Service UUID in big-endian.
-        .data = {0xfe, 0x2c},
+        // Fast Pair Service UUID in OTA format.
+        .data = {0x2c, 0xfe},
         .dataMask = {0xff, 0xff},
     },
     {
         .type = CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16,
         .len = 2,
-        // Presence Service UUID in big-endian.
-        .data = {0xfc, 0xf1},
+        // Presence Service UUID in OTA format.
+        .data = {0xf1, 0xfc},
         .dataMask = {0xff, 0xff},
     }};
-
-constexpr chreBleScanFilter kFilter = {
-    .rssiThreshold = CHRE_BLE_RSSI_THRESHOLD_NONE,
-    .scanFilterCount = ARRAY_SIZE(kGenericFilters),
-    .scanFilters = kGenericFilters,
-};
 
 BleScanner::BleScanner() {
   if (!(chreBleGetCapabilities() & CHRE_BLE_CAPABILITIES_SCAN)) {
@@ -187,12 +182,50 @@ void BleScanner::Start() {
   Restart();
 }
 
+static bool ContainsFilter(
+    const chre::DynamicVector<chreBleGenericFilter> &filters,
+    const chreBleGenericFilter &src) {
+  bool contained = false;
+  for (const auto &dst : filters) {
+    if (src.type == dst.type && src.len == dst.len) {
+      for (int i = 0; i < src.len; i++) {
+        if (src.data[i] != dst.data[i]) {
+          continue;
+        }
+        if (src.dataMask[i] != dst.dataMask[i]) {
+          continue;
+        }
+      }
+      contained = true;
+      break;
+    }
+  }
+  return contained;
+}
+
 void BleScanner::Restart() {
   if (!is_ble_scan_supported_) {
     LOGE("Failed to start BLE scan on an unsupported device");
     return;
   }
-  if (chreBleStartScanAsync(scan_mode_, report_delay_ms_, &kFilter)) {
+  chre::DynamicVector<chreBleGenericFilter> generic_filters;
+  if (is_default_generic_filter_enabled_) {
+    for (size_t i = 0; i < ARRAY_SIZE(kDefaultGenericFilters); i++) {
+      generic_filters.push_back(kDefaultGenericFilters[i]);
+    }
+  }
+  for (auto &oem_generic_filters : generic_filters_list_) {
+    for (auto &generic_filter : oem_generic_filters.filters) {
+      if (!ContainsFilter(generic_filters, generic_filter)) {
+        generic_filters.push_back(generic_filter);
+      }
+    }
+  }
+  chreBleScanFilter scan_filter;
+  scan_filter.rssiThreshold = CHRE_BLE_RSSI_THRESHOLD_NONE;
+  scan_filter.scanFilters = generic_filters.data();
+  scan_filter.scanFilterCount = static_cast<uint8_t>(generic_filters.size());
+  if (chreBleStartScanAsync(scan_mode_, report_delay_ms_, &scan_filter)) {
     LOGD("Succeeded to start BLE scan");
     // is_started_ is set to true here, but it can be set back to false
     // if CHRE_BLE_REQUEST_TYPE_START_SCAN request is failed in
@@ -214,6 +247,30 @@ void BleScanner::Stop() {
   } else {
     LOGE("Failed to stop BLE scan");
   }
+}
+
+bool BleScanner::UpdateFilters(
+    uint16_t host_end_point,
+    chre::DynamicVector<chreBleGenericFilter> *generic_filters) {
+  size_t index = 0;
+  while (index < generic_filters_list_.size()) {
+    if (generic_filters_list_[index].end_point == host_end_point) {
+      if (generic_filters->empty()) {
+        generic_filters_list_.erase(index);
+      } else {
+        generic_filters_list_[index].filters = std::move(*generic_filters);
+      }
+      return true;
+    }
+    ++index;
+  }
+  if (generic_filters_list_.push_back(GenericFilters(host_end_point))) {
+    generic_filters_list_.back().filters = std::move(*generic_filters);
+  } else {
+    LOGE("Failed to add new hardware filter.");
+    return false;
+  }
+  return true;
 }
 
 void BleScanner::UpdateBatchDelay(uint32_t delay_ms) {
