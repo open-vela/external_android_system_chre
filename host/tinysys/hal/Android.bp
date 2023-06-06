@@ -32,6 +32,7 @@ cc_binary {
         "tinysys_chre_connection.cc",
         "tinysys_context_hub.cc",
         ":st_hal_lpma_handler",
+        ":contexthub_generic_aidl_hal_core",
     ],
     include_dirs: [
         "system/chre/util/include/",
@@ -67,7 +68,6 @@ cc_binary {
         "pw_polyfill_headers",
     ],
     static_libs: [
-        "contexthub_generic_aidl_hal_core_lib",
         "chre_client",
         "event_logger",
         "pw_varint",
