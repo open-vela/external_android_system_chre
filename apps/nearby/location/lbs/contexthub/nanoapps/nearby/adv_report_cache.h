@@ -17,9 +17,13 @@
 #ifndef LOCATION_LBS_CONTEXTHUB_NANOAPPS_NEARBY_ADV_REPORT_CACHE_H_
 #define LOCATION_LBS_CONTEXTHUB_NANOAPPS_NEARBY_ADV_REPORT_CACHE_H_
 
+#include "third_party/contexthub/chre/util/include/chre/util/time.h"
 #ifdef NEARBY_PROFILE
 #include <ash/profile.h>
 #endif
+
+#include <limits>
+#include <utility>
 
 #include "third_party/contexthub/chre/util/include/chre/util/dynamic_vector.h"
 
@@ -43,6 +47,17 @@ class AdvReportCache {
     Clear();
   }
 
+  // Move assignment operator
+  AdvReportCache &operator=(AdvReportCache &&other) {
+    if (&other == this) {
+      return *this;
+    }
+    Clear();
+    cache_reports_ = std::move(other.cache_reports_);
+    cache_expire_nanosec_ = other.cache_expire_nanosec_;
+    return *this;
+  }
+
   // Releases all resources {cache element, heap memory} in cache.
   void Clear();
 
@@ -52,8 +67,9 @@ class AdvReportCache {
   // same index of existing report in advertise reports cache.
   void Push(const chreBleAdvertisingReport &report);
 
-  // Return advertise reports in cache.
+  // Return advertise reports in cache after refreshing the cache elements.
   chre::DynamicVector<chreBleAdvertisingReport> &GetAdvReports() {
+    Refresh();
     return cache_reports_;
   }
 
@@ -64,11 +80,27 @@ class AdvReportCache {
                                previous * (1 - kMovingAverageWeight));
   }
 
+  // Sets current cache timeout value.
+  void SetCacheTimeout(uint64_t cache_expire_millisec) {
+    cache_expire_nanosec_ =
+        cache_expire_millisec * chre::kOneMillisecondInNanoseconds;
+  }
+
+  // Removes cached elements older than the cache timeout.
+  void Refresh();
+
  private:
   // Weight for a current data point in moving average.
   static constexpr float kMovingAverageWeight = 0.3f;
 
+  // Default value for advertise report cache to expire.
+  // Uses large enough value that it won't end soon.
+  static constexpr uint64_t kMaxExpireTimeNanoSec =
+      std::numeric_limits<uint64_t>::max();
+
   chre::DynamicVector<chreBleAdvertisingReport> cache_reports_;
+  // Current cache timeout value.
+  uint64_t cache_expire_nanosec_ = kMaxExpireTimeNanoSec;
 #ifdef NEARBY_PROFILE
   ashProfileData profile_data_;
 #endif

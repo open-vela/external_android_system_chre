@@ -35,6 +35,30 @@ void AdvReportCache::Clear() {
   cache_reports_.clear();
 }
 
+void AdvReportCache::Refresh() {
+  if (cache_expire_nanosec_ == kMaxExpireTimeNanoSec) {
+    return;
+  }
+
+  uint64_t current_time = chreGetTime();
+  size_t index = 0;
+  while (index < cache_reports_.size()) {
+    if (current_time - cache_reports_[index].timestamp >
+        cache_expire_nanosec_) {
+      // TODO(b/285043291): Refactor cache element by wrapper struct/class
+      // which deallocates data in its destructor.
+      if (cache_reports_[index].data != nullptr) {
+        chreHeapFree(const_cast<uint8_t *>(cache_reports_[index].data));
+      }
+      // Don't require to increase index because all elements after the indexed
+      // one are moved forward one position.
+      cache_reports_.erase(index);
+    } else {
+      ++index;
+    }
+  }
+}
+
 void AdvReportCache::Push(const chreBleAdvertisingReport &event_report) {
 #ifdef NEARBY_PROFILE
   ashProfileBegin(&profile_data_);
@@ -52,6 +76,10 @@ void AdvReportCache::Push(const chreBleAdvertisingReport &event_report) {
           (event_report.rssi != CHRE_BLE_RSSI_NONE &&
            event_report.rssi > cache_report.rssi)) {
         cache_report.rssi = event_report.rssi;
+      }
+      // Updates timestamp to latest in the duplicated report.
+      if (event_report.timestamp > cache_report.timestamp) {
+        cache_report.timestamp = event_report.timestamp;
       }
       is_duplicate = true;
       break;
