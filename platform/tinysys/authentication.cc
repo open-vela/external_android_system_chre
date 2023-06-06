@@ -28,16 +28,16 @@ namespace chre {
 namespace {
 
 // All the size below are in bytes
-constexpr uint32_t kSigSize = 64;
-constexpr uint32_t kPublicKeySize = 64;
+constexpr uint32_t kEcdsaP256SigSize = 64;
+constexpr uint32_t kEcdsaP256PublicKeySize = 64;
 constexpr uint32_t kHeaderSize = 0x1000;
-constexpr uint32_t kHashSize = 32;
+constexpr uint32_t kSha256HashSize = 32;
 
 // ASCII of "CHRE", in BE
 constexpr uint32_t kChreMagicNumber = 0x45524843;
 
 // Production public key
-const uint8_t kGooglePublicKey[kPublicKeySize] = {
+const uint8_t kGooglePublicKey[kEcdsaP256PublicKeySize] = {
     0x97, 0x66, 0x1f, 0xe7, 0x26, 0xc5, 0xc3, 0x9c, 0xe6, 0x71, 0x59,
     0x1f, 0x26, 0x3b, 0x1c, 0x87, 0x50, 0x7f, 0xad, 0x4f, 0xeb, 0x4b,
     0xe5, 0x3b, 0xee, 0x76, 0xff, 0x80, 0x6a, 0x8b, 0x6d, 0xed, 0x58,
@@ -73,7 +73,7 @@ struct HeaderInfo {
   uint64_t flags[2];
 
   /** The SHA-256 hash of the actual nanoapp binary. */
-  uint8_t binarySha256[32];
+  uint8_t binarySha256[kSha256HashSize];
 
   uint8_t reservedChipId[32];
 
@@ -101,21 +101,21 @@ struct ImageHeader {
 class Authenticator {
  public:
   Authenticator() {
-    mbedtls_ecp_group_init(&mGrp);
+    mbedtls_ecp_group_init(&mGroup);
     mbedtls_ecp_point_init(&mQ);
     mbedtls_mpi_init(&mR);
     mbedtls_mpi_init(&mS);
   }
 
   ~Authenticator() {
-    mbedtls_ecp_group_free(&mGrp);
-    mbedtls_ecp_point_free(&mQ);
-    mbedtls_mpi_free(&mR);
     mbedtls_mpi_free(&mS);
+    mbedtls_mpi_free(&mR);
+    mbedtls_ecp_point_free(&mQ);
+    mbedtls_ecp_group_free(&mGroup);
   }
 
   bool loadEcpGroup() {
-    int result = mbedtls_ecp_group_load(&mGrp, MBEDTLS_ECP_DP_SECP256R1);
+    int result = mbedtls_ecp_group_load(&mGroup, MBEDTLS_ECP_DP_SECP256R1);
     if (result != 0) {
       LOGE("Failed to load ecp group. Error code: %d", result);
       return false;
@@ -126,10 +126,10 @@ class Authenticator {
   bool loadPublicKey(const uint8_t *publicKey) {
     // 0x04 prefix is required by mbedtls
     constexpr uint8_t kPublicKeyPrefix = 0x04;
-    uint8_t buffer[kPublicKeySize + 1] = {kPublicKeyPrefix};
-    memcpy(buffer + 1, publicKey, kPublicKeySize);
+    uint8_t buffer[kEcdsaP256PublicKeySize + 1] = {kPublicKeyPrefix};
+    memcpy(buffer + 1, publicKey, kEcdsaP256PublicKeySize);
     int result =
-        mbedtls_ecp_point_read_binary(&mGrp, &mQ, buffer, ARRAY_SIZE(buffer));
+        mbedtls_ecp_point_read_binary(&mGroup, &mQ, buffer, ARRAY_SIZE(buffer));
     if (result != 0) {
       LOGE("Failed to load the public key. Error code: %d", result);
       return false;
@@ -138,8 +138,8 @@ class Authenticator {
   }
 
   bool loadSignature(const ImageHeader *header) {
-    constexpr uint32_t kRSigSize = kSigSize / 2;
-    constexpr uint32_t kSSigSize = kSigSize / 2;
+    constexpr uint32_t kRSigSize = kEcdsaP256SigSize / 2;
+    constexpr uint32_t kSSigSize = kEcdsaP256SigSize / 2;
     int result = mbedtls_mpi_read_binary(&mR, header->signature, kRSigSize);
     if (result != 0) {
       LOGE("Failed to read r signature. Error code: %d", result);
@@ -158,10 +158,10 @@ class Authenticator {
     constexpr size_t kDataOffset = 0x200;
     constexpr size_t kDataSize = kHeaderSize - kDataOffset;
     auto data = static_cast<const uint8_t *>(binary) + kDataOffset;
-    unsigned char digest[kHashSize] = {};
+    unsigned char digest[kSha256HashSize] = {};
     mbedtls_sha256(data, kDataSize, digest, /* is224= */ 0);
-    int result =
-        mbedtls_ecdsa_verify(&mGrp, digest, ARRAY_SIZE(digest), &mQ, &mR, &mS);
+    int result = mbedtls_ecdsa_verify(&mGroup, digest, ARRAY_SIZE(digest), &mQ,
+                                      &mR, &mS);
     if (result != 0) {
       LOGE("Signature verification failed. Error code: %d", result);
       return false;
@@ -170,7 +170,7 @@ class Authenticator {
   }
 
  private:
-  mbedtls_ecp_group mGrp;
+  mbedtls_ecp_group mGroup;
   mbedtls_ecp_point mQ;
   mbedtls_mpi mR;
   mbedtls_mpi mS;
@@ -198,26 +198,21 @@ uint32_t getPublicKeyLength(const uint64_t *flag) {
 bool hasCorrectHash(const void *head, size_t realImageSize,
                     const uint8_t *hashProvided) {
   auto image = static_cast<const uint8_t *>(head) + kHeaderSize;
-  uint8_t hashCalculated[kHashSize] = {};
+  uint8_t hashCalculated[kSha256HashSize] = {};
   mbedtls_sha256(image, realImageSize, hashCalculated, /* is224= */ 0);
-
-  for (size_t i = 0; i < kHashSize; ++i) {
-    if (hashCalculated[i] != hashProvided[i]) {
-      return false;
-    }
-  }
-  return true;
+  return memcmp(hashCalculated, hashProvided, kSha256HashSize) == 0;
 }
 
 /** Checks if the public key in the header matches the production public key. */
 bool isValidProductionPublicKey(const uint8_t *publicKey,
                                 size_t publicKeyLength) {
-  if (publicKeyLength != kPublicKeySize) {
+  if (publicKeyLength != kEcdsaP256PublicKeySize) {
     LOGE("Public key length %zu is unexpected.", publicKeyLength);
     return false;
   }
   for (size_t i = 0; i < ARRAY_SIZE(kTrustedPublicKeys); i++) {
-    if (memcmp(kTrustedPublicKeys[i], publicKey, kPublicKeySize) == 0) {
+    if (memcmp(kTrustedPublicKeys[i], publicKey, kEcdsaP256PublicKeySize) ==
+        0) {
       return true;
     }
   }
@@ -225,7 +220,8 @@ bool isValidProductionPublicKey(const uint8_t *publicKey,
 }
 }  // anonymous namespace
 
-bool authenticateBinary(void *binary, void **realBinaryStart) {
+bool authenticateBinary(const void *binary, size_t appBinaryLen,
+                        void **realBinaryStart) {
 #ifndef CHRE_NAPP_AUTHENTICATION_ENABLED
   UNUSED_VAR(binary);
   UNUSED_VAR(realBinaryStart);
@@ -234,16 +230,25 @@ bool authenticateBinary(void *binary, void **realBinaryStart) {
       "security risks!");
   return true;
 #endif
+  if (appBinaryLen <= kHeaderSize) {
+    LOGE("Binary size %zu is too short.", appBinaryLen);
+    return false;
+  }
   Authenticator authenticator;
   auto *header = static_cast<const ImageHeader *>(binary);
   const uint8_t *imageHash = header->headerInfo.binarySha256;
   const uint8_t *publicKey = header->publicKey;
+  const uint32_t expectedAppBinaryLength =
+      header->headerInfo.binaryLength + kHeaderSize;
 
   if (header->headerInfo.magic != kChreMagicNumber) {
     LOGE("Mismatched magic number.");
   } else if (header->headerInfo.headerVersion != 1) {
     LOGE("Header version %" PRIu32 " is unsupported.",
          header->headerInfo.headerVersion);
+  } else if (expectedAppBinaryLength != appBinaryLen) {
+    LOGE("Invalid binary length %zu. Expected %" PRIu32, appBinaryLen,
+         expectedAppBinaryLength);
   } else if (!isValidProductionPublicKey(
                  publicKey, getPublicKeyLength(header->headerInfo.flags))) {
     LOGE("Invalid public key attached on the image.");
