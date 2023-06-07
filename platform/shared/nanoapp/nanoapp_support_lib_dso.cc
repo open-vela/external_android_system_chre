@@ -20,6 +20,10 @@
 // be included via chre/platform/shared
 
 #include "chre_nsl_internal/platform/shared/nanoapp_support_lib_dso.h"
+
+#include <algorithm>
+
+#include "chre/util/nanoapp/log.h"
 #include "chre_api/chre.h"
 #include "chre_nsl_internal/platform/shared/debug_dump.h"
 #include "chre_nsl_internal/util/macros.h"
@@ -27,6 +31,10 @@
 #ifdef CHRE_NANOAPP_USES_WIFI
 #include "chre_nsl_internal/util/system/wifi_util.h"
 #endif
+
+#ifndef LOG_TAG
+#define LOG_TAG "[NSL]"
+#endif  // LOG_TAG
 
 /**
  * @file
@@ -101,6 +109,37 @@ void nanoappHandleEventCompat(uint32_t senderInstanceId, uint16_t eventType,
   } else {
     nanoappHandleEvent(senderInstanceId, eventType, eventData);
   }
+}
+#endif
+
+#if !defined(CHRE_NANOAPP_DISABLE_BACKCOMPAT) && defined(CHRE_NANOAPP_USES_BLE)
+void reverseServiceDataUuid(struct chreBleGenericFilter *filter) {
+  if (filter->type != CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16_LE ||
+      filter->len == 0) {
+    return;
+  }
+  std::swap(filter->data[0], filter->data[1]);
+  std::swap(filter->dataMask[0], filter->dataMask[1]);
+  if (filter->len == 1) {
+    filter->data[0] = 0x0;
+    filter->dataMask[0] = 0x0;
+    filter->len = 2;
+  }
+}
+
+bool serviceDataFilterEndianSwapRequired(
+    const struct chreBleScanFilter *filter) {
+  if (chreGetApiVersion() >= CHRE_API_VERSION_1_8 || filter == nullptr) {
+    return false;
+  }
+  for (size_t i = 0; i < filter->scanFilterCount; i++) {
+    if (filter->scanFilters[i].type ==
+            CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16_LE &&
+        filter->scanFilters[i].len > 0) {
+      return true;
+    }
+  }
+  return false;
 }
 #endif
 
@@ -239,7 +278,29 @@ WEAK_SYMBOL
 bool chreBleStartScanAsync(chreBleScanMode mode, uint32_t reportDelayMs,
                            const struct chreBleScanFilter *filter) {
   auto *fptr = CHRE_NSL_LAZY_LOOKUP(chreBleStartScanAsync);
-  return (fptr != nullptr) ? fptr(mode, reportDelayMs, filter) : false;
+  if (fptr == nullptr) {
+    return false;
+  } else if (!serviceDataFilterEndianSwapRequired(filter)) {
+    return fptr(mode, reportDelayMs, filter);
+  }
+  // For nanoapps compiled against v1.8+ working with earlier versions of CHRE,
+  // convert service data filters to big-endian format.
+  chreBleScanFilter convertedFilter = *filter;
+  auto genericFilters = static_cast<chreBleGenericFilter *>(
+      chreHeapAlloc(sizeof(chreBleGenericFilter) * filter->scanFilterCount));
+  if (genericFilters == nullptr) {
+    LOG_OOM();
+    return false;
+  }
+  memcpy(genericFilters, filter->scanFilters,
+         filter->scanFilterCount * sizeof(chreBleGenericFilter));
+  for (size_t i = 0; i < filter->scanFilterCount; i++) {
+    reverseServiceDataUuid(&genericFilters[i]);
+  }
+  convertedFilter.scanFilters = genericFilters;
+  bool success = fptr(mode, reportDelayMs, &convertedFilter);
+  chreHeapFree(const_cast<chreBleGenericFilter *>(convertedFilter.scanFilters));
+  return success;
 }
 
 WEAK_SYMBOL
