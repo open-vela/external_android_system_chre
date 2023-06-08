@@ -41,19 +41,6 @@ void FilterExtension::Update(
   }
   const chreHostEndpointInfo &host =
       host_list_[static_cast<size_t>(host_index)];
-  // Returns hardware filters.
-  for (int i = 0; i < filter_config.hardware_filter_count; i++) {
-    const nearby_extension_ChreBleGenericFilter &hw_filter =
-        filter_config.hardware_filter[i];
-    chreBleGenericFilter generic_filter;
-    generic_filter.type = hw_filter.type;
-    generic_filter.len = static_cast<uint8_t>(hw_filter.len);
-    memcpy(generic_filter.data, hw_filter.data, kChreBleGenericFilterDataSize);
-    memcpy(generic_filter.dataMask, hw_filter.data_mask,
-           kChreBleGenericFilterDataSize);
-    generic_filters->push_back(generic_filter);
-  }
-
   config_result->has_result = true;
   config_result->has_vendor_status = true;
 
@@ -66,6 +53,20 @@ void FilterExtension::Update(
           &host, &config, &config_result->vendor_status));
   if (config_result->result != CHREX_NEARBY_RESULT_OK) {
     LOGE("Failed to config filters, result %" PRId32, config_result->result);
+    host_list_.erase(static_cast<size_t>(host_index));
+    return;
+  }
+  // Returns hardware filters.
+  for (int i = 0; i < filter_config.hardware_filter_count; i++) {
+    const nearby_extension_ChreBleGenericFilter &hw_filter =
+        filter_config.hardware_filter[i];
+    chreBleGenericFilter generic_filter;
+    generic_filter.type = hw_filter.type;
+    generic_filter.len = static_cast<uint8_t>(hw_filter.len);
+    memcpy(generic_filter.data, hw_filter.data, kChreBleGenericFilterDataSize);
+    memcpy(generic_filter.dataMask, hw_filter.data_mask,
+           kChreBleGenericFilterDataSize);
+    generic_filters->push_back(generic_filter);
   }
   // Removes the host if both hardware and oem filters are empty.
   if (filter_config.hardware_filter_count == 0 &&

@@ -145,14 +145,14 @@ void BleScanner::HandleEvent(uint16_t event_type, const void *event_data) {
 #else
 constexpr chreBleGenericFilter kDefaultGenericFilters[] = {
     {
-        .type = CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16,
+        .type = CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16_LE,
         .len = 2,
         // Fast Pair Service UUID in OTA format.
         .data = {0x2c, 0xfe},
         .dataMask = {0xff, 0xff},
     },
     {
-        .type = CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16,
+        .type = CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16_LE,
         .len = 2,
         // Presence Service UUID in OTA format.
         .data = {0xf1, 0xfc},
