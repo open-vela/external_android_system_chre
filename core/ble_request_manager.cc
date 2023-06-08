@@ -543,7 +543,7 @@ void BleRequestManager::postAsyncResultEventFatal(uint16_t instanceId,
 }
 
 bool BleRequestManager::isValidAdType(uint8_t adType) {
-  return adType == CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16;
+  return adType == CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16_LE;
 }
 
 bool BleRequestManager::bleSettingEnabled() {

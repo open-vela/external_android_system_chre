@@ -44,10 +44,10 @@ bool createBleScanFilterForKnownBeacons(struct chreBleScanFilter &filter,
   }
 
   genericFilters[0] = createBleGenericFilter(
-      CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16, kNumScanFilters,
+      CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16_LE, kNumScanFilters,
       kGoogleEddystoneUuid, kGoogleUuidMask);
   genericFilters[1] = createBleGenericFilter(
-      CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16, kNumScanFilters,
+      CHRE_BLE_AD_TYPE_SERVICE_DATA_WITH_UUID_16_LE, kNumScanFilters,
       kGoogleNearbyFastpairUuid, kGoogleUuidMask);
 
   filter.rssiThreshold = kRssiThreshold;
