@@ -180,16 +180,19 @@ void BasicSensorTestBase::startTest() {
   mState = State::kPreConfigure;
 
   bool found = false;
-  if (mApiVersion >= CHRE_API_VERSION_1_5) {
-    found =
-        chreSensorFind(getSensorType(), mCurrentSensorIndex, &mSensorHandle);
-    if (!found && chreSensorFind(getSensorType(), mCurrentSensorIndex + 1,
-                                 &mSensorHandle)) {
+  uint8_t mSensorType = getSensorType();
+  // TODO(b/286604767): CHRE should only expose the default light sensor to
+  // nanoapps.
+  if (mApiVersion >= CHRE_API_VERSION_1_5 &&
+      mSensorType != CHRE_SENSOR_TYPE_LIGHT) {
+    found = chreSensorFind(mSensorType, mCurrentSensorIndex, &mSensorHandle);
+    if (!found &&
+        chreSensorFind(mSensorType, mCurrentSensorIndex + 1, &mSensorHandle)) {
       sendFatalFailureToHostUint8("Missing sensor index ", mCurrentSensorIndex);
       return;
     }
   } else {
-    found = chreSensorFindDefault(getSensorType(), &mSensorHandle);
+    found = chreSensorFindDefault(mSensorType, &mSensorHandle);
   }
 
   if (!found) {
@@ -207,7 +210,7 @@ void BasicSensorTestBase::startTest() {
   if (info.sensorName == nullptr) {
     sendFatalFailureToHost("chreSensorInfo::sensorName is NULL");
   }
-  if (info.sensorType != getSensorType()) {
+  if (info.sensorType != mSensorType) {
     uint32_t type = info.sensorType;
     sendFatalFailureToHost(
         "chreSensorInfo::sensorType is not expected value, is:", &type);
@@ -322,8 +325,12 @@ void BasicSensorTestBase::finishTest() {
   bool finished = true;
   if (mApiVersion >= CHRE_API_VERSION_1_5) {
     mCurrentSensorIndex++;
+    // TODO(b/286604767): CHRE should only expose the default light sensor to
+    // nanoapps.
     uint32_t sensorHandle;
-    if (chreSensorFind(getSensorType(), mCurrentSensorIndex, &sensorHandle)) {
+    uint8_t mSensorType = getSensorType();
+    if (mSensorType != CHRE_SENSOR_TYPE_LIGHT &&
+        chreSensorFind(getSensorType(), mCurrentSensorIndex, &sensorHandle)) {
       finished = false;
       mPrevSensorHandle = mSensorHandle;
       sendStartTestMessage();
