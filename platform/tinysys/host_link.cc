@@ -496,9 +496,13 @@ void HostLinkBase::receive(HostLinkBase *instance, void *message,
 }
 
 bool HostLinkBase::send(uint8_t *data, size_t dataLen) {
+#ifndef HOST_LINK_IPI_SEND_TIMEOUT_MS
+#define HOST_LINK_IPI_SEND_TIMEOUT_MS 100
+#endif
+#ifndef HOST_LINK_IPI_RESPONSE_TIMEOUT_MS
+#define HOST_LINK_IPI_RESPONSE_TIMEOUT_MS 100
+#endif
   LOGV("HostLinkBase::%s: %zu, %p", __func__, dataLen, data);
-  constexpr int kIpiSendTimeoutMs = 100;
-  constexpr int kIpiResponseTimeoutMs = 100;
   struct ScpChreIpiMsg msg;
   msg.magic = SCP_CHRE_MAGIC;
   msg.size = dataLen;
@@ -516,9 +520,9 @@ bool HostLinkBase::send(uint8_t *data, size_t dataLen) {
 #endif
 
   // NB: len param for ipi_send is in number of 32-bit words
-  int ret = ipi_send_compl(IPI_OUT_C_SCP_HOST_CHRE, &msg,
-                           sizeof(msg) / sizeof(uint32_t), kIpiSendTimeoutMs,
-                           kIpiResponseTimeoutMs);
+  int ret = ipi_send_compl(
+      IPI_OUT_C_SCP_HOST_CHRE, &msg, sizeof(msg) / sizeof(uint32_t),
+      HOST_LINK_IPI_SEND_TIMEOUT_MS, HOST_LINK_IPI_RESPONSE_TIMEOUT_MS);
   if (ret) {
     LOGE("chre ipi send fail(%d)", ret);
   } else {
