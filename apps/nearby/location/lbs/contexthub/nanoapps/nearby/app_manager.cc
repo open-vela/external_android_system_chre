@@ -116,13 +116,13 @@ void AppManager::HandleMatchAdvReports(AdvReportCache &adv_reports_cache) {
   }
   if (!filter_results.empty()) {
     LOGD("Send filter results back");
-    SendFilterResultToHost(filter_results);
+    SendBulkFilterResultsToHost(filter_results);
   }
   if (!fp_filter_results.empty()) {
     // FP host requires to receive scan results once during screen on
     if (screen_on_ && !fp_screen_on_sent_) {
       LOGD("Send FP filter results back");
-      SendFilterResultToHost(fp_filter_results);
+      SendBulkFilterResultsToHost(fp_filter_results);
       fp_screen_on_sent_ = true;
     }
     LOGD("update FP filter cache");
@@ -238,7 +238,7 @@ void AppManager::HandleHostConfigRequest(const uint8_t *message,
         uint64_t current_time = chreGetTime();
         if (current_time - fp_filter_cache_time_nanosec_ <
             fp_filter_cache_expire_nanosec_) {
-          SendFilterResultToHost(fp_filter_cache_results_);
+          SendBulkFilterResultsToHost(fp_filter_cache_results_);
         } else {
           // nanoapp receives screen_on message for both screen_on and unlock
           // events. To send FP cache results on both events, keeps FP cache
@@ -260,7 +260,24 @@ void AppManager::HandleHostConfigRequest(const uint8_t *message,
   }
 }
 
-void AppManager::SendFilterResultToHost(
+void AppManager::SendBulkFilterResultsToHost(
+    const chre::DynamicVector<nearby_BleFilterResult> &filter_results) {
+  size_t encoded_size = 0;
+  if (!GetEncodedSizeFromFilterResults(filter_results, encoded_size)) {
+    return;
+  }
+  if (encoded_size <= kFilterResultsBufSize) {
+    SendFilterResultsToHost(filter_results);
+    return;
+  }
+  LOGD("Encoded size %zu is larger than buffer size %zu. Sends each one",
+       encoded_size, kFilterResultsBufSize);
+  for (const auto &filter_result : filter_results) {
+    SendFilterResultToHost(filter_result);
+  }
+}
+
+void AppManager::SendFilterResultsToHost(
     const chre::DynamicVector<nearby_BleFilterResult> &filter_results) {
   void *msg_buf = chreHeapAlloc(kFilterResultsBufSize);
   if (msg_buf == nullptr) {
@@ -290,6 +307,36 @@ void AppManager::SendFilterResultToHost(
   }
 }
 
+void AppManager::SendFilterResultToHost(
+    const nearby_BleFilterResult &filter_result) {
+  void *msg_buf = chreHeapAlloc(kFilterResultsBufSize);
+  if (msg_buf == nullptr) {
+    LOGE("Failed to allocate message buffer of size %zu for dispatch.",
+         kFilterResultsBufSize);
+    return;
+  }
+  auto stream = pb_ostream_from_buffer(static_cast<pb_byte_t *>(msg_buf),
+                                       kFilterResultsBufSize);
+  size_t msg_size = 0;
+  if (!EncodeFilterResult(filter_result, &stream, &msg_size)) {
+    LOGE("Unable to encode protobuf for BleFilterResult, error %s",
+         PB_GET_ERROR(&stream));
+    chreHeapFree(msg_buf);
+    return;
+  }
+  if (!chreSendMessageWithPermissions(
+          msg_buf, msg_size, lbs_FilterMessageType_MESSAGE_FILTER_RESULTS,
+          host_endpoint_, CHRE_MESSAGE_PERMISSION_BLE,
+          [](void *msg, size_t size) {
+            UNUSED_VAR(size);
+            chreHeapFree(msg);
+          })) {
+    LOGE("Failed to send FilterResults");
+  } else {
+    LOGD("Successfully sent the filter result.");
+  }
+}
+
 // Struct to pass into EncodeFilterResult as *arg.
 struct EncodeFieldResultsArg {
   size_t *msg_size;
@@ -297,8 +344,9 @@ struct EncodeFieldResultsArg {
 };
 
 // Callback to encode repeated result in nearby_BleFilterResults.
-static bool EncodeFilterResult(pb_ostream_t *stream, const pb_field_t *field,
-                               void *const *arg) {
+static bool EncodeFilterResultCallback(pb_ostream_t *stream,
+                                       const pb_field_t *field,
+                                       void *const *arg) {
   UNUSED_VAR(field);
   bool success = true;
   auto *encode_arg = static_cast<EncodeFieldResultsArg *>(*arg);
@@ -319,6 +367,24 @@ static bool EncodeFilterResult(pb_ostream_t *stream, const pb_field_t *field,
   return success;
 }
 
+bool AppManager::GetEncodedSizeFromFilterResults(
+    const chre::DynamicVector<nearby_BleFilterResult> &filter_results,
+    size_t &encoded_size) {
+  size_t total_encoded_size = 0;
+  for (const auto &filter_result : filter_results) {
+    constexpr size_t kHeaderSize = 2;
+    size_t single_encoded_size = 0;
+    if (!pb_get_encoded_size(&single_encoded_size,
+                             nearby_BleFilterResult_fields, &filter_result)) {
+      LOGE("Failed to get encoded size for BleFilterResult");
+      return false;
+    }
+    total_encoded_size += single_encoded_size + kHeaderSize;
+  }
+  encoded_size = total_encoded_size;
+  return true;
+}
+
 bool AppManager::EncodeFilterResults(
     const chre::DynamicVector<nearby_BleFilterResult> &filter_results,
     pb_ostream_t *stream, size_t *msg_size) {
@@ -335,12 +401,30 @@ bool AppManager::EncodeFilterResults(
           {
               .funcs =
                   {
-                      .encode = EncodeFilterResult,
+                      .encode = EncodeFilterResultCallback,
                   },
               .arg = &arg,
           },
   };
   return pb_encode(stream, nearby_BleFilterResults_fields, &pb_results);
+}
+
+bool AppManager::EncodeFilterResult(const nearby_BleFilterResult &filter_result,
+                                    pb_ostream_t *stream, size_t *msg_size) {
+  // Ensure stream is properly initialized before encoding.
+  CHRE_ASSERT(stream->bytes_written == 0);
+  if (!pb_encode_tag_for_field(
+          stream,
+          &nearby_BleFilterResults_fields[nearby_BleFilterResults_result_tag -
+                                          1])) {
+    return false;
+  }
+  if (!pb_encode_submessage(stream, nearby_BleFilterResult_fields,
+                            &filter_result)) {
+    return false;
+  }
+  *msg_size = stream->bytes_written;
+  return true;
 }
 
 #ifdef ENABLE_EXTENSION

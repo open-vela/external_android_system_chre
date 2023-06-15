@@ -55,10 +55,19 @@ class AppManager {
   // Advertise reports will be cleared at the end of this function.
   void HandleMatchAdvReports(AdvReportCache &adv_reports);
 
-  void SendFilterResultToHost(
+  // If encoded byte size for filter results is larger than output buffer, sends
+  // each filter result. Otherwise, sends filter results together.
+  void SendBulkFilterResultsToHost(
       const chre::DynamicVector<nearby_BleFilterResult> &filter_results);
+
   // Serializes filter_results into stream after encoding as BleFilterResults.
   // Returns false if encoding fails.
+  void SendFilterResultsToHost(
+      const chre::DynamicVector<nearby_BleFilterResult> &filter_results);
+
+  // Serializes a filter_result into stream after encoding as BleFilterResults.
+  // Returns false if encoding fails.
+  void SendFilterResultToHost(const nearby_BleFilterResult &filter_result);
 
   // Updates Filter extension with event. Returns true if event is sent
   // from an OEM service.
@@ -67,9 +76,22 @@ class AppManager {
   // Updates BLE scan state to start or stop based on filter configurations.
   void UpdateBleScanState();
 
+  // Encodes filter results as BleFilterResults format. Returns true if encoding
+  // was successful.
   static bool EncodeFilterResults(
       const chre::DynamicVector<nearby_BleFilterResult> &filter_results,
       pb_ostream_t *stream, size_t *msg_size);
+
+  // Encodes a filter result as BleFilterResults format. Returns true if
+  // encoding was successful.
+  static bool EncodeFilterResult(const nearby_BleFilterResult &filter_result,
+                                 pb_ostream_t *stream, size_t *msg_size);
+
+  // Gets the expected encoded message size of filter results, which is
+  // equivalent to msg_size output of EncodeFilterResults()
+  static bool GetEncodedSizeFromFilterResults(
+      const chre::DynamicVector<nearby_BleFilterResult> &filter_results,
+      size_t &encoded_size);
 
 #ifdef ENABLE_EXTENSION
   static void SendFilterExtensionConfigResultToHost(
