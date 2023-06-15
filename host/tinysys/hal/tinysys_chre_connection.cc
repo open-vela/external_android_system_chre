@@ -80,8 +80,9 @@ bool TinysysChreConnection::init() {
     return false;
   }
   mLogger.init();
-  // launch the listener tasks
+  // launch the tasks
   mMessageListener = std::thread(messageListenerTask, this);
+  mMessageSender = std::thread(messageSenderTask, this);
   mStateListener = std::thread(chreStateMonitorTask, this);
   mLpmaHandler.init();
   return true;
@@ -138,25 +139,35 @@ bool TinysysChreConnection::init() {
   }
 }
 
+[[noreturn]] void TinysysChreConnection::messageSenderTask(
+    TinysysChreConnection *chreConnection) {
+  LOGI("Message sender task is launched.");
+  int chreFd = chreConnection->getChreFileDescriptor();
+  while (true) {
+    chreConnection->mQueue.waitForMessage();
+    ChreConnectionMessage &message = chreConnection->mQueue.front();
+    auto size =
+        TEMP_FAILURE_RETRY(write(chreFd, &message, message.getMessageSize()));
+    if (size < 0) {
+      LOGE("Failed to write to chre file descriptor. errno=%d\n", errno);
+    }
+    chreConnection->mQueue.pop();
+  }
+}
+
 bool TinysysChreConnection::sendMessage(void *data, size_t length) {
   if (length <= 0 || length > kMaxPayloadBytes) {
     LOGE("length %zu is not within the accepted range.", length);
     return false;
   }
-  mChreMessage->setData(data, length);
-  auto size = TEMP_FAILURE_RETRY(write(mChreFileDescriptor, mChreMessage.get(),
-                                       mChreMessage->getMessageSize()));
-  if (size < 0) {
-    LOGE("Failed to write to chre file descriptor. errno=%d\n", errno);
-    return false;
-  }
-  return true;
+  return mQueue.emplace(data, length);
 }
 
 void TinysysChreConnection::handleMessageFromChre(
     TinysysChreConnection *chreConnection, const unsigned char *messageBuffer,
     size_t messageLen) {
-  // TODO(b/267188769): Move the wake lock acquisition/release to RAII pattern.
+  // TODO(b/267188769): Move the wake lock acquisition/release to RAII
+  // pattern.
   bool isWakelockAcquired =
       acquire_wake_lock(PARTIAL_WAKE_LOCK, kWakeLock) == 0;
   if (!isWakelockAcquired) {
