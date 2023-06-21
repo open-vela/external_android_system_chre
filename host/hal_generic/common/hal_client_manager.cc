@@ -159,7 +159,8 @@ void HalClientManager::handleClientDeath(
 
   for (const auto &[procName, id] : mProcessNamesToClientIds) {
     if (id == clientId && procName == kSystemServerName) {
-      mIsFirstClient = false;
+      LOGE("System server is disconnected");
+      mIsFirstClient = true;
     }
   }
 
