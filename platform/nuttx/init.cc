@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 The Android Open Source Project
+ * Copyright (C) 2023 Xiaomi Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,9 +20,6 @@
 #include "chre/core/event_loop_manager.h"
 #include "chre/core/nanoapp.h"
 #include "chre/core/static_nanoapps.h"
-#ifdef CHRE_AUDIO_SUPPORT_ENABLED
-#include "chre/platform/platform_audio.h"
-#endif  // CHRE_AUDIO_SUPPORT_ENABLED
 #include "chre/platform/context.h"
 #include "chre/platform/fatal_error.h"
 #include "chre/platform/nuttx/platform_log.h"
@@ -31,24 +28,12 @@
 #include "chre/platform/system_timer.h"
 #include "chre/util/time.h"
 
-#include <tclap/CmdLine.h>
-#include <csignal>
-#include <thread>
-
 using chre::EventLoopManagerSingleton;
 using chre::Milliseconds;
 
-//! A description of the simulator.
-constexpr char kSimDescription[] =
-    "A simulation environment for the Context Hub Runtime Environment (CHRE)";
-
-//! The version of the simulator. This is not super important but is assigned by
-//! rules of semantic versioning.
-constexpr char kSimVersion[] = "0.1.0";
-
 namespace {
 
-extern "C" void signalHandler(int sig) {
+void signalHandler(int sig) {
   (void)sig;
   LOGI("Stop request received");
   EventLoopManagerSingleton::get()->getEventLoop().stop();
@@ -56,81 +41,46 @@ extern "C" void signalHandler(int sig) {
 
 }  // namespace
 
-int main(int argc, char **argv) {
-  try {
-    // Parse command-line arguments.
-    TCLAP::CmdLine cmd(kSimDescription, ' ', kSimVersion);
-    TCLAP::SwitchArg noStaticNanoappsArg("", "no_static_nanoapps",
-                                         "disable running static nanoapps", cmd,
-                                         false);
-    TCLAP::MultiArg<std::string> nanoappsArg(
-        "", "nanoapp", "nanoapp shared object to load and execute", false,
-        "path", cmd);
-#ifdef CHRE_AUDIO_SUPPORT_ENABLED
-    TCLAP::ValueArg<std::string> audioFileArg(
-        "", "audio_file", "WAV file to open for audio simulation", false, "",
-        "path", cmd);
-    TCLAP::ValueArg<double> minAudioBufSizeArg(
-        "", "min_audio_buf_size", "min buffer size for audio simulation", false,
-        1.0, "seconds", cmd);
-    TCLAP::ValueArg<double> maxAudioBufSizeArg(
-        "", "max_audio_buf_size", "max buffer size for audio simulation", false,
-        10.0, "seconds", cmd);
-#endif  // CHRE_AUDIO_SUPPORT_ENABLED
-    cmd.parse(argc, argv);
+extern "C" int main(int argc, char **argv) {
+  bool no_static = false;
+  int c;
 
-    // Initialize logging.
-    chre::PlatformLogSingleton::init();
-
-#ifdef CHRE_AUDIO_SUPPORT_ENABLED
-    // Initialize audio sources.
-    if (!audioFileArg.getValue().empty()) {
-      auto audioSource = chre::MakeUnique<chre::AudioSource>(
-          audioFileArg.getValue(), minAudioBufSizeArg.getValue(),
-          maxAudioBufSizeArg.getValue());
-      chre::PlatformAudio::addAudioSource(audioSource);
+  while ((c = getopt (argc, argv, "S")) != -1) {
+      switch (c) {
+          case 'S':
+            no_static = true;
+            break;
+          default:
+            LOGI("Unknown option 0x%x\n", optopt);
+            return -EPERM;
+        }
     }
 
-    // TODO(P1-d24c82): Add another command line argument that takes a json
-    // configuration to support multiple sources.
-#endif  // CHRE_AUDIO_SUPPORT_ENABLED
+  // Initialize logging.
+  chre::PlatformLogSingleton::init();
 
-    // Initialize the TaskManager.
-    chre::TaskManagerSingleton::init();
+  // Initialize the TaskManager.
+  chre::TaskManagerSingleton::init();
 
-    // Initialize the system.
-    chre::init();
+  // Initialize the system.
+  chre::init();
 
-    // Register a signal handler.
-    std::signal(SIGINT, signalHandler);
+  // Register a signal handler.
+  signal(SIGINT, signalHandler);
 
-    // Load any static nanoapps and start the event loop.
-    std::thread chreThread([&]() {
-      EventLoopManagerSingleton::get()->lateInit();
+  // Load any static nanoapps and start the event loop.
+  EventLoopManagerSingleton::get()->lateInit();
 
-      // Load static nanoapps unless they are disabled by a command-line flag.
-      if (!noStaticNanoappsArg.getValue()) {
-        chre::loadStaticNanoapps();
-      }
-
-      // Load dynamic nanoapps specified on the command-line.
-      chre::DynamicVector<chre::UniquePtr<chre::Nanoapp>> dynamicNanoapps;
-      for (const auto &nanoapp : nanoappsArg.getValue()) {
-        dynamicNanoapps.push_back(chre::MakeUnique<chre::Nanoapp>());
-        dynamicNanoapps.back()->loadFromFile(nanoapp);
-        EventLoopManagerSingleton::get()->getEventLoop().startNanoapp(
-            dynamicNanoapps.back());
-      }
-
-      EventLoopManagerSingleton::get()->getEventLoop().run();
-    });
-    chreThread.join();
-
-    chre::TaskManagerSingleton::deinit();
-    chre::deinit();
-    chre::PlatformLogSingleton::deinit();
-  } catch (TCLAP::ExitException) {
+  // Load static nanoapps
+  if (!no_static) {
+    chre::loadStaticNanoapps();
   }
+
+  EventLoopManagerSingleton::get()->getEventLoop().run();
+
+  chre::TaskManagerSingleton::deinit();
+  chre::deinit();
+  chre::PlatformLogSingleton::deinit();
 
   return 0;
 }
