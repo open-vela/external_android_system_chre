@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 The Android Open Source Project
+ * Copyright (C) 2022 Xiaomi Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,18 +22,30 @@ namespace chre {
 
 //! The default list of static nanoapps to load.
 const StaticNanoappInitFunction kStaticNanoappList[] = {
-    // initializeStaticNanoappAudioWorld,
-    // initializeStaticNanoappBleWorld,
-    // initializeStaticNanoappDebugDumpWorld,
-    // initializeStaticNanoappGnssWorld,
-    // initializeStaticNanoappHelloWorld,
-    // initializeStaticNanoappMessageWorld,
-    // initializeStaticNanoappSensorWorld,
-    // initializeStaticNanoappSpammer,
-    // initializeStaticNanoappTimerWorld,
-    // initializeStaticNanoappUnloadTester,
-    // initializeStaticNanoappWifiWorld,
-    // initializeStaticNanoappWwanWorld,
+#ifdef CHRE_LOAD_GNSS_WORLD
+  initializeStaticNanoappGnssWorld,
+#endif
+#ifdef CHRE_LOAD_SENSOR_WORLD
+  initializeStaticNanoappSensorWorld,
+#endif
+#ifdef CHRE_LOAD_WIFI_WORLD
+  initializeStaticNanoappWifiWorld,
+#endif
+#ifdef CHRE_LOAD_WWAN_WORLD
+  initializeStaticNanoappWwanWorld,
+#endif
+#ifdef CHRE_AUDIO_SUPPORT_ENABLED
+  initializeStaticNanoappAudioWorld,
+#endif
+#ifdef CHRE_BLE_SUPPORT_ENABLED
+  initializeStaticNanoappBleWorld,
+#endif
+  initializeStaticNanoappDebugDumpWorld,
+  initializeStaticNanoappHelloWorld,
+  initializeStaticNanoappMessageWorld,
+  initializeStaticNanoappSpammer,
+  initializeStaticNanoappTimerWorld,
+  initializeStaticNanoappUnloadTester,
 };
 
 //! The size of the default static nanoapp list.

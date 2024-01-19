@@ -519,3 +519,86 @@ TINYSYS_CFLAGS += $(MBEDTLS_CFLAGS)
 TINYSYS_CFLAGS += -DCFG_DRAM_HEAP_SUPPORT
 TINYSYS_CFLAGS += -DCHRE_LOADER_ARCH=EM_RISCV
 TINYSYS_CFLAGS += -DCHRE_NANOAPP_LOAD_ALIGNMENT=4096
+
+# NuttX-specific Source Files ##################################################
+
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/chre_api_re.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/context.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/fatal_error.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/host_link.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/memory.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/memory_manager.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/platform_debug_dump_manager.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/platform_log.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/platform_pal.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/power_control_manager.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/system_time.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/system_timer.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/platform_nanoapp.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/task_util/task.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/task_util/task_manager.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/chre_api_audio.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/chre_api_ble.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/chre_api_core.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/chre_api_gnss.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/chre_api_re.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/chre_api_sensor.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/chre_api_user_settings.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/chre_api_version.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/chre_api_wifi.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/chre_api_wwan.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/memory_manager.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/nanoapp/nanoapp_dso_util.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/pal_system_api.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/system_time.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/tracing.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/version.cc
+
+# Optional audio support.
+ifeq ($(CHRE_AUDIO_SUPPORT_ENABLED), true)
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/pal_audio.cc
+endif
+
+# Optional BLE support.
+ifeq ($(CHRE_BLE_SUPPORT_ENABLED), true)
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/pal_ble.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/platform_ble.cc
+endif
+
+# Optional GNSS support.
+ifeq ($(CHRE_GNSS_SUPPORT_ENABLED), true)
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/pal_gnss.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/platform_gnss.cc
+endif
+
+# Optional sensor support.
+ifeq ($(CHRE_SENSORS_SUPPORT_ENABLED), true)
+SIM_CFLAGS += -I$(CHRE_PREFIX)/platform/shared/sensor_pal/include
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/pal_sensor.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/sensor_pal/platform_sensor.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/sensor_pal/platform_sensor_manager.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/sensor_pal/platform_sensor_type_helpers.cc
+endif
+
+# Optional Wi-Fi support.
+ifeq ($(CHRE_WIFI_SUPPORT_ENABLED), true)
+ifeq ($(CHRE_WIFI_NAN_SUPPORT_ENABLED), true)
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/pal_nan.cc
+endif
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/pal_wifi.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/platform_wifi.cc
+endif
+
+# Optional WWAN support.
+ifeq ($(CHRE_WWAN_SUPPORT_ENABLED), true)
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/pal_wwan.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/platform_wwan.cc
+endif
+
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/assert.cc
+
+NUTTX_CFLAGS += -I$(CHRE_PREFIX)/platform/shared/sensor_pal/include
+NUTTX_CFLAGS += -I$(CHRE_PREFIX)/platform/shared/include
+NUTTX_CFLAGS += -I$(CHRE_PREFIX)/platform/nuttx/sim/include
+NUTTX_CFLAGS += -I$(CHRE_PREFIX)/platform/nuttx/include
+NUTTX_CFLAGS += -I$(CHRE_PREFIX)/platform/nuttx/include/nanoapp/include
