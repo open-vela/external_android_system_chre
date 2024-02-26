@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include <dlfcn.h>
+
 #include "chre/core/init.h"
 #include "chre/core/event.h"
 #include "chre/core/event_loop.h"
@@ -31,6 +33,9 @@
 using chre::EventLoopManagerSingleton;
 using chre::Milliseconds;
 
+extern const struct symtab_s g_chre_exports[];
+extern const int g_chre_nexports;
+
 namespace {
 
 void signalHandler(int sig) {
@@ -42,13 +47,21 @@ void signalHandler(int sig) {
 }  // namespace
 
 extern "C" int main(int argc, char **argv) {
+  std::string apps[CONFIG_CHRE_CLI_APP_MAX];
   bool no_static = false;
+  int index = -1;
+  int load_index;
   int c;
 
-  while ((c = getopt (argc, argv, "S")) != -1) {
+  while ((c = getopt (argc, argv, "Sr:")) != -1) {
       switch (c) {
           case 'S':
             no_static = true;
+            break;
+          case 'r':
+            if ((index + 1) < CONFIG_CHRE_CLI_APP_MAX) {
+                apps[++index].assign(optarg);
+            }
             break;
           default:
             LOGI("Unknown option 0x%x\n", optopt);
@@ -68,12 +81,27 @@ extern "C" int main(int argc, char **argv) {
   // Register a signal handler.
   signal(SIGINT, signalHandler);
 
+  int ret = dlsymtab((struct symtab_s *)g_chre_exports, g_chre_nexports);
+  if (ret < 0) {
+    LOGE("Select symbol table failed!");
+    return ret;
+  }
+
   // Load any static nanoapps and start the event loop.
   EventLoopManagerSingleton::get()->lateInit();
 
   // Load static nanoapps
   if (!no_static) {
     chre::loadStaticNanoapps();
+  }
+
+  // Load dynamic nanoapps
+  chre::DynamicVector<chre::UniquePtr<chre::Nanoapp>> dynamicNanoapps;
+  for (load_index = 0; load_index <= index; load_index++) {
+    dynamicNanoapps.push_back(chre::MakeUnique<chre::Nanoapp>());
+    dynamicNanoapps.back()->loadFromFile(apps[load_index]);
+    EventLoopManagerSingleton::get()->getEventLoop().startNanoapp(
+        dynamicNanoapps.back());
   }
 
   EventLoopManagerSingleton::get()->getEventLoop().run();
