@@ -95,6 +95,9 @@ void nanoappHandleEvent(uint32_t /* senderInstanceId */, uint16_t eventType,
   gTotalEventCount++;
   if (eventType == kMessageSentEvent) {
     CHRE_ASSERT(eventData == kMessageSentEventData);
+#ifdef CONFIG_CHRE_APP_SPAMMER_USLEEP
+    usleep(CONFIG_CHRE_APP_SPAMMER_USLEEP);
+#endif
     if (!chreSendMessageToHostEndpoint(
             gMessageData, sizeof(gMessageData), kMessageType,
             CHRE_HOST_ENDPOINT_BROADCAST, messageFreeCallback)) {
@@ -104,12 +107,18 @@ void nanoappHandleEvent(uint32_t /* senderInstanceId */, uint16_t eventType,
     }
   } else if (eventType == kRepeatedEvent) {
     CHRE_ASSERT(eventData == kRepeatedEventData);
+#ifdef CONFIG_CHRE_APP_SPAMMER_USLEEP
+    usleep(CONFIG_CHRE_APP_SPAMMER_USLEEP);
+#endif
     if (!chreSendEvent(kRepeatedEvent, kRepeatedEventData,
                        repeatedEventFreeCallback, chreGetInstanceId())) {
       LOGE("Couldn't send repeated event");
     }
   } else if (eventType == kEmptyEvent) {
     CHRE_ASSERT(eventData == nullptr);
+#ifdef CONFIG_CHRE_APP_SPAMMER_USLEEP
+    usleep(CONFIG_CHRE_APP_SPAMMER_USLEEP);
+#endif
     if (!chreSendEvent(kEmptyEvent, nullptr, nullptr, chreGetInstanceId())) {
       LOGE("Couldn't send empty event");
     }
