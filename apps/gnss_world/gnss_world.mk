@@ -5,8 +5,8 @@
 # Common Compiler Flags ########################################################
 
 # Include paths.
-COMMON_CFLAGS += -Iapps/gnss_world/include
+COMMON_CFLAGS += -I$(CHRE_PREFIX)/apps/gnss_world/include
 
 # Common Source Files ##########################################################
 
-COMMON_SRCS += apps/gnss_world/gnss_world.cc
+COMMON_SRCS += $(CHRE_PREFIX)/apps/gnss_world/gnss_world.cc

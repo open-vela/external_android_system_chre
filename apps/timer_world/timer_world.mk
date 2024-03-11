@@ -5,8 +5,8 @@
 # Common Compiler Flags ########################################################
 
 # Include paths.
-COMMON_CFLAGS += -Iapps/timer_world/include
+COMMON_CFLAGS += -I$(CHRE_PREFIX)/apps/timer_world/include
 
 # Common Source Files ##########################################################
 
-COMMON_SRCS += apps/timer_world/timer_world.cc
+COMMON_SRCS += $(CHRE_PREFIX)/apps/timer_world/timer_world.cc

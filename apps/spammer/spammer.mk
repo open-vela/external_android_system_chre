@@ -4,4 +4,4 @@
 
 # Common Source Files ##########################################################
 
-COMMON_SRCS += apps/spammer/spammer.cc
+COMMON_SRCS += $(CHRE_PREFIX)/apps/spammer/spammer.cc
