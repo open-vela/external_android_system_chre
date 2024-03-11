@@ -25,15 +25,15 @@ SHARED_LIB_FILES = abort.cc \
   send_message.cc \
   test_success_marker.cc
 
-COMMON_SRCS += \
+COMMON_SRCS += $(CHRE_PREFIX)/\
   $(addprefix $(NANOAPP_SRC_PATH)/$(NANOAPP_DIR_NAME)/, $(NANOAPP_SRC_FILES)) \
   $(addprefix $(NANOAPP_SRC_PATH)/shared/, $(SHARED_LIB_FILES))
 
 # Add util srcs since they may be included by the tests
-COMMON_SRCS += $(CHRE_PREFIX)/util/nanoapp/ble.cc
-COMMON_SRCS += $(CHRE_PREFIX)/util/buffer_base.cc
-COMMON_SRCS += $(CHRE_PREFIX)/util/dynamic_vector_base.cc
-COMMON_SRCS += $(TEST_SHARED_PATH)/src/audio_validation.cc
+COMMON_SRCS += $(CHRE_PREFIX)/$(CHRE_PREFIX)/util/nanoapp/ble.cc
+COMMON_SRCS += $(CHRE_PREFIX)/$(CHRE_PREFIX)/util/buffer_base.cc
+COMMON_SRCS += $(CHRE_PREFIX)/$(CHRE_PREFIX)/util/dynamic_vector_base.cc
+COMMON_SRCS += $(CHRE_PREFIX)/$(TEST_SHARED_PATH)/src/audio_validation.cc
 
 COMMON_CFLAGS += -DCHRE_NO_ENDIAN_H \
   -D__LITTLE_ENDIAN=1 \
@@ -41,9 +41,9 @@ COMMON_CFLAGS += -DCHRE_NO_ENDIAN_H \
   -D__BIG_ENDIAN=2 \
   -DCHRE_ASSERTIONS_ENABLED
 
-COMMON_CFLAGS += -I$(NANOAPP_SRC_PATH)
-COMMON_CFLAGS += -I$(CHRE_PREFIX)/util/include
-COMMON_CFLAGS += -I$(TEST_SHARED_PATH)/inc
+COMMON_CFLAGS += -I$(CHRE_PREFIX)/$(NANOAPP_SRC_PATH)
+COMMON_CFLAGS += -I$(CHRE_PREFIX)/$(CHRE_PREFIX)/util/include
+COMMON_CFLAGS += -I$(CHRE_PREFIX)/$(TEST_SHARED_PATH)/inc
 
 OPT_LEVEL=2
 
