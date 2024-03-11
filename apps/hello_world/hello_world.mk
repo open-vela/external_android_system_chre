@@ -5,8 +5,8 @@
 # Common Compiler Flags ########################################################
 
 # Include paths.
-COMMON_CFLAGS += -Iapps/hello_world/include
+COMMON_CFLAGS += -I$(CHRE_PREFIX)/apps/hello_world/include
 
 # Common Source Files ##########################################################
 
-COMMON_SRCS += apps/hello_world/hello_world.cc
+COMMON_SRCS += $(CHRE_PREFIX)/apps/hello_world/hello_world.cc
