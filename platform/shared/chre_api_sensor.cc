@@ -35,7 +35,7 @@ DLL_EXPORT bool chreSensorFindDefault(uint8_t sensorType, uint32_t *handle) {
 
 DLL_EXPORT bool chreSensorFind(uint8_t sensorType, uint8_t sensorIndex,
                                uint32_t *handle) {
-#if CHRE_SENSORS_SUPPORT_ENABLED
+#ifdef CHRE_SENSORS_SUPPORT_ENABLED
   chre::Nanoapp *nanoapp = EventLoopManager::validateChreApiCall(__func__);
   return EventLoopManagerSingleton::get()
       ->getSensorRequestManager()
