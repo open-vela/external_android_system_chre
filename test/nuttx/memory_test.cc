@@ -80,37 +80,37 @@ TEST_F(TestBase, MemoryAllocateAndFree) {
       EventLoopManagerSingleton::get()->getMemoryManager();
   Nanoapp *nanoapp = getNanoappByAppId(app.id);
 
-  EXPECT_EQ(nanoapp->getTotalAllocatedBytes(), 0);
-  EXPECT_EQ(memManager.getTotalAllocatedBytes(), 0);
-  EXPECT_EQ(memManager.getAllocationCount(), 0);
+  EXPECT_EQ(nanoapp->getTotalAllocatedBytes(), (size_t)0);
+  EXPECT_EQ(memManager.getTotalAllocatedBytes(), (size_t)0);
+  EXPECT_EQ(memManager.getAllocationCount(), (size_t)0);
 
   void *ptr1;
   sendEventToNanoapp(app, ALLOCATE, 100);
   waitForEvent(ALLOCATE, &ptr1);
   EXPECT_NE(ptr1, nullptr);
-  EXPECT_EQ(nanoapp->getTotalAllocatedBytes(), 100);
-  EXPECT_EQ(memManager.getTotalAllocatedBytes(), 100);
-  EXPECT_EQ(memManager.getAllocationCount(), 1);
+  EXPECT_EQ(nanoapp->getTotalAllocatedBytes(), (size_t)100);
+  EXPECT_EQ(memManager.getTotalAllocatedBytes(), (size_t)100);
+  EXPECT_EQ(memManager.getAllocationCount(), (size_t)1);
 
   void *ptr2;
   sendEventToNanoapp(app, ALLOCATE, 200);
   waitForEvent(ALLOCATE, &ptr2);
   EXPECT_NE(ptr2, nullptr);
-  EXPECT_EQ(nanoapp->getTotalAllocatedBytes(), 100 + 200);
-  EXPECT_EQ(memManager.getTotalAllocatedBytes(), 100 + 200);
-  EXPECT_EQ(memManager.getAllocationCount(), 2);
+  EXPECT_EQ(nanoapp->getTotalAllocatedBytes(), (size_t)(100 + 200));
+  EXPECT_EQ(memManager.getTotalAllocatedBytes(), (size_t)(100 + 200));
+  EXPECT_EQ(memManager.getAllocationCount(), (size_t)2);
 
   sendEventToNanoapp(app, FREE, ptr1);
   waitForEvent(FREE);
-  EXPECT_EQ(nanoapp->getTotalAllocatedBytes(), 200);
-  EXPECT_EQ(memManager.getTotalAllocatedBytes(), 200);
-  EXPECT_EQ(memManager.getAllocationCount(), 1);
+  EXPECT_EQ(nanoapp->getTotalAllocatedBytes(), (size_t)200);
+  EXPECT_EQ(memManager.getTotalAllocatedBytes(), (size_t)200);
+  EXPECT_EQ(memManager.getAllocationCount(), (size_t)1);
 
   sendEventToNanoapp(app, FREE, ptr2);
   waitForEvent(FREE);
-  EXPECT_EQ(nanoapp->getTotalAllocatedBytes(), 0);
-  EXPECT_EQ(memManager.getTotalAllocatedBytes(), 0);
-  EXPECT_EQ(memManager.getAllocationCount(), 0);
+  EXPECT_EQ(nanoapp->getTotalAllocatedBytes(), (size_t)0);
+  EXPECT_EQ(memManager.getTotalAllocatedBytes(), (size_t)0);
+  EXPECT_EQ(memManager.getAllocationCount(), (size_t)0);
 }
 
 TEST_F(TestBase, MemoryFreeOnNanoappUnload) {
@@ -141,29 +141,29 @@ TEST_F(TestBase, MemoryFreeOnNanoappUnload) {
       EventLoopManagerSingleton::get()->getMemoryManager();
   Nanoapp *nanoapp = getNanoappByAppId(app.id);
 
-  EXPECT_EQ(nanoapp->getTotalAllocatedBytes(), 0);
-  EXPECT_EQ(memManager.getTotalAllocatedBytes(), 0);
-  EXPECT_EQ(memManager.getAllocationCount(), 0);
+  EXPECT_EQ(nanoapp->getTotalAllocatedBytes(), (size_t)0);
+  EXPECT_EQ(memManager.getTotalAllocatedBytes(), (size_t)0);
+  EXPECT_EQ(memManager.getAllocationCount(), (size_t)0);
 
   void *ptr1;
   sendEventToNanoapp(app, ALLOCATE, 100);
   waitForEvent(ALLOCATE, &ptr1);
   EXPECT_NE(ptr1, nullptr);
-  EXPECT_EQ(nanoapp->getTotalAllocatedBytes(), 100);
-  EXPECT_EQ(memManager.getTotalAllocatedBytes(), 100);
-  EXPECT_EQ(memManager.getAllocationCount(), 1);
+  EXPECT_EQ(nanoapp->getTotalAllocatedBytes(), (size_t)100);
+  EXPECT_EQ(memManager.getTotalAllocatedBytes(), (size_t)100);
+  EXPECT_EQ(memManager.getAllocationCount(), (size_t)1);
 
   void *ptr2;
   sendEventToNanoapp(app, ALLOCATE, 200);
   waitForEvent(ALLOCATE, &ptr2);
   EXPECT_NE(ptr2, nullptr);
-  EXPECT_EQ(nanoapp->getTotalAllocatedBytes(), 100 + 200);
-  EXPECT_EQ(memManager.getTotalAllocatedBytes(), 100 + 200);
-  EXPECT_EQ(memManager.getAllocationCount(), 2);
+  EXPECT_EQ(nanoapp->getTotalAllocatedBytes(), (size_t)(100 + 200));
+  EXPECT_EQ(memManager.getTotalAllocatedBytes(), (size_t)(100 + 200));
+  EXPECT_EQ(memManager.getAllocationCount(), (size_t)2);
 
   unloadNanoapp(app);
-  EXPECT_EQ(memManager.getTotalAllocatedBytes(), 0);
-  EXPECT_EQ(memManager.getAllocationCount(), 0);
+  EXPECT_EQ(memManager.getTotalAllocatedBytes(), (size_t)0);
+  EXPECT_EQ(memManager.getAllocationCount(), (size_t)0);
 }
 
 TEST_F(TestBase, MemoryStressTestShouldNotTriggerErrors) {
@@ -200,8 +200,8 @@ TEST_F(TestBase, MemoryStressTestShouldNotTriggerErrors) {
 
   auto app = loadNanoapp<App>();
 
-  EXPECT_EQ(memManager.getTotalAllocatedBytes(), 0);
-  EXPECT_EQ(memManager.getAllocationCount(), 0);
+  EXPECT_EQ(memManager.getTotalAllocatedBytes(), (size_t)0);
+  EXPECT_EQ(memManager.getAllocationCount(), (size_t)0);
 
   void *ptr1;
   void *ptr2;
@@ -213,8 +213,8 @@ TEST_F(TestBase, MemoryStressTestShouldNotTriggerErrors) {
   waitForEvent(ALLOCATE, &ptr2);
   sendEventToNanoapp(app, ALLOCATE, 300);
   waitForEvent(ALLOCATE, &ptr3);
-  EXPECT_EQ(memManager.getTotalAllocatedBytes(), 100 + 200 + 300);
-  EXPECT_EQ(memManager.getAllocationCount(), 3);
+  EXPECT_EQ(memManager.getTotalAllocatedBytes(), (size_t)(100 + 200 + 300));
+  EXPECT_EQ(memManager.getAllocationCount(), (size_t)3);
 
   // Free middle, last, and first blocks.
   sendEventToNanoapp(app, FREE, ptr2);
@@ -223,8 +223,8 @@ TEST_F(TestBase, MemoryStressTestShouldNotTriggerErrors) {
   waitForEvent(FREE);
   sendEventToNanoapp(app, FREE, ptr1);
   waitForEvent(FREE);
-  EXPECT_EQ(memManager.getTotalAllocatedBytes(), 0);
-  EXPECT_EQ(memManager.getAllocationCount(), 0);
+  EXPECT_EQ(memManager.getTotalAllocatedBytes(), (size_t)0);
+  EXPECT_EQ(memManager.getAllocationCount(), (size_t)0);
 
   sendEventToNanoapp(app, ALLOCATE, 100);
   waitForEvent(ALLOCATE, &ptr1);
@@ -232,8 +232,8 @@ TEST_F(TestBase, MemoryStressTestShouldNotTriggerErrors) {
   waitForEvent(ALLOCATE, &ptr2);
   sendEventToNanoapp(app, ALLOCATE, 300);
   waitForEvent(ALLOCATE, &ptr3);
-  EXPECT_EQ(memManager.getTotalAllocatedBytes(), 100 + 200 + 300);
-  EXPECT_EQ(memManager.getAllocationCount(), 3);
+  EXPECT_EQ(memManager.getTotalAllocatedBytes(), (size_t)(100 + 200 + 300));
+  EXPECT_EQ(memManager.getAllocationCount(), (size_t)3);
 
   // Free last, last and last blocks.
   sendEventToNanoapp(app, FREE, ptr3);
@@ -242,8 +242,8 @@ TEST_F(TestBase, MemoryStressTestShouldNotTriggerErrors) {
   waitForEvent(FREE);
   sendEventToNanoapp(app, FREE, ptr1);
   waitForEvent(FREE);
-  EXPECT_EQ(memManager.getTotalAllocatedBytes(), 0);
-  EXPECT_EQ(memManager.getAllocationCount(), 0);
+  EXPECT_EQ(memManager.getTotalAllocatedBytes(), (size_t)0);
+  EXPECT_EQ(memManager.getAllocationCount(), (size_t)0);
 
   sendEventToNanoapp(app, ALLOCATE, 100);
   waitForEvent(ALLOCATE, &ptr1);
@@ -251,13 +251,13 @@ TEST_F(TestBase, MemoryStressTestShouldNotTriggerErrors) {
   waitForEvent(ALLOCATE, &ptr2);
   sendEventToNanoapp(app, ALLOCATE, 300);
   waitForEvent(ALLOCATE, &ptr3);
-  EXPECT_EQ(memManager.getTotalAllocatedBytes(), 100 + 200 + 300);
-  EXPECT_EQ(memManager.getAllocationCount(), 3);
+  EXPECT_EQ(memManager.getTotalAllocatedBytes(), (size_t)(100 + 200 + 300));
+  EXPECT_EQ(memManager.getAllocationCount(), (size_t)3);
 
   // Automatic cleanup.
   unloadNanoapp(app);
-  EXPECT_EQ(memManager.getTotalAllocatedBytes(), 0);
-  EXPECT_EQ(memManager.getAllocationCount(), 0);
+  EXPECT_EQ(memManager.getTotalAllocatedBytes(), (size_t)0);
+  EXPECT_EQ(memManager.getAllocationCount(), (size_t)0);
 }
 
 }  // namespace
