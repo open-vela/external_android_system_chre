@@ -30,10 +30,10 @@ using chre::Seconds;
 
 // Tests for Time constants
 TEST(Time, CheckTimeConversionConstants) {
-  EXPECT_EQ(kOneSecondInNanoseconds, 1e9);
-  EXPECT_EQ(kOneMillisecondInNanoseconds, 1e6);
-  EXPECT_EQ(kOneMicrosecondInNanoseconds, 1e3);
-  EXPECT_EQ(kOneMillisecondInMicroseconds, 1e3);
+  EXPECT_EQ(kOneSecondInNanoseconds, (uint64_t)1e9);
+  EXPECT_EQ(kOneMillisecondInNanoseconds, (uint64_t)1e6);
+  EXPECT_EQ(kOneMicrosecondInNanoseconds, (uint64_t)1e3);
+  EXPECT_EQ(kOneMillisecondInMicroseconds, (uint64_t)1e3);
 }
 
 // Tests for Seconds
@@ -60,18 +60,18 @@ TEST(Time, ConvertSecToMillisecOverflowIsUint64Max) {
 // Tests for Milliseconds
 TEST(Time, DefaultMillisecIsZero) {
   Milliseconds t;
-  EXPECT_EQ(t.getMilliseconds(), 0);
+  EXPECT_EQ(t.getMilliseconds(), (uint64_t)0);
 }
 
 TEST(Time, GetInitialMillisec) {
   Milliseconds t(5);
-  EXPECT_EQ(t.getMilliseconds(), 5);
+  EXPECT_EQ(t.getMilliseconds(), (uint64_t)5);
 }
 
 TEST(Time, InitializeMillisecFromNanosec) {
   Nanoseconds tNano(5 * kOneMillisecondInNanoseconds);
   Milliseconds tMilli(tNano);
-  EXPECT_EQ(tMilli.getMilliseconds(), 5);
+  EXPECT_EQ(tMilli.getMilliseconds(), (uint64_t)5);
 }
 
 TEST(Time, ConcertMillisecToMicrosec) {
@@ -103,13 +103,13 @@ TEST(Time, TestMillisecEquals) {
 // Tests for Microseconds
 TEST(Time, GetInitialMicrosec) {
   Microseconds t(5);
-  EXPECT_EQ(t.getMicroseconds(), 5);
+  EXPECT_EQ(t.getMicroseconds(), (uint64_t)5);
 }
 
 TEST(Time, InitializeMicrosecFromNanosec) {
   Nanoseconds tNano(5 * kOneMicrosecondInNanoseconds);
   Microseconds tMicro(tNano);
-  EXPECT_EQ(tMicro.getMicroseconds(), 5);
+  EXPECT_EQ(tMicro.getMicroseconds(), (uint64_t)5);
 }
 
 TEST(Time, ConvertMicrosecToNanosec) {
@@ -124,18 +124,18 @@ TEST(Time, ConvertMicrosecToNanosecOverflowIsUint64Max) {
 
 TEST(Time, ConvertMicrosecToMillisec) {
   Microseconds t(5120);
-  EXPECT_EQ(t.getMilliseconds(), 5);
+  EXPECT_EQ(t.getMilliseconds(), (uint64_t)5);
 }
 
 // Tests for Nanoseconds
 TEST(Time, DefaultNanosecIsZero) {
   Nanoseconds t;
-  EXPECT_EQ(t.toRawNanoseconds(), 0);
+  EXPECT_EQ(t.toRawNanoseconds(), (uint64_t)0);
 }
 
 TEST(Time, GetInitialNanosec) {
   Nanoseconds t(5);
-  EXPECT_EQ(t.toRawNanoseconds(), 5);
+  EXPECT_EQ(t.toRawNanoseconds(), (uint64_t)5);
 }
 
 TEST(Time, InitializeNanosecFromSec) {
@@ -180,17 +180,17 @@ TEST(Time, AddSecToNanosecOverflow) {
 
 TEST(Time, AddNanosecToNanosec) {
   Nanoseconds t = Nanoseconds(6) + Nanoseconds(5);
-  EXPECT_EQ(t.toRawNanoseconds(), 11);
+  EXPECT_EQ(t.toRawNanoseconds(), (uint64_t)11);
 }
 
 TEST(Time, AddNanosecToNanosecOverflow) {
   Nanoseconds t = Nanoseconds(6) + Nanoseconds(UINT64_MAX);
-  EXPECT_EQ(t.toRawNanoseconds(), 5);
+  EXPECT_EQ(t.toRawNanoseconds(), (uint64_t)5);
 }
 
 TEST(Time, SubtractNanosecFromNanosec) {
   Nanoseconds t = Nanoseconds(11) - Nanoseconds(5);
-  EXPECT_EQ(t.toRawNanoseconds(), 6);
+  EXPECT_EQ(t.toRawNanoseconds(), (uint64_t)6);
 }
 
 TEST(Time, SubtractNanosecFromNanosecOverflow) {
