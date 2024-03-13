@@ -169,5 +169,5 @@ TEST(UniquePtr, OverAlignedTest) {
 
   UniquePtr<OverAlignedStruct> ptr = MakeUnique<OverAlignedStruct>();
   ASSERT_EQ(reinterpret_cast<uintptr_t>(ptr.get()) % alignof(OverAlignedStruct),
-            0);
+            (uintptr_t)0);
 }

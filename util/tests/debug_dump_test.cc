@@ -35,7 +35,7 @@ TEST(DebugDumpWrapper, OneBufferForOneString) {
   const char *str = "Lorem ipsum";
   debugDump.print("%s", str);
   const auto &buffers = debugDump.getBuffers();
-  EXPECT_EQ(buffers.size(), 1);
+  EXPECT_EQ(buffers.size(), (size_t)1);
   EXPECT_TRUE(strcmp(buffers.front().get(), str) == 0);
 }
 
@@ -46,7 +46,7 @@ TEST(DebugDumpWrapper, TwoStringsFitPerfectlyInOneBuffer) {
   debugDump.print("%s", str1);
   debugDump.print("%s", str2);
   const auto &buffers = debugDump.getBuffers();
-  EXPECT_EQ(buffers.size(), 1);
+  EXPECT_EQ(buffers.size(), (size_t)1);
   char bothStr[5];
   strcpy(bothStr, str1);
   strcat(bothStr, str2);
@@ -60,12 +60,12 @@ TEST(DebugDumpWrapper, TooLargeOfStringToFit) {
   const auto &buffers = debugDump.getBuffers();
 
   // One null-terminated buffer will be created for an empty wrapper.
-  EXPECT_EQ(buffers.size(), 1);
+  EXPECT_EQ(buffers.size(), (size_t)1);
   EXPECT_TRUE(strcmp(buffers.back().get(), "") == 0);
 
   // Once there's a buffer, it won't be updated.
   debugDump.print("%s", str);
-  EXPECT_EQ(buffers.size(), 1);
+  EXPECT_EQ(buffers.size(), (size_t)1);
   EXPECT_TRUE(strcmp(buffers.back().get(), "") == 0);
 }
 
@@ -75,9 +75,9 @@ TEST(DebugDumpWrapper, TooLargeOfStringWithPartlyFilledBuffer) {
   const char *str2 = "bc";
   debugDump.print("%s", str1);
   const auto &buffers = debugDump.getBuffers();
-  EXPECT_EQ(buffers.size(), 1);
+  EXPECT_EQ(buffers.size(), (size_t)1);
   debugDump.print("%s", str2);
-  EXPECT_EQ(buffers.size(), 1);
+  EXPECT_EQ(buffers.size(), (size_t)1);
   EXPECT_TRUE(strcmp(buffers.front().get(), str1) == 0);
 }
 
@@ -88,7 +88,7 @@ TEST(DebugDumpWrapper, StringForcesNewBufferWithPartlyFilledBuffer) {
   debugDump.print("%s", str1);
   debugDump.print("%s", str2);
   const auto &buffers = debugDump.getBuffers();
-  EXPECT_EQ(buffers.size(), 2);
+  EXPECT_EQ(buffers.size(), (size_t)2);
   EXPECT_TRUE(strcmp(buffers.front().get(), str1) == 0);
   EXPECT_TRUE(strcmp(buffers.back().get(), str2) == 0);
 }
@@ -102,14 +102,14 @@ TEST(DebugDumpWrapper, ManyNewBuffersAllocated) {
     debugDump.print("%s", str);
   }
   const auto &buffers = debugDump.getBuffers();
-  EXPECT_EQ(buffers.size(), 3);
+  EXPECT_EQ(buffers.size(), (size_t)3);
 }
 
 TEST(DebugDumpWrapper, EmptyStringAllocsOneBuffer) {
   DebugDumpWrapper debugDump(kStandardBufferSize);
   debugDump.print("%s", "");
   const auto &buffers = debugDump.getBuffers();
-  EXPECT_EQ(buffers.size(), 1);
+  EXPECT_EQ(buffers.size(), (size_t)1);
 }
 
 TEST(DebugDumpWrapper, BuffersClear) {
@@ -121,15 +121,15 @@ TEST(DebugDumpWrapper, BuffersClear) {
   debugDump.print("%s", str1);
   debugDump.print("%s", str2);
   const auto &buffers = debugDump.getBuffers();
-  EXPECT_EQ(buffers.size(), 2);
+  EXPECT_EQ(buffers.size(), (size_t)2);
   EXPECT_TRUE(strcmp(buffers.front().get(), str1) == 0);
   EXPECT_TRUE(strcmp(buffers.back().get(), str2) == 0);
 
   debugDump.clear();
-  EXPECT_EQ(buffers.size(), 0);
+  EXPECT_EQ(buffers.size(), (size_t)0);
 
   debugDump.print("%s", str3);
-  EXPECT_EQ(buffers.size(), 1);
+  EXPECT_EQ(buffers.size(), (size_t)1);
   EXPECT_TRUE(strcmp(buffers.front().get(), str3) == 0);
 }
 
@@ -147,7 +147,7 @@ TEST(DebugDumpWrapper, PrintVaListTwoStrings) {
   printVaList(&debugDump, "%s", str1);
   printVaList(&debugDump, "%s", str2);
   const auto &buffers = debugDump.getBuffers();
-  EXPECT_EQ(buffers.size(), 1);
+  EXPECT_EQ(buffers.size(), (size_t)1);
   char bothStr[5];
   strcpy(bothStr, str1);
   strcat(bothStr, str2);

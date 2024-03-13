@@ -30,7 +30,7 @@ void fillBufferWithSequentialValues(float *buffer, size_t size) {
 TEST(Buffer, EmptyByDefault) {
   Buffer<float> buffer;
   EXPECT_EQ(buffer.data(), nullptr);
-  EXPECT_EQ(buffer.size(), 0);
+  EXPECT_EQ(buffer.size(), (size_t)0);
 }
 
 TEST(Buffer, Wrap) {
@@ -60,7 +60,7 @@ TEST(Buffer, CopyArrayEmpty) {
   Buffer<float> buffer;
   EXPECT_TRUE(buffer.copy_array(nullptr, 0));
   EXPECT_EQ(buffer.data(), nullptr);
-  EXPECT_EQ(buffer.size(), 0);
+  EXPECT_EQ(buffer.size(), (size_t)0);
 }
 
 TEST(Buffer, CopyArrayEmptyAfterWrap) {
@@ -71,7 +71,7 @@ TEST(Buffer, CopyArrayEmptyAfterWrap) {
   buffer.wrap(buf, ARRAY_SIZE(buf));
   EXPECT_TRUE(buffer.copy_array(nullptr, 0));
   EXPECT_EQ(buffer.data(), nullptr);
-  EXPECT_EQ(buffer.size(), 0);
+  EXPECT_EQ(buffer.size(), (size_t)0);
 }
 
 TEST(Buffer, CopyArrayEmptyAfterCopy) {
@@ -82,5 +82,5 @@ TEST(Buffer, CopyArrayEmptyAfterCopy) {
   EXPECT_TRUE(buffer.copy_array(buf, ARRAY_SIZE(buf)));
   EXPECT_TRUE(buffer.copy_array(nullptr, 0));
   EXPECT_EQ(buffer.data(), nullptr);
-  EXPECT_EQ(buffer.size(), 0);
+  EXPECT_EQ(buffer.size(), (size_t)0);
 }
