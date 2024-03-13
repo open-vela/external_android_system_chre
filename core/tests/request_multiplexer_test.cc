@@ -383,7 +383,7 @@ TEST(RequestMultiplexer, AddManyUpdateWithNewMaximalLowerPriority) {
 
   {
     FakeRequest request(8);
-    bool maximalRequestChanged;
+    bool maximalRequestChanged = false;
     multiplexer.updateRequest(2, request, &maximalRequestChanged);
     EXPECT_TRUE(maximalRequestChanged);
     EXPECT_EQ(multiplexer.getRequests()[2].getPriority(), 8);
@@ -427,7 +427,7 @@ TEST(RequestMultiplexer, AddManyUpdateNewMaximal) {
 
   {
     FakeRequest request(20);
-    bool maximalRequestChanged;
+    bool maximalRequestChanged = false;
     multiplexer.updateRequest(1, request, &maximalRequestChanged);
     EXPECT_TRUE(maximalRequestChanged);
     EXPECT_EQ(multiplexer.getRequests()[1].getPriority(), 20);
