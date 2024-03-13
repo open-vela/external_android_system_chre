@@ -28,7 +28,7 @@ TEST(CopyableFixedSizeVector, CopyConstructible) {
   a.push_back(kValue);
 
   CopyableFixedSizeVector<int, 2> b(a);
-  EXPECT_EQ(b.size(), 1);
+  EXPECT_EQ(b.size(), (size_t)1);
   EXPECT_EQ(a[0], kValue);
   EXPECT_EQ(b[0], kValue);
 }
@@ -39,9 +39,9 @@ TEST(CopyableFixedSizeVector, CopyAssignable) {
   a.push_back(kValue);
 
   CopyableFixedSizeVector<int, 2> b;
-  EXPECT_EQ(b.size(), 0);
+  EXPECT_EQ(b.size(), (size_t)0);
   b = a;
-  EXPECT_EQ(b.size(), 1);
+  EXPECT_EQ(b.size(), (size_t)1);
   EXPECT_EQ(a[0], kValue);
   EXPECT_EQ(b[0], kValue);
 }
@@ -99,6 +99,6 @@ TEST(CopyableFixedSizeVector, Nestable) {
   EXPECT_EQ(container.front().id, 1);
   container.erase(0);
   EXPECT_EQ(container.front().id, 2);
-  EXPECT_EQ(container.front().vec.size(), 2);
+  EXPECT_EQ(container.front().vec.size(), (size_t)2);
   EXPECT_EQ(container.front().vec[0], 1.23f);
 }
