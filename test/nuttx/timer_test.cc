@@ -95,7 +95,7 @@ TEST_F(TestTimer, SetupAndCancelPeriodicTimer) {
                   ->getEventLoop()
                   .findNanoappInstanceIdByAppId(app.id, &instanceId));
 
-  uint32_t handle;
+  uint32_t handle = CHRE_TIMER_INVALID;
   sendEventToNanoapp(app, START_TIMER);
   waitForEvent(START_TIMER, &handle);
   EXPECT_NE(handle, CHRE_TIMER_INVALID);
@@ -103,7 +103,7 @@ TEST_F(TestTimer, SetupAndCancelPeriodicTimer) {
 
   waitForEvent(CHRE_EVENT_TIMER);
 
-  bool success;
+  bool success = false;
 
   // Cancelling an active timer should be successful.
   sendEventToNanoapp(app, STOP_TIMER, handle);
@@ -163,7 +163,7 @@ TEST_F(TestTimer, CancelPeriodicTimerOnUnload) {
                   ->getEventLoop()
                   .findNanoappInstanceIdByAppId(app.id, &instanceId));
 
-  uint32_t handle;
+  uint32_t handle = CHRE_TIMER_INVALID;
   sendEventToNanoapp(app, START_TIMER);
   waitForEvent(START_TIMER, &handle);
   EXPECT_NE(handle, CHRE_TIMER_INVALID);
