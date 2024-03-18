@@ -5,8 +5,8 @@
 # Common Compiler Flags ########################################################
 
 # Include paths.
-COMMON_CFLAGS += -I$(CHRE_PREFIX)/apps/wifi_world/include
+COMMON_CFLAGS += -Iapps/wifi_world/include
 
 # Common Source Files ##########################################################
 
-COMMON_SRCS += $(CHRE_PREFIX)/apps/wifi_world/wifi_world.cc
+COMMON_SRCS += apps/wifi_world/wifi_world.cc

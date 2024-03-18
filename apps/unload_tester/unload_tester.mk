@@ -4,4 +4,4 @@
 
 # Common Source Files ##########################################################
 
-COMMON_SRCS += $(CHRE_PREFIX)/apps/unload_tester/unload_tester.cc
+COMMON_SRCS += apps/unload_tester/unload_tester.cc
