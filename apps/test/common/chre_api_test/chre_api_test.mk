@@ -18,13 +18,13 @@ NANOAPP_PATH = $(CHRE_PREFIX)/apps/test/common/chre_api_test
 
 # Source Code ##################################################################
 
-COMMON_SRCS += $(CHRE_PREFIX)/$(NANOAPP_PATH)/src/chre_api_test_manager.cc
-COMMON_SRCS += $(CHRE_PREFIX)/$(NANOAPP_PATH)/src/chre_api_test_service.cc
-COMMON_SRCS += $(CHRE_PREFIX)/$(NANOAPP_PATH)/src/chre_api_test.cc
+COMMON_SRCS += $(NANOAPP_PATH)/src/chre_api_test_manager.cc
+COMMON_SRCS += $(NANOAPP_PATH)/src/chre_api_test_service.cc
+COMMON_SRCS += $(NANOAPP_PATH)/src/chre_api_test.cc
 
 # Utilities ####################################################################
 
-COMMON_SRCS += $(CHRE_PREFIX)/$(CHRE_PREFIX)/util/nanoapp/ble.cc
+COMMON_SRCS += $(CHRE_PREFIX)/util/nanoapp/ble.cc
 
 # Compiler Flags ###############################################################
 
@@ -35,7 +35,7 @@ COMMON_CFLAGS += -DPB_FIELD_16BIT
 COMMON_CFLAGS += -fno-threadsafe-statics
 
 # Includes
-COMMON_CFLAGS += -I$(CHRE_PREFIX)/$(NANOAPP_PATH)/inc
+COMMON_CFLAGS += -I$(NANOAPP_PATH)/inc
 
 # Permission declarations ######################################################
 

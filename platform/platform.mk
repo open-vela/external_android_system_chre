@@ -7,7 +7,7 @@ include $(CHRE_PREFIX)/external/flatbuffers/flatbuffers.mk
 # Common Compiler Flags ########################################################
 
 # Include paths.
-COMMON_CFLAGS += -I$(CHRE_PREFIX)/platform/include
+COMMON_CFLAGS += -Iplatform/include
 
 # SLPI-specific Compiler Flags #################################################
 
