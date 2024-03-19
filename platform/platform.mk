@@ -521,7 +521,6 @@ TINYSYS_CFLAGS += -DCHRE_LOADER_ARCH=EM_RISCV
 TINYSYS_CFLAGS += -DCHRE_NANOAPP_LOAD_ALIGNMENT=4096
 
 # NuttX-specific Source Files ##################################################
-
 NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/chre_api_re.cc
 NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/context.cc
 NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/fatal_error.cc
@@ -547,7 +546,11 @@ NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/chre_api_user_settings.cc
 NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/chre_api_version.cc
 NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/chre_api_wifi.cc
 NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/chre_api_wwan.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/host_protocol_chre.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/host_protocol_common.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/host_link.cc
 NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/memory_manager.cc
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/nanoapp_load_manager.cc
 NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/nanoapp/nanoapp_dso_util.cc
 NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/pal_system_api.cc
 NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/system_time.cc
@@ -602,3 +605,4 @@ NUTTX_CFLAGS += -I$(CHRE_PREFIX)/platform/shared/include
 NUTTX_CFLAGS += -I$(CHRE_PREFIX)/platform/nuttx/sim/include
 NUTTX_CFLAGS += -I$(CHRE_PREFIX)/platform/nuttx/include
 NUTTX_CFLAGS += -I$(CHRE_PREFIX)/platform/nuttx/include/nanoapp/include
+NUTTX_CFLAGS += -I$(CHRE_PREFIX)/external/flatbuffers/include
