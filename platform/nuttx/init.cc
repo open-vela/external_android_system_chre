@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 Xiaomi Corporation
+ * Copyright (C) 2024 Xiaomi Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@
 #include "chre/platform/nuttx/platform_log.h"
 #include "chre/platform/nuttx/task_util/task_manager.h"
 #include "chre/platform/system_timer.h"
+#include "chre/target_platform/host_link_base.h"
 #include "chre/util/time.h"
 
 using chre::EventLoopManagerSingleton;
@@ -79,6 +80,11 @@ extern "C" int main(int argc, char **argv) {
   // Initialize the system.
   chre::init();
 
+  // Initialize the socket server.
+  chre::HostLinkBaseSingleton::init();
+
+  chre::HostLinkBaseSingleton::get()->startServer();
+
   // Register a signal handler.
   signal(SIGINT, signalHandler);
 
@@ -106,6 +112,10 @@ extern "C" int main(int argc, char **argv) {
   }
 
   EventLoopManagerSingleton::get()->getEventLoop().run();
+
+  chre::HostLinkBaseSingleton::get()->stopServer();
+
+  chre::HostLinkBaseSingleton::deinit();
 
   chre::TaskManagerSingleton::deinit();
   chre::deinit();
