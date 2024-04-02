@@ -284,7 +284,7 @@ bool EventLoop::removeLowPriorityEventsFromBack(size_t removeNum) {
   if (numRemovedEvent == 0 || numRemovedEvent == SIZE_MAX) {
     LOGW("Cannot remove any low priority event");
   } else {
-    mNumDroppedLowPriEvents += numRemovedEvent;
+    mNumDroppedLowPriEvents += (uint32_t)numRemovedEvent;
   }
   return numRemovedEvent > 0;
 #endif

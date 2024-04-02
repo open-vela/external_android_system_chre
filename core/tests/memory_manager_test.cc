@@ -66,7 +66,7 @@ TEST(MemoryManager, ZeroAllocationFails) {
 TEST(MemoryManager, HugeAllocationFails) {
   MemoryManager manager;
   Nanoapp app;
-  void *ptr = manager.nanoappAlloc(&app, manager.getMaxAllocationBytes() + 1);
+  void *ptr = manager.nanoappAlloc(&app, (uint32_t)(manager.getMaxAllocationBytes() + 1));
   EXPECT_EQ(ptr, nullptr);
   EXPECT_EQ(manager.getTotalAllocatedBytes(), 0u);
 }
