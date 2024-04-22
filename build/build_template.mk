@@ -197,22 +197,22 @@ $$($(1)_HEADER): $$(OUT)/$(1) $$($(1)_DIRS)
 
 $$($(1)_CPP_OBJS): $(OUT)/$$($(1)_OBJS_DIR)/%.o: %.cpp $(MAKEFILE_LIST)
 	@echo " [CPP] $$<"
-	$(V)$(3) $(COMMON_CXX_CFLAGS) -DCHRE_FILENAME=\"$$(notdir $$<)\" $(2) -c \
+	$(Q)$(3) $(COMMON_CXX_CFLAGS) -DCHRE_FILENAME=\"$$(notdir $$<)\" $(2) -c \
 		$$< -o $$@
 
 $$($(1)_CC_OBJS): $(OUT)/$$($(1)_OBJS_DIR)/%.o: %.cc $(MAKEFILE_LIST)
 	@echo " [CC] $$<"
-	$(V)$(3) $(COMMON_CXX_CFLAGS) -DCHRE_FILENAME=\"$$(notdir $$<)\" $(2) -c \
+	$(Q)$(3) $(COMMON_CXX_CFLAGS) -DCHRE_FILENAME=\"$$(notdir $$<)\" $(2) -c \
 		$$< -o $$@
 
 $$($(1)_C_OBJS): $(OUT)/$$($(1)_OBJS_DIR)/%.o: %.c $(MAKEFILE_LIST)
 	@echo " [C] $$<"
-	$(V)$(3) $(COMMON_C_CFLAGS) -DCHRE_FILENAME=\"$$(notdir $$<)\" $(2) -c $$< \
+	$(Q)$(3) $(COMMON_C_CFLAGS) -DCHRE_FILENAME=\"$$(notdir $$<)\" $(2) -c $$< \
 		-o $$@
 
 $$($(1)_S_OBJS): $(OUT)/$$($(1)_OBJS_DIR)/%.o: %.S $(MAKEFILE_LIST)
 	@echo " [AS] $$<"
-	$(V)$(3) -DCHRE_FILENAME=\"$$(notdir $$<)\" $(2) -c $$< \
+	$(Q)$(3) -DCHRE_FILENAME=\"$$(notdir $$<)\" $(2) -c $$< \
 		-o $$@
 
 # Archive ######################################################################
@@ -224,15 +224,15 @@ $(1)_ARFLAGS = $(COMMON_ARFLAGS) \
 $$($(1)_AR): $$($(1)_CC_OBJS) $$($(1)_CPP_OBJS) $$($(1)_C_OBJS) \
               $$($(1)_S_OBJS) | $$(OUT)/$(1) $$($(1)_DIRS)
 	@echo " [AR] $$@"
-	$(V)$(7) $$($(1)_ARFLAGS) $$@ $$(filter %.o, $$^)
+	$(Q)$(7) $$($(1)_ARFLAGS) $$@ $$(filter %.o, $$^)
 
 # Token Mapping ################################################################
 
 $$($(1)_TOKEN_MAP): $$($(1)_AR)
 	@echo " [TOKEN_MAP_GEN] $<"
-	$(V)mkdir -p $(OUT)/$(1)
-	$(V)$(TOKEN_MAP_GEN_CMD) $$($(1)_TOKEN_MAP) $$($(1)_AR)
-	$(V)$(TOKEN_MAP_CSV_GEN_CMD) $$($(1)_TOKEN_MAP_CSV) $$($(1)_AR)
+	$(Q)mkdir -p $(OUT)/$(1)
+	$(Q)$(TOKEN_MAP_GEN_CMD) $$($(1)_TOKEN_MAP) $$($(1)_AR)
+	$(Q)$(TOKEN_MAP_CSV_GEN_CMD) $$($(1)_TOKEN_MAP_CSV) $$($(1)_AR)
 
 # Link #########################################################################
 
@@ -240,42 +240,42 @@ $$($(1)_SO): $$($(1)_CC_DEPS) \
               $$($(1)_CPP_DEPS) $$($(1)_C_DEPS) $$($(1)_S_DEPS) \
               $$($(1)_CC_OBJS) $$($(1)_CPP_OBJS) $$($(1)_C_OBJS) \
               $$($(1)_S_OBJS) | $$(OUT)/$(1) $$($(1)_DIRS)
-	$(V)$(5) $(4) -o $$@ $(11) $$(filter %.o, $$^) $(12)
+	$(Q)$(5) $(4) -o $$@ $(11) $$(filter %.o, $$^) $(12)
 
 $$($(1)_BIN): $$($(1)_CC_DEPS) \
                $$($(1)_CPP_DEPS) $$($(1)_C_DEPS) $$($(1)_S_DEPS) \
                $$($(1)_CC_OBJS) $$($(1)_CPP_OBJS) $$($(1)_C_OBJS) \
                $$($(1)_S_OBJS) | $$(OUT)/$(1) $$($(1)_DIRS)
-	$(V)$(3) -o $$@ $(11) $$(filter %.o, $$^) $(12) $(10)
+	$(Q)$(3) -o $$@ $(11) $$(filter %.o, $$^) $(12) $(10)
 
 # Output Directories ###########################################################
 
 $$($$$(1)_DIRS):
-	$(V)mkdir -p $$@
+	$(Q)mkdir -p $$@
 
 $$(OUT)/$(1):
-	$(V)mkdir -p $$@
+	$(Q)mkdir -p $$@
 
 # Automatic Dependency Resolution ##############################################
 
 $$($(1)_CC_DEPS): $(OUT)/$$($(1)_OBJS_DIR)/%.d: %.cc
-	$(V)mkdir -p $$(dir $$@)
-	$(V)$(3) $(DEP_CFLAGS) $(COMMON_CXX_CFLAGS) \
+	$(Q)mkdir -p $$(dir $$@)
+	$(Q)$(3) $(DEP_CFLAGS) $(COMMON_CXX_CFLAGS) \
 		-DCHRE_FILENAME=\"$$(notdir $$<)\" $(2) -c $$< -o $$@
 
 $$($(1)_CPP_DEPS): $(OUT)/$$($(1)_OBJS_DIR)/%.d: %.cpp
-	$(V)mkdir -p $$(dir $$@)
-	$(V)$(3) $(DEP_CFLAGS) $(COMMON_CXX_CFLAGS) \
+	$(Q)mkdir -p $$(dir $$@)
+	$(Q)$(3) $(DEP_CFLAGS) $(COMMON_CXX_CFLAGS) \
 		-DCHRE_FILENAME=\"$$(notdir $$<)\" $(2) -c $$< -o $$@
 
 $$($(1)_C_DEPS): $(OUT)/$$($(1)_OBJS_DIR)/%.d: %.c
-	$(V)mkdir -p $$(dir $$@)
-	$(V)$(3) $(DEP_CFLAGS) $(COMMON_C_CFLAGS) \
+	$(Q)mkdir -p $$(dir $$@)
+	$(Q)$(3) $(DEP_CFLAGS) $(COMMON_C_CFLAGS) \
 		-DCHRE_FILENAME=\"$$(notdir $$<)\" $(2) -c $$< -o $$@
 
 $$($(1)_S_DEPS): $(OUT)/$$($(1)_OBJS_DIR)/%.d: %.S
-	$(V)mkdir -p $$(dir $$@)
-	$(V)$(3) $(DEP_CFLAGS) \
+	$(Q)mkdir -p $$(dir $$@)
+	$(Q)$(3) $(DEP_CFLAGS) \
 		-DCHRE_FILENAME=\"$$(notdir $$<)\" $(2) -c $$< -o $$@
 
 # Include generated dependency files if they are in the requested build target.
