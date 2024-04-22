@@ -99,8 +99,8 @@ $(NANOPB_GEN_PATH)/%.$(NANOPB_EXTENSION).c \
                                                     %.options \
                                                     $(NANOPB_GENERATOR_SRCS)
 	@echo " [NANOPB] $<"
-	$(V)mkdir -p $(dir $@)
-	$(V)$(PROTOC) --plugin=protoc-gen-nanopb=$(NANOPB_PROTOC) \
+	$(Q)mkdir -p $(dir $@)
+	$(Q)$(PROTOC) --plugin=protoc-gen-nanopb=$(NANOPB_PROTOC) \
 	  --proto_path=$(abspath $(dir $<)) \
 	  $(NANOPB_FLAGS) \
 	  --nanopb_out="$(NANOPB_GENERATOR_FLAGS) --options-file=$(basename $<).options:$(dir $@)" \
@@ -111,8 +111,8 @@ $(NANOPB_GEN_PATH)/%.$(NANOPB_EXTENSION).c \
                                                     $(NANOPB_OPTIONS) \
                                                     $(NANOPB_GENERATOR_SRCS)
 	@echo " [NANOPB] $<"
-	$(V)mkdir -p $(dir $@)
-	$(V)$(PROTOC) --plugin=protoc-gen-nanopb=$(NANOPB_PROTOC) \
+	$(Q)mkdir -p $(dir $@)
+	$(Q)$(PROTOC) --plugin=protoc-gen-nanopb=$(NANOPB_PROTOC) \
 	  --proto_path=$(abspath $(dir $<)) \
 	  $(NANOPB_FLAGS) \
 	  --nanopb_out="$(NANOPB_GENERATOR_FLAGS) $(NANOPB_OPTIONS_FLAG):$(dir $@)" \
