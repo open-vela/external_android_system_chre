@@ -47,10 +47,10 @@ PW_RPC_GENERATOR_CMD = PYTHONPATH=$$PYTHONPATH:$(PW_RPC_GEN_PATH)/py:$\
 
 $(PW_RPC_GENERATOR_COMPILED_PROTO): $(PW_RPC_GENERATOR_PROTO)
 	@echo " [PW_RPC] $<"
-	$(V)mkdir -p $(PW_RPC_GEN_PATH)/py/pw_rpc/internal
-	$(V)mkdir -p $(PW_RPC_GEN_PATH)/py/pw_protobuf_codegen_protos
-	$(V)mkdir -p $(PW_RPC_GEN_PATH)/py/pw_protobuf_protos
-	$(V)cp -R $(PIGWEED_DIR)/pw_rpc/py/pw_rpc $(PW_RPC_GEN_PATH)/py/
+	$(Q)mkdir -p $(PW_RPC_GEN_PATH)/py/pw_rpc/internal
+	$(Q)mkdir -p $(PW_RPC_GEN_PATH)/py/pw_protobuf_codegen_protos
+	$(Q)mkdir -p $(PW_RPC_GEN_PATH)/py/pw_protobuf_protos
+	$(Q)cp -R $(PIGWEED_DIR)/pw_rpc/py/pw_rpc $(PW_RPC_GEN_PATH)/py/
 
 	$(PROTOC) -I$(PIGWEED_DIR)/pw_protobuf/pw_protobuf_protos \
 	  --experimental_allow_proto3_optional \
@@ -62,11 +62,11 @@ $(PW_RPC_GENERATOR_COMPILED_PROTO): $(PW_RPC_GENERATOR_PROTO)
 	  --python_out=$(PW_RPC_GEN_PATH)/py/pw_protobuf_codegen_protos \
 	  $(PIGWEED_DIR)/pw_protobuf/pw_protobuf_codegen_protos/codegen_options.proto
 
-	$(V)$(PW_RPC_GENERATOR_CMD) $(PW_RPC_PROTO_GENERATOR) --out-dir=$(PW_RPC_GEN_PATH)/py/pw_rpc/internal \
+	$(Q)$(PW_RPC_GENERATOR_CMD) $(PW_RPC_PROTO_GENERATOR) --out-dir=$(PW_RPC_GEN_PATH)/py/pw_rpc/internal \
 	  --compile-dir=$(dir $<) --sources $(PW_RPC_GENERATOR_PROTO) \
 	  --language python
 
-	$(V)$(PW_RPC_GENERATOR_CMD) $(PW_RPC_PROTO_GENERATOR) --out-dir=$(PW_RPC_GEN_PATH)/$(dir $<) \
+	$(Q)$(PW_RPC_GENERATOR_CMD) $(PW_RPC_PROTO_GENERATOR) --out-dir=$(PW_RPC_GEN_PATH)/$(dir $<) \
 	  --plugin-path=$(PIGWEED_DIR)/pw_protobuf/py/pw_protobuf/plugin.py \
 	  --compile-dir=$(dir $<) --sources $(PW_RPC_GENERATOR_PROTO) \
 	  --language pwpb
@@ -181,27 +181,27 @@ $(PW_RPC_GEN_PATH)/%.pb.c \
                                            $(NANOPB_GENERATOR_SRCS) \
                                            $(PW_RPC_GENERATOR_COMPILED_PROTO)
 	@echo " [PW_RPC] $<"
-	$(V)$(PW_RPC_GENERATOR_CMD) $(PW_RPC_PROTO_GENERATOR) \
+	$(Q)$(PW_RPC_GENERATOR_CMD) $(PW_RPC_PROTO_GENERATOR) \
 	  --plugin-path=$(NANOPB_PROTOC) \
 	  --out-dir=$(PW_RPC_GEN_PATH)/$(dir $<) --compile-dir=$(dir $<) --language nanopb \
 	  --sources $<
 
-	$(V)$(PW_RPC_GENERATOR_CMD) $(PW_RPC_PROTO_GENERATOR) \
+	$(Q)$(PW_RPC_GENERATOR_CMD) $(PW_RPC_PROTO_GENERATOR) \
 	  --plugin-path=$(PIGWEED_DIR)/pw_protobuf/py/pw_protobuf/plugin.py \
 	  --out-dir=$(PW_RPC_GEN_PATH)/$(dir $<) --compile-dir=$(dir $<) --language pwpb \
 		--sources $<
 
-	$(V)$(PW_RPC_GENERATOR_CMD) $(PW_RPC_PROTO_GENERATOR) \
+	$(Q)$(PW_RPC_GENERATOR_CMD) $(PW_RPC_PROTO_GENERATOR) \
 	  --plugin-path=$(PIGWEED_DIR)/pw_rpc/py/pw_rpc/plugin_nanopb.py \
 	  --out-dir=$(PW_RPC_GEN_PATH)/$(dir $<) --compile-dir=$(dir $<) --language nanopb_rpc \
 	  --sources $<
 
-	$(V)$(PW_RPC_GENERATOR_CMD) $(PW_RPC_PROTO_GENERATOR) \
+	$(Q)$(PW_RPC_GENERATOR_CMD) $(PW_RPC_PROTO_GENERATOR) \
 	  --plugin-path=$(PIGWEED_DIR)/pw_rpc/py/pw_rpc/plugin_raw.py \
 	  --out-dir=$(PW_RPC_GEN_PATH)/$(dir $<) --compile-dir=$(dir $<) --language raw_rpc \
 	  --sources $<
 
-	$(V)$(PW_RPC_GENERATOR_CMD) $(PW_RPC_PROTO_GENERATOR) \
+	$(Q)$(PW_RPC_GENERATOR_CMD) $(PW_RPC_PROTO_GENERATOR) \
 	  --plugin-path=$(PIGWEED_DIR)/pw_rpc/py/pw_rpc/plugin_pwpb.py \
 	  --out-dir=$(PW_RPC_GEN_PATH)/$(dir $<) --compile-dir=$(dir $<) --language pwpb_rpc \
 	  --sources $<
@@ -214,27 +214,27 @@ $(PW_RPC_GEN_PATH)/%.pb.c \
                                            $(NANOPB_GENERATOR_SRCS) \
                                            $(PW_RPC_GENERATOR_COMPILED_PROTO)
 	@echo " [PW_RPC] $<"
-	$(V)$(PW_RPC_GENERATOR_CMD) $(PW_RPC_PROTO_GENERATOR) \
+	$(Q)$(PW_RPC_GENERATOR_CMD) $(PW_RPC_PROTO_GENERATOR) \
 	  --plugin-path=$(NANOPB_PROTOC) \
 	  --out-dir=$(PW_RPC_GEN_PATH)/$(dir $<) --compile-dir=$(dir $<) --language nanopb \
 	  --sources $<
 
-	$(V)$(PW_RPC_GENERATOR_CMD) $(PW_RPC_PROTO_GENERATOR) \
+	$(Q)$(PW_RPC_GENERATOR_CMD) $(PW_RPC_PROTO_GENERATOR) \
 	  --plugin-path=$(PIGWEED_DIR)/pw_protobuf/py/pw_protobuf/plugin.py \
 	  --out-dir=$(PW_RPC_GEN_PATH)/$(dir $<) --compile-dir=$(dir $<) --language pwpb \
 	  --sources $<
 
-	$(V)$(PW_RPC_GENERATOR_CMD) $(PW_RPC_PROTO_GENERATOR) \
+	$(Q)$(PW_RPC_GENERATOR_CMD) $(PW_RPC_PROTO_GENERATOR) \
 	  --plugin-path=$(PIGWEED_DIR)/pw_rpc/py/pw_rpc/plugin_nanopb.py \
 	  --out-dir=$(PW_RPC_GEN_PATH)/$(dir $<) --compile-dir=$(dir $<) --language nanopb_rpc \
 	  --sources $<
 
-	$(V)$(PW_RPC_GENERATOR_CMD) $(PW_RPC_PROTO_GENERATOR) \
+	$(Q)$(PW_RPC_GENERATOR_CMD) $(PW_RPC_PROTO_GENERATOR) \
 	  --plugin-path=$(PIGWEED_DIR)/pw_rpc/py/pw_rpc/plugin_raw.py \
 	  --out-dir=$(PW_RPC_GEN_PATH)/$(dir $<) --compile-dir=$(dir $<) --language raw_rpc \
 	  --sources $<
 
-	$(V)$(PW_RPC_GENERATOR_CMD) $(PW_RPC_PROTO_GENERATOR) \
+	$(Q)$(PW_RPC_GENERATOR_CMD) $(PW_RPC_PROTO_GENERATOR) \
 	  --plugin-path=$(PIGWEED_DIR)/pw_rpc/py/pw_rpc/plugin_pwpb.py \
 	  --out-dir=$(PW_RPC_GEN_PATH)/$(dir $<) --compile-dir=$(dir $<) --language pwpb_rpc \
 	  --sources $<
