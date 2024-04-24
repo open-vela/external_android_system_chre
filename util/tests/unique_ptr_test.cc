@@ -25,7 +25,7 @@ using chre::MakeUniqueZeroFill;
 using chre::UniquePtr;
 
 struct Value {
-  Value(int value) : value(value) {
+  Value(int v) : value(v) {
     constructionCounter++;
   }
 
