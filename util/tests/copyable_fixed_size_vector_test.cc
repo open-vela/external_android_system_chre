@@ -58,6 +58,8 @@ TEST(CopyableFixedSizeVector, NonTrivialElement) {
       ctorCount++;
     }
 
+    Foo& operator=(const Foo &);
+
     ~Foo() {
       dtorCount++;
     }
