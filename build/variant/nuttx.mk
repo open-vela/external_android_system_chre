@@ -18,7 +18,11 @@
 #
 ############################################################################
 
-include $(CHRE_PREFIX)/build/clean_build_template_args.mk
+ifeq ($(PATH_CHRE),)
+PATH_CHRE = $(CHRE_PREFIX)
+endif
+
+include $(PATH_CHRE)/build/clean_build_template_args.mk
 
 TARGET_NAME = nuttx
 TARGET_CFLAGS = -DCHRE_MESSAGE_TO_HOST_MAX_SIZE=$(CONFIG_CHRE_MESSAGE_TO_HOST_MAX_SIZE)
