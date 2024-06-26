@@ -4,3 +4,9 @@ out
 .vscode
 *.o
 *.swp
+
+# NuttX DYNLIB related
+*.built
+*.depend
+Make.dep
+*.map
