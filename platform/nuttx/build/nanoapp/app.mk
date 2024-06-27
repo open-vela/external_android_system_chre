@@ -1,5 +1,6 @@
 include $(APPDIR)/Make.defs
 CXXEXT = .cc
+HEADER_SUFFIX = ".napp_header"
 
 ANDROID_BUILD_TOP = $(APPDIR)/external/android
 PATH_CHRE = $(ANDROID_BUILD_TOP)/system/chre/chre
@@ -8,6 +9,18 @@ NANOAPP_IS_SYSTEM_NANOAPP = 0
 NANOAPP_VENDOR_STRING = "\"Xiaomi\""
 
 include $(PATH_CHRE)/build/variant/nuttx.mk
+
+# Nanoapp Header
+#   From: build/build_template.mk
+include $(shell pwd)/out/current_chre_api_version.mk
+ifeq ($(CHRE_API_VERSION_MAJOR),)
+TARGET_CHRE_API_VERSION_MAJOR = $(DEFAULT_CHRE_API_VERSION_MAJOR)
+endif
+ifeq ($(CHRE_API_VERSION_MINOR),)
+TARGET_CHRE_API_VERSION_MINOR = $(DEFAULT_CHRE_API_VERSION_MINOR)
+endif
+TARGET_NANOAPP_FLAGS ?= 0x00000001
+BE_TO_LE_SCRIPT = $(PATH_CHRE)/build/be_to_le.sh
 
 # Nanoapp Header
 #   From: build/build_template.mk
@@ -79,6 +92,22 @@ CXXFLAGS += $(COMMON_CFLAGS)
 CXXFLAGS += -DCHRE_FILENAME=__FILE__
 CXXFLAGS += -DCHRE_PLATFORM_ID=$(TARGET_PLATFORM_ID)
 
+install::
+	printf "00000000  %.8x " `$(BE_TO_LE_SCRIPT) 0x00000001` > $(NAPP_HEADER)
+	printf "%.8x " `$(BE_TO_LE_SCRIPT) 0x4f4e414e` >> $(NAPP_HEADER)
+	printf "%.16x\n" `$(BE_TO_LE_SCRIPT) $(NANOAPP_ID)` >> $(NAPP_HEADER)
+	printf "00000010  %.8x " `$(BE_TO_LE_SCRIPT) $(NANOAPP_VERSION)` >> $(NAPP_HEADER)
+	printf "%.8x " `$(BE_TO_LE_SCRIPT) $(TARGET_NANOAPP_FLAGS)` >> $(NAPP_HEADER)
+	printf "%.16x\n" `$(BE_TO_LE_SCRIPT) $(TARGET_PLATFORM_ID)` >> $(NAPP_HEADER)
+	printf "00000020  %.2x " \
+		`$(BE_TO_LE_SCRIPT) $(TARGET_CHRE_API_VERSION_MAJOR)` >> $(NAPP_HEADER)
+	printf "%.2x " \
+		`$(BE_TO_LE_SCRIPT) $(TARGET_CHRE_API_VERSION_MINOR)` >> $(NAPP_HEADER)
+	printf "%.12x \n" `$(BE_TO_LE_SCRIPT) 0x000000` >> $(NAPP_HEADER)
+	cp $(NAPP_HEADER) $(NAPP_HEADER)@_ascii
+	xxd -r $(NAPP_HEADER)@_ascii > $(NAPP_HEADER)
+	cp -v $(NAPP_HEADER) $(BINDIR)
+
 BIN = libchrenanoapp$(LIBEXT)
 LDLIBS += $(BIN)
 
@@ -87,6 +116,7 @@ ifneq ($(NUTTX_DSO_PROGNAME),)
 else
   PROGNAME = $(shell basename $(shell pwd))
 endif
+NAPP_HEADER = $(PROGNAME)$(HEADER_SUFFIX)
 
 DYNLIB = y
 
