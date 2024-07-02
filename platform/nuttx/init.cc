@@ -33,9 +33,6 @@
 using chre::EventLoopManagerSingleton;
 using chre::Milliseconds;
 
-extern const struct symtab_s g_chre_exports[];
-extern const int g_chre_nexports;
-
 namespace {
 
 void signalHandler(int sig) {
@@ -80,12 +77,6 @@ extern "C" int main(int argc, char **argv) {
 
   // Register a signal handler.
   signal(SIGINT, signalHandler);
-
-  int ret = dlsymtab((struct symtab_s *)g_chre_exports, g_chre_nexports);
-  if (ret < 0) {
-    LOGE("Select symbol table failed!");
-    return ret;
-  }
 
   // Load any static nanoapps and start the event loop.
   EventLoopManagerSingleton::get()->lateInit();
