@@ -35,12 +35,6 @@ TARGET_CFLAGS += -DCHRE_FIRST_SUPPORTED_API_VERSION=CHRE_API_VERSION_1_1
 
 TARGET_CFLAGS += $(NUTTX_CFLAGS)
 
-# Enable conversion warnings for the simulator. Since this is a platform 100%
-# within our control we expect that there will be no conversion issues. It would
-# be nice to enable this globally in the tools_config.mk but some vendor header
-# files do not compile cleanly with it.
-TARGET_CFLAGS += -Wconversion
-
 # Add the target CFLAGS after the -Wconversion warning to allow targets to
 # disable it.
 TARGET_CFLAGS += $(XIAOMI_ARM_NUTTX_CFLAGS)
@@ -50,14 +44,6 @@ ifneq ($(IS_NANOAPP_BUILD),)
 else
 # Instruct the build to link a final executable.
 TARGET_BUILD_BIN = true
-
-# Add CFLAGS for the simulator.
-TARGET_CFLAGS += $(shell pkg-config --cflags sndfile)
-
-# Link in libraries for the final executable and export symbols to dynamically
-# loaded objects.
-TARGET_BIN_LDFLAGS += -lpthread -lrt -ldl -Wl,--export-dynamic
-TARGET_BIN_LDFLAGS += $(shell pkg-config --libs sndfile)
 endif
 
 endif
