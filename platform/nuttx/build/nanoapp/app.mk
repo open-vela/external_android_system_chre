@@ -113,6 +113,7 @@ install::
 	printf "%.12x \n" `$(BE_TO_LE_SCRIPT) 0x000000` >> $(NAPP_HEADER)
 	cp $(NAPP_HEADER) $(NAPP_HEADER)@_ascii
 	xxd -r $(NAPP_HEADER)@_ascii > $(NAPP_HEADER)
+	mkdir -p $(BINDIR)
 	cp -v $(NAPP_HEADER) $(BINDIR)
 
 BIN = libchrenanoapp$(LIBEXT)
