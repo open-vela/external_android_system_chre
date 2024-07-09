@@ -21,6 +21,7 @@
 ifeq ($(PATH_CHRE),)
 PATH_CHRE = $(CHRE_PREFIX)
 endif
+NANOAPP_OUT ?= $(PATH_CHRE)platform/nuttx/build/out
 
 include $(PATH_CHRE)/build/clean_build_template_args.mk
 
