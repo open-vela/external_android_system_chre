@@ -22,8 +22,6 @@ void PowerControlManager::preEventLoopProcess(size_t /* numPendingEvents */) {}
 
 void PowerControlManager::postEventLoopProcess(size_t /* numPendingEvents */) {}
 
-bool PowerControlManager::hostIsAwake() {
-  return true;
-}
+bool PowerControlManager::hostIsAwake() { return true; }
 
 }  // namespace chre

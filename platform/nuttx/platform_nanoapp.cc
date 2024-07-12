@@ -17,6 +17,7 @@
 #include "chre/platform/platform_nanoapp.h"
 
 #include <dlfcn.h>
+
 #include <cinttypes>
 
 #include "chre/platform/assert.h"
@@ -27,9 +28,7 @@
 
 namespace chre {
 
-PlatformNanoapp::~PlatformNanoapp() {
-  closeNanoapp();
-}
+PlatformNanoapp::~PlatformNanoapp() { closeNanoapp(); }
 
 bool PlatformNanoapp::start() {
   return openNanoapp() && mAppInfo->entryPoints.start();
@@ -49,9 +48,7 @@ uint64_t PlatformNanoapp::getAppId() const {
   return (mAppInfo == nullptr) ? 0 : mAppInfo->appId;
 }
 
-uint32_t PlatformNanoapp::getAppVersion() const {
-  return mAppInfo->appVersion;
-}
+uint32_t PlatformNanoapp::getAppVersion() const { return mAppInfo->appVersion; }
 
 uint32_t PlatformNanoapp::getTargetApiVersion() const {
   return CHRE_API_VERSION;

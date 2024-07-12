@@ -18,6 +18,7 @@
 #define CHRE_PLATFORM_NUTTX_AUDIO_SOURCE_H_
 
 #include <sndfile.h>
+
 #include <string>
 
 #include "chre/platform/system_timer.h"

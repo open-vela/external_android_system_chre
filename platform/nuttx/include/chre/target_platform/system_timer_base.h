@@ -19,6 +19,7 @@
 
 #include <signal.h>
 #include <time.h>
+
 #include <cinttypes>
 
 namespace chre {

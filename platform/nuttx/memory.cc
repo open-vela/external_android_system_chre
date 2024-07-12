@@ -20,20 +20,12 @@
 
 namespace chre {
 
-void *memoryAlloc(size_t size) {
-  return malloc(size);
-}
+void *memoryAlloc(size_t size) { return malloc(size); }
 
-void *palSystemApiMemoryAlloc(size_t size) {
-  return malloc(size);
-}
+void *palSystemApiMemoryAlloc(size_t size) { return malloc(size); }
 
-void memoryFree(void *pointer) {
-  free(pointer);
-}
+void memoryFree(void *pointer) { free(pointer); }
 
-void palSystemApiMemoryFree(void *pointer) {
-  free(pointer);
-}
+void palSystemApiMemoryFree(void *pointer) { free(pointer); }
 
 }  // namespace chre
