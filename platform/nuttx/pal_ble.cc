@@ -14,15 +14,14 @@
  * limitations under the License.
  */
 
-#include "chre/pal/ble.h"
+#include <chrono>
+#include <optional>
 
 #include "chre.h"
+#include "chre/pal/ble.h"
 #include "chre/platform/nuttx/task_util/task_manager.h"
 #include "chre/util/memory.h"
 #include "chre/util/unique_ptr.h"
-
-#include <chrono>
-#include <optional>
 
 /**
  * A simulated implementation of the BLE PAL for the nuttx platform.
@@ -137,9 +136,7 @@ bool chrePalBleReadRssi(uint16_t connectionHandle) {
   return true;
 }
 
-void chrePalBleApiClose() {
-  stopAllTasks();
-}
+void chrePalBleApiClose() { stopAllTasks(); }
 
 bool chrePalBleApiOpen(const struct chrePalSystemApi *systemApi,
                        const struct chrePalBleCallbacks *callbacks) {
@@ -157,9 +154,7 @@ bool chrePalBleApiOpen(const struct chrePalSystemApi *systemApi,
 
 }  // anonymous namespace
 
-bool chrePalIsBleEnabled() {
-  return gBleEnabled;
-}
+bool chrePalIsBleEnabled() { return gBleEnabled; }
 
 const struct chrePalBleApi *chrePalBleGetApi(uint32_t requestedApiVersion) {
   static const struct chrePalBleApi kApi = {

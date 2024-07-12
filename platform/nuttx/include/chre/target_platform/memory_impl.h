@@ -18,6 +18,7 @@
 #define CHRE_PLATFORM_NUTTX_MEMORY_IMPL_H_
 
 #include <stdlib.h>
+
 #include <cstring>
 
 namespace chre {

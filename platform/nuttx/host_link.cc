@@ -15,6 +15,7 @@
  */
 
 #include "chre/platform/host_link.h"
+
 #include "chre/core/event_loop_manager.h"
 
 namespace chre {

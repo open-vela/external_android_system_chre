@@ -15,6 +15,7 @@
  */
 
 #include "chre/platform/nuttx/pal_nan.h"
+
 #include "chre/platform/assert.h"
 #include "chre/util/memory.h"
 

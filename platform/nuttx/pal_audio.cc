@@ -14,17 +14,16 @@
  * limitations under the License.
  */
 
-#include "chre/pal/audio.h"
-
-#include "chre/platform/nuttx/task_util/task_manager.h"
-#include "chre/platform/memory.h"
-#include "chre/util/macros.h"
-#include "chre/util/memory.h"
-#include "chre/util/unique_ptr.h"
-
 #include <chrono>
 #include <cinttypes>
 #include <cstdint>
+
+#include "chre/pal/audio.h"
+#include "chre/platform/memory.h"
+#include "chre/platform/nuttx/task_util/task_manager.h"
+#include "chre/util/macros.h"
+#include "chre/util/memory.h"
+#include "chre/util/unique_ptr.h"
 
 /**
  * A simulated implementation of the audio PAL for the nuttx platform.
@@ -48,9 +47,7 @@ void stopHandle0Task() {
   }
 }
 
-void chrePalAudioApiClose(void) {
-  stopHandle0Task();
-}
+void chrePalAudioApiClose(void) { stopHandle0Task(); }
 
 bool chrePalAudioApiOpen(const struct chrePalSystemApi *systemApi,
                          const struct chrePalAudioCallbacks *callbacks) {
@@ -122,9 +119,7 @@ void chrePalAudioApiReleaseAudioDataEvent(struct chreAudioDataEvent *event) {
   chre::memoryFree(event);
 }
 
-uint32_t chrePalAudioApiGetSourceCount(void) {
-  return 1;
-}
+uint32_t chrePalAudioApiGetSourceCount(void) { return 1; }
 
 bool chrePalAudioApiGetAudioSource(uint32_t handle,
                                    struct chreAudioSource *audioSource) {
@@ -145,9 +140,7 @@ bool chrePalAudioApiGetAudioSource(uint32_t handle,
 
 }  // namespace
 
-bool chrePalAudioIsHandle0Enabled() {
-  return gIsHandle0Enabled;
-}
+bool chrePalAudioIsHandle0Enabled() { return gIsHandle0Enabled; }
 
 const chrePalAudioApi *chrePalAudioGetApi(uint32_t requestedApiVersion) {
   static const struct chrePalAudioApi kApi = {

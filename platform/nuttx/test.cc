@@ -18,47 +18,51 @@
 
 /* Core */
 
-#  ifdef CONFIG_CHRE_AUDIO_SUPPORT_ENABLED
+#ifdef CONFIG_CHRE_AUDIO_SUPPORT_ENABLED
 #include "core/tests/audio_util_test.cc"
-#  endif
-#  ifdef CONFIG_CHRE_BLE_SUPPORT_ENABLED
+#endif
+#ifdef CONFIG_CHRE_BLE_SUPPORT_ENABLED
 #include "core/tests/ble_request_test.cc"
-#  endif
+#endif
 #include "core/tests/memory_manager_test.cc"
 #include "core/tests/request_multiplexer_test.cc"
-#  ifdef CONFIG_CHRE_SENSORS_SUPPORT_ENABLED
+#ifdef CONFIG_CHRE_SENSORS_SUPPORT_ENABLED
 #include "core/tests/sensor_request_test.cc"
-#  endif
-#  ifdef CONFIG_CHRE_WIFI_SUPPORT_ENABLED
+#endif
+#ifdef CONFIG_CHRE_WIFI_SUPPORT_ENABLED
 #include "core/tests/wifi_scan_request_test.cc"
-#  endif
+#endif
 
 /* Apps */
 
-#  ifdef CONFIG_CHRE_AUDIO_SUPPORT_ENABLED
+#ifdef CONFIG_CHRE_AUDIO_SUPPORT_ENABLED
 #include "apps/test/pts/audio_enable_disable_test/src/audio_enable_disable_test.cc"
 //    fatal error: pb_decode.h: No such file or directory
-//#include "apps/test/common/chre_audio_concurrency_test/src/chre_audio_concurrency_test_manager.cc"
-//    error: redefinition of ‘void chre::nanoappHandleEvent(uint32_t, uint16_t, const void*)’
-//#include "apps/test/common/chre_audio_concurrency_test/src/chre_audio_concurrency_test.cc"
+//#include
+//"apps/test/common/chre_audio_concurrency_test/src/chre_audio_concurrency_test_manager.cc"
+//    error: redefinition of ‘void chre::nanoappHandleEvent(uint32_t, uint16_t,
+//    const void*)’
+//#include
+//"apps/test/common/chre_audio_concurrency_test/src/chre_audio_concurrency_test.cc"
 #include "apps/test/common/shared/src/audio_validation.cc"
-#  endif
+#endif
 
-#  ifdef CONFIG_CHRE_WIFI_SUPPORT_ENABLED
-#include "apps/test/common/ping_test/src/ping_test.cc"
+#ifdef CONFIG_CHRE_WIFI_SUPPORT_ENABLED
 #include "apps/test/common/chre_cross_validator_wifi/src/chre_cross_validator_wifi.cc"
 #include "apps/test/common/chre_cross_validator_wifi/src/chre_cross_validator_wifi_manager.cc"
 #include "apps/test/common/chre_cross_validator_wifi/src/wifi_scan_result.cc"
-#  endif
+#include "apps/test/common/ping_test/src/ping_test.cc"
+#endif
 
-#  ifdef CONFIG_CHRE_SENSORS_SUPPORT_ENABLED
-#include "apps/test/common/chre_cross_validator_sensor/src/chre_cross_validator_sensor_manager.cc"
+#ifdef CONFIG_CHRE_SENSORS_SUPPORT_ENABLED
 #include "apps/test/common/chre_cross_validator_sensor/src/chre_cross_validator_sensor.cc"
-#  endif
+#include "apps/test/common/chre_cross_validator_sensor/src/chre_cross_validator_sensor_manager.cc"
+#endif
 
 //    fatal error: pb_decode.h: No such file or directory
 //#include "apps/test/common/permission_test/src/permission_test.cc"
-//#include "apps/test/common/chre_settings_test/src/chre_settings_test_manager.cc"
+//#include
+//"apps/test/common/chre_settings_test/src/chre_settings_test_manager.cc"
 //#include "apps/test/common/chre_settings_test/src/chre_settings_test.cc"
 //    fatal error: pw_rpc/channel.h: No such file or directory
 //#include "apps/test/common/chre_api_test/src/chre_api_test_service.cc"
@@ -72,7 +76,7 @@
 //    fatal error: pw_rpc/channel.h: No such file or directory
 //#include "apps/test/common/rpc_service_test/src/rpc_service_manager.cc"
 
-#  ifdef CHRE_GNSS_SUPPORT_ENABLED
+#ifdef CHRE_GNSS_SUPPORT_ENABLED
 #include "apps/test/common/chre_cross_validator_gnss/src/chre_cross_validator_gnss.cc"
 #endif
 
@@ -125,37 +129,36 @@
 
 /* Sim */
 
-#include "test/nuttx/test_base.cc"
-#include "test/nuttx/test_util.cc"
+#include "test/nuttx/host_endpoint_notification_test.cc"
 #include "test/nuttx/info_struct_version_test.cc"
 #include "test/nuttx/memory_test.cc"
-#include "test/nuttx/host_endpoint_notification_test.cc"
+#include "test/nuttx/test_base.cc"
+#include "test/nuttx/test_util.cc"
 #include "test/nuttx/timer_test.cc"
 //    fatal error: pw_rpc/channel.h: No such file or directory
 //#include "test/nuttx/rpc_test.cc"
 
-#  ifdef CONFIG_CHRE_AUDIO_SUPPORT_ENABLED
+#ifdef CONFIG_CHRE_AUDIO_SUPPORT_ENABLED
 #include "test/nuttx/audio_test.cc"
 #endif
-#  ifdef CONFIG_CHRE_BLE_SUPPORT_ENABLED
+#ifdef CONFIG_CHRE_BLE_SUPPORT_ENABLED
 #include "test/nuttx/ble_test.cc"
 #endif
-#  ifdef CHRE_GNSS_SUPPORT_ENABLED
+#ifdef CHRE_GNSS_SUPPORT_ENABLED
 #include "test/nuttx/gnss_test.cc"
 #include "test/nuttx/settings_test.cc"
 #endif
-#  ifdef CONFIG_CHRE_SENSORS_SUPPORT_ENABLED
+#ifdef CONFIG_CHRE_SENSORS_SUPPORT_ENABLED
 #include "test/nuttx/sensor_test.cc"
 #endif
-#  ifdef CONFIG_CHRE_WIFI_SUPPORT_ENABLED
+#ifdef CONFIG_CHRE_WIFI_SUPPORT_ENABLED
 #include "test/nuttx/wifi_nan_test.cc"
 #include "test/nuttx/wifi_scan_test.cc"
 #include "test/nuttx/wifi_test.cc"
 #include "test/nuttx/wifi_timeout_test.cc"
 #endif
 
-extern "C" int main(int argc, char **argv)
-{
+extern "C" int main(int argc, char **argv) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

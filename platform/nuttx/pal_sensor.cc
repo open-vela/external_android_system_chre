@@ -14,17 +14,16 @@
  * limitations under the License.
  */
 
-#include "chre/pal/sensor.h"
-
-#include "chre/platform/nuttx/task_util/task_manager.h"
-#include "chre/platform/memory.h"
-#include "chre/util/macros.h"
-#include "chre/util/memory.h"
-#include "chre/util/unique_ptr.h"
-
 #include <chrono>
 #include <cinttypes>
 #include <cstdint>
+
+#include "chre/pal/sensor.h"
+#include "chre/platform/memory.h"
+#include "chre/platform/nuttx/task_util/task_manager.h"
+#include "chre/util/macros.h"
+#include "chre/util/memory.h"
+#include "chre/util/unique_ptr.h"
 
 /**
  * A simulated implementation of the Sensor PAL for the nuttx platform.
@@ -60,9 +59,7 @@ void stopSensor0Task() {
   }
 }
 
-void chrePalSensorApiClose() {
-  stopSensor0Task();
-}
+void chrePalSensorApiClose() { stopSensor0Task(); }
 
 bool chrePalSensorApiOpen(const struct chrePalSystemApi *systemApi,
                           const struct chrePalSensorCallbacks *callbacks) {
@@ -173,15 +170,11 @@ void chrePalSensorApiReleaseSamplingStatusEvent(
   chre::memoryFree(status);
 }
 
-void chrePalSensorApiReleaseBiasEvent(void *bias) {
-  chre::memoryFree(bias);
-}
+void chrePalSensorApiReleaseBiasEvent(void *bias) { chre::memoryFree(bias); }
 
 }  // namespace
 
-bool chrePalSensorIsSensor0Enabled() {
-  return gIsSensor0Enabled;
-}
+bool chrePalSensorIsSensor0Enabled() { return gIsSensor0Enabled; }
 
 const chrePalSensorApi *chrePalSensorGetApi(uint32_t requestedApiVersion) {
   static const struct chrePalSensorApi kApi = {

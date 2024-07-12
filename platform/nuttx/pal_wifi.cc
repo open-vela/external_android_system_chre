@@ -250,9 +250,7 @@ void chrePalWifiEnableResponse(PalWifiAsyncRequestTypes requestType,
   }
 }
 
-bool chrePalWifiIsScanMonitoringActive() {
-  return gScanMonitoringActive;
-}
+bool chrePalWifiIsScanMonitoringActive() { return gScanMonitoringActive; }
 
 void chrePalWifiDelayResponse(PalWifiAsyncRequestTypes requestType,
                               std::chrono::seconds seconds) {

@@ -25,17 +25,11 @@ inline Mutex::Mutex() {}
 
 inline Mutex::~Mutex() {}
 
-inline void Mutex::lock() {
-  mMutex.lock();
-}
+inline void Mutex::lock() { mMutex.lock(); }
 
-inline bool Mutex::try_lock() {
-  return mMutex.try_lock();
-}
+inline bool Mutex::try_lock() { return mMutex.try_lock(); }
 
-inline void Mutex::unlock() {
-  mMutex.unlock();
-}
+inline void Mutex::unlock() { mMutex.unlock(); }
 
 }  // namespace chre
 

@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
+#include "chre/platform/nuttx/task_util/task_manager.h"
+
 #include <cassert>
 #include <iostream>
 #include <limits>
 #include <memory>
-
-#include "chre/platform/nuttx/task_util/task_manager.h"
 
 namespace chre {
 

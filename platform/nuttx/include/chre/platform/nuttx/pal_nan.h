@@ -18,6 +18,7 @@
 #define CHRE_PLATFORM_NUTTX_PAL_NAN_H_
 
 #include <unordered_set>
+
 #include "chre/pal/wifi.h"
 #include "chre/platform/assert.h"
 #include "chre/util/memory.h"
@@ -139,9 +140,7 @@ class PalNanEngine : public NonCopyable {
    *
    * @param flags Flags to be set.
    */
-  void setFlags(uint32_t flags) {
-    mFlags = flags;
-  }
+  void setFlags(uint32_t flags) { mFlags = flags; }
 
  private:
   static constexpr uint8_t kSomePublishMac[CHRE_WIFI_BSSID_LEN] = {
