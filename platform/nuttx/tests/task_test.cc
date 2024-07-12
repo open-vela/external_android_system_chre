@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
+#include "chre/platform/nuttx/task_util/task.h"
+
 #include <chrono>
 #include <thread>
 
 #include "gtest/gtest.h"
-
-#include "chre/platform/nuttx/task_util/task.h"
 
 namespace {
 

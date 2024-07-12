@@ -20,8 +20,6 @@
 
 namespace chre {
 
-void PlatformPal::prePalApiCall(PalType palType) const {
-  UNUSED_VAR(palType);
-}
+void PlatformPal::prePalApiCall(PalType palType) const { UNUSED_VAR(palType); }
 
 }  // namespace chre

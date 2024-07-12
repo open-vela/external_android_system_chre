@@ -15,17 +15,17 @@
  */
 
 #include "chre/platform/nuttx/pal_gnss.h"
-#include "chre/pal/gnss.h"
-#include "chre/platform/nuttx/task_util/task_manager.h"
-#include "chre/platform/log.h"
-
-#include "chre/util/memory.h"
-#include "chre/util/unique_ptr.h"
 
 #include <chrono>
 #include <cinttypes>
 #include <mutex>
 #include <optional>
+
+#include "chre/pal/gnss.h"
+#include "chre/platform/log.h"
+#include "chre/platform/nuttx/task_util/task_manager.h"
+#include "chre/util/memory.h"
+#include "chre/util/unique_ptr.h"
 
 /**
  * A simulated implementation of the GNSS PAL for the nuttx platform.
@@ -233,13 +233,9 @@ bool chrePalGnssconfigurePassiveLocationListener(bool enable) {
 
 }  // anonymous namespace
 
-bool chrePalGnssIsLocationEnabled() {
-  return gIsLocationEnabled;
-}
+bool chrePalGnssIsLocationEnabled() { return gIsLocationEnabled; }
 
-bool chrePalGnssIsMeasurementEnabled() {
-  return gIsMeasurementEnabled;
-}
+bool chrePalGnssIsMeasurementEnabled() { return gIsMeasurementEnabled; }
 
 bool chrePalGnssIsPassiveLocationListenerEnabled() {
   return gIsPassiveListenerEnabled;

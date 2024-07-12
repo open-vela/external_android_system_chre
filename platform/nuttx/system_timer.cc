@@ -16,13 +16,14 @@
 
 #include "chre/platform/system_timer.h"
 
-#include "chre/platform/log.h"
-#include "chre/util/time.h"
-
 #include <errno.h>
 #include <signal.h>
 #include <string.h>
+
 #include <cinttypes>
+
+#include "chre/platform/log.h"
+#include "chre/util/time.h"
 
 namespace chre {
 

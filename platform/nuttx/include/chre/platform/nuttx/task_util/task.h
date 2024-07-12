@@ -94,9 +94,7 @@ class Task {
   /**
    * Gets the ID of the task.
    */
-  inline uint32_t getId() const {
-    return mId;
-  }
+  inline uint32_t getId() const { return mId; }
 
   /**
    * Returns true if the task has executed at least once, false if otherwise.
@@ -104,9 +102,7 @@ class Task {
    * @return true         if the task has executed at least once.
    * @return false        if the task has not executed at least once.
    */
-  inline bool hasExecuted() const {
-    return mHasExecuted;
-  }
+  inline bool hasExecuted() const { return mHasExecuted; }
 
   /**
    * Returns true if the task is ready to execute (time now is >= task
@@ -126,9 +122,7 @@ class Task {
    * @return true         if the task is a repeating task.
    * @return false        otherwise.
    */
-  inline bool isRepeating() const {
-    return mRepeatInterval.count() > 0;
-  }
+  inline bool isRepeating() const { return mRepeatInterval.count() > 0; }
 
   /*
    * The following relational operators are comparing execution timestamps.

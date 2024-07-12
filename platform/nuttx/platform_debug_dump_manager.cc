@@ -22,10 +22,10 @@ PlatformDebugDumpManagerBase::PlatformDebugDumpManagerBase() {}
 
 PlatformDebugDumpManagerBase::~PlatformDebugDumpManagerBase() {}
 
-void PlatformDebugDumpManager::sendDebugDump(const char * /*debugStr*/,
+void PlatformDebugDumpManager::sendDebugDump(const char* /*debugStr*/,
                                              bool /*complete*/) {}
 
 void PlatformDebugDumpManager::logStateToBuffer(
-    DebugDumpWrapper & /* debugDump */) {}
+    DebugDumpWrapper& /* debugDump */) {}
 
 }  // namespace chre

@@ -25,9 +25,7 @@ inline ConditionVariable::ConditionVariable() {}
 
 inline ConditionVariable::~ConditionVariable() {}
 
-inline void ConditionVariable::notify_one() {
-  mConditionVariable.notify_one();
-}
+inline void ConditionVariable::notify_one() { mConditionVariable.notify_one(); }
 
 inline void ConditionVariable::wait(Mutex &mutex) {
   mConditionVariable.wait(mutex);

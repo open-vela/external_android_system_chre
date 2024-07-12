@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
+#include "chre/core/init.h"
+
 #include <dlfcn.h>
 
-#include "chre/core/init.h"
 #include "chre/core/event.h"
 #include "chre/core/event_loop.h"
 #include "chre/core/event_loop_manager.h"
@@ -24,9 +25,9 @@
 #include "chre/core/static_nanoapps.h"
 #include "chre/platform/context.h"
 #include "chre/platform/fatal_error.h"
+#include "chre/platform/log.h"
 #include "chre/platform/nuttx/platform_log.h"
 #include "chre/platform/nuttx/task_util/task_manager.h"
-#include "chre/platform/log.h"
 #include "chre/platform/system_timer.h"
 #include "chre/util/time.h"
 
@@ -53,21 +54,21 @@ extern "C" int main(int argc, char **argv) {
   int load_index;
   int c;
 
-  while ((c = getopt (argc, argv, "Sr:")) != -1) {
-      switch (c) {
-          case 'S':
-            no_static = true;
-            break;
-          case 'r':
-            if ((index + 1) < CONFIG_CHRE_CLI_APP_MAX) {
-                apps[++index].assign(optarg);
-            }
-            break;
-          default:
-            LOGI("Unknown option 0x%x\n", optopt);
-            return -EPERM;
+  while ((c = getopt(argc, argv, "Sr:")) != -1) {
+    switch (c) {
+      case 'S':
+        no_static = true;
+        break;
+      case 'r':
+        if ((index + 1) < CONFIG_CHRE_CLI_APP_MAX) {
+          apps[++index].assign(optarg);
         }
+        break;
+      default:
+        LOGI("Unknown option 0x%x\n", optopt);
+        return -EPERM;
     }
+  }
 
   // Initialize logging.
   chre::PlatformLogSingleton::init();

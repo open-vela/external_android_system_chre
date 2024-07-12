@@ -101,9 +101,7 @@ void PlatformAudio::releaseAudioDataEvent(struct chreAudioDataEvent *event) {
   // TODO(P1-41459d): Implement this API in terms of libsndfile.
 }
 
-size_t PlatformAudio::getSourceCount() {
-  return gAudioSources.size();
-}
+size_t PlatformAudio::getSourceCount() { return gAudioSources.size(); }
 
 bool PlatformAudio::getAudioSource(uint32_t handle,
                                    chreAudioSource *audioSource) const {

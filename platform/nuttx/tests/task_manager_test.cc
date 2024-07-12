@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
+#include "chre/platform/nuttx/task_util/task_manager.h"
+
 #include <chrono>
 #include <cmath>
 #include <optional>
 #include <thread>
 
 #include "gtest/gtest.h"
-
-#include "chre/platform/nuttx/task_util/task_manager.h"
 
 namespace {
 

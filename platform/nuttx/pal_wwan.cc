@@ -14,15 +14,13 @@
  * limitations under the License.
  */
 
-#include "chre/pal/wwan.h"
-
-#include "chre/platform/nuttx/task_util/task_manager.h"
-
-#include "chre/util/memory.h"
-#include "chre/util/unique_ptr.h"
-
 #include <chrono>
 #include <cinttypes>
+
+#include "chre/pal/wwan.h"
+#include "chre/platform/nuttx/task_util/task_manager.h"
+#include "chre/util/memory.h"
+#include "chre/util/unique_ptr.h"
 
 /**
  * A simulated implementation of the WWAN PAL for the nuttx platform.
@@ -66,9 +64,7 @@ void stopCellInfoTask() {
   }
 }
 
-uint32_t chrePalWwanGetCapabilities() {
-  return CHRE_WWAN_GET_CELL_INFO;
-}
+uint32_t chrePalWwanGetCapabilities() { return CHRE_WWAN_GET_CELL_INFO; }
 
 bool chrePalWwanRequestCellInfo() {
   stopCellInfoTask();
@@ -83,9 +79,7 @@ void chrePalWwanReleaseCellInfoResult(struct chreWwanCellInfoResult *result) {
   chre::memoryFree(result);
 }
 
-void chrePalWwanApiClose() {
-  stopCellInfoTask();
-}
+void chrePalWwanApiClose() { stopCellInfoTask(); }
 
 bool chrePalWwanApiOpen(const struct chrePalSystemApi *systemApi,
                         const struct chrePalWwanCallbacks *callbacks) {

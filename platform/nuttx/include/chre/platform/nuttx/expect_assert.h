@@ -35,12 +35,8 @@ class AssertInterface {
 
 class MockAssert : public AssertInterface {
  public:
-  MockAssert() {
-    gMockAssert = this;
-  }
-  ~MockAssert() {
-    gMockAssert = nullptr;
-  }
+  MockAssert() { gMockAssert = this; }
+  ~MockAssert() { gMockAssert = nullptr; }
 
   MOCK_METHOD0(doAssert, void());
 };
