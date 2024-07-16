@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 The Android Open Source Project
+ * Copyright (C) 2024 Xiaomi Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 #include "chre/platform/platform_nanoapp.h"
 
 #include <dlfcn.h>
+#include <sys/stat.h>
 
 #include <cinttypes>
 
@@ -27,6 +28,7 @@
 #include "chre_api/chre/version.h"
 
 namespace chre {
+std::string PlatformNanoappBase::mSavefilename;
 
 PlatformNanoapp::~PlatformNanoapp() { closeNanoapp(); }
 
@@ -82,6 +84,30 @@ void PlatformNanoappBase::loadFromFile(const std::string &filename) {
   mFilename = filename;
 }
 
+bool PlatformNanoappBase::setfilename(const std::string &filename) {
+  if (access(CONFIG_CHRE_NANOAPP_SAVEPATH, F_OK) != 0) {
+    if (mkdir(CONFIG_CHRE_NANOAPP_SAVEPATH, 0755) < 0) {
+      return false;
+    }
+  }
+  mSavefilename = std::string(CONFIG_CHRE_NANOAPP_SAVEPATH) + "/" + filename;
+  return true;
+}
+
+bool PlatformNanoappBase::setAppInfo(uint64_t appId, uint32_t appVersion,
+                                     const std::string &appFilename,
+                                     uint32_t targetApiVersion) {
+  CHRE_ASSERT(!isLoaded());
+  if (access(appFilename.c_str(), F_OK) == 0) {
+    mFilename = appFilename;
+    mExpectedAppId = appId;
+    mExpectedAppVersion = appVersion;
+    mExpectedTargetApiVersion = targetApiVersion;
+    return true;
+  }
+  return false;
+}
+
 void PlatformNanoappBase::loadStatic(const struct chreNslNanoappInfo *appInfo) {
   CHRE_ASSERT(!isLoaded());
   mIsStatic = true;
@@ -89,7 +115,8 @@ void PlatformNanoappBase::loadStatic(const struct chreNslNanoappInfo *appInfo) {
 }
 
 bool PlatformNanoappBase::isLoaded() const {
-  return (mIsStatic || mDsoHandle != nullptr);
+  return (mIsStatic || mDsoHandle != nullptr || !mFilename.empty() ||
+          receiveComplete());
 }
 
 bool PlatformNanoappBase::openNanoapp() {
@@ -104,6 +131,59 @@ bool PlatformNanoappBase::openNanoapp() {
   }
 
   return success;
+}
+
+bool PlatformNanoappBase::reserveBuffer(uint64_t appId, uint32_t appVersion,
+                                        uint32_t appFlags, size_t appBinaryLen,
+                                        uint32_t targetApiVersion) {
+  CHRE_ASSERT(!isLoaded());
+  if (mAppfd != NULL) {
+    fclose(mAppfd);
+    mAppfd = NULL;
+  }
+  if (mSavefilename.empty()) {
+    LOGE("mSavefilename is empty");
+    return false;
+  }
+  mAppfd = fopen(mSavefilename.c_str(), "wb");
+  if (mAppfd == NULL) {
+    LOGE("open %s failed errno=%d", mSavefilename.c_str(), errno);
+    return false;
+  }
+  mExpectedAppId = appId;
+  mExpectedAppVersion = appVersion;
+  mExpectedTargetApiVersion = targetApiVersion;
+  mAppBinaryLen = appBinaryLen;
+  return true;
+}
+
+bool PlatformNanoappBase::copyNanoappFragment(const void *buffer,
+                                              size_t bufferLen) {
+  CHRE_ASSERT(!isLoaded());
+
+  if ((mBytesLoaded + bufferLen) > mAppBinaryLen) {
+    LOGE("Overflow: cannot load %zu bytes to %zu/%zu nanoapp binary buffer",
+         bufferLen, mBytesLoaded, mAppBinaryLen);
+    return false;
+  } else if (mAppfd) {
+    size_t n = fwrite(buffer, 1, (int)bufferLen, mAppfd);
+    if (n != bufferLen) {
+      fclose(mAppfd);
+      mAppfd = NULL;
+      remove(mSavefilename.c_str());
+      LOGE("fwrite size %zu != %zu errno=%d", n, bufferLen, errno);
+      return false;
+    } else {
+      mBytesLoaded += bufferLen;
+    }
+    if (mAppBinaryLen == mBytesLoaded) {
+      fclose(mAppfd);
+      mAppfd = NULL;
+      mFilename = mSavefilename;
+      mSavefilename.clear();
+    }
+  }
+  return true;
 }
 
 bool PlatformNanoappBase::openNanoappFromFile() {
