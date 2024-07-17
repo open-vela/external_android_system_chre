@@ -106,7 +106,7 @@ bool GnssManager::configurePassiveLocationListener(Nanoapp *nanoapp,
   bool success = false;
   uint16_t instanceId = nanoapp->getInstanceId();
 
-  size_t index;
+  size_t index = 0;
   if (nanoappHasPassiveLocationListener(instanceId, &index) != enable) {
     uint32_t capabilities = getCapabilities();
     bool locationSupported =
