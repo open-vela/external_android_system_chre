@@ -44,7 +44,7 @@ bool waitForCondition(const std::function<bool()> &predicate,
                       std::chrono::milliseconds timeout) {
   constexpr std::chrono::milliseconds kSleepDuration(100);
   bool result;
-  std::chrono::milliseconds time;
+  std::chrono::milliseconds time {0};
   while (!(result = predicate()) && time < timeout) {
     std::this_thread::sleep_for(kSleepDuration);
     time += kSleepDuration;
@@ -462,7 +462,7 @@ TEST_F(TestBase, GnssCanSubscribeAndUnsubscribeToPassiveListener) {
   };
 
   auto app = loadNanoapp<App>();
-  bool success;
+  bool success = false;
   EXPECT_FALSE(chrePalGnssIsPassiveLocationListenerEnabled());
 
   sendEventToNanoapp(app, LISTENER_REQUEST, true);
@@ -505,7 +505,7 @@ TEST_F(TestBase, GnssUnsubscribeToPassiveListenerOnUnload) {
   EXPECT_FALSE(chrePalGnssIsPassiveLocationListenerEnabled());
 
   sendEventToNanoapp(app, LISTENER_REQUEST, true);
-  bool success;
+  bool success = false;
   waitForEvent(LISTENER_REQUEST, &success);
   EXPECT_TRUE(success);
   EXPECT_TRUE(chrePalGnssIsPassiveLocationListenerEnabled());
