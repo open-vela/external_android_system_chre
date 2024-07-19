@@ -216,14 +216,14 @@ void handleGnssLocationEvent(const chreGnssLocationEvent *event) {
   LOGI("Received location: %" PRId32 ", %" PRId32, event->latitude_deg_e7,
        event->longitude_deg_e7);
   LOGI("  timestamp (ms): %" PRIu64, event->timestamp);
-  LOGI("  altitude (m): %f", event->altitude);
-  LOGI("  speed (m/s): %f", event->speed);
-  LOGI("  bearing (deg): %f", event->bearing);
-  LOGI("  accuracy: %f", event->accuracy);
+  LOGI("  altitude (m): %f", (double)event->altitude);
+  LOGI("  speed (m/s): %f", (double)event->speed);
+  LOGI("  bearing (deg): %f", (double)event->bearing);
+  LOGI("  accuracy: %f", (double)event->accuracy);
   LOGI("  flags: %" PRIx16, event->flags);
-  LOGI("  altitude_accuracy: %f", event->altitude_accuracy);
-  LOGI("  speed_accuracy: %f", event->speed_accuracy);
-  LOGI("  bearing_accuracy: %f", event->bearing_accuracy);
+  LOGI("  altitude_accuracy: %f", (double)event->altitude_accuracy);
+  LOGI("  speed_accuracy: %f", (double)event->speed_accuracy);
+  LOGI("  bearing_accuracy: %f", (double)event->bearing_accuracy);
 }
 
 void handleGnssDataEvent(const chreGnssDataEvent *event) {
@@ -232,8 +232,8 @@ void handleGnssDataEvent(const chreGnssDataEvent *event) {
   const struct chreGnssMeasurement *measurement = event->measurements;
   for (uint8_t i = 0; i < event->measurement_count; i++) {
     LOGI("%" PRIu8 ": const %" PRIu8 ", cn0 %.2f, freq %.3f MHz", i,
-         measurement->constellation, measurement->c_n0_dbhz,
-         measurement->carrier_frequency_hz / 1e6);
+         measurement->constellation, (double)measurement->c_n0_dbhz,
+         (double)measurement->carrier_frequency_hz / 1e6);
     measurement++;
   }
 }
