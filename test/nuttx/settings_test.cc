@@ -48,6 +48,10 @@ bool start() {
   chreWifiNanSubscribeConfig config = {
       .subscribeType = CHRE_WIFI_NAN_SUBSCRIBE_TYPE_PASSIVE,
       .service = "SomeService",
+      .serviceSpecificInfo = NULL,
+      .serviceSpecificInfoSize = 0,
+      .matchFilter = NULL,
+      .matchFilterLength = 0,
   };
   success = chreWifiNanSubscribe(&config, nullptr /* cookie */);
   EXPECT_TRUE(success);
