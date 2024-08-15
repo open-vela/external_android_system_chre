@@ -2,6 +2,7 @@ include $(APPDIR)/Make.defs
 CXXEXT = .cc
 OUT=$(shell pwd)/out
 HEADER_SUFFIX = ".napp_header"
+WASM_SUFFIX = ".wasm"
 
 ANDROID_BUILD_TOP = $(APPDIR)/external/android
 PATH_CHRE = $(ANDROID_BUILD_TOP)/system/chre/chre
@@ -155,5 +156,29 @@ DYNLIB = y
 
 MAINSRC = $(wildcard $(shell pwd)/*$(CXXEXT))
 CXXSRCS += $(PATH_CHRE)/platform/nuttx/dynamic_nanoapp.cc
+
+# Optional chre wasm nanoapp support.
+ifneq ($(CONFIG_CHRE_WASM),)
+
+# Variant-specific Nanoapp Support Source Files ################################
+
+# Makefile Includes ############################################################
+
+# Standard library overrides include
+include $(PATH_CHRE)/std_overrides/std_overrides.mk
+
+# Common includes
+include $(PATH_CHRE)/build/defs.mk
+
+# Pigweed module includes
+include $(PATH_CHRE)/external/pigweed/pw_rpc.mk
+
+# CHRE API version.
+include $(PATH_CHRE)/chre_api/chre_api_version.mk
+
+# Supported variants includes
+include $(PATH_CHRE)/build/variant/nuttx_wasm32.mk
+
+endif
 
 include $(APPDIR)/Application.mk
