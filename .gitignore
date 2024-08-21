@@ -10,3 +10,4 @@ out
 *.depend
 Make.dep
 *.map
+/host/nuttx
