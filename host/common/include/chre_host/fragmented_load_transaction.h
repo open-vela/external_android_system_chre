@@ -49,23 +49,23 @@ struct FragmentedLoadRequest {
   size_t appTotalSizeBytes;
   std::vector<uint8_t> binary;
 
-  FragmentedLoadRequest(size_t fragmentId, uint32_t transactionId,
-                        const std::vector<uint8_t> &binary)
-      : FragmentedLoadRequest(fragmentId, transactionId, 0, 0, 0, 0, 0,
-                              binary) {}
+  FragmentedLoadRequest(size_t appfragmentId, uint32_t apptransactionId,
+                        const std::vector<uint8_t> &appbinary)
+      : FragmentedLoadRequest(appfragmentId, apptransactionId, 0, 0, 0, 0, 0,
+                              appbinary) {}
 
-  FragmentedLoadRequest(size_t fragmentId, uint32_t transactionId,
-                        uint64_t appId, uint32_t appVersion, uint32_t appFlags,
-                        uint32_t targetApiVersion, size_t appTotalSizeBytes,
-                        const std::vector<uint8_t> &binary)
-      : fragmentId(fragmentId),
-        transactionId(transactionId),
-        appId(appId),
-        appVersion(appVersion),
-        appFlags(appFlags),
-        targetApiVersion(targetApiVersion),
-        appTotalSizeBytes(appTotalSizeBytes),
-        binary(binary) {}
+  FragmentedLoadRequest(size_t appfragmentId, uint32_t apptransactionId,
+                        uint64_t vappId, uint32_t vappVersion, uint32_t vappFlags,
+                        uint32_t vtargetApiVersion, size_t vappTotalSizeBytes,
+                        const std::vector<uint8_t> &appbinary)
+      : fragmentId(appfragmentId),
+        transactionId(apptransactionId),
+        appId(vappId),
+        appVersion(vappVersion),
+        appFlags(vappFlags),
+        targetApiVersion(vtargetApiVersion),
+        appTotalSizeBytes(vappTotalSizeBytes),
+        binary(appbinary) {}
 };
 
 /**
