@@ -528,7 +528,6 @@ NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/host_link.cc
 NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/memory.cc
 NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/memory_manager.cc
 NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/platform_debug_dump_manager.cc
-NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/platform_log.cc
 NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/platform_pal.cc
 NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/power_control_manager.cc
 NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/system_time.cc

@@ -20,7 +20,6 @@
 
 #include "chre/core/event_loop_manager.h"
 #include "chre/core/init.h"
-#include "chre/platform/nuttx/platform_log.h"
 #include "chre/platform/nuttx/task_util/task_manager.h"
 #include "chre/util/time.h"
 #include "chre_api/chre/version.h"
@@ -46,7 +45,6 @@ namespace chre {
 void TestBase::SetUp() {
   TaskManagerSingleton::init();
   TestEventQueueSingleton::init();
-  chre::PlatformLogSingleton::init();
   chre::init();
   EventLoopManagerSingleton::get()->lateInit();
 
@@ -72,7 +70,6 @@ void TestBase::TearDown() {
   mChreThread.join();
 
   chre::deinit();
-  chre::PlatformLogSingleton::deinit();
   TestEventQueueSingleton::deinit();
   TaskManagerSingleton::deinit();
   deleteNanoappInfos();

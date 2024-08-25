@@ -14,32 +14,29 @@
  * limitations under the License.
  */
 
-#include <cinttypes>
+#include <syslog.h>
 
-#include "chre/platform/log.h"
-#include "chre/util/macros.h"
 #include "chre_api/chre/re.h"
+#include "chre/util/macros.h"
 
 DLL_EXPORT void chreLog(enum chreLogLevel level, const char *formatStr, ...) {
-  char logBuf[512];
-  va_list args;
+  va_list ap;
 
-  va_start(args, formatStr);
-  vsnprintf(logBuf, sizeof(logBuf), formatStr, args);
-  va_end(args);
-
+  va_start(ap, formatStr);
   switch (level) {
     case CHRE_LOG_ERROR:
-      LOGE("%s", logBuf);
+      vsyslog(LOG_ERR, formatStr, ap);
       break;
     case CHRE_LOG_WARN:
-      LOGW("%s", logBuf);
+      vsyslog(LOG_WARNING, formatStr, ap);
       break;
     case CHRE_LOG_INFO:
-      LOGI("%s", logBuf);
+      vsyslog(LOG_INFO, formatStr, ap);
       break;
     case CHRE_LOG_DEBUG:
     default:
-      LOGD("%s", logBuf);
+      vsyslog(LOG_DEBUG, formatStr, ap);
   }
+
+  va_end(ap);
 }
