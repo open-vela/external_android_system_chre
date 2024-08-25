@@ -33,14 +33,9 @@
   printf("\e[" color "m%s %s:%d\t" fmt "\e[0m\n", levelStr, __FILENAME__, \
          __LINE__, ##__VA_ARGS__)
 #else
-#include "chre/platform/nuttx/platform_log.h"
 
 #define CHRE_NUTTX_LOG(logLevel, levelStr, color, fmt, ...)        \
-  if (::chre::PlatformLogSingleton::isInitialized()) {             \
-    ::chre::PlatformLogSingleton::get()->log(                      \
-        logLevel, "\e[" color "m%s %s:%d\t" fmt "\e[0m", levelStr, \
-        __FILENAME__, __LINE__, ##__VA_ARGS__);                    \
-  }
+  chreLog(logLevel, fmt, ##__VA_ARGS__)
 #endif
 
 #define LOGE(fmt, ...) \

@@ -26,7 +26,6 @@
 #include "chre/platform/context.h"
 #include "chre/platform/fatal_error.h"
 #include "chre/platform/log.h"
-#include "chre/platform/nuttx/platform_log.h"
 #include "chre/platform/nuttx/task_util/task_manager.h"
 #include "chre/platform/system_timer.h"
 #include "chre/target_platform/host_link_base.h"
@@ -70,9 +69,6 @@ extern "C" int main(int argc, char **argv) {
         return -EPERM;
     }
   }
-
-  // Initialize logging.
-  chre::PlatformLogSingleton::init();
 
   // Initialize the TaskManager.
   chre::TaskManagerSingleton::init();
@@ -119,7 +115,6 @@ extern "C" int main(int argc, char **argv) {
 
   chre::TaskManagerSingleton::deinit();
   chre::deinit();
-  chre::PlatformLogSingleton::deinit();
 
   return 0;
 }

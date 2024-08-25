@@ -16,13 +16,9 @@
 
 #include "chre/target_platform/fatal_error.h"
 
-#include "chre/platform/nuttx/platform_log.h"
-
 namespace chre {
 
 void preFatalError() {
-  // Flush logs before fatally quitting.
-  chre::PlatformLogSingleton::deinit();
 }
 
 }  // namespace chre
