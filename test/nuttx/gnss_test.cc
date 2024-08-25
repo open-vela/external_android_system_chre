@@ -358,7 +358,7 @@ TEST_F(TestBase, GnssCanSubscribeAndUnsubscribeToMeasurement) {
   sendEventToNanoapp(app, MEASUREMENT_REQUEST, request);
   waitForEvent(MEASUREMENT_REQUEST, &success);
   EXPECT_TRUE(success);
-  uint32_t cookie;
+  uint32_t cookie = UINT32_MAX;
   waitForEvent(CHRE_EVENT_GNSS_ASYNC_RESULT, &cookie);
   EXPECT_EQ(cookie, request.cookie);
   EXPECT_TRUE(chrePalGnssIsMeasurementEnabled());
