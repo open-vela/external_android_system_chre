@@ -20,7 +20,6 @@
 
 #include "chre/core/event_loop_manager.h"
 #include "chre/core/init.h"
-#include "chre/platform/nuttx/platform_log.h"
 #include "chre/util/time.h"
 #include "chre_api/chre/version.h"
 #include "inc/test_util.h"
