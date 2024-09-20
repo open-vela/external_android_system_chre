@@ -297,7 +297,7 @@ void handleUnloadNanoappCallback(uint16_t /*type*/, void* data,
 
   if (!enqueueMessage(PendingMessage(PendingMessageType::UnloadNanoappResponse,
                                      builder.get()))) {
-    LOGE("Failed to send unload response to host: %x transactionID: 0x%x",
+    LOGE("Failed to send unload response to host: %x transactionID: 0x%" PRIx32,
          cbData->hostClientId, cbData->transactionId);
   } else {
     builder.release();
