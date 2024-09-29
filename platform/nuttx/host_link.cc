@@ -443,35 +443,37 @@ void HostMessageHandlers::handleLoadNanoappRequest(
     loadNanoappData(hostClientId, transactionId, appId, appVersion, appFlags,
                     targetApiVersion, buffer, bufferLen, fragmentId,
                     appBinaryLen, respondBeforeStart);
-    return;
-  }
-  if (access(appFileName, F_OK) == 0) {
-    UniquePtr<Nanoapp> pendingNanoapp =
-        handleLoadNanoappFile(hostClientId, transactionId, appId, appVersion,
-                              targetApiVersion, appFileName);
-
-    if (!pendingNanoapp.isNull()) {
-      auto cbData = MakeUnique<LoadNanoappCallbackData>();
-      if (cbData.isNull()) {
-        LOG_OOM();
-      } else {
-        cbData->transactionId = transactionId;
-        cbData->hostClientId = hostClientId;
-        cbData->appId = appId;
-        cbData->fragmentId = fragmentId;
-        cbData->nanoapp = std::move(pendingNanoapp);
-
-        // Note that if this fails, we'll generate the error response in
-        // the normal deferred callback
-        EventLoopManagerSingleton::get()->deferCallback(
-            SystemCallbackType::FinishLoadingNanoapp, std::move(cbData),
-            finishLoadingNanoappCallback);
-      }
-    }
   } else {
-    PlatformNanoappBase::setfilename(appFileName);
-    sendFragmentResponse(hostClientId, transactionId, fragmentId, true);
-    LOGD("appFileName=%s ", appFileName);
+    std::string filename =
+        std::string(CONFIG_CHRE_NANOAPP_SAVEPATH) + "/" + appFileName;
+    if (access(filename.c_str(), F_OK) == 0) {
+      UniquePtr<Nanoapp> pendingNanoapp =
+          handleLoadNanoappFile(hostClientId, transactionId, appId, appVersion,
+                                targetApiVersion, filename.c_str());
+
+      if (!pendingNanoapp.isNull()) {
+        auto cbData = MakeUnique<LoadNanoappCallbackData>();
+        if (cbData.isNull()) {
+          LOG_OOM();
+        } else {
+          cbData->transactionId = transactionId;
+          cbData->hostClientId = hostClientId;
+          cbData->appId = appId;
+          cbData->fragmentId = fragmentId;
+          cbData->nanoapp = std::move(pendingNanoapp);
+
+          // Note that if this fails, we'll generate the error response in
+          // the normal deferred callback
+          EventLoopManagerSingleton::get()->deferCallback(
+              SystemCallbackType::FinishLoadingNanoapp, std::move(cbData),
+              finishLoadingNanoappCallback);
+        }
+      }
+    } else {
+      PlatformNanoappBase::setfilename(appFileName);
+      sendFragmentResponse(hostClientId, transactionId, fragmentId, true);
+      LOGD("appFileName=%s ", appFileName);
+    }
   }
 }
 
