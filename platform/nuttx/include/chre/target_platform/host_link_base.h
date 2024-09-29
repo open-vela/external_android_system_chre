@@ -17,32 +17,23 @@
 #ifndef CHRE_PLATFORM_NUTTX_HOST_LINK_BASE_H_
 #define CHRE_PLATFORM_NUTTX_HOST_LINK_BASE_H_
 
-#include <poll.h>
-
 #include <thread>
 
+#include "chre/target_platform/RpcInterface.h"
 #include "chre/util/singleton.h"
 
-#define MAX_SERVER (2)
-
 namespace chre {
+class RpcCallbacks : public IRpcCallbacks {
+ public:
+  bool onMessageReceived(const void* data, size_t length) override;
+};
 class HostLinkBase {
  public:
   HostLinkBase() {}
   ~HostLinkBase() {}
   void startServer();
   void stopServer();
-  /**
-   * Send a message to the host.
-   *
-   * @param data The message to host payload.
-   * @param dataLen Size of the message payload in bytes.
-   * @param clientId The Host app id.
-   * @return true if the operation succeeds, false otherwise.
-   */
-  bool sendToClientById(uint8_t* data, size_t dataLen, uint16_t clientId);
 
-  bool sendToAllClient(uint8_t* data, size_t dataLen);
   /**
    * Blocks the current thread until the host has retrieved all messages pending
    * in the outbound queue, or a timeout occurs. For proper function, it should
@@ -86,29 +77,16 @@ class HostLinkBase {
    */
   void sendNanConfiguration(bool enable);
 
+  chre::RpcInterface* mRpcInterface;
+
  private:
   static constexpr uint32_t kPollingIntervalUsec = 5000;
 
-  // A buffer to read packets into. Allocated here to prevent a large object on
-  // the stack.
-  std::vector<uint8_t> mRecvBuffer =
-      std::vector<uint8_t>(CHRE_MESSAGE_TO_HOST_MAX_SIZE);
-
   std::optional<std::thread> mChreSend_tid;
-  int mRpcListentFd[MAX_SERVER];
-  int mClients[CONFIG_CHRE_CLIENT_COUNT + 1];
-  int mClient_count;
-  int mServer_count;
-  struct pollfd mPollFds[CONFIG_CHRE_CLIENT_COUNT + MAX_SERVER];
-  std::optional<std::thread> mlistent_tid;
 
-  void runRpctask();
   void vChreSendTask();
-  void vChreRecvTask();
-  bool rpcServiceInit();
-  void rpcServiceDeinit();
-  void handleClientData(int clientRpc);
-  void disconnectClient(int clientRpc);
+
+  IRpcCallbacks* mRpcCallbacks;
 };
 
 typedef chre::Singleton<chre::HostLinkBase> HostLinkBaseSingleton;

@@ -591,6 +591,11 @@ NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/pal_wifi.cc
 NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/platform_wifi.cc
 endif
 
+#Optional RPC support
+ifneq ($(findstring y, $(CONFIG_CHRE_LOCAL_SOCKET_SERVER)_$(CONFIG_CHRE_RPMSG_SERVER)), )
+NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/rpc_socket.cc
+endif
+
 # Optional WWAN support.
 ifeq ($(CHRE_WWAN_SUPPORT_ENABLED), true)
 NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/pal_wwan.cc
@@ -605,3 +610,4 @@ NUTTX_CFLAGS += -I$(CHRE_PREFIX)/platform/nuttx/sim/include
 NUTTX_CFLAGS += -I$(CHRE_PREFIX)/platform/nuttx/include
 NUTTX_CFLAGS += -I$(CHRE_PREFIX)/platform/nuttx/include/nanoapp/include
 NUTTX_CFLAGS += -I$(CHRE_PREFIX)/external/flatbuffers/include
+NUTTX_CFLAGS += -DCHRE_MESSAGE_HEAD_SIZE=256
