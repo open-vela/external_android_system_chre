@@ -169,6 +169,9 @@ void RpcSocket::vChreRecvTask() {
               nfds++;
             }
           }
+          if (mRpcCallback) {
+            mRpcCallback->onConnected(mClient_count - 1);
+          }
         }
       } else if (mPollFds[i].revents & POLLIN) {
         ssize_t n = recv(mPollFds[i].fd, messageBuffer + messageLen,

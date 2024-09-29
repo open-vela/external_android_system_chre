@@ -26,6 +26,7 @@ namespace chre {
 class RpcCallbacks : public IRpcCallbacks {
  public:
   bool onMessageReceived(const void* data, size_t length) override;
+  bool onConnected(uint16_t clientid) override;
 };
 class HostLinkBase {
  public:
@@ -76,6 +77,8 @@ class HostLinkBase {
    *        boolean's value.
    */
   void sendNanConfiguration(bool enable);
+
+  bool generateConnectResponse(uint16_t hostClientId);
 
   chre::RpcInterface* mRpcInterface;
 

@@ -548,6 +548,11 @@ void HostMessageHandlers::handleNanConfigurationUpdate(bool /* enabled */) {
 bool RpcCallbacks::onMessageReceived(const void* data, size_t length) {
   return chre::HostProtocolChre::decodeMessageFromHost(data, length);
 }
+
+bool RpcCallbacks::onConnected(uint16_t clientid) {
+  return chre::HostLinkBaseSingleton::get()->generateConnectResponse(clientid);
+}
+
 void HostLinkBase::startServer() {
 #if defined(ONFIG_CHRE_LOCAL_SOCKET_SERVER) || defined(CONFIG_CHRE_RPMSG_SERVER)
   mRpcInterface = new chre::RpcSocket();
@@ -635,6 +640,22 @@ void HostLinkBase::sendNanConfiguration(bool enable) {
                          kInitialSize, msgBuilder, &enable);
 }
 
+bool HostLinkBase::generateConnectResponse(uint16_t hostClientId) {
+  ChreFlatBufferBuilder builder(64);
+  std::vector<int8_t> packageNameVec(std::begin("nanoapp"),
+                                     std::end("nanoapp"));
+  packageNameVec.push_back('\0');
+
+  std::vector<int8_t> attributionTagVec(std::begin(""), std::end(""));
+  attributionTagVec.push_back('\0');
+  auto message = fbs::CreateHostEndpointConnectedDirect(
+      builder, hostClientId, CHRE_HOST_ENDPOINT_TYPE_APP, &packageNameVec,
+      &attributionTagVec);
+  HostProtocolCommon::finalize(builder, fbs::ChreMessage::HostEndpointConnected,
+                               message.Union());
+  return chre::HostLinkBaseSingleton::get()->mRpcInterface->sendToClientById(
+      builder.GetBufferPointer(), builder.GetSize(), hostClientId);
+}
 // HostLinkBase end
 
 }  // namespace chre
