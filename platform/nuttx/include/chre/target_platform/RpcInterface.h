@@ -24,10 +24,7 @@ namespace chre {
 class IRpcCallbacks {
  public:
   virtual bool onMessageReceived(const void *data, size_t length) = 0;
-  virtual bool onConnected(uint16_t clientid) {
-    (void)clientid;
-    return true;
-  }
+  virtual bool onConnected(uint16_t clientid) = 0;
   virtual void onConnectionAborted() {}
   virtual void onDisconnected(uint16_t clientid) {}
   virtual ~IRpcCallbacks() {}
