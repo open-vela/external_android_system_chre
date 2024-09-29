@@ -16,11 +16,7 @@
 
 #include "chre/platform/host_link.h"
 
-#include <cutils/sockets.h>
-#include <netpacket/rpmsg.h>
-#include <sys/socket.h>
 #include <sys/stat.h>
-#include <sys/un.h>
 
 #include <atomic>
 
@@ -31,6 +27,7 @@
 #include "chre/platform/system_time.h"
 #include "chre/platform/system_timer.h"
 #include "chre/target_platform/host_link_base.h"
+#include "chre/target_platform/rpc_socket.h"
 #include "chre/util/flatbuffers/helpers.h"
 #include "chre/util/nested_data_ptr.h"
 
@@ -110,8 +107,9 @@ bool generateMessageFromBuilder(ChreFlatBufferBuilder* builder) {
 
   uint16_t hostClientId = container->host_addr()->client_id();
 
-  bool result = chre::HostLinkBaseSingleton::get()->sendToClientById(
-      builder->GetBufferPointer(), builder->GetSize(), hostClientId);
+  bool result =
+      chre::HostLinkBaseSingleton::get()->mRpcInterface->sendToClientById(
+          builder->GetBufferPointer(), builder->GetSize(), hostClientId);
 
   // clean up
   builder->~ChreFlatBufferBuilder();
@@ -130,7 +128,7 @@ bool generateMessageToHost(const HostMessage* message) {
       message->message.size(), message->toHostData.appPermissions,
       message->toHostData.messagePermissions, message->toHostData.wokeHost);
 
-  if (chre::HostLinkBaseSingleton::get()->sendToClientById(
+  if (chre::HostLinkBaseSingleton::get()->mRpcInterface->sendToClientById(
           builder.GetBufferPointer(), builder.GetSize(),
           message->toHostData.hostEndpoint)) {
     EventLoopManagerSingleton::get()
@@ -164,7 +162,7 @@ int generateHubInfoResponse(uint16_t hostClientId) {
       kLegacyToolchainVersion, kPeakMips, kStoppedPower, kSleepPower,
       kPeakPower, CHRE_MESSAGE_TO_HOST_MAX_SIZE, chreGetPlatformId(),
       chreGetVersion(), hostClientId);
-  return chre::HostLinkBaseSingleton::get()->sendToClientById(
+  return chre::HostLinkBaseSingleton::get()->mRpcInterface->sendToClientById(
       builder.GetBufferPointer(), builder.GetSize(), hostClientId);
 }
 
@@ -547,128 +545,27 @@ void HostMessageHandlers::handleNanConfigurationUpdate(bool /* enabled */) {
   LOGE("%s NAN unsupported.", __func__);
 }
 
-// HostLinkBase start
-
+bool RpcCallbacks::onMessageReceived(const void* data, size_t length) {
+  return chre::HostProtocolChre::decodeMessageFromHost(data, length);
+}
 void HostLinkBase::startServer() {
-  for (size_t i = 0; i < CONFIG_CHRE_CLIENT_COUNT + MAX_SERVER; i++) {
-    mPollFds[i].fd = -1;
-  }
-
-  for (size_t i = 0; i <= CONFIG_CHRE_CLIENT_COUNT; i++) {
-    mClients[i] = -1;
-  }
-
-  mClient_count = 1;
-  mServer_count = 0;
-
-  mRpcListentFd[0] = -1;
-  mRpcListentFd[1] = -1;
-
-  if (true == rpcServiceInit()) {
-    runRpctask();
-  }
-}
-
-void HostLinkBase::stopServer() {
-  if (mlistent_tid.has_value()) {
-    mlistent_tid->join();
-  }
-  rpcServiceDeinit();
-}
-
-void HostLinkBase::runRpctask() {
-  mlistent_tid = std::thread(&HostLinkBase::vChreRecvTask, this);
+#if defined(ONFIG_CHRE_LOCAL_SOCKET_SERVER) || defined(CONFIG_CHRE_RPMSG_SERVER)
+  mRpcInterface = new chre::RpcSocket();
+#else
+  mRpcInterface = new RpcNullImpl();
+#endif
+  mRpcCallbacks = new RpcCallbacks();
+  mRpcInterface->startServer(mRpcCallbacks);
   mChreSend_tid = std::thread(&HostLinkBase::vChreSendTask, this);
 }
+
+void HostLinkBase::stopServer() { mRpcInterface->stopServer(); }
 
 void HostLinkBase::vChreSendTask() {
   while (true) {
     auto msg = gOutboundQueue.pop();
     dequeueMessage(msg);
   }
-}
-
-void HostLinkBase::vChreRecvTask() {
-  struct sockaddr_rpmsg remotaddr;
-  socklen_t addrlen = sizeof(remotaddr);
-  nfds_t nfds = 0;
-  int timeout = 3000;
-
-  LOGV("[chre server] listen ...\n");
-  for (int i = 0; i < 2; i++) {
-    if (mRpcListentFd[i] < 0) continue;
-    if (listen(mRpcListentFd[i], CONFIG_CHRE_CLIENT_COUNT) < 0) {
-      LOGE("[chre server] listen failure %d\n", errno);
-      return;
-    } else {
-      mPollFds[nfds].fd = mRpcListentFd[i];
-      mPollFds[nfds].events = POLLIN;
-      nfds++;
-      mServer_count++;
-    }
-  }
-
-  while (1) {
-    int ret = poll(mPollFds, nfds, timeout);
-    if (ret < 0) {
-      if (errno == EINTR || errno == EBUSY) continue;
-      LOGE("[chre server] poll failure: %d\n", errno);
-      break;
-    } else if (ret == 0) {
-      continue;
-    }
-
-    for (int i = 0; i < (int)nfds; i++) {
-      if ((mPollFds[i].fd == mRpcListentFd[0] ||
-           mPollFds[i].fd == mRpcListentFd[1]) &&
-          mClient_count <= CONFIG_CHRE_CLIENT_COUNT) {
-        if (mPollFds[i].revents & POLLIN) {
-          int newfd =
-              accept(mPollFds[i].fd, (struct sockaddr*)&remotaddr, &addrlen);
-          if (newfd < 0) continue;
-          mClients[mClient_count++] = newfd;
-          for (int j = mServer_count; j < CONFIG_CHRE_CLIENT_COUNT + MAX_SERVER;
-               j++) {
-            if (mPollFds[j].fd == -1) {
-              mPollFds[j].fd = newfd;
-              mPollFds[j].events = POLLIN;
-              nfds++;
-            }
-          }
-        }
-      } else if (mPollFds[i].revents & POLLIN) {
-        handleClientData(mPollFds[i].fd);
-      } else if (mPollFds[i].revents & (POLLHUP | POLLERR)) {
-        mPollFds[i].revents &= ~(POLLHUP | POLLERR);
-        mPollFds[i].fd = -1;
-        nfds--;
-      }
-    }
-  }
-
-  return;
-}
-
-bool HostLinkBase::sendToAllClient(uint8_t* data, size_t dataLen) {
-  for (int i = 0; i <= mClient_count; i++) {
-    if (mClients[i] > 0) send(mClients[i], data, dataLen, MSG_WAITALL);
-  }
-  return true;
-}
-
-bool HostLinkBase::sendToClientById(uint8_t* data, size_t dataLen,
-                                    uint16_t clientId) {
-  if (mServer_count > 1 &&
-      clientId >= (UINT16_MAX - CONFIG_CHRE_CLIENT_COUNT)) {
-    return sendToAllClient(data, dataLen);
-  } else {
-    uint16_t id =
-        clientId >= (UINT16_MAX - CONFIG_CHRE_CLIENT_COUNT) ? 1 : clientId;
-    if (id <= CONFIG_CHRE_CLIENT_COUNT && mClients[id] > 0 &&
-        send(mClients[id], data, dataLen, MSG_WAITALL) > 0)
-      return true;
-  }
-  return false;
 }
 
 bool HostLinkBase::flushOutboundQueue() {
@@ -737,80 +634,6 @@ void HostLinkBase::sendNanConfiguration(bool enable) {
   buildAndEnqueueMessage(PendingMessageType::NanConfigurationRequest,
                          kInitialSize, msgBuilder, &enable);
 }
-
-bool HostLinkBase::rpcServiceInit() {
-#ifdef CONFIG_CHRE_LOCAL_SOCKET_SERVER
-  struct sockaddr_un uadd = {
-      .sun_family = AF_UNIX,
-      .sun_path = "chre",
-  };
-  mRpcListentFd[0] = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0);
-  if (mRpcListentFd[0] < 0) {
-    LOGE("socket create failed errno=%d\n", errno);
-    return false;
-  }
-  if (bind(mRpcListentFd[0], (struct sockaddr*)&uadd,
-           sizeof(struct sockaddr_un)) < 0) {
-    LOGE("bind failed errno=%d", errno);
-    close(mRpcListentFd[0]);
-    mRpcListentFd[0] = -1;
-    return false;
-  }
-#endif
-
-#ifdef CONFIG_CHRE_RPMSG_SERVER
-  struct sockaddr_rpmsg raddr = {
-      .rp_family = AF_RPMSG,
-      .rp_cpu = "",
-      .rp_name = "chre",
-  };
-  mRpcListentFd[1] = socket(AF_RPMSG, SOCK_STREAM | SOCK_NONBLOCK, 0);
-  if (mRpcListentFd[1] < 0) {
-    LOGE("socket create failed errno=%d\n", errno);
-    return false;
-  }
-
-  if (bind(mRpcListentFd[1], (struct sockaddr*)&raddr,
-           sizeof(struct sockaddr_rpmsg)) < 0) {
-    LOGE("bind failed errno=%d", errno);
-    return false;
-  }
-#endif
-
-  return true;
-}
-
-void HostLinkBase::rpcServiceDeinit() {
-  for (int i = 0; i <= CONFIG_CHRE_CLIENT_COUNT; i++) {
-    if (mClients[i] > 0) {
-      close(mClients[i]);
-    }
-  }
-
-  for (int i = 0; i < MAX_SERVER; i++) {
-    if (mRpcListentFd[i]) {
-      close(mRpcListentFd[i]);
-    }
-  }
-}
-
-void HostLinkBase::handleClientData(int clientRpc) {
-  ssize_t packetSize =
-      recv(clientRpc, mRecvBuffer.data(), mRecvBuffer.size(), MSG_DONTWAIT);
-  if (packetSize < 0) {
-    LOGE("receive failed: %d", errno);
-  } else if (packetSize == 0) {
-    LOGE("receive failed: %d", errno);
-    disconnectClient(clientRpc);
-  } else {
-    if (!chre::HostProtocolChre::decodeMessageFromHost(mRecvBuffer.data(),
-                                                       packetSize)) {
-      LOGE("Failed to decode message from host");
-    }
-  }
-}
-
-void HostLinkBase::disconnectClient(int clientRpc) { close(clientRpc); }
 
 // HostLinkBase end
 
