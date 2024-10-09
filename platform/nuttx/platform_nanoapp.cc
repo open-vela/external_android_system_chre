@@ -142,8 +142,8 @@ bool PlatformNanoappBase::reserveBuffer(uint64_t appId, uint32_t appVersion,
     mAppfd = NULL;
   }
   if (mSavefilename.empty()) {
-    LOGE("mSavefilename is empty");
-    return false;
+    mSavefilename =
+        std::string(CONFIG_CHRE_NANOAPP_SAVEPATH) + "/" + std::to_string(appId);
   }
   mAppfd = fopen(mSavefilename.c_str(), "wb");
   if (mAppfd == NULL) {
