@@ -39,7 +39,7 @@ namespace {
 // enable/disable each sensor.
 constexpr bool kBreakIt = false;
 constexpr Milliseconds kBreakItPeriod = Milliseconds(2000);
-uint32_t gBreakItTimerHandle;
+uint32_t gBreakItTimerHandle = -1;
 
 //! Enable chreSensorFlushAsync test
 // When enabled, SensorWorld will set a timer to invoke
@@ -51,10 +51,10 @@ uint32_t gBreakItTimerHandle;
 constexpr bool kFlushIt = true;
 constexpr uint32_t kFlushCookie = 0xdeadbeef;
 constexpr uint32_t kFlushSensorIndex = 0;  // CHRE_SENSOR_TYPE_ACCELEROMETER
-uint32_t gFlushItTimerHandle;
+uint32_t gFlushItTimerHandle = -1;
 
 constexpr Milliseconds kFlushItTimeout = Milliseconds(5000);
-uint32_t gFlushItTimeoutTimerHandle;
+uint32_t gFlushItTimeoutTimerHandle = -1;
 
 //! Whether to enable sensor event logging or not.
 constexpr bool kEnableSensorEventLogging = true;
