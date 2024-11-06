@@ -31,19 +31,29 @@
 #include <cinttypes>
 #include <cstdint>
 
+#include "chre/core/event_loop_manager.h"
 #include "chre/pal/sensor.h"
 #include "chre/platform/memory.h"
 #include "chre/platform/nuttx/task_util/task_manager.h"
+#include "chre/util/array_queue.h"
 #include "chre/util/macros.h"
 #include "chre/util/memory.h"
 #include "chre/util/unique_ptr.h"
+
+#define QUEUE_SIZE 8
 
 /**
  * A simulated implementation of the Sensor PAL for the nuttx platform.
  */
 namespace {
 
+using chre::EventLoopManagerSingleton;
 using chre::TaskManagerSingleton;
+
+struct sensorFlushElement {
+  uint32_t requestId;
+  chre::TimerHandle timer;
+};
 
 struct sensorInfoContext {
   orb_handle_s handle;
@@ -54,6 +64,7 @@ struct sensorInfoContext {
   bool passive;
   bool oneshot;
   void *buffer;
+  chre::ArrayQueue<sensorFlushElement, QUEUE_SIZE> flush_requests;
 };
 
 #define SENSOR_ENTRY(name, type)                                             \
@@ -287,6 +298,26 @@ static int orb_datain_cb(struct orb_handle_s *handle, void *arg) {
   return 0;
 }
 
+static int orb_flush_complete_cb(FAR struct orb_handle_s *handle,
+                                 FAR void *arg) {
+  int ret;
+  unsigned int events;
+  sensorInfoContext *sensor = static_cast<sensorInfoContext *>(arg);
+
+  ret = orb_get_events(sensor->fd, &events);
+  if (ret < 0 || events != SENSOR_EVENT_FLUSH_COMPLETE) {
+    return -errno;
+  }
+
+  struct sensorFlushElement flush_request = sensor->flush_requests.front();
+  chre::EventLoopManagerSingleton::get()->cancelDelayedCallback(
+      flush_request.timer);
+  gSensorContext.callbacks->flushCompleteCallback(
+      sensor->index, flush_request.requestId, CHRE_ERROR_NONE);
+  sensor->flush_requests.pop();
+  return ret;
+}
+
 bool chrePalSensorApiConfigureSensor(uint32_t sensorInfoIndex,
                                      enum chreSensorConfigureMode mode,
                                      uint64_t intervalNs, uint64_t latencyNs) {
@@ -338,8 +369,9 @@ bool chrePalSensorApiConfigureSensor(uint32_t sensorInfoIndex,
 
     sensor->type = gSensors[sensorInfoIndex].sensorType;
     sensor->index = sensorInfoIndex;
-    ret = orb_handle_init(&sensor->handle, sensor->fd, POLLIN, sensor,
-                          &orb_datain_cb, nullptr, nullptr, nullptr);
+    ret = orb_handle_init(&sensor->handle, sensor->fd, POLLIN | POLLPRI, sensor,
+                          &orb_datain_cb, nullptr, &orb_flush_complete_cb,
+                          nullptr);
     if (ret < 0) {
       snerr("sensor type: %d handle init failed", sensorInfoIndex);
       goto errout;
@@ -376,10 +408,43 @@ errout:
   return false;
 }
 
+static void timeoutCallback(uint16_t type, void *data, void *extraData) {
+  sensorInfoContext *sensor = static_cast<sensorInfoContext *>(data);
+  sensorFlushElement flush_request = sensor->flush_requests.front();
+  gSensorContext.callbacks->flushCompleteCallback(
+      sensor->index, flush_request.requestId, CHRE_ERROR_TIMEOUT);
+  sensor->flush_requests.pop();
+}
+
 bool chrePalSensorApiFlush(uint32_t sensorInfoIndex, uint32_t *flushRequestId) {
+  int ret;
   UNUSED_VAR(sensorInfoIndex);
   UNUSED_VAR(flushRequestId);
-  return false;
+  sensorInfoContext *sensor = &gSensorContext.infoContext[sensorInfoIndex];
+  if (!sensor->fd) {
+    snerr("sensor is not open, sensorInfoIndex: %d", sensorInfoIndex);
+    return false;
+  }
+
+  chre::TimerHandle flush_timer =
+      chre::EventLoopManagerSingleton::get()->setDelayedCallback(
+          chre::SystemCallbackType::SensorFlushTimeout, sensor,
+          &timeoutCallback,
+          (chre::Nanoseconds)CHRE_SENSOR_FLUSH_COMPLETE_TIMEOUT_NS);
+
+  struct sensorFlushElement flush_request;
+  flush_request.requestId = *flushRequestId;
+  flush_request.timer = flush_timer;
+  sensor->flush_requests.push(flush_request);
+  ret = orb_flush(sensor->fd);
+  if (ret < 0) {
+    snerr("ERROR: orb_flush failed, ret:%d", errno);
+    chre::EventLoopManagerSingleton::get()->cancelDelayedCallback(flush_timer);
+    sensor->flush_requests.pop();
+    return false;
+  }
+
+  return true;
 }
 
 bool chrePalSensorApiConfigureBiasEvents(uint32_t sensorInfoIndex, bool enable,
