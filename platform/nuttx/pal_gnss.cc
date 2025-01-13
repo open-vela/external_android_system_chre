@@ -16,6 +16,12 @@
 
 #include "chre/platform/nuttx/pal_gnss.h"
 
+#include <debug.h>
+#include <poll.h>
+#include <pthread.h>
+#include <sensor/gnss.h>
+#include <uORB/uORB.h>
+
 #include <chrono>
 #include <cinttypes>
 #include <mutex>
@@ -34,14 +40,27 @@ namespace {
 
 using chre::TaskManagerSingleton;
 
-const struct chrePalSystemApi *gSystemApi = nullptr;
-const struct chrePalGnssCallbacks *gCallbacks = nullptr;
+struct gnssInfoContext {
+  orb_handle_s handle;
+  orb_id_t meta;
+  int fd;
+  void *buffer;
+};
 
+struct gnss_pal_context {
+  const struct chrePalSystemApi *systemApi;
+  const struct chrePalGnssCallbacks *callbacks;
+  struct gnssInfoContext location;
+  struct gnssInfoContext measurement;
+  orb_loop_s loop;
+  pthread_t thread;
+};
+
+static struct gnss_pal_context gGnssContext;
 // Task to deliver asynchronous location data after a CHRE request.
 std::mutex gLocationEventsMutex;
 std::optional<uint32_t> gLocationEventsTaskId;
 std::optional<uint32_t> gLocationEventsChangeCallbackTaskId;
-uint32_t gLocationEventsMinIntervalMs = 0;
 bool gDelaySendingLocationEvents = false;
 bool gIsLocationEnabled = false;
 
@@ -59,110 +78,203 @@ std::optional<uint32_t> gMeasurementStatusTaskId;
 // Passive listener flag.
 bool gIsPassiveListenerEnabled = false;
 
-void sendLocationEvents() {
-  if (!gIsLocationEnabled) {
-    return;
-  }
-
-  auto event = chre::MakeUniqueZeroFill<struct chreGnssLocationEvent>();
-  event->timestamp = gSystemApi->getCurrentTime();
-  gCallbacks->locationEventCallback(event.release());
-}
-
-void startSendingLocationEvents(uint32_t minIntervalMs) {
-  std::lock_guard<std::mutex> lock(gLocationEventsMutex);
-  if (gLocationEventsTaskId.has_value()) {
-    TaskManagerSingleton::get()->cancelTask(gLocationEventsTaskId.value());
-  }
-
-  gLocationEventsChangeCallbackTaskId = TaskManagerSingleton::get()->addTask(
-      []() { gCallbacks->locationStatusChangeCallback(true, CHRE_ERROR_NONE); },
-      std::chrono::milliseconds(0));
-
-  gLocationEventsTaskId = TaskManagerSingleton::get()->addTask(
-      sendLocationEvents, std::chrono::milliseconds(minIntervalMs));
-}
-
-void sendMeasurementEvents() {
-  if (!gIsMeasurementEnabled) {
-    return;
-  }
-
-  auto event = chre::MakeUniqueZeroFill<struct chreGnssDataEvent>();
-  auto measurement = chre::MakeUniqueZeroFill<struct chreGnssMeasurement>();
-  measurement->c_n0_dbhz = 63.0f;
-  event->measurement_count = 1;
-  event->clock.time_ns = static_cast<int64_t>(gSystemApi->getCurrentTime());
-  event->measurements = measurement.release();
-  gCallbacks->measurementEventCallback(event.release());
-}
-
-void stopLocation() {
-  gCallbacks->locationStatusChangeCallback(false, CHRE_ERROR_NONE);
-}
-
-void stopMeasurement() {
-  gCallbacks->measurementStatusChangeCallback(false, CHRE_ERROR_NONE);
-}
-
-void stopLocationTasks() {
-  {
-    std::lock_guard<std::mutex> lock(gLocationEventsMutex);
-    if (gLocationEventsChangeCallbackTaskId.has_value()) {
-      TaskManagerSingleton::get()->cancelTask(
-          gLocationEventsChangeCallbackTaskId.value());
-    }
-
-    if (gLocationEventsTaskId.has_value()) {
-      TaskManagerSingleton::get()->cancelTask(gLocationEventsTaskId.value());
-    }
-  }
-
-  if (gLocationStatusTaskId.has_value()) {
-    TaskManagerSingleton::get()->cancelTask(gLocationStatusTaskId.value());
-  }
-}
-
-void stopMeasurementTasks() {
-  if (gMeasurementEventsChangeCallbackTaskId.has_value()) {
-    TaskManagerSingleton::get()->cancelTask(
-        gMeasurementEventsChangeCallbackTaskId.value());
-  }
-
-  if (gMeasurementEventsTaskId.has_value()) {
-    TaskManagerSingleton::get()->cancelTask(gMeasurementEventsTaskId.value());
-  }
-
-  if (gMeasurementStatusTaskId.has_value()) {
-    TaskManagerSingleton::get()->cancelTask(gMeasurementStatusTaskId.value());
-  }
-}
-
 uint32_t chrePalGnssGetCapabilities() {
-  return CHRE_GNSS_CAPABILITIES_LOCATION | CHRE_GNSS_CAPABILITIES_MEASUREMENTS |
-         CHRE_GNSS_CAPABILITIES_GNSS_ENGINE_BASED_PASSIVE_LISTENER;
+  int ret;
+  uint32_t capabilities = 0;
+  orb_info_t info;
+  const orb_metadata *locationMeta = gGnssContext.location.meta;
+  const orb_metadata *measurementMeta = gGnssContext.measurement.meta;
+  ret = orb_subscribe(locationMeta);
+  if (ret > 0) {
+    if (orb_get_info(ret, &info) == OK) {
+      capabilities |= CHRE_GNSS_CAPABILITIES_LOCATION;
+    }
+
+    orb_unsubscribe(ret);
+  }
+
+  ret = orb_subscribe(measurementMeta);
+  if (ret > 0) {
+    if (orb_get_info(ret, &info) == OK) {
+      capabilities |= CHRE_GNSS_CAPABILITIES_MEASUREMENTS;
+    }
+
+    orb_unsubscribe(ret);
+  }
+
+  return capabilities;
+}
+
+static int orb_datain_cb(struct orb_handle_s *handle, void *arg) {
+  int ret;
+  orb_state state;
+  gnssInfoContext *gnss = static_cast<gnssInfoContext *>(arg);
+  const orb_metadata *meta = gnss->meta;
+  ret = orb_get_state(gnss->fd, &state);
+  if (ret < 0) {
+    snerr("orb_get_state failed, ret: %d", ret);
+    return ret;
+  }
+
+  ret = orb_copy_multi(gnss->fd, gnss->buffer, meta->o_size * state.queue_size);
+  if (ret < 0) {
+    snerr("orb_copy_multi failed, ret: %d", ret);
+    return ret;
+  }
+
+  if (meta == ORB_ID(sensor_gnss)) {
+    for (int i = 0; i < ret / meta->o_size; i++) {
+      sensor_gnss *buffer = static_cast<sensor_gnss *>(gnss->buffer) + i;
+      auto event = chre::MakeUniqueZeroFill<struct chreGnssLocationEvent>();
+      event->timestamp = buffer->timestamp;
+      event->latitude_deg_e7 = buffer->latitude;
+      event->longitude_deg_e7 = buffer->longitude;
+      event->altitude = buffer->altitude;
+      event->accuracy = buffer->epv;
+      gGnssContext.callbacks->locationEventCallback(event.release());
+    }
+  } else if (meta == ORB_ID(sensor_gnss_measurement)) {
+    for (int i = 0; i < ret / meta->o_size; i++) {
+      sensor_gnss_measurement *buffer =
+          static_cast<sensor_gnss_measurement *>(gnss->buffer) + i;
+      auto event = chre::MakeUniqueZeroFill<struct chreGnssDataEvent>();
+      auto measurement = chre::MakeUniqueZeroFill<struct chreGnssMeasurement>();
+      measurement->time_offset_ns = buffer->time_offset_ns;
+      measurement->accumulated_delta_range_um =
+          buffer->accumulated_delta_range_m;
+      measurement->received_sv_time_in_ns = buffer->received_sv_time_in_ns;
+      measurement->received_sv_time_uncertainty_in_ns =
+          buffer->received_sv_time_uncertainty_in_ns;
+      measurement->pseudorange_rate_mps = buffer->pseudorange_rate_mps;
+      measurement->pseudorange_rate_uncertainty_mps =
+          buffer->pseudorange_rate_uncertainty_mps;
+      measurement->accumulated_delta_range_uncertainty_m =
+          buffer->accumulated_delta_range_uncertainty_m;
+      measurement->c_n0_dbhz = buffer->c_n0_dbhz;
+      measurement->snr_db = buffer->snr;
+      measurement->state = buffer->state;
+      measurement->accumulated_delta_range_state =
+          buffer->accumulated_delta_range_state;
+      measurement->svid = buffer->svid;
+      measurement->constellation = buffer->constellation;
+      measurement->multipath_indicator = buffer->multipath_indicator;
+      measurement->carrier_frequency_hz = buffer->carrier_frequency_hz;
+
+      event->measurement_count = 1;
+      event->clock.time_ns =
+          static_cast<int64_t>(gGnssContext.systemApi->getCurrentTime());
+      event->measurements = measurement.release();
+      gGnssContext.callbacks->measurementEventCallback(event.release());
+    }
+  }
+
+  return 0;
+}
+
+static int gnssUnsubscribe(gnssInfoContext *infoContext) {
+  int ret = CHRE_ERROR_NONE;
+  if (infoContext->fd) {
+    ret = orb_handle_stop(&gGnssContext.loop, &infoContext->handle);
+    if (ret < 0) {
+      snerr("gnss handle stop failed, ret: %d", ret);
+      ret = CHRE_ERROR;
+    }
+
+    ret = orb_unsubscribe(infoContext->fd);
+    if (ret < 0) {
+      snerr("gnss unsubscribe failed, ret: %d", ret);
+      ret = CHRE_ERROR_INVALID_ARGUMENT;
+    }
+
+    infoContext->fd = 0;
+  }
+
+  return ret;
+}
+
+static int gnssSubscribe(uint32_t minIntervalMs, gnssInfoContext *infoContext) {
+  int ret;
+  if (infoContext->fd == 0) {
+    ret = orb_subscribe(infoContext->meta);
+    if (ret < 0) {
+      snerr("gnss subscribe failed, ret: %d", infoContext->fd);
+      return CHRE_ERROR_NOT_SUPPORTED;
+    }
+
+    infoContext->fd = ret;
+    struct orb_state state;
+    ret = orb_get_state(infoContext->fd, &state);
+    if (infoContext->buffer == NULL) {
+      infoContext->buffer = malloc(state.queue_size * infoContext->meta->o_size);
+    }
+
+    ret = orb_handle_init(&infoContext->handle, infoContext->fd, POLLIN,
+                          infoContext, orb_datain_cb, NULL, NULL, NULL);
+    if (ret < 0) {
+      snerr("orb_handle_init failed, ret: %d", ret);
+      goto errout;
+    }
+
+    ret = orb_handle_start(&gGnssContext.loop, &infoContext->handle);
+    if (ret < 0) {
+      snerr("orb_handle_start failed, ret: %d", ret);
+      goto errout;
+    }
+  }
+
+  ret = orb_set_interval(infoContext->fd, minIntervalMs / 1000);
+  if (ret < 0) {
+    snerr("gnss set interval failed, ret: %d", ret);
+    return CHRE_ERROR_INVALID_ARGUMENT;
+  }
+
+  return CHRE_ERROR_NONE;
+
+errout:
+  free(infoContext->buffer);
+  infoContext->buffer = NULL;
+  orb_unsubscribe(infoContext->fd);
+  infoContext->fd = 0;
+  return CHRE_ERROR;
 }
 
 bool chrePalControlLocationSession(bool enable, uint32_t minIntervalMs,
-                                   uint32_t /* minTimeToNextFixMs */) {
-  stopLocationTasks();
+                                   uint32_t minTimeToNextFixMs) {
+  int ret;
+  if (enable) {
+    ret = gnssSubscribe(minIntervalMs, &gGnssContext.location);
+    if (ret != CHRE_ERROR_NONE) {
+      snerr("gnss subscribe failed, ret: %d", ret);
+      goto errout;
+    }
 
-  gLocationEventsMinIntervalMs = minIntervalMs;
-  if (enable && !gDelaySendingLocationEvents) {
-    startSendingLocationEvents(minIntervalMs);
-    if (!gLocationEventsChangeCallbackTaskId.has_value() ||
-        !gLocationEventsTaskId.has_value()) {
-      return false;
+    ret = orb_set_batch_interval(gGnssContext.location.fd, minTimeToNextFixMs);
+    if (ret < 0) {
+      snerr("gnss set batch interval failed, ret: %d", ret);
+      ret = CHRE_ERROR_INVALID_ARGUMENT;
+      goto errout;
     }
-  } else if (!enable) {
-    gLocationStatusTaskId = TaskManagerSingleton::get()->addTask(stopLocation);
-    if (!gLocationStatusTaskId.has_value()) {
-      return false;
-    }
+
+    gGnssContext.callbacks->locationStatusChangeCallback(true, CHRE_ERROR_NONE);
+    gIsLocationEnabled = true;
+    return true;
+
+errout:
+    orb_unsubscribe(gGnssContext.location.fd);
+    gGnssContext.location.fd = 0;
+    gGnssContext.callbacks->locationStatusChangeCallback(true, ret);
+    return false;
   }
 
-  gIsLocationEnabled = enable;
-  return true;
+  ret = gnssUnsubscribe(&gGnssContext.location);
+  if (ret != CHRE_ERROR_NONE) {
+    snerr("gnss unsubscribe failed, ret: %d", ret);
+    ret = CHRE_ERROR_INVALID_ARGUMENT;
+  }
+
+  gGnssContext.callbacks->locationStatusChangeCallback(false, ret);
+  gIsLocationEnabled = !ret;
+  return ret == CHRE_ERROR_NONE;
 }
 
 void chrePalGnssReleaseLocationEvent(struct chreGnssLocationEvent *event) {
@@ -170,35 +282,32 @@ void chrePalGnssReleaseLocationEvent(struct chreGnssLocationEvent *event) {
 }
 
 bool chrePalControlMeasurementSession(bool enable, uint32_t minIntervalMs) {
-  stopMeasurementTasks();
-
+  int ret;
   if (enable) {
-    gMeasurementEventsChangeCallbackTaskId =
-        TaskManagerSingleton::get()->addTask(
-            []() {
-              gCallbacks->measurementStatusChangeCallback(true,
-                                                          CHRE_ERROR_NONE);
-            },
-            std::chrono::milliseconds(0));
-    if (!gMeasurementEventsChangeCallbackTaskId.has_value()) {
+    ret = gnssSubscribe(minIntervalMs, &gGnssContext.measurement);
+    if (ret != CHRE_ERROR_NONE) {
+      snerr("gnss subscribe failed, ret: %d", ret);
+      orb_unsubscribe(gGnssContext.measurement.fd);
+      gGnssContext.location.fd = 0;
+      gGnssContext.callbacks->measurementStatusChangeCallback(true, ret);
       return false;
     }
 
-    gMeasurementEventsTaskId = TaskManagerSingleton::get()->addTask(
-        sendMeasurementEvents, std::chrono::milliseconds(minIntervalMs));
-    if (!gMeasurementEventsTaskId.has_value()) {
-      return false;
-    }
-  } else {
-    gMeasurementStatusTaskId =
-        TaskManagerSingleton::get()->addTask(stopMeasurement);
-    if (!gMeasurementStatusTaskId.has_value()) {
-      return false;
-    }
+    gGnssContext.callbacks->measurementStatusChangeCallback(true,
+                                                            CHRE_ERROR_NONE);
+    gIsMeasurementEnabled = true;
+    return true;
   }
 
-  gIsMeasurementEnabled = enable;
-  return true;
+  ret = gnssUnsubscribe(&gGnssContext.measurement);
+  if (ret != CHRE_ERROR_NONE) {
+    snerr("gnss unsubscribe failed, ret: %d", ret);
+    ret = CHRE_ERROR_INVALID_ARGUMENT;
+  }
+
+  gGnssContext.callbacks->measurementStatusChangeCallback(false, ret);
+  gIsMeasurementEnabled = !ret;
+  return ret == CHRE_ERROR_NONE;
 }
 
 void chrePalGnssReleaseMeasurementDataEvent(struct chreGnssDataEvent *event) {
@@ -208,22 +317,74 @@ void chrePalGnssReleaseMeasurementDataEvent(struct chreGnssDataEvent *event) {
 }
 
 void chrePalGnssApiClose() {
-  stopLocationTasks();
-  stopMeasurementTasks();
+  sninfo("chre pal gnss close");
+  if (gGnssContext.location.fd) {
+    orb_unsubscribe(gGnssContext.location.fd);
+    gGnssContext.location.fd = 0;
+  }
+
+  free(gGnssContext.location.buffer);
+  gGnssContext.location.buffer = nullptr;
+  if (gGnssContext.measurement.fd) {
+    orb_unsubscribe(gGnssContext.measurement.fd);
+    gGnssContext.measurement.fd = 0;
+  }
+
+  free(gGnssContext.measurement.buffer);
+  gGnssContext.measurement.buffer = nullptr;
+
+  if (gGnssContext.loop.fd) {
+    orb_loop_deinit(&gGnssContext.loop);
+    gGnssContext.loop.fd = 0;
+  }
+}
+
+static void *orb_loop_run_wrapper(void *arg) {
+  int ret;
+  orb_loop_s *loop = static_cast<orb_loop_s *>(arg);
+  ret = orb_loop_init(loop, ORB_EPOLL_TYPE);
+  if (ret < 0) {
+    snerr("orb_loop_init failed, ret: %d", ret);
+    return nullptr;
+  }
+
+  ret = orb_loop_run(loop);
+  if (ret < 0) {
+    snerr("orb_loop_run failed, ret: %d", ret);
+  }
+
+  return nullptr;
 }
 
 bool chrePalGnssApiOpen(const struct chrePalSystemApi *systemApi,
                         const struct chrePalGnssCallbacks *callbacks) {
   chrePalGnssApiClose();
 
-  bool success = false;
   if (systemApi != nullptr && callbacks != nullptr) {
-    gSystemApi = systemApi;
-    gCallbacks = callbacks;
-    success = true;
+    pthread_attr_t thread_attr;
+    int ret;
+
+    gGnssContext.systemApi = systemApi;
+    gGnssContext.callbacks = callbacks;
+    gGnssContext.location.meta = ORB_ID(sensor_gnss);
+    gGnssContext.measurement.meta = ORB_ID(sensor_gnss_measurement);
+
+    pthread_attr_init(&thread_attr);
+
+    thread_attr.priority = CONFIG_CHRE_PRIORITY + 1;
+
+    ret = pthread_create(&gGnssContext.thread, &thread_attr,
+                         orb_loop_run_wrapper, &gGnssContext.loop);
+    if (ret < 0) {
+      snerr("pthread_create failed, ret: %d", ret);
+      return false;
+    }
+
+    sninfo("pal sensor open success");
+    return true;
   }
 
-  return success;
+  return false;
 }
 
 bool chrePalGnssconfigurePassiveLocationListener(bool enable) {
@@ -247,7 +408,6 @@ void chrePalGnssDelaySendingLocationEvents(bool enabled) {
 
 void chrePalGnssStartSendingLocationEvents() {
   CHRE_ASSERT(gDelaySendingLocationEvents);
-  startSendingLocationEvents(gLocationEventsMinIntervalMs);
 }
 
 const struct chrePalGnssApi *chrePalGnssGetApi(uint32_t requestedApiVersion) {
