@@ -55,8 +55,10 @@
 #endif
 
 #ifdef CONFIG_CHRE_SENSORS_SUPPORT_ENABLED
-#include "apps/test/common/chre_cross_validator_sensor/src/chre_cross_validator_sensor.cc"
-#include "apps/test/common/chre_cross_validator_sensor/src/chre_cross_validator_sensor_manager.cc"
+//#include
+//"apps/test/common/chre_cross_validator_sensor/src/chre_cross_validator_sensor.cc"
+//#include
+//"apps/test/common/chre_cross_validator_sensor/src/chre_cross_validator_sensor_manager.cc"
 #endif
 
 //    fatal error: pb_decode.h: No such file or directory
