@@ -113,10 +113,12 @@ void chrePalSensorApiClose(void) {
     }
 
     free(gSensorContext.infoContext[i].buffer);
+    gSensorContext.infoContext[i].buffer = nullptr;
   }
 
   if (gSensorContext.loop.fd) {
     orb_loop_deinit(&gSensorContext.loop);
+    gSensorContext.loop.fd = 0;
   }
 }
 
