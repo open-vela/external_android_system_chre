@@ -21,6 +21,9 @@
 #include <string>
 
 #include "chre/platform/shared/nanoapp_support_lib_dso.h"
+#ifdef WASM_CHRE
+#include "wasm_export.h"
+#endif
 
 namespace chre {
 
@@ -146,6 +149,45 @@ class PlatformNanoappBase {
   //! The number of bytes of the binary that has been loaded so far.
   size_t mBytesLoaded = 0;
 
+#ifdef WASM_CHRE
+  //! Flag used to check whether it is Wasm naoapp
+  bool mIsWASM = false;
+
+  struct WASMhandle {
+      //! The buffer storing Wasm file
+      uint8_t *WASMFileBuf = nullptr;
+
+      //! The size of the buffer stroring Wasm file
+      uint32_t WASMFileSize;
+
+      bool isXipFile;
+
+      //! The Wasm module
+      wasm_module_t WASMModule = nullptr;
+
+      //! The Wasm module instance instantiating from Wasm module
+      wasm_module_inst_t WASMModuleInstance = nullptr;
+
+      //! The execution environment related to Wasm module instance
+      wasm_exec_env_t execEnv = nullptr;
+
+      //! The stack size of the Wasm moudle instance
+      uint32_t stackSize = 16 * 1024;
+
+      //! The heap size of the Wasm module instance
+      uint32_t heapSize = 16 * 1024;
+
+      //! The Wasm funcion pointer to nanoappStart
+      wasm_function_inst_t nanoappStartFromWASM;
+
+      //! The Wasm funcion pointer to nanoappHandleEvent
+      wasm_function_inst_t nanoappHandleEventFromWASM;
+
+      //! The Wasm funcion pointer to nanoappEnd
+      wasm_function_inst_t nanoappEndFromWASM;
+  } mWASMHandle;
+#endif
+
   /**
    * Calls through to openNanoappFromFile if the nanoapp was loaded from a
    * shared object or returns true if the nanoapp is static.
@@ -155,6 +197,13 @@ class PlatformNanoappBase {
   bool openNanoapp();
 
   /**
+   * Calls through to openNanoappFromWASMFile or openNanoappFromELFFile
+   * by the app filename, fetches and validates the app info pointer.
+   * This will result in execution of any on-load handlers in the nanoapp.
+   */
+  bool openNanoappFromFile();
+
+  /**
    * Calls dlopen on the app filename, and fetches and validates the app info
    * pointer. This will result in execution of any on-load handlers (e.g.
    * static global constructors) in the nanoapp.
@@ -162,7 +211,19 @@ class PlatformNanoappBase {
    * @return true if the app was opened successfully and the app info
    *         structure passed validation
    */
-  bool openNanoappFromFile();
+  bool openNanoappFromELFFile();
+
+#ifdef WASM_CHRE
+  /**
+   * Use WAMR to load a Wasm nanoapp by the app filename, fetches and
+   * validates the app info pointer. This will result in execution of any
+   * on-load handlers in the nanoapp.
+   *
+   * @return true if the app was opened successfully and the app info
+   *         structure passed validation
+   */
+  bool openNanoappFromWASMFile();
+#endif  
 
   /**
    * Releases the DSO handle if it was active, by calling dlclose(). This will

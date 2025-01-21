@@ -17,6 +17,9 @@
 #include "chre/core/init.h"
 
 #include "chre/core/event_loop_manager.h"
+#ifdef WASM_CHRE
+#include "chre/platform/nuttx/wasm/chre_wasm_embed.h"
+#endif
 #include "chre/platform/system_time.h"
 #include "chre/platform/version.h"
 #include "chre/util/singleton.h"
@@ -30,10 +33,18 @@ void init() {
 
   SystemTime::init();
   EventLoopManagerSingleton::init();
+
+#ifdef WASM_CHRE
+  WebAssemblyMicroRuntime::init();
+#endif
 }
 
 void deinit() {
   EventLoopManagerSingleton::deinit();
+
+#ifdef WASM_CHRE
+  WebAssemblyMicroRuntime::deinit();
+#endif
 
   LOGD("CHRE deinit");
 }

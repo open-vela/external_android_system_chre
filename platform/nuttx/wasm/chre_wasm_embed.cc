@@ -18,11 +18,11 @@
 #include "chre/platform/log.h"
 #include "chre/platform/nuttx/wasm/chre_wasm_embed.h"
 
-#include "wamr_custom_init.h"
 #include "wasm_export.h"
 
-namespace chre {
+extern "C" bool wamr_custom_init(RuntimeInitArgs *init_args);
 
+namespace chre {
 static char globalHeapBuffer[CONFIG_CHRE_WASM_HEAP_BUFFER_SIZE] = { 0 };
 
 bool WebAssemblyMicroRuntime::init()

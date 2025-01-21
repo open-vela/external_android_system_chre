@@ -18,8 +18,9 @@
 
 #include <dlfcn.h>
 #include <nuttx/symtab.h>
+#include <fcntl.h>
 #include <sys/stat.h>
-
+#include <sys/mman.h>
 #include <cinttypes>
 
 #include "chre/platform/assert.h"
@@ -30,12 +31,63 @@
 
 extern const struct symtab_s CONFIG_CHRE_SYMTAB_ARRAYNAME[];
 extern const int CONFIG_CHRE_NSYMBOLS_VAR;
+#ifdef WASM_CHRE
+#include "wasm_export.h"
+#endif
 
 namespace chre {
 std::string PlatformNanoappBase::mSavefilename;
 
 PlatformNanoapp::~PlatformNanoapp() { closeNanoapp(); }
 
+#ifdef WASM_CHRE
+bool PlatformNanoapp::start() {
+  uint32_t argv[2] = { 0 };
+  bool success = openNanoapp();
+  if (success) {
+    if (mIsWASM) {
+      success = wasm_runtime_call_wasm(mWASMHandle.execEnv, mWASMHandle.nanoappStartFromWASM, 0, argv);
+      if (!success) {
+        LOGE("Wasm world Error Info: %s", wasm_runtime_get_exception(mWASMHandle.WASMModuleInstance));
+      } else {
+        success = static_cast<bool>(argv[0]);
+      }
+    } else {
+      success = mAppInfo->entryPoints.start();
+    }
+  }
+  return success;
+}
+
+void PlatformNanoapp::handleEvent(uint32_t senderInstanceId, uint16_t eventType,
+                                  const void *eventData) {
+  uint32_t argv[4];
+  wasm_module_inst_t module_inst = get_module_inst(mWASMHandle.execEnv);
+
+  if (mIsWASM) {
+    argv[0] = senderInstanceId;
+    argv[1] = eventType;
+    argv[2] = addr_native_to_app((void *)eventData);
+    if (!wasm_runtime_call_wasm(mWASMHandle.execEnv, mWASMHandle.nanoappHandleEventFromWASM, 3, argv)) {
+      LOGE("Wasm world Error Info: %s", wasm_runtime_get_exception(mWASMHandle.WASMModuleInstance));
+    }
+  } else {
+    mAppInfo->entryPoints.handleEvent(senderInstanceId, eventType, eventData);
+  }
+}
+
+void PlatformNanoapp::end() {
+  uint32_t argv[2];
+  if (mIsWASM) {
+    if (!wasm_runtime_call_wasm(mWASMHandle.execEnv, mWASMHandle.nanoappEndFromWASM, 0, argv)) {
+      LOGE("Wasm world Error Info: %s", wasm_runtime_get_exception(mWASMHandle.WASMModuleInstance));
+    }
+  } else {
+    mAppInfo->entryPoints.end();
+  }
+  closeNanoapp();
+}
+#else
 bool PlatformNanoapp::start() {
   return openNanoapp() && mAppInfo->entryPoints.start();
 }
@@ -49,12 +101,13 @@ void PlatformNanoapp::end() {
   mAppInfo->entryPoints.end();
   closeNanoapp();
 }
+#endif
 
 uint64_t PlatformNanoapp::getAppId() const {
   return (mAppInfo == nullptr) ? 0 : mAppInfo->appId;
 }
 
-uint32_t PlatformNanoapp::getAppVersion() const { return mAppInfo->appVersion; }
+uint32_t PlatformNanoapp::getAppVersion() const { return mAppInfo ? mAppInfo->appVersion : 0; }
 
 uint32_t PlatformNanoapp::getTargetApiVersion() const {
   return CHRE_API_VERSION;
@@ -190,7 +243,7 @@ bool PlatformNanoappBase::copyNanoappFragment(const void *buffer,
   return true;
 }
 
-bool PlatformNanoappBase::openNanoappFromFile() {
+bool PlatformNanoappBase::openNanoappFromELFFile() {
   CHRE_ASSERT(!mFilename.empty());
   CHRE_ASSERT_LOG(mDsoHandle == nullptr, "Re-opening nanoapp");
   bool success = false;
@@ -236,6 +289,113 @@ bool PlatformNanoappBase::openNanoappFromFile() {
   return success;
 }
 
+bool PlatformNanoappBase::openNanoappFromFile() {
+  CHRE_ASSERT(!mFilename.empty());
+  bool success = false;
+#ifdef WASM_CHRE
+  success = openNanoappFromWASMFile();
+#endif
+  if (!success) {
+    success = openNanoappFromELFFile();
+  }
+  return success;
+}
+
+#ifdef WASM_CHRE
+bool PlatformNanoappBase::openNanoappFromWASMFile() {
+  CHRE_ASSERT(!mFilename.empty());
+  CHRE_ASSERT_LOG(mDsoHandle == nullptr && mWASMHandle.execEnv == nullptr, "Re-opening nanoapp");
+  int fd;
+  uint8_t *file_buf;
+  char error_buf[128];
+  struct stat stat_buf;
+
+  if ((fd = open(mFilename.c_str(), O_RDONLY)) < 0) {
+    LOGE("Open Wasm file failed!");
+    goto fail0;
+  }
+
+  if (fstat(fd, &stat_buf) != 0) {
+    LOGE("Stat Wasm file failed!");
+    goto fail0;
+  }
+
+  mWASMHandle.WASMFileSize = stat_buf.st_size;
+  mWASMHandle.WASMFileBuf = (uint8_t *)mmap(NULL, mWASMHandle.WASMFileSize, PROT_READ, MAP_SHARED | MAP_FILE, fd, 0);
+
+  if (!mWASMHandle.WASMFileBuf || mWASMHandle.WASMFileBuf == (uint8_t*)MAP_FAILED) {
+    LOGE("Load Wasm file into buffer failed!");
+    goto fail0;
+  }
+
+  mWASMHandle.isXipFile = true;
+
+  if (!wasm_runtime_is_xip_file(mWASMHandle.WASMFileBuf, mWASMHandle.WASMFileSize)) {
+    file_buf = mWASMHandle.WASMFileBuf;
+    mWASMHandle.WASMFileBuf = (uint8_t *)wasm_runtime_malloc(mWASMHandle.WASMFileSize);
+    if (!mWASMHandle.WASMFileBuf) {
+      LOGE("Allocate memory for Wasm file failed!");
+      goto fail0;
+    }
+    memcpy(mWASMHandle.WASMFileBuf, file_buf, mWASMHandle.WASMFileSize);
+    munmap(file_buf, mWASMHandle.WASMFileSize);
+    mWASMHandle.isXipFile = false;
+  }
+
+  if (!(mWASMHandle.WASMModule = wasm_runtime_load(mWASMHandle.WASMFileBuf, mWASMHandle.WASMFileSize, error_buf, sizeof(error_buf)))) {
+    LOGE("Load Wasm module from buffer failed!");
+    goto fail1;
+  }
+
+  if (!(mWASMHandle.WASMModuleInstance = wasm_runtime_instantiate(mWASMHandle.WASMModule, mWASMHandle.stackSize, mWASMHandle.heapSize, error_buf, sizeof(error_buf)))) {
+    LOGE("Instantitate Wasm instance from module failed!");
+    goto fail2;
+  }
+
+  if (!(mWASMHandle.execEnv = wasm_runtime_create_exec_env(mWASMHandle.WASMModuleInstance, mWASMHandle.heapSize))) {
+    LOGE("Create Wasm execution environment from instance failed!");
+    goto fail3;
+  }
+
+  mWASMHandle.nanoappStartFromWASM
+      = wasm_runtime_lookup_function(mWASMHandle.WASMModuleInstance, "nanoappStart");
+  mWASMHandle.nanoappHandleEventFromWASM
+      = wasm_runtime_lookup_function(mWASMHandle.WASMModuleInstance, "nanoappHandleEvent");
+  mWASMHandle.nanoappEndFromWASM
+      = wasm_runtime_lookup_function(mWASMHandle.WASMModuleInstance, "nanoappEnd");
+
+  if (!mWASMHandle.nanoappStartFromWASM || !mWASMHandle.nanoappHandleEventFromWASM
+      || !mWASMHandle.nanoappEndFromWASM) {
+    LOGE("Failed to lookup_function in wasm runtime");
+    goto fail4;
+  }
+
+  mIsWASM = true;
+  close(fd);
+  return true;
+fail4:
+    mWASMHandle.nanoappStartFromWASM = nullptr;
+    mWASMHandle.nanoappHandleEventFromWASM = nullptr;
+    mWASMHandle.nanoappEndFromWASM = nullptr;
+    wasm_runtime_destroy_exec_env(mWASMHandle.execEnv);
+fail3:
+    mWASMHandle.execEnv = nullptr;
+    wasm_runtime_deinstantiate(mWASMHandle.WASMModuleInstance);
+fail2:
+    mWASMHandle.WASMModuleInstance = nullptr;
+    wasm_runtime_unload(mWASMHandle.WASMModule);
+fail1:
+    mWASMHandle.WASMModule = nullptr;
+    munmap(mWASMHandle.WASMFileBuf, mWASMHandle.WASMFileSize);
+fail0:
+    mWASMHandle.WASMFileBuf = nullptr;
+    if (fd > 0) {
+      close(fd);
+    }
+    return false;
+}
+#endif
+
 void PlatformNanoappBase::closeNanoapp() {
   if (mDsoHandle != nullptr) {
     mAppInfo = nullptr;
@@ -244,6 +404,24 @@ void PlatformNanoappBase::closeNanoapp() {
     }
     mDsoHandle = nullptr;
   }
+#ifdef WASM_CHRE
+  else if (mIsWASM) {
+    wasm_runtime_destroy_exec_env(mWASMHandle.execEnv);
+    wasm_runtime_deinstantiate(mWASMHandle.WASMModuleInstance);
+    wasm_runtime_unload(mWASMHandle.WASMModule);
+    if (mWASMHandle.isXipFile) {
+      munmap(mWASMHandle.WASMFileBuf, mWASMHandle.WASMFileSize);
+    } else {
+      wasm_runtime_free(mWASMHandle.WASMFileBuf);
+    }
+
+    mIsWASM = false;
+    mWASMHandle.execEnv = nullptr;
+    mWASMHandle.WASMModuleInstance = nullptr;
+    mWASMHandle.WASMModule = nullptr;
+    mWASMHandle.WASMFileBuf = nullptr;
+  }
+#endif
 }
 
 }  // namespace chre
