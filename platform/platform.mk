@@ -557,7 +557,9 @@ NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/tracing.cc
 NUTTX_SRCS += $(CHRE_PREFIX)/platform/shared/version.cc
 
 # Optional chre wasm nanoapp support.
+ifneq ($(CONFIG_CHRE_WASM),)
 NUTTX_SRCS += $(CHRE_PREFIX)/platform/nuttx/wasm/chre_wasm_embed.cc
+endif
 
 # Optional audio support.
 ifeq ($(CHRE_AUDIO_SUPPORT_ENABLED), true)

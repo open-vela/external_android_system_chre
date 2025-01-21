@@ -14,23 +14,21 @@
  * limitations under the License.
  */
 
-#ifdef CONFIG_CHRE_WASM
 #include <cstring>
 #include "chre/platform/log.h"
 #include "chre/platform/nuttx/wasm/chre_wasm_embed.h"
-#include "wasm_call_native_api.h"
+
+#include "wamr_custom_init.h"
 #include "wasm_export.h"
 
 namespace chre {
 
 static char globalHeapBuffer[CONFIG_CHRE_WASM_HEAP_BUFFER_SIZE] = { 0 };
-static NativeSymbol *native_symbols;
 
 bool WebAssemblyMicroRuntime::init()
 {
     RuntimeInitArgs init_args;
     bool success = true;
-    uint32_t n_native_symbols = 0;
     memset(&init_args, 0, sizeof(RuntimeInitArgs));
 
     /* configure the memory allocator for the runtime */
@@ -38,14 +36,8 @@ bool WebAssemblyMicroRuntime::init()
     init_args.mem_alloc_option.pool.heap_buf = globalHeapBuffer;
     init_args.mem_alloc_option.pool.heap_size = sizeof(globalHeapBuffer);
 
-    /* configure the native functions being exported to wasm app */
-    n_native_symbols = get_ext_export_apis(&native_symbols);
-    init_args.native_module_name = "env";
-    init_args.n_native_symbols = n_native_symbols;
-    init_args.native_symbols = native_symbols;
-
     /* initialize runtime environment with user configurations*/
-    if (!wasm_runtime_full_init(&init_args)) {
+    if (!wamr_custom_init(&init_args)) {
         LOGE("WAMR env initialization failed!");
         success = false;
     }
@@ -55,9 +47,7 @@ bool WebAssemblyMicroRuntime::init()
 
 void WebAssemblyMicroRuntime::deinit()
 {
-    wasm_runtime_unregister_natives("env", native_symbols);
     wasm_runtime_destroy();
 }
 
 }  // namespace chre
-#endif
