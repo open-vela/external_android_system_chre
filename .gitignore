@@ -11,3 +11,4 @@ out
 Make.dep
 *.map
 /host/nuttx
+symtab.c
