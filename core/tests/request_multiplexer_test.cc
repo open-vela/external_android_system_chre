@@ -295,7 +295,7 @@ TEST(RequestMultiplexer, AddManyUpdateWithLowerPriority) {
 
   {
     FakeRequest request(8);
-    bool maximalRequestChanged;
+    bool maximalRequestChanged = false;
     multiplexer.updateRequest(1, request, &maximalRequestChanged);
     EXPECT_FALSE(maximalRequestChanged);
     EXPECT_EQ(multiplexer.getRequests()[1].getPriority(), 8);
@@ -339,7 +339,7 @@ TEST(RequestMultiplexer, AddManyUpdateWithLowerPriorityMoveSemantics) {
 
   {
     FakeRequest request(8);
-    bool maximalRequestChanged;
+    bool maximalRequestChanged = false;
     multiplexer.updateRequest(1, std::move(request), &maximalRequestChanged);
     EXPECT_FALSE(maximalRequestChanged);
     EXPECT_EQ(multiplexer.getRequests()[1].getPriority(), 8);
