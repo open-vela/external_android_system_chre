@@ -3,6 +3,7 @@ CXXEXT = .cc
 OUT=$(shell pwd)/out
 HEADER_SUFFIX = ".napp_header"
 WASM_SUFFIX = ".wasm"
+BIN = libchrenanoapp$(LIBEXT)
 
 ANDROID_BUILD_TOP = $(APPDIR)/external/android
 PATH_CHRE = $(ANDROID_BUILD_TOP)/system/chre/chre
@@ -142,8 +143,7 @@ postinstall::
 	cp $(BINDIR)/$(PROGNAME) $(NANOAPP_OUT)
 	cp $(NAPP_HEADER) $(NANOAPP_OUT)
 
-BIN = libchrenanoapp$(LIBEXT)
-LDLIBS += $(BIN)
+LDLIBS += --whole-archive $(BIN) --no-whole-archive
 
 ifneq ($(NUTTX_DSO_PROGNAME),)
   PROGNAME = $(NUTTX_DSO_PROGNAME)

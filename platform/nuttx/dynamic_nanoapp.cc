@@ -32,7 +32,7 @@ extern "C" DLL_EXPORT const char _chreNanoappUnstableId[]
     __attribute__((section(".unstable_id"))) __attribute__((aligned(8))) =
         NANOAPP_UNSTABLE_ID;
 
-extern "C" DLL_EXPORT const struct chreNslNanoappInfo _chreNslDsoNanoappInfo = {
+extern "C" DLL_EXPORT visibility_default const struct chreNslNanoappInfo _chreNslDsoNanoappInfo = {
     CHRE_NSL_NANOAPP_INFO_MAGIC,
     CHRE_NSL_NANOAPP_INFO_STRUCT_MINOR_VERSION,
     NANOAPP_IS_SYSTEM_NANOAPP,
@@ -76,18 +76,11 @@ static const struct symtab_s g_chre_exports[4] = {
     },
 };
 
-static int module_uninitialize(void *arg) {
-  LOGI("module_uninitialize: arg=%p\n", arg);
-  return OK;
+destructor_function void module_uninitialize(void) {
+  LOGI("module_uninitialize\n");
 }
 
-extern "C" int module_initialize(struct mod_info_s *modinfo) {
-  LOGI("module_initialize:\n");
-
-  modinfo->uninitializer = module_uninitialize;
-  modinfo->arg = NULL;
-  modinfo->exports = g_chre_exports;
-  modinfo->nexports = 4;
-
-  return OK;
+extern "C" constructor_fuction void module_initialize(void) {
+  int ret = dlsymtab((FAR struct symtab_s *)g_chre_exports, 4);
+  LOGI("module_initialize %d\n", ret);
 }
