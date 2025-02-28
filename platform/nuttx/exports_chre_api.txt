@@ -110,3 +110,4 @@ platform_chreDebugDumpVaLog
 chreConfigureHostEndpointNotifications
 chrePublishRpcServices
 chreGetHostEndpointInfo
+dlsymtab
