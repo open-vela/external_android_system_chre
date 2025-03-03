@@ -17,6 +17,7 @@
 #include "chre/platform/platform_nanoapp.h"
 
 #include <dlfcn.h>
+#include <nuttx/symtab.h>
 #include <sys/stat.h>
 
 #include <cinttypes>
@@ -26,6 +27,9 @@
 #include "chre/platform/shared/nanoapp_dso_util.h"
 #include "chre/util/system/napp_permissions.h"
 #include "chre_api/chre/version.h"
+
+extern const struct symtab_s CONFIG_CHRE_SYMTAB_ARRAYNAME[];
+extern const int CONFIG_CHRE_NSYMBOLS_VAR;
 
 namespace chre {
 std::string PlatformNanoappBase::mSavefilename;
@@ -190,6 +194,13 @@ bool PlatformNanoappBase::openNanoappFromFile() {
   CHRE_ASSERT(!mFilename.empty());
   CHRE_ASSERT_LOG(mDsoHandle == nullptr, "Re-opening nanoapp");
   bool success = false;
+  int ret;
+
+  ret = dlsymtab(CONFIG_CHRE_SYMTAB_ARRAYNAME, CONFIG_CHRE_NSYMBOLS_VAR);
+  if (ret != 0) {
+    LOGE("Failed to set symbol table %s: %d, %s", mFilename.c_str(), ret,
+         dlerror());
+  }
 
   mDsoHandle = dlopen(mFilename.c_str(), RTLD_NOW | RTLD_GLOBAL);
   if (mDsoHandle == nullptr) {
