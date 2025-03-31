@@ -28,6 +28,7 @@
 #include "chre/platform/shared/nanoapp_dso_util.h"
 #include "chre/util/system/napp_permissions.h"
 #include "chre_api/chre/version.h"
+#include "chre/platform/memory.h"
 
 extern const struct symtab_s CONFIG_CHRE_SYMTAB_ARRAYNAME[];
 extern const int CONFIG_CHRE_NSYMBOLS_VAR;
@@ -309,6 +310,7 @@ bool PlatformNanoappBase::openNanoappFromWASMFile() {
   uint8_t *file_buf;
   char error_buf[128];
   struct stat stat_buf;
+  struct chreNslNanoappInfo *app_info;
 
   if ((fd = open(mFilename.c_str(), O_RDONLY)) < 0) {
     LOGE("Open Wasm file failed!");
@@ -372,7 +374,20 @@ bool PlatformNanoappBase::openNanoappFromWASMFile() {
     goto fail4;
   }
 
+  app_info = (struct chreNslNanoappInfo *)memoryAlloc(sizeof(struct chreNslNanoappInfo));
+  if (!app_info) {
+    LOGE("Failed to allocate memory for app info");
+    goto fail4;
+  }
+
   mIsWASM = true;
+  memset(app_info, 0, sizeof(struct chreNslNanoappInfo));
+  // for wasm nanoapp, use the app infomation from the nanoapp header directly
+  app_info->appId = mExpectedAppId;
+  app_info->appVersion = mExpectedAppVersion;
+  app_info->targetApiVersion = mExpectedTargetApiVersion;
+  app_info->name = mFilename.c_str();
+  mAppInfo = app_info;
   close(fd);
   return true;
 fail4:
@@ -404,6 +419,9 @@ fail0:
 
 void PlatformNanoappBase::closeNanoapp() {
   if (mDsoHandle != nullptr) {
+    if (mIsWASM) {
+      memoryFree((void *)mAppInfo);
+    }
     mAppInfo = nullptr;
     if (dlclose(mDsoHandle) != 0) {
       LOGE("dlclose failed: %s", dlerror());
