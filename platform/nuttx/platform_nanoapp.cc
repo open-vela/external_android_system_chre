@@ -331,10 +331,12 @@ bool PlatformNanoappBase::openNanoappFromWASMFile() {
   mWASMHandle.isXipFile = true;
 
   if (!wasm_runtime_is_xip_file(mWASMHandle.WASMFileBuf, mWASMHandle.WASMFileSize)) {
+    mWASMHandle.isXipFile = false;
     file_buf = mWASMHandle.WASMFileBuf;
     mWASMHandle.WASMFileBuf = (uint8_t *)wasm_runtime_malloc(mWASMHandle.WASMFileSize);
     if (!mWASMHandle.WASMFileBuf) {
       LOGE("Allocate memory for Wasm file failed!");
+      munmap(file_buf, mWASMHandle.WASMFileSize);
       goto fail0;
     }
     memcpy(mWASMHandle.WASMFileBuf, file_buf, mWASMHandle.WASMFileSize);
@@ -386,7 +388,11 @@ fail2:
     wasm_runtime_unload(mWASMHandle.WASMModule);
 fail1:
     mWASMHandle.WASMModule = nullptr;
-    munmap(mWASMHandle.WASMFileBuf, mWASMHandle.WASMFileSize);
+    if (mWASMHandle.isXipFile) {
+      munmap(mWASMHandle.WASMFileBuf, mWASMHandle.WASMFileSize);
+    } else {
+      wasm_runtime_free(mWASMHandle.WASMFileBuf);
+    }
 fail0:
     mWASMHandle.WASMFileBuf = nullptr;
     if (fd > 0) {
@@ -409,10 +415,12 @@ void PlatformNanoappBase::closeNanoapp() {
     wasm_runtime_destroy_exec_env(mWASMHandle.execEnv);
     wasm_runtime_deinstantiate(mWASMHandle.WASMModuleInstance);
     wasm_runtime_unload(mWASMHandle.WASMModule);
-    if (mWASMHandle.isXipFile) {
-      munmap(mWASMHandle.WASMFileBuf, mWASMHandle.WASMFileSize);
-    } else {
-      wasm_runtime_free(mWASMHandle.WASMFileBuf);
+    if (mWASMHandle.WASMFileBuf) {
+      if (mWASMHandle.isXipFile) {
+        munmap(mWASMHandle.WASMFileBuf, mWASMHandle.WASMFileSize);
+      } else {
+        wasm_runtime_free(mWASMHandle.WASMFileBuf);
+      }
     }
 
     mIsWASM = false;
