@@ -32,7 +32,7 @@
 
 extern const struct symtab_s CONFIG_CHRE_SYMTAB_ARRAYNAME[];
 extern const int CONFIG_CHRE_NSYMBOLS_VAR;
-#ifdef WASM_CHRE
+#ifdef CHRE_WASM
 #include "wasm_export.h"
 #endif
 
@@ -41,7 +41,7 @@ std::string PlatformNanoappBase::mSavefilename;
 
 PlatformNanoapp::~PlatformNanoapp() { closeNanoapp(); }
 
-#ifdef WASM_CHRE
+#ifdef CHRE_WASM
 bool PlatformNanoapp::start() {
   uint32_t argv[2] = { 0 };
   bool success = openNanoapp();
@@ -293,7 +293,7 @@ bool PlatformNanoappBase::openNanoappFromELFFile() {
 bool PlatformNanoappBase::openNanoappFromFile() {
   CHRE_ASSERT(!mFilename.empty());
   bool success = false;
-#ifdef WASM_CHRE
+#ifdef CHRE_WASM
   success = openNanoappFromWASMFile();
 #endif
   if (!success) {
@@ -302,7 +302,7 @@ bool PlatformNanoappBase::openNanoappFromFile() {
   return success;
 }
 
-#ifdef WASM_CHRE
+#ifdef CHRE_WASM
 bool PlatformNanoappBase::openNanoappFromWASMFile() {
   CHRE_ASSERT(!mFilename.empty());
   CHRE_ASSERT_LOG(mDsoHandle == nullptr && mWASMHandle.execEnv == nullptr, "Re-opening nanoapp");
@@ -419,16 +419,18 @@ fail0:
 
 void PlatformNanoappBase::closeNanoapp() {
   if (mDsoHandle != nullptr) {
+#ifdef CHRE_WASM
     if (mIsWASM) {
       memoryFree((void *)mAppInfo);
     }
+#endif
     mAppInfo = nullptr;
     if (dlclose(mDsoHandle) != 0) {
       LOGE("dlclose failed: %s", dlerror());
     }
     mDsoHandle = nullptr;
   }
-#ifdef WASM_CHRE
+#ifdef CHRE_WASM
   else if (mIsWASM) {
     wasm_runtime_destroy_exec_env(mWASMHandle.execEnv);
     wasm_runtime_deinstantiate(mWASMHandle.WASMModuleInstance);

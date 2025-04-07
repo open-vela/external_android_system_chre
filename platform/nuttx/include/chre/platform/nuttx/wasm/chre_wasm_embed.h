@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CHRE_PLATFORM_NUTTX_WASM_CHRE_WASM_EMBED_H_
-#define CHRE_PLATFORM_NUTTX_WASM_CHRE_WASM_EMBED_H_
+#ifndef CHRE_PLATFORM_NUTTX_CHRE_WASM_WASM_EMBED_H_
+#define CHRE_PLATFORM_NUTTX_CHRE_WASM_WASM_EMBED_H_
 
 namespace chre {
 class WebAssemblyMicroRuntime {
@@ -33,4 +33,4 @@ class WebAssemblyMicroRuntime {
 };
 }
 
-#endif  // CHRE_PLATFORM_NUTTX_WASM_CHRE_WASM_EMBED_H_
+#endif  // CHRE_PLATFORM_NUTTX_CHRE_WASM_WASM_EMBED_H_

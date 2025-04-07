@@ -21,7 +21,7 @@
 #include <string>
 
 #include "chre/platform/shared/nanoapp_support_lib_dso.h"
-#ifdef WASM_CHRE
+#ifdef CHRE_WASM
 #include "wasm_export.h"
 #endif
 
@@ -149,7 +149,7 @@ class PlatformNanoappBase {
   //! The number of bytes of the binary that has been loaded so far.
   size_t mBytesLoaded = 0;
 
-#ifdef WASM_CHRE
+#ifdef CHRE_WASM
   //! Flag used to check whether it is Wasm naoapp
   bool mIsWASM = false;
 
@@ -213,7 +213,7 @@ class PlatformNanoappBase {
    */
   bool openNanoappFromELFFile();
 
-#ifdef WASM_CHRE
+#ifdef CHRE_WASM
   /**
    * Use WAMR to load a Wasm nanoapp by the app filename, fetches and
    * validates the app info pointer. This will result in execution of any
@@ -223,7 +223,7 @@ class PlatformNanoappBase {
    *         structure passed validation
    */
   bool openNanoappFromWASMFile();
-#endif  
+#endif
 
   /**
    * Releases the DSO handle if it was active, by calling dlclose(). This will
