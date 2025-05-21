@@ -6,7 +6,8 @@
 
 # Include paths.
 COMMON_CFLAGS += -I$(CHRE_PREFIX)/core/include
-
+COMMON_CFLAGS += -Wno-error=array-compare
+COMMON_CFLAGS += -Wno-error=shadow
 # Common Source Files ##########################################################
 
 COMMON_SRCS += $(CHRE_PREFIX)/core/debug_dump_manager.cc
