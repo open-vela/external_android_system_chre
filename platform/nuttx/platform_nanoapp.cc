@@ -63,9 +63,11 @@ bool PlatformNanoapp::start() {
 void PlatformNanoapp::handleEvent(uint32_t senderInstanceId, uint16_t eventType,
                                   const void *eventData) {
   uint32_t argv[4];
-  wasm_module_inst_t module_inst = get_module_inst(mWASMHandle.execEnv);
-
-  if (mIsWASM) {
+  wasm_module_inst_t module_inst = nullptr;
+  if (mWASMHandle.execEnv) {
+    module_inst = get_module_inst(mWASMHandle.execEnv);
+  }
+  if (module_inst && mIsWASM) {
     argv[0] = senderInstanceId;
     argv[1] = eventType;
     argv[2] = addr_native_to_app((void *)eventData);
