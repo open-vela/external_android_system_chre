@@ -364,11 +364,11 @@ bool PlatformNanoappBase::openNanoappFromWASMFile() {
   }
 
   mWASMHandle.nanoappStartFromWASM
-      = wasm_runtime_lookup_function(mWASMHandle.WASMModuleInstance, "nanoappStart", NULL);
+      = wasm_runtime_lookup_function(mWASMHandle.WASMModuleInstance, "nanoappStart");
   mWASMHandle.nanoappHandleEventFromWASM
-      = wasm_runtime_lookup_function(mWASMHandle.WASMModuleInstance, "nanoappHandleEvent", NULL);
+      = wasm_runtime_lookup_function(mWASMHandle.WASMModuleInstance, "nanoappHandleEvent");
   mWASMHandle.nanoappEndFromWASM
-      = wasm_runtime_lookup_function(mWASMHandle.WASMModuleInstance, "nanoappEnd", NULL);
+      = wasm_runtime_lookup_function(mWASMHandle.WASMModuleInstance, "nanoappEnd");
 
   if (!mWASMHandle.nanoappStartFromWASM || !mWASMHandle.nanoappHandleEventFromWASM
       || !mWASMHandle.nanoappEndFromWASM) {
