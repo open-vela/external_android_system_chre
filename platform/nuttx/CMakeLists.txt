@@ -127,7 +127,6 @@ if(CONFIG_CHRE)
       ${CHRE_PREFIX}/platform/include
       ${CHRE_PREFIX}/platform/shared/include
       ${CHRE_PREFIX}/util/include
-      ${CHRE_PREFIX}/std_overrides/include
       ${CMAKE_CURRENT_SOURCE_DIR}/include
       ${CHRE_PREFIX}/apps/include
       ${CHRE_PREFIX}/platform/shared/sensor_pal/include
